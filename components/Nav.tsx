@@ -5,29 +5,31 @@ export function Nav() {
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-paper/80 backdrop-blur-md">
       <nav className="mx-auto flex max-w-3xl items-center justify-between gap-2 px-4 py-3">
+        {/* Logo */}
         <Link
           href="/"
-          className="group flex items-center gap-2 transition-opacity hover:opacity-90"
+          className="flex shrink-0 items-center gap-1.5 transition-opacity hover:opacity-90"
         >
           <span
             aria-hidden
-            className="inline-block h-2 w-2 rounded-full bg-accent transition-transform group-hover:scale-125"
+            className="inline-block h-2 w-2 rounded-full bg-accent"
           />
-          <span className="font-serif text-[1.35rem] font-semibold leading-none tracking-tight text-ink">
+          <span className="font-serif text-[1.15rem] font-semibold leading-none tracking-tight text-ink sm:text-[1.35rem]">
             Wetin Dey
           </span>
         </Link>
 
-        <div className="flex items-center gap-0.5 text-[0.875rem]">
+        {/* Nav links */}
+        <div className="flex items-center gap-0.5 text-[0.8125rem] sm:text-[0.875rem]">
           <Link
             href="/"
-            className="rounded-lg px-3 py-2 text-muted transition-colors hover:bg-ink/5 hover:text-ink"
+            className="hidden rounded-lg px-3 py-2 text-muted transition-colors hover:bg-ink/5 hover:text-ink sm:block"
           >
             Talk Am
           </Link>
           <Link
             href="/community"
-            className="rounded-lg px-3 py-2 text-muted transition-colors hover:bg-ink/5 hover:text-ink"
+            className="hidden rounded-lg px-3 py-2 text-muted transition-colors hover:bg-ink/5 hover:text-ink sm:block"
           >
             Community
           </Link>
@@ -39,13 +41,11 @@ export function Nav() {
           </Link>
           <Link
             href="/submit"
-            className="ml-1 rounded-xl bg-warm px-3 py-2 font-medium text-white shadow-button transition-all hover:bg-warm-deep"
+            className="rounded-xl bg-warm px-3 py-2 font-medium text-white shadow-button transition-all hover:bg-warm-deep sm:px-4"
           >
             Post
           </Link>
-          <div className="ml-1">
-            <UserMenu />
-          </div>
+          <UserMenu />
         </div>
       </nav>
     </header>
