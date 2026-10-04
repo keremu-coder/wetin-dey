@@ -73,7 +73,7 @@ export default async function CommunityPage({
               <Link
                 key={p.id}
                 href={`/r/${p.id}`}
-                className="group block overflow-hidden rounded-2xl border border-border bg-surface shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover"
+                className="group relative block rounded-2xl border border-border bg-surface shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover"
               >
                 <div className="p-5">
                   <div className="flex items-center gap-2 text-[0.7rem] uppercase tracking-wide text-faint">

@@ -6,6 +6,7 @@ import { formatNaira, nearestState } from "@/lib/constants";
 import type { Report } from "@/lib/types";
 import { ReviewedFlag } from "./ReviewedFlag";
 import { StatusBadge } from "./StatusBadge";
+import { PostActions } from "./PostActions";
 
 function avatarColor(seed: string): string {
   let h = 0;
@@ -32,12 +33,17 @@ function timeAgo(date: string): string {
   if (hrs < 24) return `${hrs}h`;
   const days = Math.floor(hrs / 24);
   if (days < 7) return `${days}d`;
-  return new Date(date).toLocaleDateString("en-NG", { month: "short", day: "numeric" });
+  return new Date(date).toLocaleDateString("en-NG", {
+    month: "short",
+    day: "numeric"
+  });
 }
 
 export function ReportCard({ report }: { report: Report }) {
   const title = report.agency_canonical || report.agency_raw;
   const blurb = report.summary_pidgin || report.body.slice(0, 180);
+  const postType = report.post_type ?? "report_am";
+  const isReport = postType === "report_am";
 
   const handleRaw =
     (report as unknown as { author_handle?: string | null }).author_handle || null;
@@ -46,27 +52,22 @@ export function ReportCard({ report }: { report: Report }) {
   const avatarLetter = (hasHandle ? handleRaw!.charAt(0) : "A").toUpperCase();
   const avatarBg = avatarColor(handleRaw || report.id);
 
-  const authorInner = (
-    <>
-      <div
-        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${avatarBg} text-[0.95rem] font-semibold text-white shadow-sm`}
-        aria-hidden
-      >
-        {avatarLetter}
-      </div>
-      <div className="min-w-0">
-        <p className="truncate text-[0.875rem] font-medium text-ink">{authorLabel}</p>
-        <p className="font-mono text-[0.7rem] uppercase tracking-wide text-faint">
-          {timeAgo(report.created_at)} · {report.state}
-          {report.lga ? ` · ${report.lga}` : ""}
-        </p>
-      </div>
-    </>
-  );
+  // Reported counts (fall back to 0 if the migration hasn't populated yet)
+  const upvotes = (report as unknown as { upvotes?: number }).upvotes ?? 0;
+  const downvotes = (report as unknown as { downvotes?: number }).downvotes ?? 0;
+  const meToo =
+    (report as unknown as { me_too_count?: number }).me_too_count ?? 0;
+  const commentCount =
+    (report as unknown as { comment_count?: number }).comment_count ?? 0;
+  const evidenceLink =
+    (report as unknown as { evidence_link?: string | null }).evidence_link ?? null;
+
+  const postUrl = `/r/${report.id}`;
 
   return (
-    <article className="group overflow-hidden rounded-2xl border border-border bg-surface shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover">
+    <article className="group relative rounded-2xl border border-border bg-surface shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover">
       <div className="p-5">
+        {/* Header */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             {hasHandle ? (
@@ -74,36 +75,84 @@ export function ReportCard({ report }: { report: Report }) {
                 href={`/u/${encodeURIComponent(handleRaw!)}`}
                 className="flex min-w-0 items-center gap-3 transition-opacity hover:opacity-80"
               >
-                {authorInner}
+                <div
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${avatarBg} text-[0.95rem] font-semibold text-white shadow-sm`}
+                >
+                  {avatarLetter}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-[0.875rem] font-medium text-ink">
+                    {authorLabel}
+                  </p>
+                  <p className="font-mono text-[0.7rem] uppercase tracking-wide text-faint">
+                    {timeAgo(report.created_at)} · {report.state}
+                    {report.lga ? ` · ${report.lga}` : ""}
+                  </p>
+                </div>
               </Link>
             ) : (
-              authorInner
+              <>
+                <div
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${avatarBg} text-[0.95rem] font-semibold text-white shadow-sm`}
+                >
+                  {avatarLetter}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-[0.875rem] font-medium text-ink">
+                    {authorLabel}
+                  </p>
+                  <p className="font-mono text-[0.7rem] uppercase tracking-wide text-faint">
+                    {timeAgo(report.created_at)} · {report.state}
+                    {report.lga ? ` · ${report.lga}` : ""}
+                  </p>
+                </div>
+              </>
             )}
           </div>
           <ReviewedFlag reviewed={report.reviewed} />
         </div>
 
-        <Link href={`/r/${report.id}`} className="mt-4 block">
+        {/* Title */}
+        <Link href={postUrl} className="mt-4 block">
           <h3 className="font-serif text-[1.35rem] font-semibold leading-tight text-ink transition-colors group-hover:text-accent">
             {title}
           </h3>
         </Link>
 
+        {/* Blurb */}
         <p className="mt-2 line-clamp-3 text-[0.9375rem] leading-relaxed text-ink/85">
           {blurb}
         </p>
 
-        <div className="mt-4 flex flex-wrap items-center gap-2">
+        {/* Status row */}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           <StatusBadge status={report.status} />
           {report.amount_kobo != null ? (
             <span className="rounded-full bg-warm-soft px-2.5 py-1 text-[0.75rem] font-medium text-warm-deep">
               {formatNaira(report.amount_kobo)}
             </span>
           ) : null}
-          <span className="rounded-full bg-ink/5 px-2.5 py-1 text-[0.7rem] capitalize text-muted">
+          <Link
+            href={`/?category=${encodeURIComponent(report.category)}`}
+            className="rounded-full bg-ink/5 px-2.5 py-1 text-[0.7rem] capitalize text-muted transition-colors hover:bg-accent-soft hover:text-accent-deep"
+          >
             {report.category}
-          </span>
+          </Link>
         </div>
+
+        {/* Actions */}
+        <PostActions
+          postId={report.id}
+          isReport={isReport}
+          authorHandle={handleRaw}
+          isOwnPost={false}
+          initialUpvotes={upvotes}
+          initialDownvotes={downvotes}
+          initialMeToo={meToo}
+          commentCount={commentCount}
+          evidenceLink={evidenceLink}
+          postUrl={postUrl}
+        />
       </div>
     </article>
   );
@@ -119,7 +168,9 @@ export function HomeFeed({
   filters: { state?: string; category?: string; agency?: string };
 }) {
   const [tab, setTab] = useState<"near" | "all">("near");
-  const [nearState, setNearState] = useState<string | null>(filters.state ?? null);
+  const [nearState, setNearState] = useState<string | null>(
+    filters.state ?? null
+  );
 
   useEffect(() => {
     if (!navigator.geolocation) return;
@@ -174,9 +225,24 @@ export function HomeFeed({
         </button>
       </div>
 
-      <p className="mb-6 text-[0.75rem] leading-relaxed text-faint">
-        Near you dey use rough location for your phone. We no save coordinates.
-      </p>
+      {filters.category ? (
+        <div className="mb-4 flex items-center gap-2">
+          <span className="text-[0.8125rem] text-muted">Showing category:</span>
+          <span className="rounded-full bg-accent-soft px-3 py-1 text-[0.75rem] font-medium capitalize text-accent-deep">
+            {filters.category}
+          </span>
+          <a
+            href="/"
+            className="text-[0.75rem] text-faint underline hover:text-accent"
+          >
+            clear
+          </a>
+        </div>
+      ) : (
+        <p className="mb-6 text-[0.75rem] leading-relaxed text-faint">
+          Near you dey use rough location for your phone. We no save coordinates.
+        </p>
+      )}
 
       <div className="space-y-4">
         {shown.map((r) => (
