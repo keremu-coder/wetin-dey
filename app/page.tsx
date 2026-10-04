@@ -1,16 +1,24 @@
+import Link from "next/link";
 import { HomeFeed } from "@/components/ReportCard";
 import { PAGE_SIZE } from "@/lib/constants";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { stripSession, type Report } from "@/lib/types";
-import Link from "next/link";
 
 export const dynamic = "force-dynamic";
+
+const TALK_AM_TYPES = ["report_am", "ask", "help"];
 
 export default async function HomePage({
   searchParams
 }: {
-  searchParams: { page?: string; state?: string; category?: string; agency?: string; status?: string };
+  searchParams: {
+    page?: string;
+    state?: string;
+    category?: string;
+    agency?: string;
+    status?: string;
+  };
 }) {
   const page = Math.max(1, Number(searchParams.page ?? "1") || 1);
   const sessionId = await getSessionId();
@@ -19,11 +27,13 @@ export default async function HomePage({
   const { count: reviewedCount } = await db
     .from("reports")
     .select("id", { count: "exact", head: true })
-    .eq("reviewed", true);
+    .eq("reviewed", true)
+    .in("post_type", TALK_AM_TYPES);
 
   let q = db
     .from("reports")
     .select("*")
+    .in("post_type", TALK_AM_TYPES)
     .order("created_at", { ascending: false })
     .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
 
@@ -43,24 +53,47 @@ export default async function HomePage({
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8">
-      <h1 className="font-serif text-4xl leading-tight">Wetin Dey</h1>
-      <p className="mt-2 text-ink/70">Talk am. See wetin others dey talk. No name, no wahala.</p>
-      <div className="mt-6">
-        <HomeFeed
-          reports={reports}
-          page={page}
-          filters={{
-            state: searchParams.state,
-            category: searchParams.category,
-            agency: searchParams.agency
-          }}
-        />
+      {/* Tab switcher */}
+      <div className="mb-6 flex gap-2 border-b border-border">
+        <Link
+          href="/"
+          className="border-b-2 border-accent px-4 py-3 font-serif text-[1.05rem] font-semibold text-ink"
+        >
+          Talk Am
+        </Link>
+        <Link
+          href="/community"
+          className="border-b-2 border-transparent px-4 py-3 font-serif text-[1.05rem] font-semibold text-muted transition-colors hover:text-ink"
+        >
+          Community
+        </Link>
       </div>
+
+      <div className="mb-6">
+        <h1 className="font-serif text-[2rem] font-semibold leading-tight text-ink">
+          Talk Am
+        </h1>
+        <p className="mt-1 text-[0.9375rem] leading-relaxed text-muted">
+          Civic reports and accountability. Everything here requires evidence.
+          Nothing gets deleted. Nothing carries ads. Ever.
+        </p>
+      </div>
+
+      <HomeFeed
+        reports={reports}
+        page={page}
+        filters={{
+          state: searchParams.state,
+          category: searchParams.category,
+          agency: searchParams.agency
+        }}
+      />
+
       <Link
-        href="/submit"
-        className="mt-10 flex min-h-[52px] items-center justify-center rounded-lg bg-accent text-lg font-medium text-white"
+        href="/submit?tab=talk"
+        className="mt-10 flex min-h-[52px] items-center justify-center rounded-2xl bg-warm px-5 font-serif text-[1.05rem] font-semibold text-white shadow-button transition-all hover:bg-warm-deep hover:shadow-card"
       >
-        Talk Am
+        Report Wetin Happen
       </Link>
     </main>
   );

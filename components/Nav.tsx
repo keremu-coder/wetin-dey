@@ -22,31 +22,37 @@ export function Nav() {
             href="/"
             className="rounded-lg px-3 py-2 text-muted transition-colors hover:bg-ink/5 hover:text-ink"
           >
-            Home
+            Talk Am
+          </Link>
+          <Link
+            href="/community"
+            className="rounded-lg px-3 py-2 text-muted transition-colors hover:bg-ink/5 hover:text-ink"
+          >
+            Community
           </Link>
           <Link
             href="/explore"
-            className="rounded-lg px-3 py-2 text-muted transition-colors hover:bg-ink/5 hover:text-ink"
+            className="hidden rounded-lg px-3 py-2 text-muted transition-colors hover:bg-ink/5 hover:text-ink sm:block"
           >
             Explore
           </Link>
           <Link
             href="/me"
-            className="rounded-lg px-3 py-2 text-muted transition-colors hover:bg-ink/5 hover:text-ink"
+            className="hidden rounded-lg px-3 py-2 text-muted transition-colors hover:bg-ink/5 hover:text-ink sm:block"
           >
             My posts
           </Link>
           <Link
-            href="/join"
+            href="/settings"
             className="hidden rounded-lg px-3 py-2 text-muted transition-colors hover:bg-ink/5 hover:text-ink sm:block"
           >
-            Join
+            Settings
           </Link>
           <Link
             href="/submit"
             className="ml-1 rounded-xl bg-warm px-4 py-2 font-medium text-white shadow-button transition-all hover:bg-warm-deep hover:shadow-card"
           >
-            Talk Am
+            Post
           </Link>
         </div>
       </nav>
@@ -62,14 +68,20 @@ export function SiteFooter() {
           Wetin Dey na community. Anonymous if you want. No court judgment — na talk.
         </p>
         <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-[0.8125rem] text-faint">
-          <Link href="/disclaimer" className="transition-colors hover:text-accent">
-            Disclaimer
+          <Link href="/terms" className="transition-colors hover:text-accent">
+            Terms
           </Link>
           <Link href="/privacy" className="transition-colors hover:text-accent">
             Privacy
           </Link>
+          <Link href="/guidelines" className="transition-colors hover:text-accent">
+            Guidelines
+          </Link>
           <Link href="/takedown" className="transition-colors hover:text-accent">
             Takedown
+          </Link>
+          <Link href="/support" className="transition-colors hover:text-accent">
+            Support
           </Link>
           <span className="ml-auto font-mono text-[0.75rem] text-faint">
             made in Nigeria 🇳🇬
