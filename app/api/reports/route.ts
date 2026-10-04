@@ -5,7 +5,7 @@ import { nanoid } from "nanoid";
 import { CATEGORIES, NIGERIA_STATES, PAGE_SIZE } from "@/lib/constants";
 import { stripExifServer } from "@/lib/exif";
 import { originAllowed, jsonError } from "@/lib/http";
-import { allowReport, hashDedupe } from "@/lib/rateLimit";
+import { hashDedupe } from "@/lib/rateLimit";
 import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { stripSession, type Report } from "@/lib/types";
@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
   let q = db
     .from("reports")
     .select(
-      "id, created_at, category, agency_raw, agency_canonical, state, lga, body, amount_kobo, evidence_url, evidence_type, evidence_link, evidence_label, summary_pidgin, summary_english, incident_date, status, reviewed, reviewer_note, formalization_confidence, dedupe_hash, author_handle, post_type"
+      "id, created_at, category, agency_raw, agency_canonical, state, lga, body, amount_kobo, evidence_url, evidence_type, evidence_link, evidence_label, summary_pidgin, summary_english, incident_date, status, reviewed, reviewer_note, formalization_confidence, dedupe_hash, author_handle, post_type, upvotes, downvotes, me_too_count, comment_count"
     )
     .order("created_at", { ascending: false })
     .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
@@ -67,17 +67,13 @@ export async function POST(req: NextRequest) {
   let sessionId: string | null = null;
   try {
     sessionId = await getSessionId();
-  } catch (e) {
+  } catch {
     return jsonError("session error", 500);
   }
   if (!sessionId) return jsonError("no session", 401);
 
   const profile = await getOrCreateSessionProfile(sessionId);
   if (!profile) return jsonError("profile failed", 500);
-
-  if (!allowReport(sessionId)) {
-    return jsonError("slow down — too many posts this hour", 429);
-  }
 
   let form: FormData;
   try {
@@ -95,7 +91,6 @@ export async function POST(req: NextRequest) {
   const amountRaw = String(form.get("amount") ?? "").trim();
   const anonymous = true;
 
-  // Validate post type
   if (!ALLOWED_TYPES.includes(postType)) {
     return jsonError("post type no correct", 400);
   }
@@ -103,7 +98,6 @@ export async function POST(req: NextRequest) {
   const isTalkReport = postType === "report_am";
   const requiresEvidence = isTalkReport;
 
-  // Evidence
   const file = form.get("evidence");
   const publicLink = String(form.get("public_link") ?? "").trim();
   const voiceTestimony = form.get("voice_testimony");
@@ -145,7 +139,6 @@ export async function POST(req: NextRequest) {
   else if (evidenceType === "public_link")
     evidenceLabel = "Backed by public source";
 
-  // Validation
   if (!CATEGORIES.includes(category as (typeof CATEGORIES)[number])) {
     return jsonError("category no correct", 400);
   }
@@ -212,12 +205,22 @@ export async function POST(req: NextRequest) {
         contentType: "audio/webm",
         upsert: false
       });
-      if (up.error) return jsonError("Voice upload failed: " + up.error.message, 500);
+      if (up.error) {
+        return jsonError("Voice upload failed: " + up.error.message, 500);
+      }
       evidenceUrl = db.storage.from("evidence").getPublicUrl(path).data.publicUrl;
     } catch (e) {
       return jsonError("Voice error: " + (e as Error).message, 500);
     }
   }
+
+  // Compute the dedupe hash — based on WHAT, not WHO
+  const dedupe_hash = hashDedupe({
+    category,
+    agency_canonical: agency_raw,
+    state,
+    lga
+  });
 
   const row = {
     id,
@@ -239,23 +242,21 @@ export async function POST(req: NextRequest) {
     post_type: postType,
     requires_evidence: requiresEvidence,
     is_per_post_anonymous: false,
-    dedupe_hash: hashDedupe([
-      sessionId,
-      postType,
-      agency_raw.toLowerCase(),
-      state,
-      body.slice(0, 200)
-    ])
+    dedupe_hash
   };
 
   const { data, error } = await db.from("reports").insert(row).select("*").single();
 
   if (error) {
+    // Postgres trigger-based rate limit
+    if (String(error.message).toLowerCase().includes("rate limit")) {
+      return jsonError("slow down — too many posts this hour", 429);
+    }
     console.error("INSERT FAILED:", error);
     return jsonError("DB error: " + error.message, 500);
   }
 
-  // Only auto-formalize Talk Am reports — community posts don't need summaries
+  // Auto-formalize only real Talk Am reports
   if (postType === "report_am") {
     try {
       const { formalizeReport } = await import("@/lib/formalize");
@@ -265,21 +266,23 @@ export async function POST(req: NextRequest) {
         state,
         body,
         amount_kobo
-      }).then(async (output) => {
-        if (output && output.confidence >= 0.5) {
-          await db
-            .from("reports")
-            .update({
-              summary_pidgin: output.summary_pidgin,
-              summary_english: output.summary_english,
-              agency_canonical: output.agency_canonical,
-              incident_date: output.incident_date,
-              formalization_confidence: output.confidence,
-              reviewed: output.confidence >= 0.7
-            })
-            .eq("id", id);
-        }
-      }).catch(() => {});
+      })
+        .then(async (output) => {
+          if (output && output.confidence >= 0.5) {
+            await db
+              .from("reports")
+              .update({
+                summary_pidgin: output.summary_pidgin,
+                summary_english: output.summary_english,
+                agency_canonical: output.agency_canonical,
+                incident_date: output.incident_date,
+                formalization_confidence: output.confidence,
+                reviewed: output.confidence >= 0.7
+              })
+              .eq("id", id);
+          }
+        })
+        .catch(() => {});
     } catch {
       /* ignore */
     }

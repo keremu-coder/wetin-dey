@@ -1,40 +1,38 @@
+// lib/rateLimit.ts
+// Only dedupe hashing lives here.
+// Rate limiting is enforced by the Postgres trigger on public.reports,
+// which works correctly across serverless invocations.
+
 import { createHash } from "crypto";
-import { COMMENTS_PER_HOUR, PUBLIC_FEED_PER_MIN, REPORTS_PER_HOUR } from "./constants";
 
-type Bucket = { timestamps: number[] };
+export type DedupeInput = {
+  category: string;
+  agency_canonical: string;
+  state: string;
+  lga?: string | null;
+};
 
-const memory = new Map<string, Bucket>();
-
-function prune(bucket: Bucket, windowMs: number, now: number) {
-  bucket.timestamps = bucket.timestamps.filter((t) => now - t < windowMs);
-}
-
-function hit(key: string, limit: number, windowMs: number): boolean {
-  const now = Date.now();
-  const bucket = memory.get(key) ?? { timestamps: [] };
-  prune(bucket, windowMs, now);
-  if (bucket.timestamps.length >= limit) {
-    memory.set(key, bucket);
-    return false;
-  }
-  bucket.timestamps.push(now);
-  memory.set(key, bucket);
-  return true;
-}
-
-export function allowReport(sessionId: string): boolean {
-  return hit(`report:${sessionId}`, REPORTS_PER_HOUR, 60 * 60 * 1000);
-}
-
-export function allowComment(sessionId: string): boolean {
-  return hit(`comment:${sessionId}`, COMMENTS_PER_HOUR, 60 * 60 * 1000);
-}
-
-export function allowPublicFeed(ip: string): boolean {
-  const hashed = createHash("sha256").update(ip).digest("hex");
-  return hit(`public:${hashed}`, PUBLIC_FEED_PER_MIN, 60 * 1000);
-}
-
-export function hashDedupe(parts: string[]): string {
-  return createHash("sha256").update(parts.join("|")).digest("hex");
+/**
+ * Compute a dedupe hash for pattern detection.
+ *
+ * Two reports about the same agency, same category, same location,
+ * in the same calendar week → same hash. This is what lets us say
+ * "14th report against this office this week" without needing to know
+ * who filed them.
+ *
+ * Deliberately NOT included:
+ *  - session_id (would defeat the purpose)
+ *  - body text (wording varies for the same complaint)
+ *  - exact timestamp (would make every report unique)
+ */
+export function hashDedupe(input: DedupeInput): string {
+  const weekBucket = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000));
+  const parts = [
+    input.category.toLowerCase().trim(),
+    input.agency_canonical.toLowerCase().trim(),
+    input.state.toLowerCase().trim(),
+    (input.lga ?? "").toLowerCase().trim(),
+    String(weekBucket)
+  ];
+  return createHash("sha256").update(parts.join("|")).digest("hex").slice(0, 32);
 }
