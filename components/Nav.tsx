@@ -1,9 +1,10 @@
 import Link from "next/link";
+import { UserMenu } from "./UserMenu";
 
 export function Nav() {
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-paper/80 backdrop-blur-md">
-      <nav className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3">
+      <nav className="mx-auto flex max-w-3xl items-center justify-between gap-2 px-4 py-3">
         <Link
           href="/"
           className="group flex items-center gap-2 transition-opacity hover:opacity-90"
@@ -17,7 +18,7 @@ export function Nav() {
           </span>
         </Link>
 
-        <div className="flex flex-wrap items-center gap-0.5 text-[0.875rem]">
+        <div className="flex items-center gap-0.5 text-[0.875rem]">
           <Link
             href="/"
             className="rounded-lg px-3 py-2 text-muted transition-colors hover:bg-ink/5 hover:text-ink"
@@ -32,28 +33,19 @@ export function Nav() {
           </Link>
           <Link
             href="/explore"
-            className="hidden rounded-lg px-3 py-2 text-muted transition-colors hover:bg-ink/5 hover:text-ink sm:block"
+            className="hidden rounded-lg px-3 py-2 text-muted transition-colors hover:bg-ink/5 hover:text-ink md:block"
           >
             Explore
           </Link>
           <Link
-            href="/me"
-            className="hidden rounded-lg px-3 py-2 text-muted transition-colors hover:bg-ink/5 hover:text-ink sm:block"
-          >
-            My posts
-          </Link>
-          <Link
-            href="/settings"
-            className="hidden rounded-lg px-3 py-2 text-muted transition-colors hover:bg-ink/5 hover:text-ink sm:block"
-          >
-            Settings
-          </Link>
-          <Link
             href="/submit"
-            className="ml-1 rounded-xl bg-warm px-4 py-2 font-medium text-white shadow-button transition-all hover:bg-warm-deep hover:shadow-card"
+            className="ml-1 rounded-xl bg-warm px-3 py-2 font-medium text-white shadow-button transition-all hover:bg-warm-deep"
           >
             Post
           </Link>
+          <div className="ml-1">
+            <UserMenu />
+          </div>
         </div>
       </nav>
     </header>
