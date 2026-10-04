@@ -1,83 +1,86 @@
+"use client";
+
 import Link from "next/link";
-import { UserMenu } from "./UserMenu";
+import { useEffect, useState } from "react";
 
-export function Nav() {
+type WhoAmI = { handle: string; handle_kind: string } | null;
+
+export function UserMenu() {
+  const [me, setMe] = useState<WhoAmI>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/whoami")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d?.handle && d?.handle_kind === "named") {
+          setMe({ handle: d.handle, handle_kind: d.handle_kind });
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoaded(true));
+  }, []);
+
+  async function signOut() {
+    await fetch("/api/auth/signout", { method: "POST" });
+    window.location.href = "/";
+  }
+
+  if (!loaded) return null;
+
+  if (!me) {
+    return (
+      <Link
+        href="/signin"
+        className="rounded-xl bg-accent px-3 py-2 text-[0.8125rem] font-medium text-white shadow-button transition-all hover:bg-accent-deep sm:px-4"
+      >
+        Sign in
+      </Link>
+    );
+  }
+
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-paper/80 backdrop-blur-md">
-      <nav className="mx-auto flex max-w-3xl items-center justify-between gap-2 px-4 py-3">
-        <Link
-          href="/"
-          className="flex shrink-0 items-center gap-1.5 transition-opacity hover:opacity-90"
-        >
-          <span
-            aria-hidden
-            className="inline-block h-2 w-2 rounded-full bg-accent"
-          />
-          <span className="font-serif text-[1.15rem] font-semibold leading-none tracking-tight text-ink sm:text-[1.35rem]">
-            Wetin Dey
-          </span>
-        </Link>
-
-        <div className="flex items-center gap-0.5 text-[0.8125rem] sm:text-[0.875rem]">
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-2 rounded-lg px-2 py-2 text-muted transition-colors hover:bg-ink/5 hover:text-ink"
+      >
+        <span className="inline-block h-2 w-2 rounded-full bg-accent" />
+        <span className="max-w-[90px] truncate text-[0.8125rem]">
+          @{me.handle}
+        </span>
+      </button>
+      {open ? (
+        <div className="absolute right-0 top-full z-20 mt-1 w-48 rounded-xl border border-border bg-surface p-1 shadow-card-hover">
           <Link
-            href="/"
-            className="hidden rounded-lg px-3 py-2 text-muted transition-colors hover:bg-ink/5 hover:text-ink sm:block"
+            href={`/u/${encodeURIComponent(me.handle)}`}
+            className="block rounded-lg px-3 py-2 text-left text-[0.8125rem] text-ink hover:bg-ink/5"
           >
-            Talk Am
+            View profile
           </Link>
           <Link
-            href="/community"
-            className="hidden rounded-lg px-3 py-2 text-muted transition-colors hover:bg-ink/5 hover:text-ink sm:block"
+            href="/me"
+            className="block rounded-lg px-3 py-2 text-left text-[0.8125rem] text-ink hover:bg-ink/5"
           >
-            Community
+            My posts
           </Link>
           <Link
-            href="/explore"
-            className="hidden rounded-lg px-3 py-2 text-muted transition-colors hover:bg-ink/5 hover:text-ink md:block"
+            href="/settings"
+            className="block rounded-lg px-3 py-2 text-left text-[0.8125rem] text-ink hover:bg-ink/5"
           >
-            Explore
+            Settings
           </Link>
-          <Link
-            href="/submit"
-            className="rounded-xl bg-warm px-3 py-2 font-medium text-white shadow-button transition-all hover:bg-warm-deep sm:px-4"
+          <button
+            type="button"
+            onClick={signOut}
+            className="block w-full rounded-lg px-3 py-2 text-left text-[0.8125rem] text-danger hover:bg-danger-soft"
           >
-            Post
-          </Link>
-          <UserMenu />
+            Sign out
+          </button>
         </div>
-      </nav>
-    </header>
-  );
-}
-
-export function SiteFooter() {
-  return (
-    <footer className="mx-auto mt-16 max-w-3xl px-4 pb-12">
-      <div className="border-t border-border pt-6">
-        <p className="text-[0.875rem] leading-relaxed text-muted">
-          Wetin Dey na community. Anonymous if you want. No court judgment — na talk.
-        </p>
-        <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-[0.8125rem] text-faint">
-          <Link href="/terms" className="transition-colors hover:text-accent">
-            Terms
-          </Link>
-          <Link href="/privacy" className="transition-colors hover:text-accent">
-            Privacy
-          </Link>
-          <Link href="/guidelines" className="transition-colors hover:text-accent">
-            Guidelines
-          </Link>
-          <Link href="/takedown" className="transition-colors hover:text-accent">
-            Takedown
-          </Link>
-          <Link href="/support" className="transition-colors hover:text-accent">
-            Support
-          </Link>
-          <span className="ml-auto font-mono text-[0.75rem] text-faint">
-            made in Nigeria 🇳🇬
-          </span>
-        </div>
-      </div>
-    </footer>
+      ) : null}
+    </div>
   );
 }
