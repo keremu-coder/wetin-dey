@@ -1,0 +1,64 @@
+import { nanoid } from "nanoid";
+import { originAllowed, jsonError } from "@/lib/http";
+import { getSessionId } from "@/lib/session";
+import { createServiceClient } from "@/lib/supabase/server";
+
+export async function GET(
+  _req: Request,
+  { params }: { params: { id: string } }
+) {
+  const sessionId = await getSessionId();
+  const db = createServiceClient();
+  const { data: report } = await db.from("reports").select("id, reviewed, session_id").eq("id", params.id).maybeSingle();
+  if (!report) return jsonError("no dey", 404);
+  if (!report.reviewed && report.session_id !== sessionId) return jsonError("no dey", 404);
+
+  const { count } = await db
+    .from("me_toos")
+    .select("id", { count: "exact", head: true })
+    .eq("report_id", params.id);
+
+  let mine = false;
+  if (sessionId) {
+    const { data: existing } = await db
+      .from("me_toos")
+      .select("id")
+      .eq("report_id", params.id)
+      .eq("session_id", sessionId)
+      .maybeSingle();
+    mine = Boolean(existing);
+  }
+
+  return Response.json({ count: count ?? 0, mine });
+}
+
+export async function POST(
+  req: Request,
+  { params }: { params: { id: string } }
+) {
+  if (!originAllowed(req)) return jsonError("origin blocked", 403);
+  const sessionId = await getSessionId();
+  if (!sessionId) return jsonError("no session", 401);
+
+  const db = createServiceClient();
+  const { data: report } = await db.from("reports").select("id, reviewed, session_id").eq("id", params.id).maybeSingle();
+  if (!report) return jsonError("no dey", 404);
+  if (!report.reviewed && report.session_id !== sessionId) return jsonError("no dey", 404);
+
+  const { error } = await db.from("me_toos").insert({
+    id: nanoid(),
+    report_id: params.id,
+    session_id: sessionId
+  });
+
+  if (error && !String(error.message).toLowerCase().includes("duplicate")) {
+    return jsonError("no fit add me-too", 500);
+  }
+
+  const { count } = await db
+    .from("me_toos")
+    .select("id", { count: "exact", head: true })
+    .eq("report_id", params.id);
+
+  return Response.json({ count: count ?? 0, mine: true });
+}
