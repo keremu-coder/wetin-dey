@@ -115,6 +115,9 @@ export type SessionProfile = {
   handle: string;
   handle_kind: "anonymous" | "named";
   display_name: string | null;
+  email: string | null;
+  phone: string | null;
+  auth_provider: string | null;
   bio: string | null;
   avatar_url: string | null;
   karma: number;
