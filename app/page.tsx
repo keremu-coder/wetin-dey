@@ -24,6 +24,17 @@ export default async function HomePage({
   const sessionId = await getSessionId();
   const db = createServiceClient();
 
+  // Current user's handle (for "is this my post?" checks)
+  let currentHandle: string | null = null;
+  if (sessionId) {
+    const { data: me } = await db
+      .from("sessions")
+      .select("handle")
+      .eq("id", sessionId)
+      .maybeSingle();
+    currentHandle = me?.handle ?? null;
+  }
+
   const { count: reviewedCount } = await db
     .from("reports")
     .select("id", { count: "exact", head: true })
@@ -53,7 +64,6 @@ export default async function HomePage({
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8">
-      {/* Tab switcher */}
       <div className="mb-6 flex gap-2 border-b border-border">
         <Link
           href="/"
@@ -82,6 +92,7 @@ export default async function HomePage({
       <HomeFeed
         reports={reports}
         page={page}
+        currentHandle={currentHandle}
         filters={{
           state: searchParams.state,
           category: searchParams.category,
