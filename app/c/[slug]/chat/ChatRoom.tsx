@@ -83,6 +83,7 @@ export function ChatRoom({
   const [recording, setRecording] = useState(false);
   const [recordSeconds, setRecordSeconds] = useState(0);
   const [me, setMe] = useState<string | null>(null);
+  const [mySessionId, setMySessionId] = useState<string | null>(null);
   const [openReactionsFor, setOpenReactionsFor] = useState<string | null>(null);
   const [membersOpen, setMembersOpen] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
@@ -93,12 +94,14 @@ export function ChatRoom({
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const handleCacheRef = useRef<Map<string, string>>(new Map());
-  const lastMessageIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     fetch("/api/whoami")
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => setMe(d?.handle ?? null))
+      .then((d) => {
+        if (d?.handle) setMe(d.handle);
+        if (d?.id) setMySessionId(d.id);
+      })
       .catch(() => {});
   }, []);
 
@@ -110,7 +113,6 @@ export function ChatRoom({
       .then((d) => {
         if (cancelled || !d?.members) return;
         setMembers(d.members);
-        // Warm the handle cache
         for (const m of d.members as Member[]) {
           handleCacheRef.current.set(m.session_id, m.handle);
         }
@@ -122,7 +124,6 @@ export function ChatRoom({
     };
   }, [slug]);
 
-  // Initial messages load
   useEffect(() => {
     let cancelled = false;
 
@@ -130,11 +131,7 @@ export function ChatRoom({
       .then((r) => (r.ok ? r.json() : null))
       .then((json) => {
         if (cancelled || !json?.messages) return;
-        const list = json.messages as Message[];
-        setMessages(list);
-        if (list.length > 0) {
-          lastMessageIdRef.current = list[list.length - 1].id;
-        }
+        setMessages(json.messages as Message[]);
       })
       .catch(() => {});
 
@@ -143,9 +140,8 @@ export function ChatRoom({
     };
   }, [slug]);
 
-  // Realtime — use payload directly, no full re-fetch
   useEffect(() => {
-    if (!isMember) return;
+    if (!isMember || !mySessionId) return;
 
     let channel: ReturnType<
       ReturnType<typeof getBrowserClient>["channel"]
@@ -155,7 +151,7 @@ export function ChatRoom({
       const supabase = getBrowserClient();
 
       channel = supabase
-        .channel(`community:${slug}`)
+        .channel(`community:${slug}:${mySessionId}`)
         .on(
           "postgres_changes",
           {
@@ -163,7 +159,7 @@ export function ChatRoom({
             schema: "public",
             table: "community_messages"
           },
-          async (payload) => {
+          (payload) => {
             const row = payload.new as {
               id: string;
               session_id: string;
@@ -172,38 +168,11 @@ export function ChatRoom({
               created_at: string;
             };
 
-            // Dedupe by id
-            let alreadyHave = false;
-            setMessages((prev) => {
-              if (prev.some((m) => m.id === row.id)) {
-                alreadyHave = true;
-                return prev;
-              }
-              return prev;
-            });
-            if (alreadyHave) return;
+            // Skip our own messages — we already added them locally
+            if (row.session_id === mySessionId) return;
 
-            // Resolve handle — from cache, or fetch once
-            let handle = handleCacheRef.current.get(row.session_id) ?? null;
-            let lastSeen: string | null = null;
-
-            if (!handle) {
-              try {
-                const res = await fetch("/api/whoami?sid=" + row.session_id);
-                // Fallback — some setups don't support ?sid, so try members
-                if (res.ok) {
-                  const d = await res.json();
-                  if (d?.handle) handle = d.handle;
-                }
-              } catch {
-                /* ignore */
-              }
-            }
-
-            if (!handle) {
-              handle = "Anonymous";
-            }
-            handleCacheRef.current.set(row.session_id, handle);
+            const handle =
+              handleCacheRef.current.get(row.session_id) ?? "Anonymous";
 
             const incoming: Message = {
               id: row.id,
@@ -211,19 +180,17 @@ export function ChatRoom({
               audio_url: row.audio_url,
               created_at: row.created_at,
               author_handle: handle,
-              author_last_seen: lastSeen,
+              author_last_seen: null,
               reactions: []
             };
 
-            // Ping only if from someone else
-            const fromMe = me && handle === me;
-            if (!fromMe) {
-              if (soundOn) playBbmPing();
-              if (vibrateOn) vibrate(35);
-            }
+            if (soundOn) playBbmPing();
+            if (vibrateOn) vibrate(35);
 
-            setMessages((prev) => [...prev, incoming]);
-            lastMessageIdRef.current = row.id;
+            setMessages((prev) => {
+              if (prev.some((m) => m.id === row.id)) return prev;
+              return [...prev, incoming];
+            });
 
             setTimeout(() => {
               const el = scrollRef.current;
@@ -239,7 +206,7 @@ export function ChatRoom({
     } catch {
       return;
     }
-  }, [slug, isMember, me, soundOn, vibrateOn]);
+  }, [slug, isMember, mySessionId, soundOn, vibrateOn]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -275,7 +242,6 @@ export function ChatRoom({
         setBusy(false);
         return;
       }
-      // Add own message locally if realtime hasn't already
       setMessages((prev) => {
         if (prev.some((m) => m.id === json.message.id)) return prev;
         return [...prev, json.message];
@@ -404,7 +370,6 @@ export function ChatRoom({
 
   return (
     <div className="fixed inset-x-0 top-0 bottom-0 flex flex-col bg-paper">
-      {/* Header */}
       <header className="flex items-center justify-between gap-2 border-b border-border bg-paper/95 px-3 py-2.5 backdrop-blur-md">
         <div className="flex min-w-0 items-center gap-2">
           <Link
@@ -474,7 +439,6 @@ export function ChatRoom({
         </div>
       </header>
 
-      {/* Messages canvas */}
       <div
         ref={scrollRef}
         className="chat-canvas flex-1 overflow-y-auto px-3 py-4"
@@ -662,7 +626,6 @@ export function ChatRoom({
         )}
       </div>
 
-      {/* Composer */}
       <form
         onSubmit={send}
         className="border-t border-border bg-paper/95 px-3 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] backdrop-blur-md"
@@ -721,7 +684,6 @@ export function ChatRoom({
         </div>
       </form>
 
-      {/* Members sheet */}
       {membersOpen ? (
         <>
           <div
@@ -752,9 +714,7 @@ export function ChatRoom({
                 Chat settings
               </p>
               <div className="flex items-center justify-between py-2">
-                <span className="text-[0.875rem] text-ink">
-                  Ping sound
-                </span>
+                <span className="text-[0.875rem] text-ink">Ping sound</span>
                 <button
                   type="button"
                   onClick={() => setSoundOn((v) => !v)}
@@ -839,10 +799,7 @@ function MemberGroup({
           const presence = presenceFromLastSeen(m.last_seen_at);
           const bg = avatarColor(m.handle);
           return (
-            <div
-              key={m.session_id}
-              className="flex items-center gap-3 px-4 py-3"
-            >
+            <div key={m.session_id} className="flex items-center gap-3 px-4 py-3">
               <div className="relative">
                 <div
                   className={`flex h-9 w-9 items-center justify-center rounded-full ${bg} text-[0.85rem] font-semibold text-white`}
