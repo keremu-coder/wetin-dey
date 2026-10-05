@@ -2,6 +2,7 @@ export const runtime = "nodejs";
 
 import { NextRequest } from "next/server";
 import { cookies } from "next/headers";
+import { createClient } from "@supabase/supabase-js";
 import { signSessionId, sessionCookieOptions } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { COOKIE_NAME } from "@/lib/constants";
@@ -21,13 +22,17 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Email and password required." }, { status: 400 });
   }
 
-  const db = createServiceClient();
+  // ─── STEP 1: Verify the password with a FRESH anon client ───
+  // Do NOT use the service role client here. Signing in changes the
+  // client's identity, and the following query would then run under RLS.
+  const anonClient = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { auth: { persistSession: false, autoRefreshToken: false } }
+  );
 
-  // Sign in with Supabase Auth
-  const { data: authData, error: authErr } = await db.auth.signInWithPassword({
-    email,
-    password
-  });
+  const { data: authData, error: authErr } =
+    await anonClient.auth.signInWithPassword({ email, password });
 
   if (authErr || !authData?.user) {
     return Response.json(
@@ -36,12 +41,23 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Find the session row by email
-  const { data: profile } = await db
+  // ─── STEP 2: Look up the session with the SERVICE ROLE client ───
+  // This is a fresh, unauthenticated service-role client, so RLS is
+  // bypassed and we can read the email column.
+  const db = createServiceClient();
+
+  const { data: profile, error: profileErr } = await db
     .from("sessions")
     .select("id, handle, handle_kind")
     .eq("email", email)
     .maybeSingle();
+
+  if (profileErr) {
+    return Response.json(
+      { error: "Server error: " + profileErr.message },
+      { status: 500 }
+    );
+  }
 
   if (!profile) {
     return Response.json(
@@ -50,7 +66,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Issue a new signed cookie pointing at this session id
+  // ─── STEP 3: Issue the session cookie ───
   const cookieValue = await signSessionId(profile.id);
   const jar = cookies();
   jar.set(COOKIE_NAME, cookieValue, sessionCookieOptions());
