@@ -29,7 +29,7 @@ const QUICK_EMOJI = ["😂", "😢", "😮", "❤️", "🔥", "👏", "👍", "
 
 function timeShort(date: string): string {
   return new Date(date).toLocaleTimeString("en-NG", {
-    hour: "2-digit",
+    hour: "numeric",
     minute: "2-digit"
   });
 }
@@ -168,7 +168,6 @@ export function ChatRoom({
               created_at: string;
             };
 
-            // Skip our own messages — we already added them locally
             if (row.session_id === mySessionId) return;
 
             const handle =
@@ -195,7 +194,7 @@ export function ChatRoom({
             setTimeout(() => {
               const el = scrollRef.current;
               if (el) el.scrollTop = el.scrollHeight;
-            }, 50);
+            }, 80);
           }
         )
         .subscribe();
@@ -248,10 +247,11 @@ export function ChatRoom({
       });
       setBody("");
       setBusy(false);
+      if (vibrateOn) vibrate(20);
       setTimeout(() => {
         const el = scrollRef.current;
         if (el) el.scrollTop = el.scrollHeight;
-      }, 50);
+      }, 80);
     } catch {
       setError("Network error");
       setBusy(false);
@@ -370,13 +370,26 @@ export function ChatRoom({
 
   return (
     <div className="fixed inset-x-0 top-0 bottom-0 flex flex-col bg-paper">
-      <header className="flex items-center justify-between gap-2 border-b border-border bg-paper/95 px-3 py-2.5 backdrop-blur-md">
+      {/* Header */}
+      <header className="flex items-center justify-between gap-2 border-b border-border bg-paper/90 px-3 py-2.5 backdrop-blur-xl">
         <div className="flex min-w-0 items-center gap-2">
           <Link
             href={`/c/${slug}`}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-accent transition-colors hover:bg-ink/5"
+            aria-label="Back"
           >
-            ←
+            <svg
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
           </Link>
           <button
             type="button"
@@ -426,7 +439,7 @@ export function ChatRoom({
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              strokeWidth="1.7"
+              strokeWidth="1.9"
               strokeLinecap="round"
               strokeLinejoin="round"
             >
@@ -439,6 +452,7 @@ export function ChatRoom({
         </div>
       </header>
 
+      {/* Messages canvas */}
       <div
         ref={scrollRef}
         className="chat-canvas flex-1 overflow-y-auto px-3 py-4"
@@ -457,7 +471,7 @@ export function ChatRoom({
             </p>
           </div>
         ) : (
-          <div className="space-y-1">
+          <div className="space-y-0.5">
             {messages.map((m, idx) => {
               const prev = idx > 0 ? messages[idx - 1] : null;
               const next = idx < messages.length - 1 ? messages[idx + 1] : null;
@@ -476,8 +490,7 @@ export function ChatRoom({
               const sameSenderAsNext =
                 next && next.author_handle === m.author_handle;
               const showAvatar = !isMe && !sameSenderAsPrev;
-              const groupedSent = isMe && sameSenderAsNext;
-              const groupedReceived = !isMe && sameSenderAsNext;
+              const isLastInGroup = !sameSenderAsNext;
 
               return (
                 <div key={m.id}>
@@ -495,7 +508,7 @@ export function ChatRoom({
                     } ${sameSenderAsPrev ? "mt-0.5" : "mt-2"}`}
                   >
                     <div
-                      className={`flex max-w-[82%] items-end gap-2 ${
+                      className={`flex max-w-[80%] items-end gap-2 ${
                         isMe ? "flex-row-reverse" : ""
                       }`}
                     >
@@ -517,15 +530,17 @@ export function ChatRoom({
                       ) : null}
 
                       <div
-                        className={`group relative bubble-in ${
+                        className={`group relative ${
+                          isMe ? "bubble-in-sent" : "bubble-in-received"
+                        } ${
                           isMe
-                            ? groupedSent
-                              ? "chat-bubble-sent-grouped"
-                              : "chat-bubble-sent"
-                            : groupedReceived
-                            ? "chat-bubble-received-grouped"
-                            : "chat-bubble-received"
-                        } px-3.5 py-2 shadow-sm`}
+                            ? isLastInGroup
+                              ? "chat-bubble-sent"
+                              : "chat-bubble-sent-grouped"
+                            : isLastInGroup
+                            ? "chat-bubble-received"
+                            : "chat-bubble-received-grouped"
+                        } px-3.5 py-2`}
                       >
                         {!isMe && !sameSenderAsPrev ? (
                           <p className="mb-0.5 text-[0.7rem] font-semibold text-accent-deep">
@@ -542,23 +557,35 @@ export function ChatRoom({
                         ) : null}
 
                         {m.body ? (
-                          <p className="whitespace-pre-wrap break-words text-[0.9375rem] leading-snug">
+                          <p className="whitespace-pre-wrap break-words text-[0.9375rem] leading-[1.35]">
                             {m.body}
                           </p>
                         ) : null}
 
                         <div
-                          className={`mt-1 flex items-center justify-end gap-1 text-[0.6rem] ${
-                            isMe ? "text-white/70" : "text-faint"
+                          className={`mt-0.5 flex items-center justify-end gap-1 text-[0.6rem] ${
+                            isMe
+                              ? "text-white/70"
+                              : "text-black/40 dark:text-white/45"
                           }`}
                         >
                           <span className="font-mono">
                             {timeShort(m.created_at)}
                           </span>
                           {isMe ? (
-                            <span className="font-mono" title="Delivered">
-                              ✓
-                            </span>
+                            <svg
+                              width="12"
+                              height="12"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="3"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-label="Sent"
+                            >
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
                           ) : null}
                         </div>
 
@@ -626,12 +653,13 @@ export function ChatRoom({
         )}
       </div>
 
+      {/* Composer */}
       <form
         onSubmit={send}
-        className="border-t border-border bg-paper/95 px-3 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] backdrop-blur-md"
+        className="border-t border-border bg-paper/90 px-3 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] backdrop-blur-xl"
       >
         {recording ? (
-          <div className="mb-2 flex items-center justify-between rounded-xl bg-danger-soft px-3 py-2">
+          <div className="mb-2 flex items-center justify-between rounded-2xl bg-danger-soft px-3 py-2">
             <span className="text-[0.8125rem] font-medium text-danger">
               ● Recording… {recordSeconds}s / 30s
             </span>
@@ -649,20 +677,33 @@ export function ChatRoom({
           <p className="mb-1 text-[0.75rem] text-danger">{error}</p>
         ) : null}
 
-        <div className="flex items-end gap-2">
+        <div className="composer-shell flex items-end gap-2 rounded-3xl border border-border-strong bg-surface px-1.5 py-1">
           <button
             type="button"
             onClick={startVoice}
             disabled={recording || busy}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ink/5 text-[1.1rem] transition-colors hover:bg-ink/10 disabled:opacity-50"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-accent transition-colors hover:bg-ink/5 disabled:opacity-50"
             aria-label="Record voice note"
           >
-            🎙️
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" />
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+              <line x1="12" y1="19" x2="12" y2="22" />
+            </svg>
           </button>
           <textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            placeholder="Type a message…"
+            placeholder="Message"
             rows={1}
             maxLength={500}
             onKeyDown={(e) => {
@@ -671,19 +712,35 @@ export function ChatRoom({
                 send(e as unknown as React.FormEvent);
               }
             }}
-            className="!max-h-24 !min-h-[40px] flex-1 resize-none !py-2 !text-[0.9375rem]"
+            className="!max-h-24 !min-h-[34px] flex-1 resize-none !border-0 !bg-transparent !py-1.5 !text-[0.9375rem] !outline-none !ring-0 focus:!border-0 focus:!ring-0 focus:!shadow-none"
+            style={{ boxShadow: "none" }}
           />
-          <button
-            type="submit"
-            disabled={busy || !body.trim()}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent text-[1rem] text-white transition-colors hover:bg-accent-deep disabled:opacity-40"
-            aria-label="Send"
-          >
-            ➤
-          </button>
+          {body.trim() ? (
+            <button
+              type="submit"
+              disabled={busy}
+              className="mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-[0.95rem] text-white transition-transform hover:bg-accent-deep active:scale-90 disabled:opacity-40"
+              aria-label="Send"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="12" y1="19" x2="12" y2="5" />
+                <polyline points="5 12 12 5 19 12" />
+              </svg>
+            </button>
+          ) : null}
         </div>
       </form>
 
+      {/* Members sheet */}
       {membersOpen ? (
         <>
           <div
@@ -691,7 +748,7 @@ export function ChatRoom({
             onClick={() => setMembersOpen(false)}
           />
           <aside className="fixed right-0 top-0 z-[60] h-full w-[85%] max-w-sm overflow-y-auto border-l border-border bg-paper slide-in-right">
-            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-paper/95 px-4 py-3 backdrop-blur">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-paper/95 px-4 py-3 backdrop-blur-xl">
               <div>
                 <p className="font-serif text-[1.05rem] font-semibold text-ink">
                   Members

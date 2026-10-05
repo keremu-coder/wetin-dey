@@ -1,10 +1,10 @@
-@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=Inter:wght@400;600&family=JetBrains+Mono:wght@400&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap");
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* LIGHT */
+/* ═══ LIGHT THEME ═══ */
 :root,
 :root[data-theme="light"] {
   color-scheme: light;
@@ -25,14 +25,21 @@
   --color-gold-soft: #fefce8;
   --color-border: #eff3f4;
   --color-border-strong: #cfd9de;
-  --color-bubble-received: #f1f3f5;
-  --color-bubble-received-text: #0f1419;
-  --color-bubble-sent: #10b981;
-  --color-bubble-sent-text: #ffffff;
-  --color-chat-bg: #f7f9fa;
+
+  /* Chat palette — iMessage inspired */
+  --bubble-sent-start: #0a84ff;
+  --bubble-sent-end: #0060df;
+  --bubble-sent-text: #ffffff;
+  --bubble-sent-meta: rgba(255, 255, 255, 0.75);
+  --bubble-received: #e9e9eb;
+  --bubble-received-text: #000000;
+  --bubble-received-meta: rgba(0, 0, 0, 0.45);
+  --bubble-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 0 1px rgba(0, 0, 0, 0.08);
+  --chat-bg-top: #f6f8fa;
+  --chat-bg-bottom: #eef1f4;
 }
 
-/* DARK */
+/* ═══ DARK THEME ═══ */
 :root[data-theme="dark"] {
   color-scheme: dark;
   --color-paper: #000000;
@@ -52,11 +59,18 @@
   --color-gold-soft: #2a1f0a;
   --color-border: #2f3336;
   --color-border-strong: #3f4448;
-  --color-bubble-received: #1e2024;
-  --color-bubble-received-text: #e7e9ea;
-  --color-bubble-sent: #10b981;
-  --color-bubble-sent-text: #ffffff;
-  --color-chat-bg: #0a0a0a;
+
+  /* Chat palette — iMessage dark */
+  --bubble-sent-start: #0a84ff;
+  --bubble-sent-end: #0060df;
+  --bubble-sent-text: #ffffff;
+  --bubble-sent-meta: rgba(255, 255, 255, 0.75);
+  --bubble-received: #26252a;
+  --bubble-received-text: #f1f1f3;
+  --bubble-received-meta: rgba(255, 255, 255, 0.5);
+  --bubble-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --chat-bg-top: #0a0a0a;
+  --chat-bg-bottom: #050505;
 }
 
 * { box-sizing: border-box; }
@@ -67,6 +81,7 @@ body {
   color: var(--color-ink);
   font-family: "Inter", system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
   transition: background-color 150ms ease, color 150ms ease;
 }
@@ -128,12 +143,13 @@ textarea { resize: vertical; min-height: 100px; line-height: 1.5; }
 .hide-scrollbar::-webkit-scrollbar { display: none; }
 .hide-scrollbar { scrollbar-width: none; }
 
+/* ═══ ANIMATIONS ═══ */
 @keyframes slide-in-right {
   from { transform: translateX(100%); }
   to { transform: translateX(0); }
 }
 .slide-in-right {
-  animation: slide-in-right 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  animation: slide-in-right 240ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 @keyframes slide-in-up {
@@ -141,46 +157,91 @@ textarea { resize: vertical; min-height: 100px; line-height: 1.5; }
   to { transform: translateY(0); }
 }
 .slide-in-up {
-  animation: slide-in-up 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  animation: slide-in-up 240ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 @keyframes fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
 }
-.fade-in { animation: fade-in 150ms ease-out; }
+.fade-in { animation: fade-in 180ms ease-out; }
 
-@keyframes bubble-in {
-  from { opacity: 0; transform: translateY(4px) scale(0.98); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+@keyframes bubble-in-sent {
+  0% { opacity: 0; transform: translateY(6px) scale(0.92) translateX(8px); }
+  60% { opacity: 1; }
+  100% { opacity: 1; transform: translateY(0) scale(1) translateX(0); }
 }
-.bubble-in { animation: bubble-in 180ms cubic-bezier(0.22, 1, 0.36, 1); }
+@keyframes bubble-in-received {
+  0% { opacity: 0; transform: translateY(6px) scale(0.92) translateX(-8px); }
+  60% { opacity: 1; }
+  100% { opacity: 1; transform: translateY(0) scale(1) translateX(0); }
+}
 
-/* BBM-style chat bubbles */
-.chat-bubble-received {
-  background: var(--color-bubble-received);
-  color: var(--color-bubble-received-text);
-  border-radius: 18px 18px 18px 4px;
+.bubble-in-sent {
+  animation: bubble-in-sent 280ms cubic-bezier(0.34, 1.4, 0.64, 1);
+  transform-origin: bottom right;
 }
+.bubble-in-received {
+  animation: bubble-in-received 280ms cubic-bezier(0.34, 1.4, 0.64, 1);
+  transform-origin: bottom left;
+}
+
+/* ═══ CHAT BUBBLES ═══ */
 .chat-bubble-sent {
-  background: var(--color-bubble-sent);
-  color: var(--color-bubble-sent-text);
-  border-radius: 18px 18px 4px 18px;
-}
-.chat-bubble-received-grouped {
-  background: var(--color-bubble-received);
-  color: var(--color-bubble-received-text);
-  border-radius: 18px 18px 18px 18px;
+  background: linear-gradient(180deg, var(--bubble-sent-start) 0%, var(--bubble-sent-end) 100%);
+  color: var(--bubble-sent-text);
+  border-radius: 20px 20px 6px 20px;
+  box-shadow: var(--bubble-shadow);
 }
 .chat-bubble-sent-grouped {
-  background: var(--color-bubble-sent);
-  color: var(--color-bubble-sent-text);
-  border-radius: 18px 18px 18px 18px;
+  background: linear-gradient(180deg, var(--bubble-sent-start) 0%, var(--bubble-sent-end) 100%);
+  color: var(--bubble-sent-text);
+  border-radius: 20px;
+  box-shadow: var(--bubble-shadow);
 }
 
+.chat-bubble-received {
+  background: var(--bubble-received);
+  color: var(--bubble-received-text);
+  border-radius: 20px 20px 20px 6px;
+  box-shadow: var(--bubble-shadow);
+}
+.chat-bubble-received-grouped {
+  background: var(--bubble-received);
+  color: var(--bubble-received-text);
+  border-radius: 20px;
+  box-shadow: var(--bubble-shadow);
+}
+
+/* Chat canvas — soft gradient background */
 .chat-canvas {
-  background-color: var(--color-chat-bg);
-  background-image:
-    radial-gradient(circle at 20% 10%, color-mix(in srgb, var(--color-accent) 3%, transparent) 0%, transparent 40%),
-    radial-gradient(circle at 80% 80%, color-mix(in srgb, var(--color-accent) 3%, transparent) 0%, transparent 40%);
+  background: linear-gradient(180deg, var(--chat-bg-top) 0%, var(--chat-bg-bottom) 100%);
+}
+
+/* Typing dots animation */
+@keyframes typing-dot {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+.typing-dot {
+  animation: typing-dot 1.2s infinite ease-in-out;
+}
+
+/* Sending indicator */
+@keyframes send-pulse {
+  0% { transform: scale(0.9); opacity: 0.6; }
+  50% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(0.9); opacity: 0.6; }
+}
+.send-pulse {
+  animation: send-pulse 1.2s infinite ease-in-out;
+}
+
+/* Composer focus ring */
+.composer-shell {
+  transition: box-shadow 200ms ease, border-color 200ms ease;
+}
+.composer-shell:focus-within {
+  border-color: color-mix(in srgb, var(--color-accent) 60%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 12%, transparent);
 }
