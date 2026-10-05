@@ -30,7 +30,6 @@ export async function POST(req: NextRequest) {
 
   const db = createServiceClient();
 
-  // Set the session on the client so updateUser knows who we are
   const { error: sessionErr } = await db.auth.setSession({
     access_token: accessToken,
     refresh_token: refreshToken
@@ -46,11 +45,7 @@ export async function POST(req: NextRequest) {
   const { error: updateErr } = await db.auth.updateUser({ password });
 
   if (updateErr) {
-    console.error("updateUser failed:", updateErr);
-    return Response.json(
-      { error: updateErr.message },
-      { status: 500 }
-    );
+    return Response.json({ error: updateErr.message }, { status: 500 });
   }
 
   return Response.json({ ok: true });
