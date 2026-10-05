@@ -91,12 +91,22 @@ export default function SignInPage() {
           {busy ? "Dey sign in…" : "Sign in"}
         </button>
 
-        <p className="text-center text-[0.8125rem] text-muted">
-          No account yet?{" "}
-          <Link href="/join" className="font-medium text-accent hover:underline">
-            Claim your handle
-          </Link>
-        </p>
+                <div className="space-y-2 text-center text-[0.8125rem] text-muted">
+          <p>
+            <Link
+              href="/forgot-password"
+              className="font-medium text-accent hover:underline"
+            >
+              Forgot password?
+            </Link>
+          </p>
+          <p>
+            No account yet?{" "}
+            <Link href="/join" className="font-medium text-accent hover:underline">
+              Claim your handle
+            </Link>
+          </p>
+        </div>
       </form>
     </main>
   );
