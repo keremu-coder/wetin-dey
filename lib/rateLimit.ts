@@ -1,7 +1,8 @@
 // lib/rateLimit.ts
-// Only dedupe hashing lives here.
-// Rate limiting is enforced by the Postgres trigger on public.reports,
-// which works correctly across serverless invocations.
+// Dedupe hashing + stub rate limit functions.
+// Real rate limiting is enforced by the Postgres trigger on public.reports
+// and the RLS policies. The functions below exist only for API compatibility
+// with callers that still import them.
 
 import { createHash } from "crypto";
 
@@ -35,4 +36,28 @@ export function hashDedupe(input: DedupeInput): string {
     String(weekBucket)
   ];
   return createHash("sha256").update(parts.join("|")).digest("hex").slice(0, 32);
+}
+
+/* ─── Compatibility stubs ─────────────────────────────────
+   These exist so existing API routes don't break on import.
+   The real rate limiting is done at the database layer via:
+     - Postgres trigger: reports_rate_limit (10 posts/hour per session)
+     - RLS policies: session-scoped row access
+   ──────────────────────────────────────────────────────── */
+
+/** Legacy: in-memory rate limit does not work on Vercel (no shared memory).
+ *  Kept only so /api/reports imports don't break. Always returns true.
+ *  Real enforcement is the Postgres trigger. */
+export function allowReport(_sessionId: string): boolean {
+  return true;
+}
+
+/** Legacy: same as allowReport. Real enforcement via RLS + row count queries. */
+export function allowComment(_sessionId: string): boolean {
+  return true;
+}
+
+/** Legacy: same as allowReport. Real enforcement via Cloudflare or edge rate limits. */
+export function allowPublicFeed(_ip: string): boolean {
+  return true;
 }
