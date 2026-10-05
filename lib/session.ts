@@ -49,7 +49,9 @@ function constantTimeEqual(a: string, b: string): boolean {
   return result === 0;
 }
 
-export async function verifySessionValue(raw: string | undefined): Promise<string | null> {
+export async function verifySessionValue(
+  raw: string | undefined
+): Promise<string | null> {
   if (!raw) return null;
   const dot = raw.lastIndexOf(".");
   if (dot <= 0) return null;
@@ -61,9 +63,20 @@ export async function verifySessionValue(raw: string | undefined): Promise<strin
   return id;
 }
 
-export async function issueSessionCookieValue(): Promise<{ id: string; value: string }> {
+export async function issueSessionCookieValue(): Promise<{
+  id: string;
+  value: string;
+}> {
   const id = nanoid();
   return { id, value: await sign(id) };
+}
+
+/**
+ * Sign an existing session id — used for returning users who sign in
+ * from a new device or after a cookie clear.
+ */
+export async function signSessionId(id: string): Promise<string> {
+  return await sign(id);
 }
 
 export function sessionCookieOptions() {
@@ -89,7 +102,9 @@ export async function requireSessionId(): Promise<string> {
   return id;
 }
 
-export async function parseCookieHeader(cookieHeader: string | null): Promise<string | null> {
+export async function parseCookieHeader(
+  cookieHeader: string | null
+): Promise<string | null> {
   if (!cookieHeader) return null;
   const parts = cookieHeader.split(";");
   for (const part of parts) {
