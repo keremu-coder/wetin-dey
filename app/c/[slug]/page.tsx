@@ -68,7 +68,6 @@ export default async function CommunityPage({
         ← All spaces
       </Link>
 
-      {/* Header card */}
       <div className="mt-4 rounded-2xl border border-border bg-surface p-5">
         <div className="flex items-start gap-4">
           <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-ink/5 text-[2rem]">
@@ -87,7 +86,8 @@ export default async function CommunityPage({
             </div>
             <p className="mt-0.5 font-mono text-[0.7rem] text-faint">
               /c/{community.slug} · {community.member_count} member
-              {community.member_count === 1 ? "" : "s"} · {community.post_count} post
+              {community.member_count === 1 ? "" : "s"} ·{" "}
+              {community.post_count} post
               {community.post_count === 1 ? "" : "s"}
             </p>
             {community.description ? (
@@ -98,7 +98,17 @@ export default async function CommunityPage({
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center gap-2">
+        {/* Big chat CTA */}
+        {member || isOwner ? (
+          <Link
+            href={`/c/${community.slug}/chat`}
+            className="mt-5 flex min-h-[56px] items-center justify-center gap-2 rounded-2xl bg-accent px-5 font-serif text-[1.05rem] font-semibold text-white shadow-button transition-all hover:bg-accent-deep"
+          >
+            💬 Enter live chat
+          </Link>
+        ) : null}
+
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           <CommunityJoinButton
             slug={community.slug}
             initialMember={member}
@@ -107,35 +117,32 @@ export default async function CommunityPage({
           {member || community.is_public ? (
             <Link
               href={`/submit?c=${community.slug}`}
-              className="rounded-xl bg-warm px-4 py-2 text-[0.8125rem] font-semibold text-white transition-colors hover:bg-warm-deep"
+              className="rounded-xl border border-border-strong bg-surface px-4 py-2 text-[0.8125rem] font-semibold text-ink transition-colors hover:bg-ink/5"
             >
-              Post here
+              Write a post
             </Link>
           ) : null}
         </div>
       </div>
 
-      {/* Posts */}
-      <div className="mt-6">
-        {list.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border-strong bg-surface/50 p-10 text-center">
-            <p className="text-[0.9375rem] text-ink">No posts yet.</p>
-            <p className="mt-1 text-[0.8125rem] text-muted">
-              Be the first to post here.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {list.map((r) => (
-              <ReportCard
-                key={r.id}
-                report={r as never}
-                currentHandle={null}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+      <h2 className="mt-8 mb-3 font-serif text-[1.15rem] font-semibold text-ink">
+        Posts in this space
+      </h2>
+
+      {list.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-border-strong bg-surface/50 p-10 text-center">
+          <p className="text-[0.9375rem] text-ink">No posts yet.</p>
+          <p className="mt-1 text-[0.8125rem] text-muted">
+            The chat is where everything happens. Tap "Enter live chat" above.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {list.map((r) => (
+            <ReportCard key={r.id} report={r as never} currentHandle={null} />
+          ))}
+        </div>
+      )}
     </main>
   );
 }
