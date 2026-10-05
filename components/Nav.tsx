@@ -44,21 +44,7 @@ export function Nav() {
     <>
       <header className="sticky top-0 z-40 border-b border-border bg-paper/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-2 px-3 py-3">
-          {/* Hamburger */}
-          <button
-            type="button"
-            onClick={() => setDrawerOpen(true)}
-            className="flex h-10 w-10 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5"
-            aria-label="Open menu"
-          >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-              <line x1="4" y1="7" x2="20" y2="7" />
-              <line x1="4" y1="12" x2="20" y2="12" />
-              <line x1="4" y1="17" x2="20" y2="17" />
-            </svg>
-          </button>
-
-          {/* Logo */}
+          {/* Logo — LEFT */}
           <Link href="/" className="flex items-center gap-1.5">
             <span className="inline-block h-2 w-2 rounded-full bg-accent" />
             <span className="font-serif text-[1.15rem] font-semibold leading-none tracking-tight text-ink">
@@ -66,7 +52,7 @@ export function Nav() {
             </span>
           </Link>
 
-          {/* Right side: Post + Avatar */}
+          {/* Right side: Post + hamburger */}
           <div className="flex items-center gap-2">
             <Link
               href="/submit"
@@ -74,21 +60,26 @@ export function Nav() {
             >
               Post
             </Link>
-            {me ? (
-              <Link
-                href={`/u/${encodeURIComponent(me.handle)}`}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-accent text-[0.8rem] font-semibold text-white"
+            <button
+              type="button"
+              onClick={() => setDrawerOpen(true)}
+              className="flex h-10 w-10 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5"
+              aria-label="Open menu"
+            >
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
               >
-                {me.handle.charAt(0).toUpperCase()}
-              </Link>
-            ) : (
-              <Link
-                href="/signin"
-                className="rounded-full border border-border-strong px-3 py-1.5 text-[0.75rem] font-medium text-ink transition-colors hover:bg-ink/5"
-              >
-                Sign in
-              </Link>
-            )}
+                <line x1="4" y1="7" x2="20" y2="7" />
+                <line x1="4" y1="12" x2="20" y2="12" />
+                <line x1="4" y1="17" x2="20" y2="17" />
+              </svg>
+            </button>
           </div>
         </div>
       </header>
@@ -100,7 +91,7 @@ export function Nav() {
             className="fixed inset-0 z-50 bg-black/50 fade-in"
             onClick={() => setDrawerOpen(false)}
           />
-          <aside className="fixed left-0 top-0 z-[60] h-full w-[85%] max-w-xs overflow-y-auto border-r border-border bg-paper slide-in-left">
+          <aside className="fixed right-0 top-0 z-[60] h-full w-[85%] max-w-xs overflow-y-auto border-l border-border bg-paper slide-in-right">
             {/* Drawer header */}
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-paper/95 px-4 py-3 backdrop-blur">
               <span className="font-serif text-[1.1rem] font-semibold text-ink">
@@ -159,9 +150,7 @@ export function Nav() {
                     key={item.href}
                     href={item.href}
                     className={`flex items-center gap-3 px-4 py-3 transition-colors ${
-                      active
-                        ? "bg-ink/5 text-ink"
-                        : "text-ink hover:bg-ink/5"
+                      active ? "bg-ink/5 text-ink" : "text-ink hover:bg-ink/5"
                     }`}
                   >
                     <span className="text-[1.15rem]">{item.icon}</span>
@@ -190,7 +179,7 @@ export function Nav() {
               </div>
             ) : null}
 
-            {/* Footer of drawer */}
+            {/* Appearance */}
             <div className="border-t border-border px-4 py-4">
               <p className="mb-2 font-mono text-[0.7rem] uppercase tracking-wider text-faint">
                 Appearance
@@ -233,38 +222,5 @@ export function SiteFooter() {
         </div>
       </div>
     </footer>
-  );
-}
-
-// Bottom nav for mobile
-export function BottomNav() {
-  const pathname = usePathname();
-  const items = [
-    { href: "/", label: "Feed", icon: "📰" },
-    { href: "/search", label: "Search", icon: "🔎" },
-    { href: "/inbox", label: "Inbox", icon: "✉️" },
-    { href: "/settings", label: "Me", icon: "👤" }
-  ];
-
-  return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-paper/95 backdrop-blur-md sm:hidden">
-      <div className="flex items-center justify-around py-1.5">
-        {items.map((item) => {
-          const active = pathname === item.href;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex flex-col items-center gap-0.5 rounded-lg px-4 py-1.5 transition-colors ${
-                active ? "text-accent" : "text-muted"
-              }`}
-            >
-              <span className="text-[1.15rem]">{item.icon}</span>
-              <span className="text-[0.65rem] font-medium">{item.label}</span>
-            </Link>
-          );
-        })}
-      </div>
-    </nav>
   );
 }
