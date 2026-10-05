@@ -13,9 +13,7 @@ const DRAWER_ITEMS = [
   { href: "/communities", label: "Spaces", icon: "🏘️" },
   { href: "/explore", label: "Explore", icon: "🌍" },
   { href: "/search", label: "Search", icon: "🔎" },
-  { href: "/inbox", label: "Inbox", icon: "✉️" },
-  { href: "/settings", label: "Settings", icon: "⚙️" },
-  { href: "/support", label: "Help", icon: "💬" }
+  { href: "/inbox", label: "Inbox", icon: "✉️" }
 ];
 
 export function Nav() {
@@ -106,21 +104,22 @@ export function Nav() {
 
             {me ? (
               <Link
-                href={`/u/${encodeURIComponent(me.handle)}`}
+                href="/me"
                 className="block border-b border-border px-4 py-4 transition-colors hover:bg-ink/5"
               >
                 <div className="flex items-center gap-3">
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent text-[1.1rem] font-semibold text-white">
                     {me.handle.charAt(0).toUpperCase()}
                   </div>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="truncate text-[0.9375rem] font-semibold text-ink">
                       @{me.handle}
                     </p>
                     <p className="text-[0.75rem] text-muted">
-                      {me.handle_kind === "named" ? "Named account" : "Anonymous"}
+                      View your profile and spaces
                     </p>
                   </div>
+                  <span className="text-faint">›</span>
                 </div>
               </Link>
             ) : (
@@ -158,6 +157,50 @@ export function Nav() {
                   </Link>
                 );
               })}
+
+              <div className="my-2 border-t border-border" />
+
+              <Link
+                href="/me"
+                className={`flex items-center gap-3 px-4 py-3 transition-colors ${
+                  pathname === "/me"
+                    ? "bg-ink/5 text-ink"
+                    : "text-ink hover:bg-ink/5"
+                }`}
+              >
+                <span className="text-[1.15rem]">👤</span>
+                <span className="text-[0.9375rem] font-medium">
+                  My profile
+                </span>
+              </Link>
+
+              <Link
+                href="/settings"
+                className={`flex items-center gap-3 px-4 py-3 transition-colors ${
+                  pathname === "/settings"
+                    ? "bg-ink/5 text-ink"
+                    : "text-ink hover:bg-ink/5"
+                }`}
+              >
+                <span className="text-[1.15rem]">⚙️</span>
+                <span className="text-[0.9375rem] font-medium">
+                  Settings
+                </span>
+              </Link>
+
+              <Link
+                href="/support"
+                className={`flex items-center gap-3 px-4 py-3 transition-colors ${
+                  pathname === "/support"
+                    ? "bg-ink/5 text-ink"
+                    : "text-ink hover:bg-ink/5"
+                }`}
+              >
+                <span className="text-[1.15rem]">💬</span>
+                <span className="text-[0.9375rem] font-medium">
+                  Help
+                </span>
+              </Link>
             </nav>
 
             {me ? (
