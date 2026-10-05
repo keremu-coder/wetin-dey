@@ -22,7 +22,13 @@ export default function NewCommunityPage() {
     const res = await fetch("/api/communities", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name, slug: slug || name, description, emoji, is_public: isPublic })
+      body: JSON.stringify({
+        name,
+        slug: slug || name,
+        description,
+        emoji,
+        is_public: isPublic
+      })
     });
 
     const json = await res.json();
@@ -96,7 +102,8 @@ export default function NewCommunityPage() {
 
         <div>
           <label className="mb-2 block text-[0.8125rem] font-semibold text-ink">
-            Description <span className="font-normal text-faint">(optional)</span>
+            Description{" "}
+            <span className="font-normal text-faint">(optional)</span>
           </label>
           <textarea
             value={description}
@@ -121,7 +128,9 @@ export default function NewCommunityPage() {
                   : "border-border-strong hover:bg-ink/5"
               }`}
             >
-              <p className="text-[0.875rem] font-semibold text-ink">🌍 Public</p>
+              <p className="text-[0.875rem] font-semibold text-ink">
+                🌍 Public
+              </p>
               <p className="mt-0.5 text-[0.7rem] text-muted">
                 Anyone can find and join
               </p>
@@ -135,7 +144,9 @@ export default function NewCommunityPage() {
                   : "border-border-strong hover:bg-ink/5"
               }`}
             >
-              <p className="text-[0.875rem] font-semibold text-ink">🔒 Private</p>
+              <p className="text-[0.875rem] font-semibold text-ink">
+                🔒 Private
+              </p>
               <p className="mt-0.5 text-[0.7rem] text-muted">
                 Invite only. Not in discovery.
               </p>

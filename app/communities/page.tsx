@@ -28,7 +28,7 @@ export default async function CommunitiesPage() {
         </div>
         <Link
           href="/communities/new"
-          className="rounded-full bg-accent px-4 py-2 text-[0.8125rem] font-semibold text-white transition-colors hover:bg-accent-deep"
+          className="shrink-0 rounded-full bg-accent px-4 py-2 text-[0.8125rem] font-semibold text-white transition-colors hover:bg-accent-deep"
         >
           + Create
         </Link>
