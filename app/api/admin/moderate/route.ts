@@ -1,61 +1,72 @@
-import { nanoid } from "nanoid";
-import { originAllowed, jsonError } from "@/lib/http";
+export const runtime = "nodejs";
+
+import { NextRequest } from "next/server";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
+import { originAllowed, jsonError } from "@/lib/http";
 
-async function requireAdmin(sessionId: string | null) {
+async function requireAdmin(sessionId: string | null): Promise<boolean> {
   if (!sessionId) return false;
   const db = createServiceClient();
-  const { data } = await db.from("admins").select("session_id").eq("session_id", sessionId).maybeSingle();
-  return Boolean(data);
+  const { data } = await db
+    .from("admins")
+    .select("session_id")
+    .eq("session_id", sessionId)
+    .maybeSingle();
+  return !!data;
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   if (!originAllowed(req)) return jsonError("origin blocked", 403);
+
   const sessionId = await getSessionId();
-  if (!(await requireAdmin(sessionId))) return jsonError("no dey", 404);
+  if (!(await requireAdmin(sessionId))) {
+    return jsonError("not authorized", 403);
+  }
 
-  const payload = (await req.json()) as {
-    report_id?: string;
-    comment_id?: string;
-    action?: string;
-    note?: string;
-  };
-  const action = String(payload.action ?? "");
-  const reportId = String(payload.report_id ?? "");
-  const commentId = payload.comment_id ? String(payload.comment_id) : null;
-  const note = payload.note ? String(payload.note).slice(0, 1000) : null;
+  let body: { report_id?: string; action?: string; note?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return jsonError("bad json", 400);
+  }
 
-  if (!["approve", "disputed", "hide"].includes(action)) {
-    return jsonError("action no correct", 400);
+  const reportId = String(body.report_id ?? "");
+  const action = String(body.action ?? "");
+  const note = String(body.note ?? "");
+
+  if (!reportId || !action) {
+    return jsonError("report_id and action required", 400);
   }
 
   const db = createServiceClient();
 
   if (action === "approve") {
-    if (!reportId) return jsonError("report missing", 400);
-    await db.from("reports").update({ reviewed: true, reviewer_note: note }).eq("id", reportId);
-  } else if (action === "disputed") {
-    if (!reportId) return jsonError("report missing", 400);
-    await db
+    const { error } = await db
       .from("reports")
-      .update({ status: "disputed", reviewer_note: note })
+      .update({ reviewed: true, reviewer_note: note || null })
       .eq("id", reportId);
+    if (error) return jsonError(error.message, 500);
+  } else if (action === "dispute") {
+    const { error } = await db
+      .from("reports")
+      .update({ status: "disputed", reviewer_note: note || null })
+      .eq("id", reportId);
+    if (error) return jsonError(error.message, 500);
   } else if (action === "hide") {
-    if (commentId) {
-      await db.from("comments").update({ hidden: true }).eq("id", commentId);
-    } else if (reportId) {
-      await db.from("reports").update({ reviewed: false, reviewer_note: note }).eq("id", reportId);
-    } else {
-      return jsonError("nothing to hide", 400);
-    }
+    const { error } = await db
+      .from("reports")
+      .update({ reviewed: true, reviewer_note: note || "hidden" })
+      .eq("id", reportId);
+    if (error) return jsonError(error.message, 500);
+  } else {
+    return jsonError("unknown action", 400);
   }
 
   await db.from("moderation_actions").insert({
-    id: nanoid(),
-    report_id: reportId || null,
+    report_id: reportId,
     action,
-    moderator_note: note
+    moderator_note: note || null
   });
 
   return Response.json({ ok: true });
