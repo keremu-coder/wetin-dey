@@ -8,32 +8,32 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        paper: "#000000",
-        surface: "#0a0a0a",
-        ink: "#f4f4f5",
-        muted: "#a1a1aa",
-        faint: "#52525b",
+        paper: "var(--color-paper)",
+        surface: "var(--color-surface)",
+        ink: "var(--color-ink)",
+        muted: "var(--color-muted)",
+        faint: "var(--color-faint)",
         accent: {
-          DEFAULT: "#10b981",
-          soft: "#052e1f",
-          deep: "#34d399"
+          DEFAULT: "var(--color-accent)",
+          soft: "var(--color-accent-soft)",
+          deep: "var(--color-accent-deep)"
         },
         warm: {
-          DEFAULT: "#f59e0b",
-          soft: "#2a1f0a",
-          deep: "#fbbf24"
+          DEFAULT: "var(--color-warm)",
+          soft: "var(--color-warm-soft)",
+          deep: "var(--color-warm-deep)"
         },
         danger: {
-          DEFAULT: "#ef4444",
-          soft: "#2a0e0e"
+          DEFAULT: "var(--color-danger)",
+          soft: "var(--color-danger-soft)"
         },
         gold: {
-          DEFAULT: "#eab308",
-          soft: "#2a1f0a"
+          DEFAULT: "var(--color-gold)",
+          soft: "var(--color-gold-soft)"
         },
         border: {
-          DEFAULT: "rgba(255,255,255,0.08)",
-          strong: "rgba(255,255,255,0.16)"
+          DEFAULT: "var(--color-border)",
+          strong: "var(--color-border-strong)"
         }
       },
       fontFamily: {
@@ -45,12 +45,6 @@ const config: Config = {
         xl: "12px",
         "2xl": "16px",
         "3xl": "24px"
-      },
-      boxShadow: {
-        card: "0 1px 2px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.3)",
-        "card-hover": "0 4px 12px rgba(0,0,0,0.5), 0 8px 24px rgba(0,0,0,0.4)",
-        button: "0 1px 2px rgba(0,0,0,0.5)",
-        nav: "0 1px 0 rgba(255,255,255,0.06)"
       }
     }
   },
