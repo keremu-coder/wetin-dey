@@ -22,9 +22,7 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Email and password required." }, { status: 400 });
   }
 
-  // ─── STEP 1: Verify the password with a FRESH anon client ───
-  // Do NOT use the service role client here. Signing in changes the
-  // client's identity, and the following query would then run under RLS.
+  // STEP 1: auth
   const anonClient = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -41,15 +39,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // ─── STEP 2: Look up the session with the SERVICE ROLE client ───
-  // This is a fresh, unauthenticated service-role client, so RLS is
-  // bypassed and we can read the email column.
+  // STEP 2: lookup — case-insensitive, with diagnostics if it fails
   const db = createServiceClient();
 
   const { data: profile, error: profileErr } = await db
     .from("sessions")
-    .select("id, handle, handle_kind")
-    .eq("email", email)
+    .select("id, handle, handle_kind, email")
+    .ilike("email", email)
     .maybeSingle();
 
   if (profileErr) {
@@ -60,13 +56,26 @@ export async function POST(req: NextRequest) {
   }
 
   if (!profile) {
+    // Diagnostic: show every session handle + email so we can see the mismatch
+    const { data: allSessions } = await db
+      .from("sessions")
+      .select("handle, email, handle_kind")
+      .order("created_at", { ascending: false })
+      .limit(20);
+
     return Response.json(
-      { error: "No profile found for this email." },
+      {
+        error: "No profile found for this email.",
+        input_email: email,
+        auth_user_id: authData.user.id,
+        auth_user_email: authData.user.email,
+        sessions_in_db: allSessions
+      },
       { status: 404 }
     );
   }
 
-  // ─── STEP 3: Issue the session cookie ───
+  // STEP 3: cookie
   const cookieValue = await signSessionId(profile.id);
   const jar = cookies();
   jar.set(COOKIE_NAME, cookieValue, sessionCookieOptions());
