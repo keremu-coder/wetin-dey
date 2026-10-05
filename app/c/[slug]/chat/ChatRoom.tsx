@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { getBrowserClient } from "@/lib/supabase/client";
+import { playBbmPing, vibrate } from "@/lib/bbm-sound";
 import { PresenceDot, presenceFromLastSeen } from "@/components/PresenceDot";
 
 type Reaction = { emoji: string; count: number };
@@ -84,11 +85,15 @@ export function ChatRoom({
   const [me, setMe] = useState<string | null>(null);
   const [openReactionsFor, setOpenReactionsFor] = useState<string | null>(null);
   const [membersOpen, setMembersOpen] = useState(false);
+  const [soundOn, setSoundOn] = useState(true);
+  const [vibrateOn, setVibrateOn] = useState(true);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const handleCacheRef = useRef<Map<string, string>>(new Map());
+  const lastMessageIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     fetch("/api/whoami")
@@ -97,43 +102,48 @@ export function ChatRoom({
       .catch(() => {});
   }, []);
 
-  // Load members
   useEffect(() => {
     let cancelled = false;
+
     fetch(`/api/communities/${slug}/members`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (!cancelled && d?.members) setMembers(d.members);
+        if (cancelled || !d?.members) return;
+        setMembers(d.members);
+        // Warm the handle cache
+        for (const m of d.members as Member[]) {
+          handleCacheRef.current.set(m.session_id, m.handle);
+        }
       })
       .catch(() => {});
+
     return () => {
       cancelled = true;
     };
   }, [slug]);
 
-  // Initial load of messages
+  // Initial messages load
   useEffect(() => {
     let cancelled = false;
 
-    async function fetchMessages() {
-      try {
-        const res = await fetch(`/api/communities/${slug}/messages`);
-        if (!res.ok) return;
-        const json = await res.json();
-        if (cancelled) return;
-        setMessages(json.messages ?? []);
-      } catch {
-        /* ignore */
-      }
-    }
+    fetch(`/api/communities/${slug}/messages`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json) => {
+        if (cancelled || !json?.messages) return;
+        const list = json.messages as Message[];
+        setMessages(list);
+        if (list.length > 0) {
+          lastMessageIdRef.current = list[list.length - 1].id;
+        }
+      })
+      .catch(() => {});
 
-    fetchMessages();
     return () => {
       cancelled = true;
     };
   }, [slug]);
 
-  // Realtime subscription
+  // Realtime — use payload directly, no full re-fetch
   useEffect(() => {
     if (!isMember) return;
 
@@ -162,19 +172,63 @@ export function ChatRoom({
               created_at: string;
             };
 
-            // Filter: only messages for this community. We don't have slug in payload.
-            // Fetch the community_id from the payload's row via the API to avoid the noise.
-            // Since we don't know community_id in the payload, refetch the messages.
-            try {
-              const res = await fetch(`/api/communities/${slug}/messages`);
-              if (!res.ok) return;
-              const json = await res.json();
-              setMessages(json.messages ?? []);
-            } catch {
-              /* ignore */
+            // Dedupe by id
+            let alreadyHave = false;
+            setMessages((prev) => {
+              if (prev.some((m) => m.id === row.id)) {
+                alreadyHave = true;
+                return prev;
+              }
+              return prev;
+            });
+            if (alreadyHave) return;
+
+            // Resolve handle — from cache, or fetch once
+            let handle = handleCacheRef.current.get(row.session_id) ?? null;
+            let lastSeen: string | null = null;
+
+            if (!handle) {
+              try {
+                const res = await fetch("/api/whoami?sid=" + row.session_id);
+                // Fallback — some setups don't support ?sid, so try members
+                if (res.ok) {
+                  const d = await res.json();
+                  if (d?.handle) handle = d.handle;
+                }
+              } catch {
+                /* ignore */
+              }
             }
-            // Reference row so it's not tree-shaken
-            void row.id;
+
+            if (!handle) {
+              handle = "Anonymous";
+            }
+            handleCacheRef.current.set(row.session_id, handle);
+
+            const incoming: Message = {
+              id: row.id,
+              body: row.body,
+              audio_url: row.audio_url,
+              created_at: row.created_at,
+              author_handle: handle,
+              author_last_seen: lastSeen,
+              reactions: []
+            };
+
+            // Ping only if from someone else
+            const fromMe = me && handle === me;
+            if (!fromMe) {
+              if (soundOn) playBbmPing();
+              if (vibrateOn) vibrate(35);
+            }
+
+            setMessages((prev) => [...prev, incoming]);
+            lastMessageIdRef.current = row.id;
+
+            setTimeout(() => {
+              const el = scrollRef.current;
+              if (el) el.scrollTop = el.scrollHeight;
+            }, 50);
           }
         )
         .subscribe();
@@ -185,7 +239,7 @@ export function ChatRoom({
     } catch {
       return;
     }
-  }, [slug, isMember]);
+  }, [slug, isMember, me, soundOn, vibrateOn]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -221,7 +275,11 @@ export function ChatRoom({
         setBusy(false);
         return;
       }
-      setMessages((prev) => [...prev, json.message]);
+      // Add own message locally if realtime hasn't already
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === json.message.id)) return prev;
+        return [...prev, json.message];
+      });
       setBody("");
       setBusy(false);
       setTimeout(() => {
@@ -287,7 +345,10 @@ export function ChatRoom({
       });
       const json = await res.json();
       if (res.ok) {
-        setMessages((prev) => [...prev, json.message]);
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === json.message.id)) return prev;
+          return [...prev, json.message];
+        });
       }
       setBusy(false);
     } catch {
@@ -310,6 +371,7 @@ export function ChatRoom({
           m.id === messageId ? { ...m, reactions: json.reactions ?? [] } : m
         )
       );
+      if (vibrateOn) vibrate(15);
     } catch {
       /* ignore */
     }
@@ -365,9 +427,9 @@ export function ChatRoom({
               </p>
               <p className="truncate font-mono text-[0.65rem] text-faint">
                 {onlineHandles.length > 0
-                  ? onlineHandles.slice(0, 3).join(", ") +
-                    (onlineHandles.length > 3
-                      ? ` +${onlineHandles.length - 3}`
+                  ? onlineHandles.slice(0, 2).join(", ") +
+                    (onlineHandles.length > 2
+                      ? ` +${onlineHandles.length - 2}`
                       : "")
                   : `${members.length} members`}
               </p>
@@ -375,28 +437,41 @@ export function ChatRoom({
           </button>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setMembersOpen(true)}
-          className="flex h-9 w-9 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5"
-          aria-label="Members"
-        >
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.7"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => {
+              setSoundOn((v) => !v);
+              if (!soundOn) playBbmPing();
+            }}
+            className="flex h-9 w-9 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5"
+            aria-label="Toggle sound"
           >
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-            <circle cx="9" cy="7" r="4" />
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-          </svg>
-        </button>
+            {soundOn ? "🔔" : "🔕"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setMembersOpen(true)}
+            className="flex h-9 w-9 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5"
+            aria-label="Members"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+          </button>
+        </div>
       </header>
 
       {/* Messages canvas */}
@@ -517,10 +592,7 @@ export function ChatRoom({
                             {timeShort(m.created_at)}
                           </span>
                           {isMe ? (
-                            <span
-                              className="font-mono"
-                              title="Delivered to server"
-                            >
+                            <span className="font-mono" title="Delivered">
                               ✓
                             </span>
                           ) : null}
@@ -675,6 +747,49 @@ export function ChatRoom({
               </button>
             </div>
 
+            <div className="border-b border-border px-4 py-3">
+              <p className="mb-2 font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+                Chat settings
+              </p>
+              <div className="flex items-center justify-between py-2">
+                <span className="text-[0.875rem] text-ink">
+                  Ping sound
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSoundOn((v) => !v)}
+                  className={`relative h-6 w-11 rounded-full transition-colors ${
+                    soundOn ? "bg-accent" : "bg-ink/10"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                      soundOn ? "translate-x-5" : "translate-x-0.5"
+                    }`}
+                  />
+                </button>
+              </div>
+              <div className="flex items-center justify-between py-2">
+                <span className="text-[0.875rem] text-ink">Vibrate</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVibrateOn((v) => !v);
+                    if (!vibrateOn) vibrate(30);
+                  }}
+                  className={`relative h-6 w-11 rounded-full transition-colors ${
+                    vibrateOn ? "bg-accent" : "bg-ink/10"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                      vibrateOn ? "translate-x-5" : "translate-x-0.5"
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+
             <MemberGroup
               label="Online"
               members={members.filter(
@@ -742,9 +857,7 @@ function MemberGroup({
                 <p className="truncate text-[0.9375rem] font-medium text-ink">
                   @{m.handle}
                 </p>
-                <p className="text-[0.7rem] capitalize text-muted">
-                  {m.role}
-                </p>
+                <p className="text-[0.7rem] capitalize text-muted">{m.role}</p>
               </div>
             </div>
           );
