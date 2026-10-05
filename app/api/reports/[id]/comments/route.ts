@@ -14,12 +14,12 @@ export async function GET(
     const { data, error } = await db
       .from("comments")
       .select(
-        "id, created_at, body, audio_url, transcript, session_id, upvotes, downvotes"
+        "id, created_at, body, audio_url, transcript, session_id, upvotes, downvotes, parent_id"
       )
       .eq("report_id", params.id)
       .eq("hidden", false)
       .order("created_at", { ascending: true })
-      .limit(200);
+      .limit(500);
 
     if (error) {
       return Response.json({ error: error.message }, { status: 500 });
@@ -44,6 +44,7 @@ export async function GET(
       body: c.body,
       audio_url: c.audio_url,
       transcript: c.transcript,
+      parent_id: c.parent_id,
       author_handle: handleMap.get(c.session_id) ?? null,
       upvotes: c.upvotes ?? 0,
       downvotes: c.downvotes ?? 0,
@@ -79,6 +80,7 @@ export async function POST(
     const db = createServiceClient();
 
     let body = "";
+    let parent_id: string | null = null;
     let audio_url: string | null = null;
     let transcript: string | null = null;
 
@@ -94,8 +96,10 @@ export async function POST(
       }
 
       body = String(form.get("body") ?? "").trim();
-      const file = form.get("audio");
+      const parentRaw = String(form.get("parent_id") ?? "").trim();
+      parent_id = parentRaw || null;
 
+      const file = form.get("audio");
       if (file instanceof File && file.size > 0) {
         if (file.size > 5 * 1024 * 1024) {
           return Response.json(
@@ -103,24 +107,19 @@ export async function POST(
             { status: 400 }
           );
         }
-
         const audioId = nanoid();
         const path = `${audioId}.webm`;
         const buf = Buffer.from(await file.arrayBuffer());
-
         const up = await db.storage.from("voice-notes").upload(path, buf, {
           contentType: file.type || "audio/webm",
           upsert: false
         });
-
         if (up.error) {
-          console.error("[comments POST] storage upload:", up.error);
           return Response.json(
             { error: "Voice upload: " + up.error.message },
             { status: 500 }
           );
         }
-
         const pub = db.storage.from("voice-notes").getPublicUrl(path);
         audio_url = pub.data.publicUrl;
       }
@@ -128,19 +127,32 @@ export async function POST(
       try {
         const json = await req.json();
         body = String(json.body ?? "").trim();
+        parent_id = json.parent_id ? String(json.parent_id) : null;
       } catch {
         return Response.json({ error: "bad request" }, { status: 400 });
       }
     }
 
     if (!body && !audio_url) {
-      return Response.json({ error: "Comment no fit empty" }, { status: 400 });
+      return Response.json({ error: "Comment cannot be empty" }, { status: 400 });
     }
     if (body.length > 1000) {
       return Response.json(
         { error: "Comment too long (max 1000 chars)" },
         { status: 400 }
       );
+    }
+
+    // If parent_id given, verify it exists and belongs to same report
+    if (parent_id) {
+      const { data: parent } = await db
+        .from("comments")
+        .select("id, report_id")
+        .eq("id", parent_id)
+        .maybeSingle();
+      if (!parent || parent.report_id !== params.id) {
+        return Response.json({ error: "Reply target not found" }, { status: 404 });
+      }
     }
 
     const id = nanoid();
@@ -152,6 +164,7 @@ export async function POST(
         body: body || "(voice note)",
         audio_url,
         transcript,
+        parent_id,
         session_id: sessionId,
         reviewed: false,
         hidden: false,
@@ -177,6 +190,7 @@ export async function POST(
         body: data.body,
         audio_url: data.audio_url,
         transcript: data.transcript,
+        parent_id: data.parent_id,
         author_handle: profile.handle,
         upvotes: 0,
         downvotes: 0,

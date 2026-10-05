@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type Comment = {
   id: string;
@@ -8,6 +8,7 @@ type Comment = {
   body: string;
   audio_url: string | null;
   transcript: string | null;
+  parent_id: string | null;
   author_handle: string | null;
   upvotes: number;
   downvotes: number;
@@ -52,6 +53,9 @@ export function CommentThread({ reportId }: { reportId: string }) {
   const [recordSeconds, setRecordSeconds] = useState(0);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioPreviewUrl, setAudioPreviewUrl] = useState<string | null>(null);
+  const [replyTo, setReplyTo] = useState<string | null>(null);
+  const [replyBody, setReplyBody] = useState("");
+  const [replyBusy, setReplyBusy] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -63,8 +67,7 @@ export function CommentThread({ reportId }: { reportId: string }) {
       .then((r) => r.json())
       .then((d) => {
         if (cancelled) return;
-        const list: Comment[] = Array.isArray(d?.comments) ? d.comments : [];
-        setComments(list);
+        setComments(Array.isArray(d?.comments) ? d.comments : []);
       })
       .catch(() => {
         if (!cancelled) setComments([]);
@@ -73,6 +76,22 @@ export function CommentThread({ reportId }: { reportId: string }) {
       cancelled = true;
     };
   }, [reportId]);
+
+  // Group into top-level + replies map
+  const { topLevel, repliesByParent } = useMemo(() => {
+    const top: Comment[] = [];
+    const map = new Map<string, Comment[]>();
+    for (const c of comments) {
+      if (c.parent_id) {
+        const list = map.get(c.parent_id) ?? [];
+        list.push(c);
+        map.set(c.parent_id, list);
+      } else {
+        top.push(c);
+      }
+    }
+    return { topLevel: top, repliesByParent: map };
+  }, [comments]);
 
   async function startRecording() {
     setError("");
@@ -130,7 +149,6 @@ export function CommentThread({ reportId }: { reportId: string }) {
       setError("Type something or record a voice note.");
       return;
     }
-
     setBusy(true);
     setError("");
 
@@ -141,52 +159,56 @@ export function CommentThread({ reportId }: { reportId: string }) {
         fd.set("audio", new File([audioBlob], "voice.webm", { type: "audio/webm" }));
       }
 
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 20000);
+      const res = await fetch(`/api/reports/${reportId}/comments`, {
+        method: "POST",
+        body: fd
+      });
 
-      let res: Response;
-      try {
-        res = await fetch(`/api/reports/${reportId}/comments`, {
-          method: "POST",
-          body: fd,
-          signal: controller.signal
-        });
-      } finally {
-        clearTimeout(timeout);
-      }
-
-      const contentType = res.headers.get("content-type") ?? "";
-      let json: { comment?: Comment; error?: string } = {};
-
-      if (contentType.includes("application/json")) {
-        json = await res.json();
-      } else {
-        const text = await res.text();
-        console.error("Non-JSON response:", text);
-        setError(`Server returned ${res.status}. Try again.`);
-        setBusy(false);
-        return;
-      }
-
+      const json = await res.json();
       if (!res.ok) {
-        setError(json.error ?? `Comment no send. Code: ${res.status}`);
+        setError(json.error ?? "Comment no send.");
         setBusy(false);
         return;
       }
 
-      if (json.comment) {
-        setComments((prev) => [...prev, json.comment!]);
-      }
+      setComments((prev) => [...prev, json.comment]);
       setBody("");
       clearAudio();
       setBusy(false);
     } catch (e) {
-      console.error("Comment submit failed:", e);
-      const msg = (e as Error).name === "AbortError"
-        ? "Request timed out. Check your network and try again."
-        : "Network error. Try again.";
-      setError(msg);
+      setError("Network error. Try again.");
       setBusy(false);
+    }
+  }
+
+  async function submitReply(parentId: string) {
+    if (!replyBody.trim()) {
+      return;
+    }
+    setReplyBusy(true);
+
+    try {
+      const fd = new FormData();
+      fd.set("body", replyBody.trim());
+      fd.set("parent_id", parentId);
+
+      const res = await fetch(`/api/reports/${reportId}/comments`, {
+        method: "POST",
+        body: fd
+      });
+
+      const json = await res.json();
+      if (!res.ok) {
+        setReplyBusy(false);
+        return;
+      }
+
+      setComments((prev) => [...prev, json.comment]);
+      setReplyBody("");
+      setReplyTo(null);
+      setReplyBusy(false);
+    } catch {
+      setReplyBusy(false);
     }
   }
 
@@ -216,14 +238,135 @@ export function CommentThread({ reportId }: { reportId: string }) {
     }
   }
 
-  const safeComments = Array.isArray(comments) ? comments : [];
+  function renderComment(c: Comment, isReply = false) {
+    const handle = c.author_handle ?? "Anonymous";
+    const letter = handle.charAt(0).toUpperCase();
+    const bg = avatarColor(c.author_handle ?? c.id);
+    const muted = (c.score ?? 0) <= -6;
+    const replies = repliesByParent.get(c.id) ?? [];
+    const isReplying = replyTo === c.id;
+
+    return (
+      <div key={c.id} className={isReply ? "ml-8 mt-3" : ""}>
+        <article className="rounded-2xl border border-border bg-surface p-4 shadow-card">
+          <div className="flex items-start gap-3">
+            <div
+              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${bg} text-[0.8rem] font-semibold text-white`}
+            >
+              {letter}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[0.875rem] font-medium text-ink">
+                  @{handle}
+                </span>
+                <span className="font-mono text-[0.7rem] uppercase text-faint">
+                  {timeAgo(c.created_at)}
+                </span>
+              </div>
+
+              {muted ? (
+                <p className="mt-2 rounded-lg bg-danger-soft px-3 py-2 text-[0.8125rem] text-danger">
+                  ⚠️ Community marked this as harmful.
+                </p>
+              ) : null}
+
+              {c.audio_url ? (
+                <div className="mt-2">
+                  <audio src={c.audio_url} controls className="h-8 w-full max-w-xs" />
+                </div>
+              ) : null}
+
+              {c.body && c.body !== "(voice note)" ? (
+                <p className="mt-2 text-[0.9375rem] leading-relaxed text-ink/90">
+                  {c.body}
+                </p>
+              ) : null}
+
+              <div className="mt-3 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => vote(c.id, "up")}
+                  className="inline-flex items-center gap-1 rounded-full bg-ink/5 px-2.5 py-1 text-[0.75rem] text-muted transition-colors hover:bg-accent-soft hover:text-accent-deep"
+                >
+                  👍 {c.upvotes ?? 0}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => vote(c.id, "down")}
+                  className="inline-flex items-center gap-1 rounded-full bg-ink/5 px-2.5 py-1 text-[0.75rem] text-muted transition-colors hover:bg-danger-soft hover:text-danger"
+                >
+                  👎 {c.downvotes ?? 0}
+                </button>
+                {!isReply ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReplyTo(isReplying ? null : c.id);
+                      setReplyBody("");
+                    }}
+                    className="inline-flex items-center gap-1 rounded-full bg-ink/5 px-2.5 py-1 text-[0.75rem] text-muted transition-colors hover:bg-ink/10 hover:text-ink"
+                  >
+                    ↩️ Reply
+                  </button>
+                ) : null}
+                {(c.score ?? 0) !== 0 ? (
+                  <span className="text-[0.7rem] text-faint">
+                    score {(c.score ?? 0) > 0 ? "+" : ""}
+                    {c.score ?? 0}
+                  </span>
+                ) : null}
+              </div>
+
+              {/* Reply input */}
+              {isReplying ? (
+                <div className="mt-3 rounded-xl border border-border bg-paper p-3">
+                  <textarea
+                    value={replyBody}
+                    onChange={(e) => setReplyBody(e.target.value)}
+                    placeholder={`Reply to @${handle}…`}
+                    rows={2}
+                    className="mb-2 w-full rounded-lg border border-border-strong bg-surface p-2 text-[0.875rem]"
+                  />
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReplyTo(null);
+                        setReplyBody("");
+                      }}
+                      className="rounded-lg px-3 py-1.5 text-[0.75rem] text-muted hover:bg-ink/5"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => submitReply(c.id)}
+                      disabled={replyBusy || !replyBody.trim()}
+                      className="rounded-lg bg-warm px-3 py-1.5 text-[0.75rem] font-semibold text-white transition-all hover:bg-warm-deep disabled:opacity-50"
+                    >
+                      {replyBusy ? "…" : "Reply"}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </article>
+
+        {/* Nested replies */}
+        {replies.map((r) => renderComment(r, true))}
+      </div>
+    );
+  }
 
   return (
     <section className="mt-10">
       <h2 className="mb-4 font-serif text-[1.35rem] font-semibold text-ink">
-        Wetin people dey talk
+        Comments
       </h2>
 
+      {/* Composer */}
       <div className="mb-6 rounded-2xl border border-border bg-surface p-4 shadow-card">
         {audioPreviewUrl ? (
           <div className="mb-3 flex items-center gap-3 rounded-xl bg-accent-soft p-3">
@@ -286,85 +429,15 @@ export function CommentThread({ reportId }: { reportId: string }) {
         ) : null}
       </div>
 
-      {safeComments.length === 0 ? (
+      {topLevel.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border-strong bg-surface/50 p-8 text-center">
           <p className="text-[0.9375rem] text-muted">
-            No comment yet. Be the first.
+            No comments yet. Be the first.
           </p>
         </div>
       ) : (
         <div className="space-y-4">
-          {safeComments.map((c) => {
-            const handle = c.author_handle ?? "Anonymous";
-            const letter = handle.charAt(0).toUpperCase();
-            const bg = avatarColor(c.author_handle ?? c.id);
-            const muted = (c.score ?? 0) <= -6;
-            return (
-              <article
-                key={c.id}
-                className="rounded-2xl border border-border bg-surface p-4 shadow-card"
-              >
-                <div className="flex items-start gap-3">
-                  <div
-                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${bg} text-[0.8rem] font-semibold text-white`}
-                  >
-                    {letter}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[0.875rem] font-medium text-ink">
-                        @{handle}
-                      </span>
-                      <span className="font-mono text-[0.7rem] uppercase text-faint">
-                        {timeAgo(c.created_at)}
-                      </span>
-                    </div>
-
-                    {muted ? (
-                      <p className="mt-2 rounded-lg bg-danger-soft px-3 py-2 text-[0.8125rem] text-danger">
-                        ⚠️ Community marked this as harmful. Voice muted.
-                      </p>
-                    ) : null}
-
-                    {c.audio_url ? (
-                      <div className="mt-2">
-                        <audio src={c.audio_url} controls className="h-8 w-full max-w-xs" />
-                      </div>
-                    ) : null}
-
-                    {c.body && c.body !== "(voice note)" ? (
-                      <p className="mt-2 text-[0.9375rem] leading-relaxed text-ink/90">
-                        {c.body}
-                      </p>
-                    ) : null}
-
-                    <div className="mt-3 flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => vote(c.id, "up")}
-                        className="inline-flex items-center gap-1 rounded-full bg-ink/5 px-2.5 py-1 text-[0.75rem] text-muted transition-colors hover:bg-accent-soft hover:text-accent-deep"
-                      >
-                        👍 {c.upvotes ?? 0}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => vote(c.id, "down")}
-                        className="inline-flex items-center gap-1 rounded-full bg-ink/5 px-2.5 py-1 text-[0.75rem] text-muted transition-colors hover:bg-danger-soft hover:text-danger"
-                      >
-                        👎 {c.downvotes ?? 0}
-                      </button>
-                      {(c.score ?? 0) !== 0 ? (
-                        <span className="text-[0.7rem] text-faint">
-                          score {(c.score ?? 0) > 0 ? "+" : ""}
-                          {c.score ?? 0}
-                        </span>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-              </article>
-            );
-          })}
+          {topLevel.map((c) => renderComment(c))}
         </div>
       )}
     </section>
