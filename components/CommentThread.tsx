@@ -23,7 +23,10 @@ function timeAgo(date: string): string {
   if (hrs < 24) return `${hrs}h`;
   const days = Math.floor(hrs / 24);
   if (days < 7) return `${days}d`;
-  return new Date(date).toLocaleDateString("en-NG", { month: "short", day: "numeric" });
+  return new Date(date).toLocaleDateString("en-NG", {
+    month: "short",
+    day: "numeric"
+  });
 }
 
 function avatarColor(seed: string): string {
@@ -127,47 +130,90 @@ export function CommentThread({ reportId }: { reportId: string }) {
       setError("Type something or record a voice note.");
       return;
     }
+
     setBusy(true);
     setError("");
 
-    const fd = new FormData();
-    fd.set("body", body.trim());
-    if (audioBlob) {
-      fd.set("audio", new File([audioBlob], "voice.webm", { type: "audio/webm" }));
-    }
+    try {
+      const fd = new FormData();
+      fd.set("body", body.trim());
+      if (audioBlob) {
+        fd.set("audio", new File([audioBlob], "voice.webm", { type: "audio/webm" }));
+      }
 
-    const res = await fetch(`/api/reports/${reportId}/comments`, {
-      method: "POST",
-      body: fd
-    });
-    const json = await res.json();
-    if (!res.ok) {
-      setError(json.error ?? "Comment no send.");
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 20000);
+
+      let res: Response;
+      try {
+        res = await fetch(`/api/reports/${reportId}/comments`, {
+          method: "POST",
+          body: fd,
+          signal: controller.signal
+        });
+      } finally {
+        clearTimeout(timeout);
+      }
+
+      const contentType = res.headers.get("content-type") ?? "";
+      let json: { comment?: Comment; error?: string } = {};
+
+      if (contentType.includes("application/json")) {
+        json = await res.json();
+      } else {
+        const text = await res.text();
+        console.error("Non-JSON response:", text);
+        setError(`Server returned ${res.status}. Try again.`);
+        setBusy(false);
+        return;
+      }
+
+      if (!res.ok) {
+        setError(json.error ?? `Comment no send. Code: ${res.status}`);
+        setBusy(false);
+        return;
+      }
+
+      if (json.comment) {
+        setComments((prev) => [...prev, json.comment!]);
+      }
+      setBody("");
+      clearAudio();
       setBusy(false);
-      return;
+    } catch (e) {
+      console.error("Comment submit failed:", e);
+      const msg = (e as Error).name === "AbortError"
+        ? "Request timed out. Check your network and try again."
+        : "Network error. Try again.";
+      setError(msg);
+      setBusy(false);
     }
-
-    setComments((prev) => [...prev, json.comment]);
-    setBody("");
-    clearAudio();
-    setBusy(false);
   }
 
   async function vote(commentId: string, v: "up" | "down") {
-    const res = await fetch(`/api/comments/${commentId}/vote`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ vote: v })
-    });
-    if (!res.ok) return;
-    const json = await res.json();
-    setComments((prev) =>
-      prev.map((c) =>
-        c.id === commentId
-          ? { ...c, upvotes: json.upvotes, downvotes: json.downvotes, score: json.score }
-          : c
-      )
-    );
+    try {
+      const res = await fetch(`/api/comments/${commentId}/vote`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ vote: v })
+      });
+      if (!res.ok) return;
+      const json = await res.json();
+      setComments((prev) =>
+        prev.map((c) =>
+          c.id === commentId
+            ? {
+                ...c,
+                upvotes: json.upvotes ?? c.upvotes,
+                downvotes: json.downvotes ?? c.downvotes,
+                score: json.score ?? c.score
+              }
+            : c
+        )
+      );
+    } catch {
+      /* ignore */
+    }
   }
 
   const safeComments = Array.isArray(comments) ? comments : [];
@@ -242,7 +288,9 @@ export function CommentThread({ reportId }: { reportId: string }) {
 
       {safeComments.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border-strong bg-surface/50 p-8 text-center">
-          <p className="text-[0.9375rem] text-muted">No comment yet. Be the first.</p>
+          <p className="text-[0.9375rem] text-muted">
+            No comment yet. Be the first.
+          </p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -280,11 +328,7 @@ export function CommentThread({ reportId }: { reportId: string }) {
 
                     {c.audio_url ? (
                       <div className="mt-2">
-                        <audio
-                          src={c.audio_url}
-                          controls
-                          className="h-8 w-full max-w-xs"
-                        />
+                        <audio src={c.audio_url} controls className="h-8 w-full max-w-xs" />
                       </div>
                     ) : null}
 
