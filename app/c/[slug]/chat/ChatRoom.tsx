@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { PresenceDot, presenceFromLastSeen } from "@/components/PresenceDot";
 
 type Reaction = { emoji: string; count: number };
 
@@ -11,6 +12,7 @@ type Message = {
   audio_url: string | null;
   created_at: string;
   author_handle: string;
+  author_last_seen: string | null;
   reactions: Reaction[];
 };
 
@@ -64,7 +66,6 @@ export function ChatRoom({
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Load who I am
   useEffect(() => {
     fetch("/api/whoami")
       .then((r) => (r.ok ? r.json() : null))
@@ -72,9 +73,9 @@ export function ChatRoom({
       .catch(() => {});
   }, []);
 
-  // Poll messages every 4 seconds
   useEffect(() => {
     let cancelled = false;
+
     async function fetchMessages() {
       try {
         const res = await fetch(`/api/communities/${slug}/messages`);
@@ -87,15 +88,19 @@ export function ChatRoom({
         /* ignore */
       }
     }
+
     fetchMessages();
-    const id = setInterval(fetchMessages, 4000);
+    const id = setInterval(() => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      fetchMessages();
+    }, 5000);
+
     return () => {
       cancelled = true;
       clearInterval(id);
     };
   }, [slug]);
 
-  // Auto-scroll to bottom
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -246,7 +251,6 @@ export function ChatRoom({
 
   return (
     <div className="fixed inset-x-0 top-0 bottom-0 flex flex-col bg-paper">
-      {/* Header */}
       <header className="flex items-center justify-between gap-2 border-b border-border bg-paper/95 px-3 py-3 backdrop-blur-md">
         <div className="flex min-w-0 items-center gap-2">
           <Link
@@ -268,7 +272,6 @@ export function ChatRoom({
         </div>
       </header>
 
-      {/* Messages */}
       <div
         ref={scrollRef}
         className="flex-1 overflow-y-auto px-3 py-4"
@@ -291,6 +294,7 @@ export function ChatRoom({
               const bg = avatarColor(m.author_handle);
               const letter = m.author_handle.charAt(0).toUpperCase();
               const openReactions = openReactionsFor === m.id;
+              const presence = presenceFromLastSeen(m.author_last_seen);
 
               return (
                 <div
@@ -303,10 +307,15 @@ export function ChatRoom({
                     }`}
                   >
                     {!isMe ? (
-                      <div
-                        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${bg} text-[0.7rem] font-semibold text-white`}
-                      >
-                        {letter}
+                      <div className="relative shrink-0">
+                        <div
+                          className={`flex h-7 w-7 items-center justify-center rounded-full ${bg} text-[0.7rem] font-semibold text-white`}
+                        >
+                          {letter}
+                        </div>
+                        <span className="absolute -bottom-0.5 -right-0.5">
+                          <PresenceDot state={presence} />
+                        </span>
                       </div>
                     ) : null}
                     <div
@@ -357,7 +366,6 @@ export function ChatRoom({
                         </button>
                       </div>
 
-                      {/* Reactions row */}
                       {m.reactions.length > 0 ? (
                         <div className="mt-1 flex flex-wrap gap-1">
                           {m.reactions.map((r) => (
@@ -377,7 +385,6 @@ export function ChatRoom({
                         </div>
                       ) : null}
 
-                      {/* Emoji picker */}
                       {openReactions ? (
                         <div
                           className={`absolute z-30 flex gap-1 rounded-full border border-border bg-surface p-1.5 shadow-card-hover ${
@@ -405,7 +412,6 @@ export function ChatRoom({
         )}
       </div>
 
-      {/* Composer */}
       <form
         onSubmit={send}
         className="border-t border-border bg-paper/95 px-3 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] backdrop-blur-md"

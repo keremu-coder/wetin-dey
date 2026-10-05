@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Nav, SiteFooter } from "@/components/Nav";
+import { PresencePing } from "@/components/PresencePing";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -30,6 +31,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className="min-h-screen font-sans">
+        <PresencePing />
         <Nav />
         {children}
         <SiteFooter />

@@ -22,7 +22,6 @@ export async function GET(
       return Response.json({ error: "not found" }, { status: 404 });
     }
 
-    // Last 100 messages, oldest first after sorting
     const { data: messages, error } = await db
       .from("community_messages")
       .select("id, session_id, body, audio_url, created_at")
@@ -36,18 +35,22 @@ export async function GET(
 
     const ordered = (messages ?? []).reverse();
 
-    // Fetch authors
     const sessionIds = Array.from(new Set(ordered.map((m) => m.session_id)));
     const handleMap = new Map<string, string>();
+    const lastSeenMap = new Map<string, string | null>();
+
     if (sessionIds.length > 0) {
       const { data: profiles } = await db
         .from("sessions")
-        .select("id, handle")
+        .select("id, handle, last_seen_at")
         .in("id", sessionIds);
-      for (const p of profiles ?? []) handleMap.set(p.id, p.handle);
+
+      for (const p of profiles ?? []) {
+        handleMap.set(p.id, p.handle);
+        lastSeenMap.set(p.id, p.last_seen_at ?? null);
+      }
     }
 
-    // Fetch reactions
     const msgIds = ordered.map((m) => m.id);
     const reactionMap = new Map<string, { emoji: string; count: number }[]>();
     if (msgIds.length > 0) {
@@ -65,7 +68,6 @@ export async function GET(
       }
     }
 
-    // "Who's here" — sessions active in last 5 minutes
     const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
     const recent = ordered.filter((m) => m.created_at > fiveMinAgo);
     const onlineHandles = Array.from(
@@ -78,6 +80,7 @@ export async function GET(
       audio_url: m.audio_url,
       created_at: m.created_at,
       author_handle: handleMap.get(m.session_id) ?? "Anonymous",
+      author_last_seen: lastSeenMap.get(m.session_id) ?? null,
       reactions: reactionMap.get(m.id) ?? []
     }));
 
@@ -118,7 +121,6 @@ export async function POST(
       return Response.json({ error: "not found" }, { status: 404 });
     }
 
-    // Must be a member
     const { data: membership } = await db
       .from("community_members")
       .select("id")
@@ -159,7 +161,8 @@ export async function POST(
             { status: 500 }
           );
         }
-        audio_url = db.storage.from("voice-notes").getPublicUrl(path).data.publicUrl;
+        audio_url = db.storage.from("voice-notes").getPublicUrl(path).data
+          .publicUrl;
       }
     } else {
       try {
@@ -205,6 +208,7 @@ export async function POST(
         audio_url: data.audio_url,
         created_at: data.created_at,
         author_handle: profile.handle,
+        author_last_seen: new Date().toISOString(),
         reactions: []
       }
     });
