@@ -47,9 +47,10 @@ export default function TakedownPage() {
           Dispute a report
         </h1>
         <p className="mt-2 text-[0.9375rem] leading-relaxed text-muted">
-          If you are named in a report and you believe it is false, submit a
-          dispute. We review within 24 hours. Reports are labelled as disputed
-          — they are not deleted.
+          If you are named in a report and believe it is false, defamatory, or
+          unlawful, submit a dispute. We review within 24 hours. Reports are
+          labelled as disputed — they are not deleted. The archive keeps its
+          record.
         </p>
       </div>
 
@@ -77,6 +78,9 @@ export default function TakedownPage() {
               onChange={(e) => setPostUrl(e.target.value)}
               placeholder="https://9jawatindey.vercel.app/r/..."
             />
+            <p className="mt-1 text-[0.75rem] text-faint">
+              Copy the URL from the report page.
+            </p>
           </div>
 
           <div>
