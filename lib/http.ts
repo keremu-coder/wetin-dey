@@ -1,5 +1,3 @@
-import { NextRequest } from "next/server";
-
 const ALLOWED_ORIGINS = [
   "http://localhost:3000",
   "http://127.0.0.1:3000",
@@ -8,7 +6,10 @@ const ALLOWED_ORIGINS = [
   "https://wetindey.vercel.app"
 ];
 
-export function originAllowed(req: NextRequest): boolean {
+// Accepts both Request and NextRequest — anything with .headers.get()
+type HasHeaders = { headers: { get(name: string): string | null } };
+
+export function originAllowed(req: HasHeaders): boolean {
   const origin = req.headers.get("origin");
 
   if (!origin) {
