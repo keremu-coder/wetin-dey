@@ -49,7 +49,9 @@ function FieldLabel({
         {required ? <span className="ml-1 text-danger">*</span> : null}
       </span>
       {hint ? (
-        <span className="ml-2 text-[0.75rem] font-normal text-faint">{hint}</span>
+        <span className="ml-2 text-[0.75rem] font-normal text-faint">
+          {hint}
+        </span>
       ) : null}
     </label>
   );
@@ -68,7 +70,13 @@ const COMMUNITY_TYPES = [
   { value: "rant", label: "Rant" }
 ];
 
-export function ReportForm({ tab = "talk" }: { tab?: "talk" | "community" }) {
+export function ReportForm({
+  tab = "talk",
+  communitySlug = null
+}: {
+  tab?: "talk" | "community";
+  communitySlug?: string | null;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -179,8 +187,11 @@ export function ReportForm({ tab = "talk" }: { tab?: "talk" | "community" }) {
     const form = e.currentTarget;
     const fd = new FormData(form);
 
-    // Post type override
     fd.set("post_type", postType);
+
+    if (communitySlug) {
+      fd.set("community_slug", communitySlug);
+    }
 
     if (evidenceFile && evidenceFile.type.startsWith("image/")) {
       try {
@@ -216,7 +227,11 @@ export function ReportForm({ tab = "talk" }: { tab?: "talk" | "community" }) {
       keepalive: true
     });
 
-    router.push(`/r/${json.id}`);
+    if (communitySlug) {
+      router.push(`/c/${communitySlug}`);
+    } else {
+      router.push(`/r/${json.id}`);
+    }
   }
 
   const bodyLength = body.length;
@@ -226,7 +241,6 @@ export function ReportForm({ tab = "talk" }: { tab?: "talk" | "community" }) {
 
   return (
     <form onSubmit={onSubmit} className="space-y-6">
-      {/* Type selector */}
       <div>
         <FieldLabel required>What kind of post?</FieldLabel>
         <div className="flex flex-wrap gap-2">
@@ -254,8 +268,7 @@ export function ReportForm({ tab = "talk" }: { tab?: "talk" | "community" }) {
         </div>
       </div>
 
-      {/* Title — for community posts */}
-      {tab === "community" ? (
+      {tab === "community" || postType !== "report_am" ? (
         <div>
           <FieldLabel htmlFor="title" hint="short headline" required>
             Title
@@ -272,7 +285,6 @@ export function ReportForm({ tab = "talk" }: { tab?: "talk" | "community" }) {
         </div>
       ) : null}
 
-      {/* Talk Am structured fields — only for report_am */}
       {tab === "talk" && postType === "report_am" ? (
         <>
           <div>
@@ -311,14 +323,12 @@ export function ReportForm({ tab = "talk" }: { tab?: "talk" | "community" }) {
           </div>
         </>
       ) : (
-        // Hidden defaults for community / ask / help
         <>
           <input type="hidden" name="category" value="other" />
           <input type="hidden" name="agency" value={title || "Community post"} />
         </>
       )}
 
-      {/* State — always */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <FieldLabel htmlFor="state" required>
@@ -340,7 +350,6 @@ export function ReportForm({ tab = "talk" }: { tab?: "talk" | "community" }) {
         </div>
       </div>
 
-      {/* Body */}
       <div>
         <FieldLabel htmlFor="body" hint="50–5000 chars" required>
           {tab === "talk" && postType === "report_am" ? "Wetin happen?" : "Your post"}
@@ -372,7 +381,6 @@ export function ReportForm({ tab = "talk" }: { tab?: "talk" | "community" }) {
         </div>
       </div>
 
-      {/* Amount — only for report_am */}
       {tab === "talk" && postType === "report_am" ? (
         <div>
           <FieldLabel htmlFor="amount" hint="optional">
@@ -395,7 +403,6 @@ export function ReportForm({ tab = "talk" }: { tab?: "talk" | "community" }) {
         </div>
       ) : null}
 
-      {/* Evidence section */}
       {requiresEvidence ? (
         <div className="rounded-2xl border-2 border-warm/40 bg-warm-soft/30 p-5">
           <div className="mb-4">
@@ -480,7 +487,6 @@ export function ReportForm({ tab = "talk" }: { tab?: "talk" | "community" }) {
           </div>
         </div>
       ) : (
-        // Optional image for community posts
         <div>
           <FieldLabel htmlFor="evidence" hint="optional image">
             Photo
@@ -496,7 +502,6 @@ export function ReportForm({ tab = "talk" }: { tab?: "talk" | "community" }) {
         </div>
       )}
 
-      {/* Anonymous confirm */}
       <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-border bg-surface p-4 transition-colors hover:border-accent/40">
         <input
           type="checkbox"
@@ -522,7 +527,7 @@ export function ReportForm({ tab = "talk" }: { tab?: "talk" | "community" }) {
       <button
         type="submit"
         disabled={busy || (requiresEvidence && !hasEvidence)}
-        className="w-full rounded-2xl bg-warm px-5 py-4 font-serif text-[1.05rem] font-semibold text-white shadow-button transition-all hover:bg-warm-deep hover:shadow-card disabled:cursor-not-allowed disabled:opacity-60"
+        className="w-full rounded-2xl bg-warm px-5 py-4 font-serif text-[1.05rem] font-semibold text-white shadow-button transition-all hover:bg-warm-deep disabled:cursor-not-allowed disabled:opacity-60"
       >
         {busy
           ? "Dey post am…"

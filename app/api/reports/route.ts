@@ -37,15 +37,15 @@ export async function GET(req: NextRequest) {
   let q = db
     .from("reports")
     .select(
-      "id, created_at, category, agency_raw, agency_canonical, state, lga, body, amount_kobo, evidence_url, evidence_type, evidence_link, evidence_label, summary_pidgin, summary_english, incident_date, status, reviewed, reviewer_note, formalization_confidence, dedupe_hash, author_handle, post_type, upvotes, downvotes, me_too_count, comment_count, evidence_tier, target_type"
+      "id, created_at, category, agency_raw, agency_canonical, state, lga, body, amount_kobo, evidence_url, evidence_type, evidence_link, evidence_label, summary_pidgin, summary_english, incident_date, status, reviewed, reviewer_note, formalization_confidence, dedupe_hash, author_handle, post_type, upvotes, downvotes, me_too_count, comment_count, evidence_tier, target_type, community_id"
     )
     .order("created_at", { ascending: false })
     .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
 
   if (tab === "talk") {
-    q = q.in("post_type", TALK_AM_TYPES).eq("reviewed", true);
+    q = q.in("post_type", TALK_AM_TYPES).eq("reviewed", true).is("community_id", null);
   } else {
-    q = q.in("post_type", ["talk_am", "news", "talent", "rant"]);
+    q = q.in("post_type", ["talk_am", "news", "talent", "rant"]).is("community_id", null);
   }
 
   if (state) q = q.eq("state", state);
@@ -83,6 +83,7 @@ export async function POST(req: NextRequest) {
   }
 
   const postType = String(form.get("post_type") ?? "report_am");
+  const communitySlug = String(form.get("community_slug") ?? "").trim() || null;
   const category = String(form.get("category") ?? "other");
   const agency_raw = String(form.get("agency") ?? "").trim() || "Community post";
   const state = String(form.get("state") ?? "");
@@ -123,7 +124,6 @@ export async function POST(req: NextRequest) {
     evidenceLink = publicLink;
   }
 
-  // Evidence required for Talk Am reports
   if (requiresEvidence && !evidenceType) {
     return jsonError(
       "Report no go publish without evidence. Attach photo, video, audio, voice testimony, or public link.",
@@ -131,7 +131,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Evidence labels
   if (evidenceType === "photo" || evidenceType === "video") {
     evidenceLabel = "Report with attached evidence";
   } else if (evidenceType === "audio") {
@@ -142,7 +141,6 @@ export async function POST(req: NextRequest) {
     evidenceLabel = "Backed by public source";
   }
 
-  // Validation
   if (!CATEGORIES.includes(category as (typeof CATEGORIES)[number])) {
     return jsonError("category no correct", 400);
   }
@@ -165,7 +163,34 @@ export async function POST(req: NextRequest) {
   const db = createServiceClient();
   const id = nanoid();
 
-  // ─── Evidence verification ─────────────────────────────
+  // Resolve community if posting into a space
+  let communityId: string | null = null;
+  if (communitySlug) {
+    const { data: c } = await db
+      .from("communities")
+      .select("id")
+      .eq("slug", communitySlug)
+      .maybeSingle();
+
+    if (!c) {
+      return jsonError("That space does not exist.", 400);
+    }
+
+    const { data: membership } = await db
+      .from("community_members")
+      .select("id")
+      .eq("community_id", c.id)
+      .eq("session_id", sessionId)
+      .maybeSingle();
+
+    if (!membership) {
+      return jsonError("You need to join that space first.", 403);
+    }
+
+    communityId = c.id;
+  }
+
+  // Evidence verification
   const { scoreEvidence } = await import("@/lib/verification");
 
   const { count: sessionPostCount } = await db
@@ -188,7 +213,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // ─── Upload evidence ───────────────────────────────────
+  // Upload evidence
   if (file instanceof File && file.size > 0) {
     try {
       if (file.size > 25 * 1024 * 1024) {
@@ -241,7 +266,6 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // ─── Dedupe hash ───────────────────────────────────────
   const dedupe_hash = hashDedupe({
     category,
     agency_canonical: agency_raw,
@@ -273,7 +297,8 @@ export async function POST(req: NextRequest) {
     evidence_tier: verification.tier,
     source_domain: verification.sourceDomain,
     target_type: verification.targetType,
-    requires_manual_review: false
+    requires_manual_review: false,
+    community_id: communityId
   };
 
   const { data, error } = await db.from("reports").insert(row).select("*").single();
@@ -286,7 +311,6 @@ export async function POST(req: NextRequest) {
     return jsonError("DB error: " + error.message, 500);
   }
 
-  // Auto-formalize only Talk Am reports
   if (postType === "report_am") {
     try {
       const { formalizeReport } = await import("@/lib/formalize");

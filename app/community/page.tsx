@@ -1,123 +1,78 @@
 import Link from "next/link";
-import { HomeFeed } from "@/components/ReportCard";
-import { PAGE_SIZE } from "@/lib/constants";
 import { createServiceClient } from "@/lib/supabase/server";
-import { stripSession, type Report } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-const COMMUNITY_TYPES = ["talk_am", "news", "talent", "rant"];
-
-export default async function CommunityPage({
-  searchParams
-}: {
-  searchParams: { page?: string; state?: string };
-}) {
-  const page = Math.max(1, Number(searchParams.page ?? "1") || 1);
+export default async function CommunitiesPage() {
   const db = createServiceClient();
+  const { data: communities } = await db
+    .from("communities")
+    .select("id, slug, name, description, emoji, member_count, post_count")
+    .eq("is_public", true)
+    .order("member_count", { ascending: false })
+    .limit(50);
 
-  let q = db
-    .from("reports")
-    .select("*")
-    .in("post_type", COMMUNITY_TYPES)
-    .order("created_at", { ascending: false })
-    .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
-
-  if (searchParams.state) q = q.eq("state", searchParams.state);
-
-  const { data } = await q;
-  const posts = ((data ?? []) as Report[]).map((r) => stripSession(r) as Report);
+  const list = communities ?? [];
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-8">
-      {/* Tab switcher */}
-      <div className="mb-6 flex gap-2 border-b border-border">
+    <main className="mx-auto max-w-2xl px-4 py-6 pb-24">
+      <div className="mb-6 flex items-start justify-between gap-3">
+        <div>
+          <h1 className="font-serif text-[1.75rem] font-semibold leading-tight text-ink">
+            Spaces
+          </h1>
+          <p className="mt-1 text-[0.875rem] leading-relaxed text-muted">
+            Public and private community spaces. Your village, your game squad,
+            your church cell, your family.
+          </p>
+        </div>
         <Link
-          href="/"
-          className="border-b-2 border-transparent px-4 py-3 font-serif text-[1.05rem] font-semibold text-muted transition-colors hover:text-ink"
+          href="/communities/new"
+          className="rounded-full bg-accent px-4 py-2 text-[0.8125rem] font-semibold text-white transition-colors hover:bg-accent-deep"
         >
-          Talk Am
-        </Link>
-        <Link
-          href="/community"
-          className="border-b-2 border-accent px-4 py-3 font-serif text-[1.05rem] font-semibold text-ink"
-        >
-          Community
+          + Create
         </Link>
       </div>
 
-      <div className="mb-6">
-        <h1 className="font-serif text-[2rem] font-semibold leading-tight text-ink">
-          Community
-        </h1>
-        <p className="mt-1 text-[0.9375rem] leading-relaxed text-muted">
-          Talent, wins, gist, and everything else. Free form. Support the good
-          ones. No tribal or party fights.
-        </p>
-      </div>
-
-      {posts.length === 0 ? (
+      {list.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border-strong bg-surface/50 p-10 text-center">
-          <p className="font-serif text-lg text-ink">Community still quiet.</p>
-          <p className="mt-1 text-sm text-muted">
-            Post something — a win, a talent, a story.
+          <div className="mb-3 text-[2rem]">🏘️</div>
+          <p className="font-serif text-[1.05rem] font-semibold text-ink">
+            No public spaces yet.
+          </p>
+          <p className="mt-2 text-[0.8125rem] text-muted">
+            Be the first to create one.
           </p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {posts.map((p) => {
-            const title =
-              p.agency_canonical || p.agency_raw || p.summary_pidgin?.slice(0, 60) || "Post";
-            const blurb = p.summary_pidgin || p.body.slice(0, 200);
-            return (
-              <Link
-                key={p.id}
-                href={`/r/${p.id}`}
-                className="group relative block rounded-2xl border border-border bg-surface shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover"
-              >
-                <div className="p-5">
-                  <div className="flex items-center gap-2 text-[0.7rem] uppercase tracking-wide text-faint">
-                    <span className="rounded-full bg-accent-soft px-2 py-0.5 font-medium text-accent-deep">
-                      {p.post_type?.replace("_", " ") ?? "post"}
-                    </span>
-                    <span className="font-mono">
-                      {new Date(p.created_at).toLocaleDateString("en-NG", {
-                        month: "short",
-                        day: "numeric"
-                      })}
-                    </span>
-                  </div>
-                  <h3 className="mt-3 font-serif text-[1.35rem] font-semibold leading-tight text-ink transition-colors group-hover:text-accent">
-                    {title}
-                  </h3>
-                  <p className="mt-2 line-clamp-3 text-[0.9375rem] leading-relaxed text-ink/85">
-                    {blurb}
+        <div className="space-y-3">
+          {list.map((c) => (
+            <Link
+              key={c.id}
+              href={`/c/${c.slug}`}
+              className="flex items-start gap-3 rounded-2xl border border-border bg-surface p-4 transition-colors hover:border-border-strong"
+            >
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-ink/5 text-[1.5rem]">
+                {c.emoji}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[0.9375rem] font-semibold text-ink">
+                  {c.name}
+                </p>
+                {c.description ? (
+                  <p className="mt-0.5 line-clamp-2 text-[0.8125rem] leading-relaxed text-muted">
+                    {c.description}
                   </p>
-                  {p.evidence_url && p.evidence_type === "photo" ? (
-                    <img
-                      src={p.evidence_url}
-                      alt=""
-                      className="mt-3 max-h-64 rounded-xl border border-border object-cover"
-                    />
-                  ) : null}
-                  <div className="mt-3 flex items-center gap-2 text-[0.75rem] text-muted">
-                    <span>❤️ {p.amount_kobo ? 0 : 0} Support</span>
-                    <span>·</span>
-                    <span className="capitalize">{p.state}</span>
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
+                ) : null}
+                <p className="mt-1 font-mono text-[0.7rem] text-faint">
+                  {c.member_count} member{c.member_count === 1 ? "" : "s"} ·{" "}
+                  {c.post_count} post{c.post_count === 1 ? "" : "s"}
+                </p>
+              </div>
+            </Link>
+          ))}
         </div>
       )}
-
-      <Link
-        href="/submit?tab=community"
-        className="mt-10 flex min-h-[52px] items-center justify-center rounded-2xl bg-accent px-5 font-serif text-[1.05rem] font-semibold text-white shadow-button transition-all hover:bg-accent-deep hover:shadow-card"
-      >
-        Post to Community
-      </Link>
     </main>
   );
 }

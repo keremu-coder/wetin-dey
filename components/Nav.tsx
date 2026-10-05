@@ -10,6 +10,7 @@ type WhoAmI = { handle: string; handle_kind: string } | null;
 const DRAWER_ITEMS = [
   { href: "/", label: "Talk Am", icon: "📰" },
   { href: "/community", label: "Community", icon: "🫂" },
+  { href: "/communities", label: "Spaces", icon: "🏘️" },
   { href: "/explore", label: "Explore", icon: "🌍" },
   { href: "/search", label: "Search", icon: "🔎" },
   { href: "/inbox", label: "Inbox", icon: "✉️" },
@@ -44,7 +45,6 @@ export function Nav() {
     <>
       <header className="sticky top-0 z-40 border-b border-border bg-paper/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-2 px-3 py-3">
-          {/* Logo — LEFT */}
           <Link href="/" className="flex items-center gap-1.5">
             <span className="inline-block h-2 w-2 rounded-full bg-accent" />
             <span className="font-serif text-[1.15rem] font-semibold leading-none tracking-tight text-ink">
@@ -52,7 +52,6 @@ export function Nav() {
             </span>
           </Link>
 
-          {/* Right side: Post + hamburger */}
           <div className="flex items-center gap-2">
             <Link
               href="/submit"
@@ -84,7 +83,6 @@ export function Nav() {
         </div>
       </header>
 
-      {/* Drawer */}
       {drawerOpen ? (
         <>
           <div
@@ -92,7 +90,6 @@ export function Nav() {
             onClick={() => setDrawerOpen(false)}
           />
           <aside className="fixed right-0 top-0 z-[60] h-full w-[85%] max-w-xs overflow-y-auto border-l border-border bg-paper slide-in-right">
-            {/* Drawer header */}
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-paper/95 px-4 py-3 backdrop-blur">
               <span className="font-serif text-[1.1rem] font-semibold text-ink">
                 Menu
@@ -107,7 +104,6 @@ export function Nav() {
               </button>
             </div>
 
-            {/* User card */}
             {me ? (
               <Link
                 href={`/u/${encodeURIComponent(me.handle)}`}
@@ -141,7 +137,6 @@ export function Nav() {
               </Link>
             )}
 
-            {/* Menu items */}
             <nav className="py-2">
               {DRAWER_ITEMS.map((item) => {
                 const active = pathname === item.href;
@@ -165,7 +160,6 @@ export function Nav() {
               })}
             </nav>
 
-            {/* Sign out */}
             {me ? (
               <div className="border-t border-border px-4 py-3">
                 <button
@@ -179,7 +173,6 @@ export function Nav() {
               </div>
             ) : null}
 
-            {/* Appearance */}
             <div className="border-t border-border px-4 py-4">
               <p className="mb-2 font-mono text-[0.7rem] uppercase tracking-wider text-faint">
                 Appearance

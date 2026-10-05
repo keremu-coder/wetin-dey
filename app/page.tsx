@@ -24,7 +24,6 @@ export default async function HomePage({
   const sessionId = await getSessionId();
   const db = createServiceClient();
 
-  // Current user's handle (for "is this my post?" checks)
   let currentHandle: string | null = null;
   if (sessionId) {
     const { data: me } = await db
@@ -39,12 +38,14 @@ export default async function HomePage({
     .from("reports")
     .select("id", { count: "exact", head: true })
     .eq("reviewed", true)
-    .in("post_type", TALK_AM_TYPES);
+    .in("post_type", TALK_AM_TYPES)
+    .is("community_id", null);
 
   let q = db
     .from("reports")
     .select("*")
     .in("post_type", TALK_AM_TYPES)
+    .is("community_id", null)
     .order("created_at", { ascending: false })
     .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
 
@@ -63,7 +64,7 @@ export default async function HomePage({
     .map((r) => stripSession(r) as Report);
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-8">
+    <main className="mx-auto max-w-2xl px-4 py-6 pb-24">
       <div className="mb-6 flex gap-2 border-b border-border">
         <Link
           href="/"
@@ -76,6 +77,12 @@ export default async function HomePage({
           className="border-b-2 border-transparent px-4 py-3 font-serif text-[1.05rem] font-semibold text-muted transition-colors hover:text-ink"
         >
           Community
+        </Link>
+        <Link
+          href="/communities"
+          className="border-b-2 border-transparent px-4 py-3 font-serif text-[1.05rem] font-semibold text-muted transition-colors hover:text-ink"
+        >
+          Spaces
         </Link>
       </div>
 
