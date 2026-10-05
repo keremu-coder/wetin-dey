@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
   let q = db
     .from("reports")
     .select(
-      "id, created_at, category, agency_raw, agency_canonical, state, lga, body, amount_kobo, evidence_url, evidence_type, evidence_link, evidence_label, summary_pidgin, summary_english, incident_date, status, reviewed, reviewer_note, formalization_confidence, dedupe_hash, author_handle, post_type, upvotes, downvotes, me_too_count, comment_count"
+      "id, created_at, category, agency_raw, agency_canonical, state, lga, body, amount_kobo, evidence_url, evidence_type, evidence_link, evidence_label, summary_pidgin, summary_english, incident_date, status, reviewed, reviewer_note, formalization_confidence, dedupe_hash, author_handle, post_type, upvotes, downvotes, me_too_count, comment_count, evidence_tier, target_type"
     )
     .order("created_at", { ascending: false })
     .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
@@ -123,6 +123,7 @@ export async function POST(req: NextRequest) {
     evidenceLink = publicLink;
   }
 
+  // Evidence required for Talk Am reports
   if (requiresEvidence && !evidenceType) {
     return jsonError(
       "Report no go publish without evidence. Attach photo, video, audio, voice testimony, or public link.",
@@ -130,15 +131,18 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (evidenceType === "photo" || evidenceType === "video")
+  // Evidence labels
+  if (evidenceType === "photo" || evidenceType === "video") {
     evidenceLabel = "Report with attached evidence";
-  else if (evidenceType === "audio")
+  } else if (evidenceType === "audio") {
     evidenceLabel = "Report with recorded evidence";
-  else if (evidenceType === "voice_testimony")
+  } else if (evidenceType === "voice_testimony") {
     evidenceLabel = "First-person testimony — no recorded evidence";
-  else if (evidenceType === "public_link")
+  } else if (evidenceType === "public_link") {
     evidenceLabel = "Backed by public source";
+  }
 
+  // Validation
   if (!CATEGORIES.includes(category as (typeof CATEGORIES)[number])) {
     return jsonError("category no correct", 400);
   }
@@ -161,7 +165,30 @@ export async function POST(req: NextRequest) {
   const db = createServiceClient();
   const id = nanoid();
 
-  // Upload evidence
+  // ─── Evidence verification ─────────────────────────────
+  const { scoreEvidence } = await import("@/lib/verification");
+
+  const { count: sessionPostCount } = await db
+    .from("reports")
+    .select("id", { count: "exact", head: true })
+    .eq("session_id", sessionId);
+
+  const verification = scoreEvidence({
+    evidenceType,
+    evidenceLink,
+    body,
+    agencyRaw: agency_raw,
+    sessionPostCount: sessionPostCount ?? 0
+  });
+
+  if (verification.requiresManualReview) {
+    return jsonError(
+      "This report names a private individual. It is held for manual review and will publish within 24 hours if it meets our guidelines.",
+      202
+    );
+  }
+
+  // ─── Upload evidence ───────────────────────────────────
   if (file instanceof File && file.size > 0) {
     try {
       if (file.size > 25 * 1024 * 1024) {
@@ -214,7 +241,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Compute the dedupe hash — based on WHAT, not WHO
+  // ─── Dedupe hash ───────────────────────────────────────
   const dedupe_hash = hashDedupe({
     category,
     agency_canonical: agency_raw,
@@ -242,13 +269,16 @@ export async function POST(req: NextRequest) {
     post_type: postType,
     requires_evidence: requiresEvidence,
     is_per_post_anonymous: false,
-    dedupe_hash
+    dedupe_hash,
+    evidence_tier: verification.tier,
+    source_domain: verification.sourceDomain,
+    target_type: verification.targetType,
+    requires_manual_review: false
   };
 
   const { data, error } = await db.from("reports").insert(row).select("*").single();
 
   if (error) {
-    // Postgres trigger-based rate limit
     if (String(error.message).toLowerCase().includes("rate limit")) {
       return jsonError("slow down — too many posts this hour", 429);
     }
@@ -256,7 +286,7 @@ export async function POST(req: NextRequest) {
     return jsonError("DB error: " + error.message, 500);
   }
 
-  // Auto-formalize only real Talk Am reports
+  // Auto-formalize only Talk Am reports
   if (postType === "report_am") {
     try {
       const { formalizeReport } = await import("@/lib/formalize");
