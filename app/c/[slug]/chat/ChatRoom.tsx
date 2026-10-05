@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { getBrowserClient } from "@/lib/supabase/client";
 import { PresenceDot, presenceFromLastSeen } from "@/components/PresenceDot";
 
 type Reaction = { emoji: string; count: number };
@@ -16,12 +17,34 @@ type Message = {
   reactions: Reaction[];
 };
 
+type Member = {
+  session_id: string;
+  handle: string;
+  last_seen_at: string | null;
+  role: string;
+};
+
 const QUICK_EMOJI = ["😂", "😢", "😮", "❤️", "🔥", "👏", "👍", "🙏"];
 
 function timeShort(date: string): string {
   return new Date(date).toLocaleTimeString("en-NG", {
     hour: "2-digit",
     minute: "2-digit"
+  });
+}
+
+function dayLabel(date: string): string {
+  const d = new Date(date);
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+
+  if (d.toDateString() === today.toDateString()) return "Today";
+  if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
+  return d.toLocaleDateString("en-NG", {
+    weekday: "short",
+    month: "short",
+    day: "numeric"
   });
 }
 
@@ -52,7 +75,7 @@ export function ChatRoom({
   isOwner: boolean;
 }) {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [online, setOnline] = useState<string[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -60,6 +83,7 @@ export function ChatRoom({
   const [recordSeconds, setRecordSeconds] = useState(0);
   const [me, setMe] = useState<string | null>(null);
   const [openReactionsFor, setOpenReactionsFor] = useState<string | null>(null);
+  const [membersOpen, setMembersOpen] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -73,6 +97,21 @@ export function ChatRoom({
       .catch(() => {});
   }, []);
 
+  // Load members
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/communities/${slug}/members`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!cancelled && d?.members) setMembers(d.members);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [slug]);
+
+  // Initial load of messages
   useEffect(() => {
     let cancelled = false;
 
@@ -83,32 +122,87 @@ export function ChatRoom({
         const json = await res.json();
         if (cancelled) return;
         setMessages(json.messages ?? []);
-        setOnline(json.online ?? []);
       } catch {
         /* ignore */
       }
     }
 
     fetchMessages();
-    const id = setInterval(() => {
-      if (typeof document !== "undefined" && document.hidden) return;
-      fetchMessages();
-    }, 5000);
-
     return () => {
       cancelled = true;
-      clearInterval(id);
     };
   }, [slug]);
+
+  // Realtime subscription
+  useEffect(() => {
+    if (!isMember) return;
+
+    let channel: ReturnType<
+      ReturnType<typeof getBrowserClient>["channel"]
+    > | null = null;
+
+    try {
+      const supabase = getBrowserClient();
+
+      channel = supabase
+        .channel(`community:${slug}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "community_messages"
+          },
+          async (payload) => {
+            const row = payload.new as {
+              id: string;
+              session_id: string;
+              body: string | null;
+              audio_url: string | null;
+              created_at: string;
+            };
+
+            // Filter: only messages for this community. We don't have slug in payload.
+            // Fetch the community_id from the payload's row via the API to avoid the noise.
+            // Since we don't know community_id in the payload, refetch the messages.
+            try {
+              const res = await fetch(`/api/communities/${slug}/messages`);
+              if (!res.ok) return;
+              const json = await res.json();
+              setMessages(json.messages ?? []);
+            } catch {
+              /* ignore */
+            }
+            // Reference row so it's not tree-shaken
+            void row.id;
+          }
+        )
+        .subscribe();
+
+      return () => {
+        if (channel) channel.unsubscribe();
+      };
+    } catch {
+      return;
+    }
+  }, [slug, isMember]);
 
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 200;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 300;
     if (nearBottom) {
       el.scrollTop = el.scrollHeight;
     }
   }, [messages]);
+
+  const onlineHandles = useMemo(
+    () =>
+      members
+        .filter((m) => presenceFromLastSeen(m.last_seen_at) === "online")
+        .map((m) => m.handle),
+    [members]
+  );
 
   async function send(e: React.FormEvent) {
     e.preventDefault();
@@ -235,9 +329,6 @@ export function ChatRoom({
           <p className="mt-3 font-serif text-[1.1rem] font-semibold text-ink">
             Join {name} to enter the chat
           </p>
-          <p className="mt-2 text-[0.875rem] text-muted">
-            Tap Join on the space page first.
-          </p>
           <Link
             href={`/c/${slug}`}
             className="mt-4 inline-block rounded-xl bg-accent px-4 py-2 text-[0.8125rem] font-semibold text-white"
@@ -251,7 +342,8 @@ export function ChatRoom({
 
   return (
     <div className="fixed inset-x-0 top-0 bottom-0 flex flex-col bg-paper">
-      <header className="flex items-center justify-between gap-2 border-b border-border bg-paper/95 px-3 py-3 backdrop-blur-md">
+      {/* Header */}
+      <header className="flex items-center justify-between gap-2 border-b border-border bg-paper/95 px-3 py-2.5 backdrop-blur-md">
         <div className="flex min-w-0 items-center gap-2">
           <Link
             href={`/c/${slug}`}
@@ -259,28 +351,66 @@ export function ChatRoom({
           >
             ←
           </Link>
-          <div className="min-w-0">
-            <p className="truncate text-[0.9375rem] font-semibold text-ink">
-              {emoji} {name}
-            </p>
-            <p className="font-mono text-[0.7rem] text-faint">
-              {online.length > 0
-                ? `${online.length} here now`
-                : "Quiet right now"}
-            </p>
-          </div>
+          <button
+            type="button"
+            onClick={() => setMembersOpen(true)}
+            className="flex min-w-0 items-center gap-2 rounded-full px-2 py-1 transition-colors hover:bg-ink/5"
+          >
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-ink/5 text-[1.1rem]">
+              {emoji}
+            </div>
+            <div className="min-w-0 text-left">
+              <p className="truncate text-[0.9375rem] font-semibold text-ink">
+                {name}
+              </p>
+              <p className="truncate font-mono text-[0.65rem] text-faint">
+                {onlineHandles.length > 0
+                  ? onlineHandles.slice(0, 3).join(", ") +
+                    (onlineHandles.length > 3
+                      ? ` +${onlineHandles.length - 3}`
+                      : "")
+                  : `${members.length} members`}
+              </p>
+            </div>
+          </button>
         </div>
+
+        <button
+          type="button"
+          onClick={() => setMembersOpen(true)}
+          className="flex h-9 w-9 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5"
+          aria-label="Members"
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.7"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+          </svg>
+        </button>
       </header>
 
+      {/* Messages canvas */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto px-3 py-4"
+        className="chat-canvas flex-1 overflow-y-auto px-3 py-4"
         style={{ overscrollBehavior: "contain" }}
       >
         {messages.length === 0 ? (
-          <div className="mt-10 text-center">
-            <div className="text-[2rem]">{emoji}</div>
-            <p className="mt-3 font-serif text-[1rem] font-semibold text-ink">
+          <div className="mt-12 text-center">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-ink/5 text-[2.5rem]">
+              {emoji}
+            </div>
+            <p className="mt-4 font-serif text-[1.1rem] font-semibold text-ink">
               Welcome to {name}
             </p>
             <p className="mt-1 text-[0.8125rem] text-muted">
@@ -288,121 +418,169 @@ export function ChatRoom({
             </p>
           </div>
         ) : (
-          <div className="space-y-2">
-            {messages.map((m) => {
+          <div className="space-y-1">
+            {messages.map((m, idx) => {
+              const prev = idx > 0 ? messages[idx - 1] : null;
+              const next = idx < messages.length - 1 ? messages[idx + 1] : null;
               const isMe = me && m.author_handle === me;
               const bg = avatarColor(m.author_handle);
               const letter = m.author_handle.charAt(0).toUpperCase();
               const openReactions = openReactionsFor === m.id;
               const presence = presenceFromLastSeen(m.author_last_seen);
 
+              const sameDayAsPrev =
+                prev &&
+                new Date(prev.created_at).toDateString() ===
+                  new Date(m.created_at).toDateString();
+              const sameSenderAsPrev =
+                prev && prev.author_handle === m.author_handle && sameDayAsPrev;
+              const sameSenderAsNext =
+                next && next.author_handle === m.author_handle;
+              const showAvatar = !isMe && !sameSenderAsPrev;
+              const groupedSent = isMe && sameSenderAsNext;
+              const groupedReceived = !isMe && sameSenderAsNext;
+
               return (
-                <div
-                  key={m.id}
-                  className={`flex ${isMe ? "justify-end" : "justify-start"}`}
-                >
+                <div key={m.id}>
+                  {!sameDayAsPrev ? (
+                    <div className="my-4 flex items-center justify-center">
+                      <span className="rounded-full bg-ink/5 px-3 py-1 font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+                        {dayLabel(m.created_at)}
+                      </span>
+                    </div>
+                  ) : null}
+
                   <div
-                    className={`flex max-w-[85%] items-end gap-2 ${
-                      isMe ? "flex-row-reverse" : ""
-                    }`}
+                    className={`flex ${
+                      isMe ? "justify-end" : "justify-start"
+                    } ${sameSenderAsPrev ? "mt-0.5" : "mt-2"}`}
                   >
-                    {!isMe ? (
-                      <div className="relative shrink-0">
-                        <div
-                          className={`flex h-7 w-7 items-center justify-center rounded-full ${bg} text-[0.7rem] font-semibold text-white`}
-                        >
-                          {letter}
-                        </div>
-                        <span className="absolute -bottom-0.5 -right-0.5">
-                          <PresenceDot state={presence} />
-                        </span>
-                      </div>
-                    ) : null}
                     <div
-                      className={`group relative rounded-2xl px-3.5 py-2 ${
-                        isMe
-                          ? "rounded-tr-sm bg-accent text-white"
-                          : "rounded-tl-sm bg-surface text-ink border border-border"
+                      className={`flex max-w-[82%] items-end gap-2 ${
+                        isMe ? "flex-row-reverse" : ""
                       }`}
                     >
                       {!isMe ? (
-                        <p className="mb-0.5 text-[0.7rem] font-semibold opacity-70">
-                          {m.author_handle}
-                        </p>
+                        <div className="w-7 shrink-0">
+                          {showAvatar ? (
+                            <div className="relative">
+                              <div
+                                className={`flex h-7 w-7 items-center justify-center rounded-full ${bg} text-[0.7rem] font-semibold text-white`}
+                              >
+                                {letter}
+                              </div>
+                              <span className="absolute -bottom-0.5 -right-0.5">
+                                <PresenceDot state={presence} />
+                              </span>
+                            </div>
+                          ) : null}
+                        </div>
                       ) : null}
 
-                      {m.audio_url ? (
-                        <audio
-                          src={m.audio_url}
-                          controls
-                          className="my-1 h-8 max-w-[220px]"
-                        />
-                      ) : null}
+                      <div
+                        className={`group relative bubble-in ${
+                          isMe
+                            ? groupedSent
+                              ? "chat-bubble-sent-grouped"
+                              : "chat-bubble-sent"
+                            : groupedReceived
+                            ? "chat-bubble-received-grouped"
+                            : "chat-bubble-received"
+                        } px-3.5 py-2 shadow-sm`}
+                      >
+                        {!isMe && !sameSenderAsPrev ? (
+                          <p className="mb-0.5 text-[0.7rem] font-semibold text-accent-deep">
+                            {m.author_handle}
+                          </p>
+                        ) : null}
 
-                      {m.body ? (
-                        <p className="whitespace-pre-wrap break-words text-[0.875rem] leading-snug">
-                          {m.body}
-                        </p>
-                      ) : null}
+                        {m.audio_url ? (
+                          <audio
+                            src={m.audio_url}
+                            controls
+                            className="my-1 h-8 max-w-[220px]"
+                          />
+                        ) : null}
 
-                      <div className="mt-1 flex items-center justify-between gap-2">
-                        <span
-                          className={`font-mono text-[0.6rem] ${
+                        {m.body ? (
+                          <p className="whitespace-pre-wrap break-words text-[0.9375rem] leading-snug">
+                            {m.body}
+                          </p>
+                        ) : null}
+
+                        <div
+                          className={`mt-1 flex items-center justify-end gap-1 text-[0.6rem] ${
                             isMe ? "text-white/70" : "text-faint"
                           }`}
                         >
-                          {timeShort(m.created_at)}
-                        </span>
+                          <span className="font-mono">
+                            {timeShort(m.created_at)}
+                          </span>
+                          {isMe ? (
+                            <span
+                              className="font-mono"
+                              title="Delivered to server"
+                            >
+                              ✓
+                            </span>
+                          ) : null}
+                        </div>
+
                         <button
                           type="button"
                           onClick={() =>
                             setOpenReactionsFor(openReactions ? null : m.id)
                           }
-                          className={`rounded-full px-1.5 py-0.5 text-[0.65rem] opacity-0 transition-opacity group-hover:opacity-100 ${
-                            isMe ? "text-white/70" : "text-faint"
-                          }`}
+                          className={`absolute -top-3 ${
+                            isMe ? "left-1" : "right-1"
+                          } flex h-6 w-6 items-center justify-center rounded-full border border-border bg-surface text-[0.75rem] opacity-0 shadow-sm transition-opacity group-hover:opacity-100`}
+                          aria-label="React"
                         >
-                          +😊
+                          😊
                         </button>
+
+                        {m.reactions.length > 0 ? (
+                          <div
+                            className={`mt-1.5 flex flex-wrap gap-1 ${
+                              isMe ? "justify-end" : ""
+                            }`}
+                          >
+                            {m.reactions.map((r) => (
+                              <button
+                                key={r.emoji}
+                                type="button"
+                                onClick={() => react(m.id, r.emoji)}
+                                className={`rounded-full px-1.5 py-0.5 text-[0.7rem] ${
+                                  isMe
+                                    ? "bg-white/20 text-white"
+                                    : "bg-ink/5 text-ink"
+                                }`}
+                              >
+                                {r.emoji} {r.count}
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
+
+                        {openReactions ? (
+                          <div
+                            className={`absolute z-30 flex gap-1 rounded-full border border-border bg-surface p-1.5 shadow-card-hover ${
+                              isMe ? "right-0 -top-12" : "left-0 -top-12"
+                            }`}
+                          >
+                            {QUICK_EMOJI.map((e) => (
+                              <button
+                                key={e}
+                                type="button"
+                                onClick={() => react(m.id, e)}
+                                className="flex h-7 w-7 items-center justify-center rounded-full text-[1rem] transition-colors hover:bg-ink/10"
+                              >
+                                {e}
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
                       </div>
-
-                      {m.reactions.length > 0 ? (
-                        <div className="mt-1 flex flex-wrap gap-1">
-                          {m.reactions.map((r) => (
-                            <button
-                              key={r.emoji}
-                              type="button"
-                              onClick={() => react(m.id, r.emoji)}
-                              className={`rounded-full px-1.5 py-0.5 text-[0.7rem] ${
-                                isMe
-                                  ? "bg-white/20 text-white"
-                                  : "bg-ink/5 text-ink"
-                              }`}
-                            >
-                              {r.emoji} {r.count}
-                            </button>
-                          ))}
-                        </div>
-                      ) : null}
-
-                      {openReactions ? (
-                        <div
-                          className={`absolute z-30 flex gap-1 rounded-full border border-border bg-surface p-1.5 shadow-card-hover ${
-                            isMe ? "right-0 -top-10" : "left-0 -top-10"
-                          }`}
-                        >
-                          {QUICK_EMOJI.map((e) => (
-                            <button
-                              key={e}
-                              type="button"
-                              onClick={() => react(m.id, e)}
-                              className="flex h-7 w-7 items-center justify-center rounded-full text-[1rem] transition-colors hover:bg-ink/10"
-                            >
-                              {e}
-                            </button>
-                          ))}
-                        </div>
-                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -412,6 +590,7 @@ export function ChatRoom({
         )}
       </div>
 
+      {/* Composer */}
       <form
         onSubmit={send}
         className="border-t border-border bg-paper/95 px-3 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] backdrop-blur-md"
@@ -469,6 +648,108 @@ export function ChatRoom({
           </button>
         </div>
       </form>
+
+      {/* Members sheet */}
+      {membersOpen ? (
+        <>
+          <div
+            className="fixed inset-0 z-50 bg-black/50 fade-in"
+            onClick={() => setMembersOpen(false)}
+          />
+          <aside className="fixed right-0 top-0 z-[60] h-full w-[85%] max-w-sm overflow-y-auto border-l border-border bg-paper slide-in-right">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-paper/95 px-4 py-3 backdrop-blur">
+              <div>
+                <p className="font-serif text-[1.05rem] font-semibold text-ink">
+                  Members
+                </p>
+                <p className="font-mono text-[0.65rem] text-faint">
+                  {onlineHandles.length} online · {members.length} total
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMembersOpen(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-full text-muted transition-colors hover:bg-ink/5 hover:text-ink"
+              >
+                ✕
+              </button>
+            </div>
+
+            <MemberGroup
+              label="Online"
+              members={members.filter(
+                (m) => presenceFromLastSeen(m.last_seen_at) === "online"
+              )}
+              emptyText="Nobody here right now"
+            />
+            <MemberGroup
+              label="Away"
+              members={members.filter(
+                (m) => presenceFromLastSeen(m.last_seen_at) === "away"
+              )}
+            />
+            <MemberGroup
+              label="Offline"
+              members={members.filter(
+                (m) => presenceFromLastSeen(m.last_seen_at) === "offline"
+              )}
+            />
+          </aside>
+        </>
+      ) : null}
     </div>
+  );
+}
+
+function MemberGroup({
+  label,
+  members,
+  emptyText
+}: {
+  label: string;
+  members: Member[];
+  emptyText?: string;
+}) {
+  if (members.length === 0 && !emptyText) return null;
+
+  return (
+    <section className="py-2">
+      <p className="px-4 py-2 font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+        {label} — {members.length}
+      </p>
+      {members.length === 0 ? (
+        <p className="px-4 py-2 text-[0.8125rem] text-muted">{emptyText}</p>
+      ) : (
+        members.map((m) => {
+          const presence = presenceFromLastSeen(m.last_seen_at);
+          const bg = avatarColor(m.handle);
+          return (
+            <div
+              key={m.session_id}
+              className="flex items-center gap-3 px-4 py-3"
+            >
+              <div className="relative">
+                <div
+                  className={`flex h-9 w-9 items-center justify-center rounded-full ${bg} text-[0.85rem] font-semibold text-white`}
+                >
+                  {m.handle.charAt(0).toUpperCase()}
+                </div>
+                <span className="absolute -bottom-0.5 -right-0.5">
+                  <PresenceDot state={presence} size="md" />
+                </span>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[0.9375rem] font-medium text-ink">
+                  @{m.handle}
+                </p>
+                <p className="text-[0.7rem] capitalize text-muted">
+                  {m.role}
+                </p>
+              </div>
+            </div>
+          );
+        })
+      )}
+    </section>
   );
 }
