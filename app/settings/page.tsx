@@ -213,7 +213,7 @@ export default async function SettingsPage() {
 
       <div className="mb-6">
         <p className="mb-2 px-1 font-mono text-[0.7rem] uppercase tracking-wider text-faint">
-          Appearance
+          Appearance &amp; sounds
         </p>
         <div className="overflow-hidden rounded-2xl border border-border bg-surface">
           <div className="p-3">
@@ -230,6 +230,21 @@ export default async function SettingsPage() {
               </p>
               <p className="text-[0.75rem] text-muted">
                 Your messages show up in this font for everyone — like BBM
+              </p>
+            </div>
+            <span className="text-faint">›</span>
+          </Link>
+          <Link
+            href="/settings/sounds"
+            className="flex items-center gap-3 border-t border-border px-4 py-4 transition-colors hover:bg-ink/5"
+          >
+            <span className={`text-[1.25rem] ${iconClass}`}>🔊</span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[0.9375rem] font-medium text-ink">
+                Sounds &amp; notifications
+              </p>
+              <p className="text-[0.75rem] text-muted">
+                BBM ping by default — pick your own
               </p>
             </div>
             <span className="text-faint">›</span>

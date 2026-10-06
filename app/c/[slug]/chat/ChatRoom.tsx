@@ -4,12 +4,15 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { getBrowserClient } from "@/lib/supabase/client";
 import {
-  playBbmPing,
-  playMentionPing,
+  playProfile,
   vibrate,
   vibrateMention,
-  unlockAudio
-} from "@/lib/bbm-sound";
+  unlockAudio,
+  showBrowserNotification,
+  requestNotificationPermission,
+  notificationPermission
+} from "@/lib/sounds";
+import { loadPrefs, subscribePrefs, type SoundPrefs } from "@/lib/sound-prefs";
 import { autocorrect, suggestCorrection } from "@/lib/autocorrect";
 import { MessageBody } from "@/components/MessageBody";
 import { PresenceDot, presenceFromLastSeen } from "@/components/PresenceDot";
@@ -123,14 +126,25 @@ export function ChatRoom({
   const [openReactionsFor, setOpenReactionsFor] = useState<string | null>(null);
   const [membersOpen, setMembersOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [soundOn, setSoundOn] = useState(true);
-  const [vibrateOn, setVibrateOn] = useState(true);
+  const [inviteBannerDismissed, setInviteBannerDismissed] = useState(false);
   const [autocorrectOn, setAutocorrectOn] = useState(true);
   const [suggestion, setSuggestion] = useState<{
     original: string;
     suggested: string;
   } | null>(null);
   const [fontByHandle, setFontByHandle] = useState<Record<string, string>>({});
+  const [prefs, setPrefs] = useState<SoundPrefs>({
+    profile: "bbm",
+    send: true,
+    receive: true,
+    mention: true,
+    notification: true,
+    vibrate: true,
+    browserNotifications: true
+  });
+  const [notifPerm, setNotifPerm] = useState<
+    NotificationPermission | "unsupported"
+  >("default");
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -138,8 +152,22 @@ export function ChatRoom({
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const handleCacheRef = useRef<Map<string, string>>(new Map());
+  const prefsRef = useRef<SoundPrefs>(prefs);
 
-  // Unlock audio on mount + first tap so BBM pings actually play.
+  // Sound preferences: load + subscribe
+  useEffect(() => {
+    const initial = loadPrefs();
+    setPrefs(initial);
+    prefsRef.current = initial;
+    const unsub = subscribePrefs((p) => {
+      setPrefs(p);
+      prefsRef.current = p;
+    });
+    setNotifPerm(notificationPermission());
+    return unsub;
+  }, []);
+
+  // Audio unlock
   useEffect(() => {
     unlockAudio();
     const handler = () => unlockAudio();
@@ -150,6 +178,20 @@ export function ChatRoom({
       window.removeEventListener("touchstart", handler, true);
     };
   }, []);
+
+  // Request notification permission on mount if not yet asked.
+  useEffect(() => {
+    if (!prefs.browserNotifications) return;
+    if (notificationPermission() === "default") {
+      // Wait a beat so we don't hit the user with a modal immediately.
+      const t = setTimeout(() => {
+        requestNotificationPermission()
+          .then(() => setNotifPerm(notificationPermission()))
+          .catch(() => {});
+      }, 2500);
+      return () => clearTimeout(t);
+    }
+  }, [prefs.browserNotifications]);
 
   useEffect(() => {
     fetch("/api/whoami")
@@ -235,14 +277,37 @@ export function ChatRoom({
               reactions: []
             };
 
+            const p = prefsRef.current;
             const mentionedMe =
               row.body && me ? containsMentionOf(row.body, me) : false;
-            if (mentionedMe) {
-              if (soundOn) playMentionPing();
-              if (vibrateOn) vibrateMention();
-            } else {
-              if (soundOn) playBbmPing();
-              if (vibrateOn) vibrate(35);
+
+            // Sound: mention wins over receive
+            if (mentionedMe && p.mention) {
+              playProfile(p.profile, "mention");
+            } else if (!mentionedMe && p.receive) {
+              playProfile(p.profile, "receive");
+            }
+
+            // Haptic
+            if (p.vibrate) {
+              if (mentionedMe) vibrateMention();
+              else vibrate(35);
+            }
+
+            // Browser notification (background tab only)
+            if (p.browserNotifications) {
+              const preview = row.body
+                ? row.body.slice(0, 90)
+                : row.audio_url
+                  ? "🎤 Voice note"
+                  : "New message";
+              showBrowserNotification(
+                mentionedMe
+                  ? `@${handle} mentioned you in ${name}`
+                  : `${handle} in ${name}`,
+                preview,
+                `chat-${slug}`
+              );
             }
 
             setMessages((prev) => {
@@ -264,7 +329,7 @@ export function ChatRoom({
     } catch {
       return;
     }
-  }, [slug, isMember, mySessionId, me, soundOn, vibrateOn]);
+  }, [slug, isMember, mySessionId, me, name]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -332,6 +397,11 @@ export function ChatRoom({
     unlockAudio();
 
     const finalBody = autocorrectOn ? autocorrect(raw) : raw;
+    const p = prefsRef.current;
+
+    // Send sound + haptic — immediately, do not wait for server
+    if (p.send) playProfile(p.profile, "send");
+    if (p.vibrate) vibrate(20);
 
     setBusy(true);
     setError("");
@@ -355,7 +425,6 @@ export function ChatRoom({
       });
       setBody("");
       setBusy(false);
-      if (vibrateOn) vibrate(20);
       setTimeout(() => {
         const el = scrollRef.current;
         if (el) el.scrollTop = el.scrollHeight;
@@ -413,6 +482,8 @@ export function ChatRoom({
   }
 
   async function sendVoice(blob: Blob) {
+    const p = prefsRef.current;
+    if (p.send) playProfile(p.profile, "send");
     setBusy(true);
     try {
       const fd = new FormData();
@@ -449,7 +520,7 @@ export function ChatRoom({
           m.id === messageId ? { ...m, reactions: json.reactions ?? [] } : m
         )
       );
-      if (vibrateOn) vibrate(15);
+      if (prefsRef.current.vibrate) vibrate(15);
     } catch {
       /* ignore */
     }
@@ -477,6 +548,9 @@ export function ChatRoom({
       </main>
     );
   }
+
+  const showInviteBanner =
+    !inviteBannerDismissed && members.length < 5 && !inviteOpen;
 
   return (
     <div className="fixed inset-x-0 top-0 bottom-0 flex flex-col bg-paper">
@@ -525,34 +599,30 @@ export function ChatRoom({
         </div>
 
         <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => {
-              unlockAudio();
-              setSoundOn((v) => !v);
-              if (!soundOn) playBbmPing();
-            }}
+          <Link
+            href="/settings/sounds"
             className="flex h-9 w-9 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5"
-            aria-label="Toggle sound"
+            aria-label="Sound settings"
+            title="Sound settings"
           >
-            {soundOn ? "🔔" : "🔕"}
-          </button>
+            {prefs.profile === "none" ? "🔕" : "🔔"}
+          </Link>
           <button
             type="button"
             onClick={() => {
               unlockAudio();
               setInviteOpen(true);
             }}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5"
+            className="flex h-9 items-center gap-1.5 rounded-full bg-accent px-3 text-[0.8125rem] font-semibold text-white transition-colors hover:bg-accent-deep"
             aria-label="Invite people"
           >
             <svg
-              width="20"
-              height="20"
+              width="15"
+              height="15"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              strokeWidth="1.9"
+              strokeWidth="2.4"
               strokeLinecap="round"
               strokeLinejoin="round"
             >
@@ -561,6 +631,7 @@ export function ChatRoom({
               <line x1="19" y1="8" x2="19" y2="14" />
               <line x1="22" y1="11" x2="16" y2="11" />
             </svg>
+            Invite
           </button>
           <button
             type="button"
@@ -586,6 +657,33 @@ export function ChatRoom({
           </button>
         </div>
       </header>
+
+      {showInviteBanner ? (
+        <div className="flex items-center gap-3 border-b border-border bg-accent-soft px-3 py-2">
+          <span className="text-[1.1rem]">👋</span>
+          <p className="min-w-0 flex-1 text-[0.8125rem] text-ink">
+            {members.length === 1
+              ? "You are the only one here."
+              : `Only ${members.length} people here.`}{" "}
+            Invite friends so the chat comes alive.
+          </p>
+          <button
+            type="button"
+            onClick={() => setInviteOpen(true)}
+            className="shrink-0 rounded-lg bg-accent px-3 py-1.5 text-[0.75rem] font-semibold text-white transition-colors hover:bg-accent-deep"
+          >
+            Invite
+          </button>
+          <button
+            type="button"
+            onClick={() => setInviteBannerDismissed(true)}
+            className="shrink-0 text-faint transition-colors hover:text-ink"
+            aria-label="Dismiss"
+          >
+            ✕
+          </button>
+        </div>
+      ) : null}
 
       <div
         ref={scrollRef}
@@ -933,48 +1031,50 @@ export function ChatRoom({
               </button>
             </div>
 
+            <Link
+              href="/settings/sounds"
+              className="flex items-center gap-3 border-b border-border px-4 py-3 transition-colors hover:bg-ink/5"
+            >
+              <span className="text-[1.1rem]">🔊</span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[0.875rem] font-medium text-ink">
+                  Sound settings
+                </p>
+                <p className="text-[0.7rem] text-muted">
+                  Profile: {prefs.profile} ·{" "}
+                  {prefs.send ? "send on" : "send off"} ·{" "}
+                  {prefs.receive ? "receive on" : "receive off"}
+                </p>
+              </div>
+              <span className="text-faint">›</span>
+            </Link>
+
+            {notifPerm === "granted" ? null : notifPerm === "default" ? (
+              <button
+                type="button"
+                onClick={async () => {
+                  await requestNotificationPermission();
+                  setNotifPerm(notificationPermission());
+                }}
+                className="flex w-full items-center gap-3 border-b border-border px-4 py-3 text-left transition-colors hover:bg-ink/5"
+              >
+                <span className="text-[1.1rem]">🔔</span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[0.875rem] font-medium text-ink">
+                    Enable notifications
+                  </p>
+                  <p className="text-[0.7rem] text-muted">
+                    Get notified when a message arrives
+                  </p>
+                </div>
+                <span className="text-faint">›</span>
+              </button>
+            ) : null}
+
             <div className="border-b border-border px-4 py-3">
               <p className="mb-2 font-mono text-[0.65rem] uppercase tracking-wider text-faint">
                 Chat settings
               </p>
-              <div className="flex items-center justify-between py-2">
-                <span className="text-[0.875rem] text-ink">Ping sound</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    unlockAudio();
-                    setSoundOn((v) => !v);
-                  }}
-                  className={`relative h-6 w-11 rounded-full transition-colors ${
-                    soundOn ? "bg-accent" : "bg-ink/10"
-                  }`}
-                >
-                  <span
-                    className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                      soundOn ? "translate-x-5" : "translate-x-0.5"
-                    }`}
-                  />
-                </button>
-              </div>
-              <div className="flex items-center justify-between py-2">
-                <span className="text-[0.875rem] text-ink">Vibrate</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setVibrateOn((v) => !v);
-                    if (!vibrateOn) vibrate(30);
-                  }}
-                  className={`relative h-6 w-11 rounded-full transition-colors ${
-                    vibrateOn ? "bg-accent" : "bg-ink/10"
-                  }`}
-                >
-                  <span
-                    className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                      vibrateOn ? "translate-x-5" : "translate-x-0.5"
-                    }`}
-                  />
-                </button>
-              </div>
               <div className="flex items-center justify-between py-2">
                 <span className="text-[0.875rem] text-ink">Autocorrect</span>
                 <button
