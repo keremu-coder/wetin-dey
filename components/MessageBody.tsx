@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
+import { getFontById } from "@/lib/bbm-fonts";
 
 type Segment =
   | { type: "text"; value: string }
@@ -38,21 +39,29 @@ function parseMessage(body: string): Segment[] {
 export function MessageBody({
   body,
   isOwn,
-  mentionsMe
+  mentionsMe,
+  fontId
 }: {
   body: string;
   isOwn: boolean;
   mentionsMe?: boolean;
+  fontId?: string | null;
 }) {
   const segments = useMemo(() => parseMessage(body), [body]);
+  const font = getFontById(fontId);
+
+  const fontSize = font.sizeAdjust
+    ? `calc(0.9375rem * ${font.sizeAdjust})`
+    : undefined;
 
   return (
     <p
-      className={`whitespace-pre-wrap break-words text-[0.9375rem] leading-[1.4] ${
+      className={`whitespace-pre-wrap break-words leading-[1.4] ${
         mentionsMe && !isOwn
           ? "rounded-md bg-accent-soft/60 px-1.5 py-0.5 -mx-1.5 -my-0.5"
           : ""
       }`}
+      style={{ fontFamily: font.family, fontSize }}
     >
       {segments.map((seg, i) => {
         if (seg.type === "mention") {
@@ -65,6 +74,7 @@ export function MessageBody({
                   ? "bg-white/20 text-white hover:bg-white/30"
                   : "bg-accent-soft text-accent-deep hover:bg-accent/20"
               }`}
+              style={{ fontFamily: "'Inter', system-ui, sans-serif" }}
               onClick={(e) => e.stopPropagation()}
             >
               @{seg.handle}
@@ -80,7 +90,9 @@ export function MessageBody({
               target="_blank"
               rel="noopener noreferrer"
               className={`break-all underline transition-colors ${
-                isOwn ? "text-white/90 hover:text-white" : "text-accent hover:text-accent-deep"
+                isOwn
+                  ? "text-white/90 hover:text-white"
+                  : "text-accent hover:text-accent-deep"
               }`}
               onClick={(e) => e.stopPropagation()}
             >

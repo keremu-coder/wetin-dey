@@ -12,6 +12,7 @@ import {
 import { autocorrect, suggestCorrection } from "@/lib/autocorrect";
 import { MessageBody } from "@/components/MessageBody";
 import { PresenceDot, presenceFromLastSeen } from "@/components/PresenceDot";
+import { DEFAULT_FONT_ID } from "@/lib/bbm-fonts";
 
 type Reaction = { emoji: string; count: number };
 
@@ -44,11 +45,17 @@ function timeShort(date: string): string {
 function timeWithDate(date: string): string {
   const d = new Date(date);
   const today = new Date();
-  if (d.toDateString() === today.toDateString()) return `Today at ${timeShort(date)}`;
+  if (d.toDateString() === today.toDateString())
+    return `Today at ${timeShort(date)}`;
   const yesterday = new Date();
   yesterday.setDate(today.getDate() - 1);
-  if (d.toDateString() === yesterday.toDateString()) return `Yesterday at ${timeShort(date)}`;
-  return d.toLocaleDateString("en-NG", { month: "short", day: "numeric" }) + " at " + timeShort(date);
+  if (d.toDateString() === yesterday.toDateString())
+    return `Yesterday at ${timeShort(date)}`;
+  return (
+    d.toLocaleDateString("en-NG", { month: "short", day: "numeric" }) +
+    " at " +
+    timeShort(date)
+  );
 }
 
 function dayLabel(date: string): string {
@@ -83,7 +90,10 @@ function avatarColor(seed: string): string {
 
 function containsMentionOf(text: string, handle: string): boolean {
   if (!text || !handle) return false;
-  const pattern = new RegExp(`@${handle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+  const pattern = new RegExp(
+    `@${handle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`,
+    "i"
+  );
   return pattern.test(text);
 }
 
@@ -113,7 +123,11 @@ export function ChatRoom({
   const [soundOn, setSoundOn] = useState(true);
   const [vibrateOn, setVibrateOn] = useState(true);
   const [autocorrectOn, setAutocorrectOn] = useState(true);
-  const [suggestion, setSuggestion] = useState<{ original: string; suggested: string } | null>(null);
+  const [suggestion, setSuggestion] = useState<{
+    original: string;
+    suggested: string;
+  } | null>(null);
+  const [fontByHandle, setFontByHandle] = useState<Record<string, string>>({});
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -210,8 +224,8 @@ export function ChatRoom({
               reactions: []
             };
 
-            // BBM mention ping takes priority
-            const mentionedMe = row.body && me ? containsMentionOf(row.body, me) : false;
+            const mentionedMe =
+              row.body && me ? containsMentionOf(row.body, me) : false;
             if (mentionedMe) {
               if (soundOn) playMentionPing();
               if (vibrateOn) vibrateMention();
@@ -251,7 +265,7 @@ export function ChatRoom({
     }
   }, [messages]);
 
-  // Recompute suggestion chip as user types
+  // Autocorrect suggestion chip
   useEffect(() => {
     if (!autocorrectOn) {
       setSuggestion(null);
@@ -259,6 +273,29 @@ export function ChatRoom({
     }
     setSuggestion(suggestCorrection(body));
   }, [body, autocorrectOn]);
+
+  // Load fonts for handles appearing in messages (batched, cached)
+  useEffect(() => {
+    const handles = Array.from(
+      new Set(messages.map((m) => m.author_handle).filter(Boolean))
+    );
+    const missing = handles.filter((h) => !(h in fontByHandle));
+    if (missing.length === 0) return;
+
+    let cancelled = false;
+    fetch(
+      `/api/sessions/fonts?handles=${encodeURIComponent(missing.join(","))}`
+    )
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (cancelled || !d?.fonts) return;
+        setFontByHandle((prev) => ({ ...prev, ...d.fonts }));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [messages, fontByHandle]);
 
   const onlineHandles = useMemo(
     () =>
@@ -351,7 +388,10 @@ export function ChatRoom({
   }
 
   function stopVoice() {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+    if (
+      mediaRecorderRef.current &&
+      mediaRecorderRef.current.state !== "inactive"
+    ) {
       mediaRecorderRef.current.stop();
     }
     setRecording(false);
@@ -429,7 +469,6 @@ export function ChatRoom({
 
   return (
     <div className="fixed inset-x-0 top-0 bottom-0 flex flex-col bg-paper">
-      {/* Header */}
       <header className="flex items-center justify-between gap-2 border-b border-border bg-paper/90 px-3 py-2.5 backdrop-blur-xl">
         <div className="flex min-w-0 items-center gap-2">
           <Link
@@ -511,7 +550,6 @@ export function ChatRoom({
         </div>
       </header>
 
-      {/* Message log */}
       <div
         ref={scrollRef}
         className="chat-log flex-1 overflow-y-auto py-4"
@@ -529,8 +567,7 @@ export function ChatRoom({
           <div>
             {messages.map((m, idx) => {
               const prev = idx > 0 ? messages[idx - 1] : null;
-              const isSameAuthor =
-                prev && prev.author_handle === m.author_handle;
+              const isSameAuthor = prev && prev.author_handle === m.author_handle;
               const withinWindow =
                 prev &&
                 new Date(m.created_at).getTime() -
@@ -547,12 +584,17 @@ export function ChatRoom({
               const bg = avatarColor(m.author_handle);
               const letter = m.author_handle.charAt(0).toUpperCase();
               const presence = presenceFromLastSeen(m.author_last_seen);
-              const mentionsMe = me && m.body ? containsMentionOf(m.body, me) : false;
+              const mentionsMe =
+                me && m.body ? containsMentionOf(m.body, me) : false;
+              const fontId =
+                fontByHandle[m.author_handle] || DEFAULT_FONT_ID;
 
               return (
                 <div key={m.id}>
                   {!sameDayAsPrev ? (
-                    <div className="chat-day-divider">{dayLabel(m.created_at)}</div>
+                    <div className="chat-day-divider">
+                      {dayLabel(m.created_at)}
+                    </div>
                   ) : null}
 
                   <div
@@ -609,6 +651,7 @@ export function ChatRoom({
                           body={m.body}
                           isOwn={isMe}
                           mentionsMe={mentionsMe}
+                          fontId={fontId}
                         />
                       ) : null}
 
@@ -628,7 +671,6 @@ export function ChatRoom({
                       ) : null}
                     </div>
 
-                    {/* Hover actions */}
                     <div className="chat-msg-actions">
                       <button
                         type="button"
@@ -644,7 +686,6 @@ export function ChatRoom({
                       </button>
                     </div>
 
-                    {/* Emoji picker */}
                     {openReactionsFor === m.id ? (
                       <>
                         <div
@@ -673,7 +714,6 @@ export function ChatRoom({
         )}
       </div>
 
-      {/* Composer */}
       <form
         onSubmit={send}
         className="border-t border-border bg-paper/90 px-3 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] backdrop-blur-xl"
@@ -794,7 +834,6 @@ export function ChatRoom({
         </div>
       </form>
 
-      {/* Members sheet */}
       {membersOpen ? (
         <>
           <div
