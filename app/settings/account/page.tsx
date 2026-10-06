@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/session";
+import { StatusEditor } from "@/components/StatusEditor";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,8 @@ export default async function AccountPage() {
       </div>
 
       <div className="space-y-4">
+        <StatusEditor sessionId={profile.id} />
+
         <div className="rounded-2xl border border-border bg-surface p-5">
           <p className="font-mono text-[0.7rem] uppercase tracking-wider text-faint">
             Your handle
@@ -65,7 +68,10 @@ export default async function AccountPage() {
 
       <p className="mt-8 text-[0.75rem] text-faint">
         Need to change your email or handle? Contact{" "}
-        <a href="mailto:support@wetindey.app" className="underline hover:text-accent">
+        <a
+          href="mailto:support@wetindey.app"
+          className="underline hover:text-accent"
+        >
           support@wetindey.app
         </a>
         . Self-service editing is coming soon.

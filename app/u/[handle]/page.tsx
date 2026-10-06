@@ -5,6 +5,7 @@ import { getSessionId } from "@/lib/session";
 import { FollowButton } from "@/components/FollowButton";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ReviewedFlag } from "@/components/ReviewedFlag";
+import { StatusLine } from "@/components/StatusLine";
 import { formatNaira } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +35,10 @@ function timeAgo(date: string): string {
   if (hrs < 24) return `${hrs}h`;
   const days = Math.floor(hrs / 24);
   if (days < 7) return `${days}d`;
-  return new Date(date).toLocaleDateString("en-NG", { month: "short", day: "numeric" });
+  return new Date(date).toLocaleDateString("en-NG", {
+    month: "short",
+    day: "numeric"
+  });
 }
 
 export default async function ProfilePage({
@@ -47,7 +51,9 @@ export default async function ProfilePage({
 
   const { data: profile } = await db
     .from("sessions")
-    .select("id, handle, handle_kind, bio, karma, follower_count, following_count, post_count, verified_reporter, created_at")
+    .select(
+      "id, handle, handle_kind, bio, status_line, karma, follower_count, following_count, post_count, verified_reporter, created_at"
+    )
     .eq("handle", handle)
     .maybeSingle();
 
@@ -62,7 +68,6 @@ export default async function ProfilePage({
 
   const posts = postsRaw ?? [];
 
-  // Am I following this handle?
   const mySessionId = await getSessionId();
   let isFollowing = false;
   let isMe = false;
@@ -89,7 +94,6 @@ export default async function ProfilePage({
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8">
-      {/* Profile header */}
       <section className="rounded-2xl border border-border bg-surface p-6 shadow-card">
         <div className="flex items-start gap-4">
           <div
@@ -117,23 +121,41 @@ export default async function ProfilePage({
                 </span>
               ) : null}
             </div>
-            <p className="mt-1 text-[0.8125rem] text-muted">Joined {joined}</p>
+
+            {profile.status_line ? (
+              <StatusLine
+                status={profile.status_line}
+                className="mt-2 !text-[0.9375rem]"
+              />
+            ) : null}
+
+            <p className="mt-1 text-[0.8125rem] text-muted">
+              Joined {joined}
+            </p>
             <div className="mt-3 flex flex-wrap gap-5 text-[0.875rem]">
               <span>
-                <strong className="font-semibold text-ink">{profile.post_count ?? 0}</strong>{" "}
+                <strong className="font-semibold text-ink">
+                  {profile.post_count ?? 0}
+                </strong>{" "}
                 <span className="text-muted">posts</span>
               </span>
               <span>
-                <strong className="font-semibold text-ink">{profile.follower_count ?? 0}</strong>{" "}
+                <strong className="font-semibold text-ink">
+                  {profile.follower_count ?? 0}
+                </strong>{" "}
                 <span className="text-muted">followers</span>
               </span>
               <span>
-                <strong className="font-semibold text-ink">{profile.following_count ?? 0}</strong>{" "}
+                <strong className="font-semibold text-ink">
+                  {profile.following_count ?? 0}
+                </strong>{" "}
                 <span className="text-muted">following</span>
               </span>
             </div>
             {profile.bio ? (
-              <p className="mt-3 text-[0.9375rem] leading-relaxed text-ink/85">{profile.bio}</p>
+              <p className="mt-3 text-[0.9375rem] leading-relaxed text-ink/85">
+                {profile.bio}
+              </p>
             ) : null}
             {!isMe ? (
               <div className="mt-4">
@@ -146,10 +168,10 @@ export default async function ProfilePage({
             ) : (
               <div className="mt-4">
                 <Link
-                  href="/me"
+                  href="/settings/account"
                   className="inline-flex rounded-xl border border-border-strong bg-surface px-4 py-2 text-[0.875rem] font-medium text-ink transition-colors hover:bg-ink/5"
                 >
-                  This is you — edit your posts
+                  This is you — edit your profile
                 </Link>
               </div>
             )}
@@ -157,15 +179,17 @@ export default async function ProfilePage({
         </div>
       </section>
 
-      {/* Posts */}
       <h2 className="mt-10 mb-4 font-serif text-[1.35rem] font-semibold text-ink">
         Posts
       </h2>
 
       {posts.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border-strong bg-surface/50 p-10 text-center">
-          <p className="font-serif text-lg text-ink">No post yet.</p>
-          <p className="mt-1 text-sm text-muted">When @{handle} posts, e go show here.</p>
+        <div className="empty-state">
+          <div className="empty-state-icon">📝</div>
+          <p className="empty-state-title">No post yet</p>
+          <p className="empty-state-text">
+            When @{handle} posts, e go show here.
+          </p>
         </div>
       ) : (
         <div className="space-y-4">

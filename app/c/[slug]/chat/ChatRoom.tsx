@@ -16,6 +16,7 @@ import { loadPrefs, subscribePrefs, type SoundPrefs } from "@/lib/sound-prefs";
 import { autocorrect, suggestCorrection } from "@/lib/autocorrect";
 import { MessageBody } from "@/components/MessageBody";
 import { PresenceDot, presenceFromLastSeen } from "@/components/PresenceDot";
+import { StatusLine } from "@/components/StatusLine";
 import { DEFAULT_FONT_ID } from "@/lib/bbm-fonts";
 import { InviteSheet } from "@/components/InviteSheet";
 
@@ -133,6 +134,9 @@ export function ChatRoom({
     suggested: string;
   } | null>(null);
   const [fontByHandle, setFontByHandle] = useState<Record<string, string>>({});
+  const [statusByHandle, setStatusByHandle] = useState<Record<string, string>>(
+    {}
+  );
   const [prefs, setPrefs] = useState<SoundPrefs>({
     profile: "bbm",
     send: true,
@@ -154,7 +158,6 @@ export function ChatRoom({
   const handleCacheRef = useRef<Map<string, string>>(new Map());
   const prefsRef = useRef<SoundPrefs>(prefs);
 
-  // Sound preferences: load + subscribe
   useEffect(() => {
     const initial = loadPrefs();
     setPrefs(initial);
@@ -167,7 +170,6 @@ export function ChatRoom({
     return unsub;
   }, []);
 
-  // Audio unlock
   useEffect(() => {
     unlockAudio();
     const handler = () => unlockAudio();
@@ -179,11 +181,9 @@ export function ChatRoom({
     };
   }, []);
 
-  // Request notification permission on mount if not yet asked.
   useEffect(() => {
     if (!prefs.browserNotifications) return;
     if (notificationPermission() === "default") {
-      // Wait a beat so we don't hit the user with a modal immediately.
       const t = setTimeout(() => {
         requestNotificationPermission()
           .then(() => setNotifPerm(notificationPermission()))
@@ -281,20 +281,17 @@ export function ChatRoom({
             const mentionedMe =
               row.body && me ? containsMentionOf(row.body, me) : false;
 
-            // Sound: mention wins over receive
             if (mentionedMe && p.mention) {
               playProfile(p.profile, "mention");
             } else if (!mentionedMe && p.receive) {
               playProfile(p.profile, "receive");
             }
 
-            // Haptic
             if (p.vibrate) {
               if (mentionedMe) vibrateMention();
               else vibrate(35);
             }
 
-            // Browser notification (background tab only)
             if (p.browserNotifications) {
               const preview = row.body
                 ? row.body.slice(0, 90)
@@ -348,27 +345,41 @@ export function ChatRoom({
     setSuggestion(suggestCorrection(body));
   }, [body, autocorrectOn]);
 
+  // Load fonts + statuses for handles in messages
   useEffect(() => {
     const handles = Array.from(
       new Set(messages.map((m) => m.author_handle).filter(Boolean))
     );
-    const missing = handles.filter((h) => !(h in fontByHandle));
-    if (missing.length === 0) return;
+    const missingFonts = handles.filter((h) => !(h in fontByHandle));
+    const missingStatuses = handles.filter((h) => !(h in statusByHandle));
+
+    if (missingFonts.length === 0 && missingStatuses.length === 0) return;
 
     let cancelled = false;
-    fetch(
-      `/api/sessions/fonts?handles=${encodeURIComponent(missing.join(","))}`
-    )
+    const joined = Array.from(
+      new Set([...missingFonts, ...missingStatuses])
+    ).join(",");
+
+    fetch(`/api/sessions/fonts?handles=${encodeURIComponent(joined)}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (cancelled || !d?.fonts) return;
         setFontByHandle((prev) => ({ ...prev, ...d.fonts }));
       })
       .catch(() => {});
+
+    fetch(`/api/sessions/statuses?handles=${encodeURIComponent(joined)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (cancelled || !d?.statuses) return;
+        setStatusByHandle((prev) => ({ ...prev, ...d.statuses }));
+      })
+      .catch(() => {});
+
     return () => {
       cancelled = true;
     };
-  }, [messages, fontByHandle]);
+  }, [messages, fontByHandle, statusByHandle]);
 
   const onlineHandles = useMemo(
     () =>
@@ -399,7 +410,6 @@ export function ChatRoom({
     const finalBody = autocorrectOn ? autocorrect(raw) : raw;
     const p = prefsRef.current;
 
-    // Send sound + haptic — immediately, do not wait for server
     if (p.send) playProfile(p.profile, "send");
     if (p.vibrate) vibrate(20);
 
@@ -723,6 +733,7 @@ export function ChatRoom({
               const mentionsMe =
                 me && m.body ? containsMentionOf(m.body, me) : false;
               const fontId = fontByHandle[m.author_handle] || DEFAULT_FONT_ID;
+              const status = statusByHandle[m.author_handle];
 
               return (
                 <div key={m.id}>
@@ -755,22 +766,32 @@ export function ChatRoom({
 
                     <div className="chat-msg-body">
                       {isGroupStart ? (
-                        <div className="chat-msg-header">
-                          <Link
-                            href={`/u/${encodeURIComponent(m.author_handle)}`}
-                            className="chat-msg-author"
-                          >
-                            {m.author_handle}
-                            {isMe ? (
-                              <span className="ml-1.5 text-[0.7rem] font-normal text-accent">
-                                you
-                              </span>
-                            ) : null}
-                          </Link>
-                          <span className="chat-msg-timestamp">
-                            {timeWithDate(m.created_at)}
-                          </span>
-                        </div>
+                        <>
+                          <div className="chat-msg-header">
+                            <Link
+                              href={`/u/${encodeURIComponent(
+                                m.author_handle
+                              )}`}
+                              className="chat-msg-author"
+                            >
+                              {m.author_handle}
+                              {isMe ? (
+                                <span className="ml-1.5 text-[0.7rem] font-normal text-accent">
+                                  you
+                                </span>
+                              ) : null}
+                            </Link>
+                            <span className="chat-msg-timestamp">
+                              {timeWithDate(m.created_at)}
+                            </span>
+                          </div>
+                          {status ? (
+                            <StatusLine
+                              status={status}
+                              className="mb-1 !text-[0.75rem]"
+                            />
+                          ) : null}
+                        </>
                       ) : null}
 
                       {m.audio_url ? (
@@ -1099,18 +1120,21 @@ export function ChatRoom({
                 (m) => presenceFromLastSeen(m.last_seen_at) === "online"
               )}
               emptyText="Nobody here right now"
+              statusByHandle={statusByHandle}
             />
             <MemberGroup
               label="Away"
               members={members.filter(
                 (m) => presenceFromLastSeen(m.last_seen_at) === "away"
               )}
+              statusByHandle={statusByHandle}
             />
             <MemberGroup
               label="Offline"
               members={members.filter(
                 (m) => presenceFromLastSeen(m.last_seen_at) === "offline"
               )}
+              statusByHandle={statusByHandle}
             />
           </aside>
         </>
@@ -1122,11 +1146,13 @@ export function ChatRoom({
 function MemberGroup({
   label,
   members,
-  emptyText
+  emptyText,
+  statusByHandle
 }: {
   label: string;
   members: Member[];
   emptyText?: string;
+  statusByHandle: Record<string, string>;
 }) {
   if (members.length === 0 && !emptyText) return null;
 
@@ -1141,13 +1167,14 @@ function MemberGroup({
         members.map((m) => {
           const presence = presenceFromLastSeen(m.last_seen_at);
           const bg = avatarColor(m.handle);
+          const status = statusByHandle[m.handle];
           return (
             <Link
               key={m.session_id}
               href={`/u/${encodeURIComponent(m.handle)}`}
-              className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-ink/5"
+              className="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-ink/5"
             >
-              <div className="relative">
+              <div className="relative shrink-0">
                 <div
                   className="flex h-9 w-9 items-center justify-center rounded-full text-[0.85rem] font-semibold text-white"
                   style={{ background: bg }}
@@ -1162,7 +1189,16 @@ function MemberGroup({
                 <p className="truncate text-[0.9375rem] font-medium text-ink">
                   @{m.handle}
                 </p>
-                <p className="text-[0.7rem] capitalize text-muted">{m.role}</p>
+                {status ? (
+                  <StatusLine
+                    status={status}
+                    className="mt-0.5 !text-[0.75rem]"
+                  />
+                ) : (
+                  <p className="text-[0.7rem] capitalize text-muted">
+                    {m.role}
+                  </p>
+                )}
               </div>
             </Link>
           );
