@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 import { nanoid } from "nanoid";
 import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
+import { notifyCommunityMembers } from "@/lib/push-server";
 
 export async function GET(
   _req: NextRequest,
@@ -113,7 +114,7 @@ export async function POST(
 
     const { data: community } = await db
       .from("communities")
-      .select("id")
+      .select("id, name, slug")
       .eq("slug", params.slug)
       .maybeSingle();
 
@@ -198,6 +199,22 @@ export async function POST(
 
     if (error) {
       return Response.json({ error: error.message }, { status: 500 });
+    }
+
+    // Fire push to every other member of the space. Wrapped so a push
+    // failure never fails the actual message send.
+    try {
+      await notifyCommunityMembers({
+        communityId: community.id,
+        senderSessionId: sessionId,
+        senderHandle: profile.handle,
+        communityName: community.name,
+        communitySlug: community.slug,
+        body: body || null,
+        hasAudio: !!audio_url
+      });
+    } catch (pushErr) {
+      console.error("[push notify]", pushErr);
     }
 
     return Response.json({

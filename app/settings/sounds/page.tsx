@@ -13,6 +13,11 @@ import {
   type SoundProfileId
 } from "@/lib/sounds";
 import {
+  pushSupported,
+  subscribeToPush,
+  unsubscribeFromPush
+} from "@/lib/push-client";
+import {
   loadPrefs,
   savePrefs,
   DEFAULT_PREFS,
@@ -24,10 +29,14 @@ export default function SoundSettingsPage() {
   const [permission, setPermission] = useState<
     NotificationPermission | "unsupported"
   >("default");
+  const [pushReady, setPushReady] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushMsg, setPushMsg] = useState("");
 
   useEffect(() => {
     setPrefs(loadPrefs());
     setPermission(notificationPermission());
+    setPushReady(pushSupported());
   }, []);
 
   function update<K extends keyof SoundPrefs>(key: K, value: SoundPrefs[K]) {
@@ -39,7 +48,6 @@ export default function SoundSettingsPage() {
   function pickProfile(id: SoundProfileId) {
     unlockAudio();
     update("profile", id);
-    // preview the receive sound
     setTimeout(() => playProfile(id, "receive"), 50);
   }
 
@@ -54,6 +62,46 @@ export default function SoundSettingsPage() {
     setPermission(notificationPermission());
     if (ok) {
       update("browserNotifications", true);
+      // Also register push subscription now that we have permission.
+      if (pushSupported()) {
+        setPushBusy(true);
+        const ok2 = await subscribeToPush();
+        setPushBusy(false);
+        setPushMsg(
+          ok2
+            ? "Push notifications are now active on this device."
+            : "Could not subscribe to push. Try reloading the page."
+        );
+      }
+    }
+  }
+
+  async function togglePush() {
+    if (pushBusy) return;
+    setPushBusy(true);
+    setPushMsg("");
+    try {
+      if (prefs.browserNotifications && pushReady) {
+        await unsubscribeFromPush();
+        update("browserNotifications", false);
+        setPushMsg("Push notifications turned off on this device.");
+      } else {
+        const ok = await requestNotificationPermission();
+        setPermission(notificationPermission());
+        if (!ok) {
+          setPushMsg("Notifications are blocked. Allow them in your browser settings.");
+        } else {
+          const ok2 = await subscribeToPush();
+          if (ok2) {
+            update("browserNotifications", true);
+            setPushMsg("Push notifications are now active on this device.");
+          } else {
+            setPushMsg("Could not subscribe. On iPhone, add the app to your home screen first.");
+          }
+        }
+      }
+    } finally {
+      setPushBusy(false);
     }
   }
 
@@ -75,7 +123,6 @@ export default function SoundSettingsPage() {
         </p>
       </header>
 
-      {/* Sound profile picker */}
       <section className="mb-6">
         <p className="mb-2 font-mono text-[0.65rem] uppercase tracking-wider text-faint">
           Sound profile
@@ -125,7 +172,6 @@ export default function SoundSettingsPage() {
         </div>
       </section>
 
-      {/* Per-event toggles */}
       <section className="mb-6">
         <p className="mb-2 font-mono text-[0.65rem] uppercase tracking-wider text-faint">
           When should it play
@@ -173,62 +219,81 @@ export default function SoundSettingsPage() {
         </div>
       </section>
 
-      {/* Browser notifications */}
       <section className="mb-6">
         <p className="mb-2 font-mono text-[0.65rem] uppercase tracking-wider text-faint">
-          Browser notifications
+          Push notifications
         </p>
         <div className="rounded-2xl border border-border bg-surface p-4">
-          {permission === "unsupported" ? (
+          {!pushReady ? (
             <p className="text-[0.8125rem] text-muted">
-              Your browser does not support notifications.
+              Your browser does not support push notifications. Try Chrome,
+              Edge, or a modern Safari.
             </p>
-          ) : permission === "denied" ? (
+          ) : permission === "unsupported" ? (
             <p className="text-[0.8125rem] text-muted">
-              Notifications are blocked. Open your browser settings for this
-              site and allow notifications, then reload.
+              Push notifications are not available on this device.
             </p>
-          ) : permission === "granted" ? (
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[0.875rem] font-medium text-ink">
-                  Notifications enabled
-                </p>
-                <p className="mt-0.5 text-[0.75rem] text-muted">
-                  You&apos;ll get a notification when a message arrives while
-                  the tab is in the background.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => update("browserNotifications", !prefs.browserNotifications)}
-                className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
-                  prefs.browserNotifications ? "bg-accent" : "bg-ink/10"
-                }`}
-              >
-                <span
-                  className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                    prefs.browserNotifications ? "translate-x-5" : "translate-x-0.5"
-                  }`}
-                />
-              </button>
-            </div>
           ) : (
-            <div>
-              <p className="text-[0.875rem] font-medium text-ink">
-                Enable notifications
+            <>
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[0.875rem] font-medium text-ink">
+                    {prefs.browserNotifications
+                      ? "Notifications enabled"
+                      : "Enable notifications"}
+                  </p>
+                  <p className="mt-0.5 text-[0.75rem] text-muted">
+                    Get pinged when a message arrives even if the app is
+                    closed.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={togglePush}
+                  disabled={pushBusy}
+                  className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
+                    prefs.browserNotifications ? "bg-accent" : "bg-ink/10"
+                  } ${pushBusy ? "opacity-50" : ""}`}
+                >
+                  <span
+                    className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                      prefs.browserNotifications
+                        ? "translate-x-5"
+                        : "translate-x-0.5"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {permission === "default" ? (
+                <button
+                  type="button"
+                  onClick={askNotifications}
+                  className="mt-3 rounded-xl bg-accent px-4 py-2 text-[0.8125rem] font-semibold text-white transition-colors hover:bg-accent-deep"
+                >
+                  Allow notifications
+                </button>
+              ) : null}
+
+              {permission === "denied" ? (
+                <p className="mt-3 rounded-xl bg-danger-soft px-3 py-2 text-[0.75rem] text-danger">
+                  Notifications are blocked in your browser settings. On iPhone
+                  Safari, you must first add Wetin Dey to your home screen.
+                </p>
+              ) : null}
+
+              {pushMsg ? (
+                <p className="mt-3 rounded-xl bg-accent-soft px-3 py-2 text-[0.75rem] text-accent-deep">
+                  {pushMsg}
+                </p>
+              ) : null}
+
+              <p className="mt-4 text-[0.7rem] leading-relaxed text-faint">
+                iPhone users: add Wetin Dey to your home screen first (tap
+                Share → Add to Home Screen), then return here and enable.
+                Safari blocks push for non-installed web apps.
               </p>
-              <p className="mt-0.5 text-[0.75rem] text-muted">
-                So you do not miss a message when the app is in another tab.
-              </p>
-              <button
-                type="button"
-                onClick={askNotifications}
-                className="mt-3 rounded-xl bg-accent px-4 py-2 text-[0.8125rem] font-semibold text-white transition-colors hover:bg-accent-deep"
-              >
-                Allow notifications
-              </button>
-            </div>
+            </>
           )}
         </div>
       </section>
