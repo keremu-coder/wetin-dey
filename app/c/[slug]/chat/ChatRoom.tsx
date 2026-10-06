@@ -19,6 +19,7 @@ import { PresenceDot, presenceFromLastSeen } from "@/components/PresenceDot";
 import { StatusLine } from "@/components/StatusLine";
 import { DEFAULT_FONT_ID } from "@/lib/bbm-fonts";
 import { InviteSheet } from "@/components/InviteSheet";
+import { FlagSheet } from "@/components/FlagSheet";
 
 type Reaction = { emoji: string; count: number };
 
@@ -30,9 +31,9 @@ type Message = {
   author_handle: string;
   author_last_seen: string | null;
   reactions: Reaction[];
-  _cid?: string;      // client-side id, stable across optimistic → confirmed swap
-  _pending?: boolean; // not yet confirmed by server
-  _failed?: boolean;  // server rejected; show retry
+  _cid?: string;
+  _pending?: boolean;
+  _failed?: boolean;
 };
 
 type Member = {
@@ -135,6 +136,10 @@ export function ChatRoom({
   const [membersOpen, setMembersOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteBannerDismissed, setInviteBannerDismissed] = useState(false);
+  const [flagTarget, setFlagTarget] = useState<{
+    id: string;
+    label: string;
+  } | null>(null);
   const [autocorrectOn, setAutocorrectOn] = useState(true);
   const [suggestion, setSuggestion] = useState<{
     original: string;
@@ -402,12 +407,6 @@ export function ChatRoom({
     textareaRef.current?.focus();
   }
 
-  /**
-   * Optimistic send: message appears instantly with _pending=true.
-   * Server POST happens in the background; on success we swap in the
-   * real message (keeping _cid so React doesn't re-animate). On failure
-   * we mark _failed and show a retry button.
-   */
   async function send(e: React.FormEvent) {
     e.preventDefault();
     const raw = body.trim();
@@ -422,7 +421,6 @@ export function ChatRoom({
     if (p.send) playProfile(p.profile, "send");
     if (p.vibrate) vibrate(20);
 
-    // Add optimistic message immediately
     const optimistic: Message = {
       id: cid,
       body: finalBody,
@@ -488,11 +486,9 @@ export function ChatRoom({
   function retryFailed(cid: string) {
     const target = messages.find((m) => m._cid === cid);
     if (!target?.body) return;
-    // Drop the failed bubble, then re-send through the same path
     setMessages((prev) => prev.filter((m) => m._cid !== cid));
     setBody(target.body);
     setError("");
-    // Trigger send on next tick
     setTimeout(() => {
       const fake = { preventDefault() {} } as React.FormEvent;
       void send(fake);
@@ -572,7 +568,6 @@ export function ChatRoom({
 
     if (p.send) playProfile(p.profile, "send");
 
-    // Show the voice note immediately with a local URL
     const optimistic: Message = {
       id: cid,
       body: null,
@@ -980,6 +975,21 @@ export function ChatRoom({
                         >
                           <span className="text-[0.9rem]">😊</span>
                         </button>
+                        {!isMe ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setFlagTarget({
+                                id: m.id,
+                                label: `@${m.author_handle}`
+                              })
+                            }
+                            aria-label="Report"
+                            title="Report"
+                          >
+                            <span className="text-[0.9rem]">🚩</span>
+                          </button>
+                        ) : null}
                       </div>
                     ) : null}
 
@@ -1222,6 +1232,15 @@ export function ChatRoom({
           name={name}
           emoji={emoji}
           onClose={() => setInviteOpen(false)}
+        />
+      ) : null}
+
+      {flagTarget ? (
+        <FlagSheet
+          targetType="message"
+          targetId={flagTarget.id}
+          targetLabel={flagTarget.label}
+          onClose={() => setFlagTarget(null)}
         />
       ) : null}
 
