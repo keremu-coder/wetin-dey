@@ -10,6 +10,7 @@ const DRAWER_ITEMS = [
   { href: "/", label: "Talk Am", icon: "📰" },
   { href: "/community", label: "Community", icon: "🫂" },
   { href: "/communities", label: "Spaces", icon: "🏘️" },
+  { href: "/radar", label: "Live Radar", icon: "📡" },
   { href: "/explore", label: "Explore", icon: "🌍" },
   { href: "/search", label: "Search", icon: "🔎" },
   { href: "/inbox", label: "Inbox", icon: "✉️" }
