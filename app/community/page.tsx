@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { unstable_cache } from "next/cache";
+import { DailyPrompt } from "@/components/DailyPrompt";
 import { PAGE_SIZE } from "@/lib/constants";
 import { createServiceClient } from "@/lib/supabase/server";
 import { stripSession, type Report } from "@/lib/types";
@@ -8,8 +9,6 @@ export const dynamic = "force-dynamic";
 
 const COMMUNITY_TYPES = ["talk_am", "news", "talent", "rant"];
 
-// Cache each page slice for 30s. Community feed isn't personalized, so
-// every visitor sees the same content — same cache key for all.
 async function fetchCommunityPage(page: number, state: string | null) {
   const db = createServiceClient();
   let q = db
@@ -27,7 +26,7 @@ async function fetchCommunityPage(page: number, state: string | null) {
 const getCommunityPage = unstable_cache(
   async (page: number, state: string | null) =>
     fetchCommunityPage(page, state),
-  ["community-page-v1"],
+  ["community-page-v2"],
   { revalidate: 30 }
 );
 
@@ -75,6 +74,8 @@ export default async function CommunityPage({
         </p>
       </div>
 
+      <DailyPrompt />
+
       {posts.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon">🫂</div>
@@ -90,7 +91,6 @@ export default async function CommunityPage({
               p.agency_canonical ||
               p.agency_raw ||
               (p.summary_pidgin ? p.summary_pidgin.slice(0, 60) : "Post");
-            // Guard against null body (voice-only or link-only posts).
             const blurb =
               p.summary_pidgin ||
               (p.body ? p.body.slice(0, 200) : "") ||
