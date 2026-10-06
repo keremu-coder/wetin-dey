@@ -158,6 +158,8 @@ export function ChatRoom({
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const handleCacheRef = useRef<Map<string, string>>(new Map());
   const prefsRef = useRef<SoundPrefs>(prefs);
+  // Track which handles we've already fetched profiles for so we don't re-request
+  const fetchedHandlesRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     const initial = loadPrefs();
@@ -346,40 +348,37 @@ export function ChatRoom({
     setSuggestion(suggestCorrection(body));
   }, [body, autocorrectOn]);
 
+  // ONE combined fetch for fonts + statuses. Cached per-session.
   useEffect(() => {
     const handles = Array.from(
       new Set(messages.map((m) => m.author_handle).filter(Boolean))
     );
-    const missingFonts = handles.filter((h) => !(h in fontByHandle));
-    const missingStatuses = handles.filter((h) => !(h in statusByHandle));
+    const missing = handles.filter((h) => !fetchedHandlesRef.current.has(h));
+    if (missing.length === 0) return;
 
-    if (missingFonts.length === 0 && missingStatuses.length === 0) return;
+    // Mark as fetched immediately so we don't double-fetch while in flight
+    for (const h of missing) fetchedHandlesRef.current.add(h);
 
     let cancelled = false;
-    const joined = Array.from(
-      new Set([...missingFonts, ...missingStatuses])
-    ).join(",");
+    const joined = missing.join(",");
 
-    fetch(`/api/sessions/fonts?handles=${encodeURIComponent(joined)}`)
+    fetch(`/api/sessions/profiles?handles=${encodeURIComponent(joined)}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (cancelled || !d?.fonts) return;
-        setFontByHandle((prev) => ({ ...prev, ...d.fonts }));
+        if (cancelled) return;
+        if (d?.fonts) setFontByHandle((prev) => ({ ...prev, ...d.fonts }));
+        if (d?.statuses)
+          setStatusByHandle((prev) => ({ ...prev, ...d.statuses }));
       })
-      .catch(() => {});
-
-    fetch(`/api/sessions/statuses?handles=${encodeURIComponent(joined)}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (cancelled || !d?.statuses) return;
-        setStatusByHandle((prev) => ({ ...prev, ...d.statuses }));
-      })
-      .catch(() => {});
+      .catch(() => {
+        // On failure, allow retry next time
+        for (const h of missing) fetchedHandlesRef.current.delete(h);
+      });
 
     return () => {
       cancelled = true;
     };
-  }, [messages, fontByHandle, statusByHandle]);
+  }, [messages]);
 
   const onlineHandles = useMemo(
     () =>
@@ -889,7 +888,6 @@ export function ChatRoom({
         )}
       </div>
 
-      {/* ─── VOICE-FIRST COMPOSER ─── */}
       <form
         onSubmit={send}
         className="border-t border-border bg-paper/90 px-3 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] backdrop-blur-xl"
@@ -1001,7 +999,7 @@ export function ChatRoom({
               onClick={startVoice}
               disabled={busy}
               className="flex h-14 flex-1 items-center justify-center gap-3 rounded-full bg-accent text-white transition-transform hover:bg-accent-deep active:scale-[0.98] disabled:opacity-40"
-              aria-label="Hold or tap to record voice note"
+              aria-label="Tap to record voice note"
             >
               <svg
                 width="24"

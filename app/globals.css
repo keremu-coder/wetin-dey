@@ -1,5 +1,3 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&family=Caveat:wght@400;700&family=Pacifico&family=Permanent+Marker&family=Bebas+Neue&family=Playfair+Display:wght@400;700&display=swap");
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -162,7 +160,7 @@ textarea { resize: vertical; min-height: 100px; line-height: 1.5; }
   30% { transform: translateY(-3px); opacity: 1; }
 }
 .typing-dot {
-  animation: typing-dot 1.2s infinite ease-in-out;
+  animation: typing-dot 1.2s ease-in-out infinite;
 }
 
 /* ═══ CLEAN CARD PATTERN ═══ */
@@ -198,7 +196,6 @@ textarea { resize: vertical; min-height: 100px; line-height: 1.5; }
 
 /* ═══════════════════════════════════════════════
    DISCORD-STYLE MESSAGE LOG
-   Flat, no bubbles. Avatar + name + time once per group.
    ═══════════════════════════════════════════════ */
 
 .chat-log {

@@ -48,6 +48,15 @@ const themeScript = `
 })();
 `;
 
+// Only Inter (body) and Space Grotesk (headings) block the initial paint.
+// The BBM display fonts (Caveat, Pacifico, etc.) load asynchronously —
+// if a user hasn't selected one, they never download.
+const CORE_FONTS_HREF =
+  "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap";
+
+const BBM_FONTS_HREF =
+  "https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&family=Pacifico&family=Permanent+Marker&family=Bebas+Neue&family=Playfair+Display:wght@400;700&display=swap";
+
 export default function RootLayout({
   children
 }: {
@@ -57,6 +66,25 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
+        {/* Core fonts — blocking, these are used everywhere */}
+        <link rel="stylesheet" href={CORE_FONTS_HREF} />
+        {/* BBM display fonts — async, only loaded if the browser renders them */}
+        <link
+          rel="preload"
+          as="style"
+          href={BBM_FONTS_HREF}
+          // @ts-expect-error - onLoad is valid on <link>, React types are strict
+          onLoad="this.onload=null;this.rel='stylesheet'"
+        />
+        <noscript>
+          <link rel="stylesheet" href={BBM_FONTS_HREF} />
+        </noscript>
       </head>
       <body className="min-h-screen font-sans">
         <PresencePing />
