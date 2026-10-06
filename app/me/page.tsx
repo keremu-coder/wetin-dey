@@ -11,15 +11,30 @@ export default async function MePage() {
 
   const db = createServiceClient();
 
-  const { data: memberships } = await db
-    .from("community_members")
-    .select("community_id, role, joined_at")
-    .eq("session_id", profile.id)
-    .order("joined_at", { ascending: false });
+  // All three queries only need profile.id — run them in parallel.
+  const [membershipsResult, reportsResult] = await Promise.all([
+    db
+      .from("community_members")
+      .select("community_id, role, joined_at")
+      .eq("session_id", profile.id)
+      .order("joined_at", { ascending: false }),
+    db
+      .from("reports")
+      .select(
+        "id, agency_canonical, agency_raw, summary_pidgin, body, created_at, post_type, community_id"
+      )
+      .eq("session_id", profile.id)
+      .is("community_id", null)
+      .order("created_at", { ascending: false })
+      .limit(20)
+  ]);
 
-  const communityIds = (memberships ?? []).map((m) => m.community_id);
+  const memberships = membershipsResult.data ?? [];
+  const posts = reportsResult.data ?? [];
+
+  const communityIds = memberships.map((m) => m.community_id);
   const roleMap = new Map(
-    (memberships ?? []).map((m) => [m.community_id, m.role])
+    memberships.map((m) => [m.community_id, m.role])
   );
 
   let spaces: {
@@ -47,18 +62,6 @@ export default async function MePage() {
 
   const owned = spaces.filter((s) => s.role === "owner");
   const joined = spaces.filter((s) => s.role !== "owner");
-
-  const { data: reports } = await db
-    .from("reports")
-    .select(
-      "id, agency_canonical, agency_raw, summary_pidgin, body, created_at, post_type, community_id"
-    )
-    .eq("session_id", profile.id)
-    .is("community_id", null)
-    .order("created_at", { ascending: false })
-    .limit(20);
-
-  const posts = reports ?? [];
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-6 pb-24">
@@ -96,13 +99,15 @@ export default async function MePage() {
         </div>
 
         {spaces.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border-strong bg-surface/50 p-6 text-center">
-            <p className="text-[0.875rem] text-muted">
-              You haven&apos;t joined any spaces yet.
+          <div className="empty-state">
+            <div className="empty-state-icon">🏘️</div>
+            <p className="empty-state-title">No spaces yet</p>
+            <p className="empty-state-text">
+              Create a space or join one to get started.
             </p>
             <Link
               href="/communities/new"
-              className="mt-3 inline-block rounded-xl bg-accent px-4 py-2 text-[0.75rem] font-semibold text-white"
+              className="mt-4 inline-block rounded-xl bg-accent px-4 py-2 text-[0.8125rem] font-semibold text-white"
             >
               Create a space
             </Link>
@@ -185,9 +190,11 @@ export default async function MePage() {
           Your posts
         </h2>
         {posts.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border-strong bg-surface/50 p-6 text-center">
-            <p className="text-[0.875rem] text-muted">
-              You haven&apos;t posted yet.
+          <div className="empty-state">
+            <div className="empty-state-icon">📝</div>
+            <p className="empty-state-title">No posts yet</p>
+            <p className="empty-state-text">
+              When you post, e go show here.
             </p>
           </div>
         ) : (

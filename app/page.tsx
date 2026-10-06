@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { unstable_cache } from "next/cache";
 import { HomeFeed } from "@/components/ReportCard";
 import { PAGE_SIZE } from "@/lib/constants";
 import { getSessionId } from "@/lib/session";
@@ -8,6 +9,23 @@ import { stripSession, type Report } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 const TALK_AM_TYPES = ["report_am", "ask", "help"];
+
+// Cache the reviewed count for 30s. Without this, every home visit runs
+// a count(*) over the whole reports table — expensive at scale.
+const getReviewedCount = unstable_cache(
+  async () => {
+    const db = createServiceClient();
+    const { count } = await db
+      .from("reports")
+      .select("id", { count: "exact", head: true })
+      .eq("reviewed", true)
+      .in("post_type", TALK_AM_TYPES)
+      .is("community_id", null);
+    return count ?? 0;
+  },
+  ["talk-am-reviewed-count-v1"],
+  { revalidate: 30 }
+);
 
 export default async function HomePage({
   searchParams
@@ -21,26 +39,17 @@ export default async function HomePage({
   };
 }) {
   const page = Math.max(1, Number(searchParams.page ?? "1") || 1);
-  const sessionId = await getSessionId();
+
+  // These two are independent — run in parallel.
+  const [sessionId, reviewedCount] = await Promise.all([
+    getSessionId(),
+    getReviewedCount()
+  ]);
+
   const db = createServiceClient();
+  const allowUnreviewed = reviewedCount < 5;
 
-  let currentHandle: string | null = null;
-  if (sessionId) {
-    const { data: me } = await db
-      .from("sessions")
-      .select("handle")
-      .eq("id", sessionId)
-      .maybeSingle();
-    currentHandle = me?.handle ?? null;
-  }
-
-  const { count: reviewedCount } = await db
-    .from("reports")
-    .select("id", { count: "exact", head: true })
-    .eq("reviewed", true)
-    .in("post_type", TALK_AM_TYPES)
-    .is("community_id", null);
-
+  // Build the reports query and the "who am I" lookup in parallel.
   let q = db
     .from("reports")
     .select("*")
@@ -49,7 +58,6 @@ export default async function HomePage({
     .order("created_at", { ascending: false })
     .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
 
-  const allowUnreviewed = (reviewedCount ?? 0) < 5;
   if (!allowUnreviewed) {
     q = q.eq("reviewed", true);
   }
@@ -58,8 +66,16 @@ export default async function HomePage({
   if (searchParams.status) q = q.eq("status", searchParams.status);
   if (searchParams.state) q = q.eq("state", searchParams.state);
 
-  const { data } = await q;
-  const reports = ((data ?? []) as Report[])
+  const [meResult, reportsResult] = await Promise.all([
+    sessionId
+      ? db.from("sessions").select("handle").eq("id", sessionId).maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    q
+  ]);
+
+  const currentHandle = meResult.data?.handle ?? null;
+
+  const reports = ((reportsResult.data ?? []) as Report[])
     .filter((r) => r.reviewed || allowUnreviewed || r.session_id === sessionId)
     .map((r) => stripSession(r) as Report);
 
@@ -109,7 +125,7 @@ export default async function HomePage({
 
       <Link
         href="/submit?tab=talk"
-        className="mt-10 flex min-h-[52px] items-center justify-center rounded-2xl bg-warm px-5 font-serif text-[1.05rem] font-semibold text-white shadow-button transition-all hover:bg-warm-deep hover:shadow-card"
+        className="mt-10 flex min-h-[52px] items-center justify-center rounded-2xl bg-accent px-5 font-serif text-[1.05rem] font-semibold text-white shadow-button transition-all hover:bg-accent-deep hover:shadow-card"
       >
         Report Wetin Happen
       </Link>

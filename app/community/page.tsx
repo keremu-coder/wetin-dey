@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { HomeFeed } from "@/components/ReportCard";
+import { unstable_cache } from "next/cache";
 import { PAGE_SIZE } from "@/lib/constants";
 import { createServiceClient } from "@/lib/supabase/server";
 import { stripSession, type Report } from "@/lib/types";
@@ -8,14 +8,10 @@ export const dynamic = "force-dynamic";
 
 const COMMUNITY_TYPES = ["talk_am", "news", "talent", "rant"];
 
-export default async function CommunityPage({
-  searchParams
-}: {
-  searchParams: { page?: string; state?: string };
-}) {
-  const page = Math.max(1, Number(searchParams.page ?? "1") || 1);
+// Cache each page slice for 30s. Community feed isn't personalized, so
+// every visitor sees the same content — same cache key for all.
+async function fetchCommunityPage(page: number, state: string | null) {
   const db = createServiceClient();
-
   let q = db
     .from("reports")
     .select("*")
@@ -23,11 +19,28 @@ export default async function CommunityPage({
     .is("community_id", null)
     .order("created_at", { ascending: false })
     .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
-
-  if (searchParams.state) q = q.eq("state", searchParams.state);
-
+  if (state) q = q.eq("state", state);
   const { data } = await q;
-  const posts = ((data ?? []) as Report[]).map((r) => stripSession(r) as Report);
+  return (data ?? []) as Report[];
+}
+
+const getCommunityPage = unstable_cache(
+  async (page: number, state: string | null) =>
+    fetchCommunityPage(page, state),
+  ["community-page-v1"],
+  { revalidate: 30 }
+);
+
+export default async function CommunityPage({
+  searchParams
+}: {
+  searchParams: { page?: string; state?: string };
+}) {
+  const page = Math.max(1, Number(searchParams.page ?? "1") || 1);
+  const state = searchParams.state ?? null;
+
+  const raw = await getCommunityPage(page, state);
+  const posts = raw.map((r) => stripSession(r) as Report);
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-6 pb-24">
@@ -63,9 +76,10 @@ export default async function CommunityPage({
       </div>
 
       {posts.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border-strong bg-surface/50 p-10 text-center">
-          <p className="font-serif text-lg text-ink">Community still quiet.</p>
-          <p className="mt-1 text-sm text-muted">
+        <div className="empty-state">
+          <div className="empty-state-icon">🫂</div>
+          <p className="empty-state-title">Community still quiet</p>
+          <p className="empty-state-text">
             Post something — a win, a talent, a story.
           </p>
         </div>
@@ -75,9 +89,12 @@ export default async function CommunityPage({
             const title =
               p.agency_canonical ||
               p.agency_raw ||
-              p.summary_pidgin?.slice(0, 60) ||
-              "Post";
-            const blurb = p.summary_pidgin || p.body.slice(0, 200);
+              (p.summary_pidgin ? p.summary_pidgin.slice(0, 60) : "Post");
+            // Guard against null body (voice-only or link-only posts).
+            const blurb =
+              p.summary_pidgin ||
+              (p.body ? p.body.slice(0, 200) : "") ||
+              "";
             return (
               <Link
                 key={p.id}
@@ -99,9 +116,11 @@ export default async function CommunityPage({
                   <h3 className="mt-3 font-serif text-[1.35rem] font-semibold leading-tight text-ink transition-colors group-hover:text-accent">
                     {title}
                   </h3>
-                  <p className="mt-2 line-clamp-3 text-[0.9375rem] leading-relaxed text-ink/85">
-                    {blurb}
-                  </p>
+                  {blurb ? (
+                    <p className="mt-2 line-clamp-3 text-[0.9375rem] leading-relaxed text-ink/85">
+                      {blurb}
+                    </p>
+                  ) : null}
                   {p.evidence_url && p.evidence_type === "photo" ? (
                     <img
                       src={p.evidence_url}
