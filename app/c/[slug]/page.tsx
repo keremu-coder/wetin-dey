@@ -27,9 +27,10 @@ export default async function CommunityPage({
   const sessionId = await getSessionId();
   const { member, role } = await isMember(community.id, sessionId);
   const isOwner = role === "owner";
-  const canView = community.is_public || member;
 
-  if (!canView) {
+  // Private space, visitor is not a member: show a join screen.
+  // The URL is the invite — anyone with it can join.
+  if (!member && !isOwner && !community.is_public) {
     return (
       <main className="mx-auto max-w-2xl px-4 py-10 pb-24">
         <Link
@@ -38,19 +39,40 @@ export default async function CommunityPage({
         >
           ← All spaces
         </Link>
+
         <div className="mt-6 rounded-2xl border border-border bg-surface p-8 text-center">
-          <div className="text-[2rem]">🔒</div>
-          <p className="mt-3 font-serif text-[1.1rem] font-semibold text-ink">
-            {community.name} is private
+          <div className="text-[3rem]">{community.emoji}</div>
+
+          <p className="mt-4 font-serif text-[1.35rem] font-semibold text-ink">
+            {community.name}
           </p>
-          <p className="mt-2 text-[0.875rem] text-muted">
-            Ask the owner for an invite link.
+
+          <p className="mt-1 font-mono text-[0.7rem] uppercase tracking-wider text-faint">
+            🔒 Private space
           </p>
+
+          {community.description ? (
+            <p className="mt-4 text-[0.9375rem] leading-relaxed text-muted">
+              {community.description}
+            </p>
+          ) : null}
+
+          <div className="mt-6 flex flex-col items-center gap-3">
+            <CommunityJoinButton
+              slug={community.slug}
+              initialMember={false}
+              isOwner={false}
+            />
+            <p className="text-[0.75rem] text-faint">
+              Someone shared this link with you. Tap Join to enter.
+            </p>
+          </div>
         </div>
       </main>
     );
   }
 
+  // Public space OR member OR owner — show the full space
   const { data: posts } = await db
     .from("reports")
     .select("*")
