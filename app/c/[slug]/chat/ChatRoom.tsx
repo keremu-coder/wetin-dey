@@ -20,6 +20,11 @@ import { StatusLine } from "@/components/StatusLine";
 import { DEFAULT_FONT_ID } from "@/lib/bbm-fonts";
 import { InviteSheet } from "@/components/InviteSheet";
 import { FlagSheet } from "@/components/FlagSheet";
+import {
+  BroadcastBanner,
+  type Broadcast
+} from "@/components/BroadcastBanner";
+import { BroadcastRecorder } from "@/components/BroadcastRecorder";
 
 type Reaction = { emoji: string; count: number };
 
@@ -115,7 +120,8 @@ export function ChatRoom({
   slug,
   name,
   emoji,
-  isMember
+  isMember,
+  isOwner
 }: {
   slug: string;
   name: string;
@@ -125,6 +131,7 @@ export function ChatRoom({
 }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
+  const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -135,6 +142,10 @@ export function ChatRoom({
   const [openReactionsFor, setOpenReactionsFor] = useState<string | null>(null);
   const [membersOpen, setMembersOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [broadcastRecorderOpen, setBroadcastRecorderOpen] = useState(false);
+  const [dismissedBroadcastIds, setDismissedBroadcastIds] = useState<
+    Set<string>
+  >(new Set());
   const [inviteBannerDismissed, setInviteBannerDismissed] = useState(false);
   const [flagTarget, setFlagTarget] = useState<{
     id: string;
@@ -247,6 +258,33 @@ export function ChatRoom({
       cancelled = true;
     };
   }, [slug]);
+
+  // Load active broadcasts
+  const loadBroadcasts = useMemo(
+    () => async () => {
+      try {
+        const res = await fetch(`/api/communities/${slug}/broadcasts`, {
+          cache: "no-store"
+        });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (json?.broadcasts) {
+          setBroadcasts(json.broadcasts as Broadcast[]);
+        }
+      } catch {
+        /* silent */
+      }
+    },
+    [slug]
+  );
+
+  useEffect(() => {
+    void loadBroadcasts();
+    const t = setInterval(() => {
+      void loadBroadcasts();
+    }, 60000);
+    return () => clearInterval(t);
+  }, [loadBroadcasts]);
 
   useEffect(() => {
     if (!isMember || !mySessionId) return;
@@ -396,6 +434,11 @@ export function ChatRoom({
     [members]
   );
 
+  const visibleBroadcasts = useMemo(
+    () => broadcasts.filter((b) => !dismissedBroadcastIds.has(b.id)),
+    [broadcasts, dismissedBroadcastIds]
+  );
+
   function applySuggestion() {
     if (!suggestion) return;
     const corrected = body.replace(
@@ -405,6 +448,10 @@ export function ChatRoom({
     setBody(corrected);
     setSuggestion(null);
     textareaRef.current?.focus();
+  }
+
+  function dismissBroadcast(id: string) {
+    setDismissedBroadcastIds((prev) => new Set(prev).add(id));
   }
 
   async function send(e: React.FormEvent) {
@@ -721,6 +768,20 @@ export function ChatRoom({
         </div>
 
         <div className="flex items-center gap-1">
+          {isOwner ? (
+            <button
+              type="button"
+              onClick={() => {
+                unlockAudio();
+                setBroadcastRecorderOpen(true);
+              }}
+              className="flex h-9 w-9 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5"
+              aria-label="Send broadcast"
+              title="Send broadcast"
+            >
+              <span className="text-[1rem]">📢</span>
+            </button>
+          ) : null}
           <Link
             href="/settings/sounds"
             className="flex h-9 w-9 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5"
@@ -779,6 +840,11 @@ export function ChatRoom({
           </button>
         </div>
       </header>
+
+      <BroadcastBanner
+        broadcasts={visibleBroadcasts}
+        onDismiss={dismissBroadcast}
+      />
 
       {showInviteBanner ? (
         <div className="flex items-center gap-3 border-b border-border bg-accent-soft px-3 py-2">
@@ -1244,6 +1310,17 @@ export function ChatRoom({
         />
       ) : null}
 
+      {broadcastRecorderOpen ? (
+        <BroadcastRecorder
+          slug={slug}
+          onSent={() => {
+            setBroadcastRecorderOpen(false);
+            void loadBroadcasts();
+          }}
+          onClose={() => setBroadcastRecorderOpen(false)}
+        />
+      ) : null}
+
       {membersOpen ? (
         <>
           <div
@@ -1295,6 +1372,20 @@ export function ChatRoom({
                 </svg>
                 Invite people
               </button>
+
+              {isOwner ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMembersOpen(false);
+                    setBroadcastRecorderOpen(true);
+                  }}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-border-strong bg-paper px-3 py-2.5 text-[0.8125rem] font-semibold text-ink transition-colors hover:bg-ink/5"
+                >
+                  <span className="text-[1rem]">📢</span>
+                  Send a broadcast
+                </button>
+              ) : null}
             </div>
 
             <Link
