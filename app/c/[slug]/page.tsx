@@ -5,6 +5,7 @@ import { getSessionId } from "@/lib/session";
 import { isMember } from "@/lib/community";
 import { ReportCard } from "@/components/ReportCard";
 import { CommunityJoinButton } from "./join-button";
+import { InviteButton } from "./invite-button";
 
 export const dynamic = "force-dynamic";
 
@@ -98,7 +99,6 @@ export default async function CommunityPage({
           </div>
         </div>
 
-        {/* Big chat CTA */}
         {member || isOwner ? (
           <Link
             href={`/c/${community.slug}/chat`}
@@ -122,6 +122,13 @@ export default async function CommunityPage({
               Write a post
             </Link>
           ) : null}
+          {member || isOwner ? (
+            <InviteButton
+              slug={community.slug}
+              name={community.name}
+              emoji={community.emoji}
+            />
+          ) : null}
         </div>
       </div>
 
@@ -130,10 +137,12 @@ export default async function CommunityPage({
       </h2>
 
       {list.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border-strong bg-surface/50 p-10 text-center">
-          <p className="text-[0.9375rem] text-ink">No posts yet.</p>
-          <p className="mt-1 text-[0.8125rem] text-muted">
-            The chat is where everything happens. Tap "Enter live chat" above.
+        <div className="empty-state">
+          <div className="empty-state-icon">📝</div>
+          <p className="empty-state-title">No posts yet</p>
+          <p className="empty-state-text">
+            The chat is where everything happens. Tap &ldquo;Enter live
+            chat&rdquo; above.
           </p>
         </div>
       ) : (

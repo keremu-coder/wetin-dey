@@ -31,11 +31,11 @@ export default async function SettingsPage() {
   const following = followCount ?? 0;
   const blocked = blockedCount ?? 0;
 
-  // Anonymity score — 100 minus deductions for identifying info we hold
   let anonymityScore = 100;
   if (profile.email) anonymityScore -= 15;
   if (profile.phone) anonymityScore -= 15;
-  if (profile.auth_provider && profile.auth_provider !== "none") anonymityScore -= 10;
+  if (profile.auth_provider && profile.auth_provider !== "none")
+    anonymityScore -= 10;
   anonymityScore = Math.max(anonymityScore, 0);
 
   const iconClass = "text-warm-deep";
@@ -88,7 +88,10 @@ export default async function SettingsPage() {
           href: "/me",
           icon: "📰",
           label: "Your reports",
-          hint: reports > 0 ? `${reports} report${reports === 1 ? "" : "s"}` : "You have not posted yet"
+          hint:
+            reports > 0
+              ? `${reports} report${reports === 1 ? "" : "s"}`
+              : "You have not posted yet"
         },
         {
           href: "/settings/agencies",
@@ -100,7 +103,8 @@ export default async function SettingsPage() {
           href: "/settings/following",
           icon: "👥",
           label: "Following",
-          hint: following > 0 ? `${following} following` : "Not following anyone yet"
+          hint:
+            following > 0 ? `${following} following` : "Not following anyone yet"
         }
       ]
     },
@@ -211,8 +215,25 @@ export default async function SettingsPage() {
         <p className="mb-2 px-1 font-mono text-[0.7rem] uppercase tracking-wider text-faint">
           Appearance
         </p>
-        <div className="rounded-2xl border border-border bg-surface p-3">
-          <ThemeToggle />
+        <div className="overflow-hidden rounded-2xl border border-border bg-surface">
+          <div className="p-3">
+            <ThemeToggle />
+          </div>
+          <Link
+            href="/settings/font"
+            className="flex items-center gap-3 border-t border-border px-4 py-4 transition-colors hover:bg-ink/5"
+          >
+            <span className={`text-[1.25rem] ${iconClass}`}>🅰️</span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[0.9375rem] font-medium text-ink">
+                Message font
+              </p>
+              <p className="text-[0.75rem] text-muted">
+                Your messages show up in this font for everyone — like BBM
+              </p>
+            </div>
+            <span className="text-faint">›</span>
+          </Link>
         </div>
       </div>
 
