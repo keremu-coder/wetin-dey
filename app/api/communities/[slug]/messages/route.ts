@@ -2,6 +2,7 @@ export const runtime = "nodejs";
 
 import { NextRequest } from "next/server";
 import { nanoid } from "nanoid";
+import { waitUntil } from "@vercel/functions";
 import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { notifyCommunityMembers } from "@/lib/push-server";
@@ -201,10 +202,11 @@ export async function POST(
       return Response.json({ error: error.message }, { status: 500 });
     }
 
-    // Fire push to every other member of the space. Wrapped so a push
-    // failure never fails the actual message send.
-    try {
-      await notifyCommunityMembers({
+    // Fire push notifications in the background. Vercel keeps the function
+    // alive until this promise resolves, but the HTTP response goes out
+    // immediately — the sender does not wait.
+    waitUntil(
+      notifyCommunityMembers({
         communityId: community.id,
         senderSessionId: sessionId,
         senderHandle: profile.handle,
@@ -212,10 +214,10 @@ export async function POST(
         communitySlug: community.slug,
         body: body || null,
         hasAudio: !!audio_url
-      });
-    } catch (pushErr) {
-      console.error("[push notify]", pushErr);
-    }
+      }).catch((err) => {
+        console.error("[push notify]", err);
+      })
+    );
 
     return Response.json({
       ok: true,

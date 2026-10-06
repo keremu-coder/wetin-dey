@@ -30,6 +30,9 @@ type Message = {
   author_handle: string;
   author_last_seen: string | null;
   reactions: Reaction[];
+  _cid?: string;      // client-side id, stable across optimistic → confirmed swap
+  _pending?: boolean; // not yet confirmed by server
+  _failed?: boolean;  // server rejected; show retry
 };
 
 type Member = {
@@ -103,6 +106,10 @@ function containsMentionOf(text: string, handle: string): boolean {
   return pattern.test(text);
 }
 
+function makeCid(): string {
+  return `c_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
 export function ChatRoom({
   slug,
   name,
@@ -158,7 +165,6 @@ export function ChatRoom({
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const handleCacheRef = useRef<Map<string, string>>(new Map());
   const prefsRef = useRef<SoundPrefs>(prefs);
-  // Track which handles we've already fetched profiles for so we don't re-request
   const fetchedHandlesRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
@@ -348,7 +354,6 @@ export function ChatRoom({
     setSuggestion(suggestCorrection(body));
   }, [body, autocorrectOn]);
 
-  // ONE combined fetch for fonts + statuses. Cached per-session.
   useEffect(() => {
     const handles = Array.from(
       new Set(messages.map((m) => m.author_handle).filter(Boolean))
@@ -356,7 +361,6 @@ export function ChatRoom({
     const missing = handles.filter((h) => !fetchedHandlesRef.current.has(h));
     if (missing.length === 0) return;
 
-    // Mark as fetched immediately so we don't double-fetch while in flight
     for (const h of missing) fetchedHandlesRef.current.add(h);
 
     let cancelled = false;
@@ -371,7 +375,6 @@ export function ChatRoom({
           setStatusByHandle((prev) => ({ ...prev, ...d.statuses }));
       })
       .catch(() => {
-        // On failure, allow retry next time
         for (const h of missing) fetchedHandlesRef.current.delete(h);
       });
 
@@ -399,6 +402,12 @@ export function ChatRoom({
     textareaRef.current?.focus();
   }
 
+  /**
+   * Optimistic send: message appears instantly with _pending=true.
+   * Server POST happens in the background; on success we swap in the
+   * real message (keeping _cid so React doesn't re-animate). On failure
+   * we mark _failed and show a retry button.
+   */
   async function send(e: React.FormEvent) {
     e.preventDefault();
     const raw = body.trim();
@@ -408,13 +417,33 @@ export function ChatRoom({
 
     const finalBody = autocorrectOn ? autocorrect(raw) : raw;
     const p = prefsRef.current;
+    const cid = makeCid();
 
     if (p.send) playProfile(p.profile, "send");
     if (p.vibrate) vibrate(20);
 
-    setBusy(true);
-    setError("");
+    // Add optimistic message immediately
+    const optimistic: Message = {
+      id: cid,
+      body: finalBody,
+      audio_url: null,
+      created_at: new Date().toISOString(),
+      author_handle: me ?? "you",
+      author_last_seen: null,
+      reactions: [],
+      _cid: cid,
+      _pending: true
+    };
+
+    setMessages((prev) => [...prev, optimistic]);
+    setBody("");
     setSuggestion(null);
+    setBusy(false);
+
+    setTimeout(() => {
+      const el = scrollRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+    }, 30);
 
     try {
       const res = await fetch(`/api/communities/${slug}/messages`, {
@@ -423,25 +452,55 @@ export function ChatRoom({
         body: JSON.stringify({ body: finalBody })
       });
       const json = await res.json();
-      if (!res.ok) {
-        setError(json.error ?? "Message no send");
-        setBusy(false);
+
+      if (!res.ok || !json?.message) {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m._cid === cid ? { ...m, _pending: false, _failed: true } : m
+          )
+        );
+        setError(json?.error ?? "Message no send");
         return;
       }
-      setMessages((prev) => {
-        if (prev.some((m) => m.id === json.message.id)) return prev;
-        return [...prev, json.message];
-      });
-      setBody("");
-      setBusy(false);
-      setTimeout(() => {
-        const el = scrollRef.current;
-        if (el) el.scrollTop = el.scrollHeight;
-      }, 80);
+
+      setMessages((prev) =>
+        prev.map((m) =>
+          m._cid === cid
+            ? {
+                ...(json.message as Message),
+                _cid: cid,
+                _pending: false,
+                _failed: false
+              }
+            : m
+        )
+      );
     } catch {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m._cid === cid ? { ...m, _pending: false, _failed: true } : m
+        )
+      );
       setError("Network error");
-      setBusy(false);
     }
+  }
+
+  function retryFailed(cid: string) {
+    const target = messages.find((m) => m._cid === cid);
+    if (!target?.body) return;
+    // Drop the failed bubble, then re-send through the same path
+    setMessages((prev) => prev.filter((m) => m._cid !== cid));
+    setBody(target.body);
+    setError("");
+    // Trigger send on next tick
+    setTimeout(() => {
+      const fake = { preventDefault() {} } as React.FormEvent;
+      void send(fake);
+    }, 0);
+  }
+
+  function dismissFailed(cid: string) {
+    setMessages((prev) => prev.filter((m) => m._cid !== cid));
   }
 
   async function startVoice() {
@@ -508,8 +567,30 @@ export function ChatRoom({
 
   async function sendVoice(blob: Blob) {
     const p = prefsRef.current;
+    const cid = makeCid();
+    const localUrl = URL.createObjectURL(blob);
+
     if (p.send) playProfile(p.profile, "send");
-    setBusy(true);
+
+    // Show the voice note immediately with a local URL
+    const optimistic: Message = {
+      id: cid,
+      body: null,
+      audio_url: localUrl,
+      created_at: new Date().toISOString(),
+      author_handle: me ?? "you",
+      author_last_seen: null,
+      reactions: [],
+      _cid: cid,
+      _pending: true
+    };
+    setMessages((prev) => [...prev, optimistic]);
+
+    setTimeout(() => {
+      const el = scrollRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+    }, 30);
+
     try {
       const fd = new FormData();
       fd.set("audio", new File([blob], "voice.webm", { type: "audio/webm" }));
@@ -518,15 +599,36 @@ export function ChatRoom({
         body: fd
       });
       const json = await res.json();
-      if (res.ok) {
-        setMessages((prev) => {
-          if (prev.some((m) => m.id === json.message.id)) return prev;
-          return [...prev, json.message];
-        });
+
+      if (!res.ok || !json?.message) {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m._cid === cid ? { ...m, _pending: false, _failed: true } : m
+          )
+        );
+        return;
       }
-      setBusy(false);
+
+      setMessages((prev) =>
+        prev.map((m) =>
+          m._cid === cid
+            ? {
+                ...(json.message as Message),
+                _cid: cid,
+                _pending: false,
+                _failed: false
+              }
+            : m
+        )
+      );
     } catch {
-      setBusy(false);
+      setMessages((prev) =>
+        prev.map((m) =>
+          m._cid === cid ? { ...m, _pending: false, _failed: true } : m
+        )
+      );
+    } finally {
+      URL.revokeObjectURL(localUrl);
     }
   }
 
@@ -726,6 +828,7 @@ export function ChatRoom({
         ) : (
           <div>
             {messages.map((m, idx) => {
+              const key = m._cid ?? m.id;
               const prev = idx > 0 ? messages[idx - 1] : null;
               const isSameAuthor =
                 prev && prev.author_handle === m.author_handle;
@@ -741,7 +844,7 @@ export function ChatRoom({
                 new Date(prev.created_at).toDateString() ===
                   new Date(m.created_at).toDateString();
 
-              const isMe = me === m.author_handle;
+              const isMe = me === m.author_handle || !!m._cid;
               const bg = avatarColor(m.author_handle);
               const letter = m.author_handle.charAt(0).toUpperCase();
               const presence = presenceFromLastSeen(m.author_last_seen);
@@ -751,7 +854,7 @@ export function ChatRoom({
               const status = statusByHandle[m.author_handle];
 
               return (
-                <div key={m.id}>
+                <div key={key}>
                   {!sameDayAsPrev ? (
                     <div className="chat-day-divider">
                       {dayLabel(m.created_at)}
@@ -761,7 +864,7 @@ export function ChatRoom({
                   <div
                     className={`chat-msg message-in ${
                       isGroupStart ? "chat-msg-group-start" : ""
-                    }`}
+                    } ${m._pending ? "opacity-70" : ""}`}
                   >
                     {isGroupStart ? (
                       <div className="relative">
@@ -783,21 +886,20 @@ export function ChatRoom({
                       {isGroupStart ? (
                         <>
                           <div className="chat-msg-header">
-                            <Link
-                              href={`/u/${encodeURIComponent(
-                                m.author_handle
-                              )}`}
-                              className="chat-msg-author"
-                            >
+                            <span className="chat-msg-author">
                               {m.author_handle}
                               {isMe ? (
                                 <span className="ml-1.5 text-[0.7rem] font-normal text-accent">
                                   you
                                 </span>
                               ) : null}
-                            </Link>
+                            </span>
                             <span className="chat-msg-timestamp">
-                              {timeWithDate(m.created_at)}
+                              {m._pending
+                                ? "Sending…"
+                                : m._failed
+                                  ? "Failed"
+                                  : timeWithDate(m.created_at)}
                             </span>
                           </div>
                           {status ? (
@@ -829,6 +931,25 @@ export function ChatRoom({
                         />
                       ) : null}
 
+                      {m._failed ? (
+                        <div className="mt-2 flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => retryFailed(m._cid!)}
+                            className="rounded-lg bg-danger px-3 py-1 text-[0.7rem] font-semibold text-white"
+                          >
+                            Retry
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => dismissFailed(m._cid!)}
+                            className="text-[0.7rem] text-faint hover:text-ink"
+                          >
+                            Discard
+                          </button>
+                        </div>
+                      ) : null}
+
                       {m.reactions.length > 0 ? (
                         <div className="mt-1.5 flex flex-wrap gap-1">
                           {m.reactions.map((r) => (
@@ -845,20 +966,22 @@ export function ChatRoom({
                       ) : null}
                     </div>
 
-                    <div className="chat-msg-actions">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setOpenReactionsFor(
-                            openReactionsFor === m.id ? null : m.id
-                          )
-                        }
-                        aria-label="React"
-                        title="React"
-                      >
-                        <span className="text-[0.9rem]">😊</span>
-                      </button>
-                    </div>
+                    {!m._pending && !m._failed ? (
+                      <div className="chat-msg-actions">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setOpenReactionsFor(
+                              openReactionsFor === m.id ? null : m.id
+                            )
+                          }
+                          aria-label="React"
+                          title="React"
+                        >
+                          <span className="text-[0.9rem]">😊</span>
+                        </button>
+                      </div>
+                    ) : null}
 
                     {openReactionsFor === m.id ? (
                       <>
@@ -997,8 +1120,7 @@ export function ChatRoom({
             <button
               type="button"
               onClick={startVoice}
-              disabled={busy}
-              className="flex h-14 flex-1 items-center justify-center gap-3 rounded-full bg-accent text-white transition-transform hover:bg-accent-deep active:scale-[0.98] disabled:opacity-40"
+              className="flex h-14 flex-1 items-center justify-center gap-3 rounded-full bg-accent text-white transition-transform hover:bg-accent-deep active:scale-[0.98]"
               aria-label="Tap to record voice note"
             >
               <svg
@@ -1072,7 +1194,7 @@ export function ChatRoom({
             </div>
             <button
               type="submit"
-              disabled={busy || !body.trim()}
+              disabled={!body.trim()}
               className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent text-white transition-transform hover:bg-accent-deep active:scale-90 disabled:opacity-30"
               aria-label="Send"
             >
