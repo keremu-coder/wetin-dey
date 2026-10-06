@@ -4,8 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "./ThemeToggle";
-
-type WhoAmI = { handle: string; handle_kind: string } | null;
+import { getWhoAmI, type WhoAmI } from "@/lib/whoami-cache";
 
 const DRAWER_ITEMS = [
   { href: "/", label: "Talk Am", icon: "📰" },
@@ -18,14 +17,13 @@ const DRAWER_ITEMS = [
 
 export function Nav() {
   const pathname = usePathname();
-  const [me, setMe] = useState<WhoAmI>(null);
+  const [me, setMe] = useState<WhoAmI | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
-    fetch("/api/whoami")
-      .then((r) => (r.ok ? r.json() : null))
+    getWhoAmI()
       .then((d) => {
-        if (d?.handle) setMe({ handle: d.handle, handle_kind: d.handle_kind });
+        if (d) setMe(d);
       })
       .catch(() => {});
   }, []);
@@ -53,7 +51,7 @@ export function Nav() {
           <div className="flex items-center gap-2">
             <Link
               href="/submit"
-              className="rounded-full bg-warm px-3 py-1.5 text-[0.8125rem] font-semibold text-white transition-all hover:bg-warm-deep"
+              className="rounded-full bg-accent px-3 py-1.5 text-[0.8125rem] font-semibold text-white transition-all hover:bg-accent-deep"
             >
               Post
             </Link>

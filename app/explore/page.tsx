@@ -1,4 +1,4 @@
-import { ExploreChart } from "@/components/ExploreChart";
+import { ExploreChartLoader } from "@/components/ExploreChartLoader";
 import { CATEGORIES, NIGERIA_STATES, formatNaira } from "@/lib/constants";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { Report } from "@/lib/types";
@@ -9,7 +9,12 @@ export const dynamic = "force-dynamic";
 export default async function ExplorePage({
   searchParams
 }: {
-  searchParams: { state?: string; category?: string; from?: string; to?: string };
+  searchParams: {
+    state?: string;
+    category?: string;
+    from?: string;
+    to?: string;
+  };
 }) {
   const db = createServiceClient();
   let q = db.from("reports").select("*").eq("reviewed", true);
@@ -21,11 +26,14 @@ export default async function ExplorePage({
   const reports = (data ?? []) as Report[];
 
   const total = reports.length;
-  const naira = reports.reduce((s, r) => s + (r.amount_kobo ?? 0), 0) / 100;
+  const naira =
+    reports.reduce((s, r) => s + (r.amount_kobo ?? 0), 0) / 100;
   const startMonth = new Date();
   startMonth.setDate(1);
   startMonth.setHours(0, 0, 0, 0);
-  const thisMonth = reports.filter((r) => new Date(r.created_at) >= startMonth).length;
+  const thisMonth = reports.filter(
+    (r) => new Date(r.created_at) >= startMonth
+  ).length;
   const resolved = reports.filter((r) => r.status === "resolved").length;
   const pct = total ? Math.round((resolved / total) * 100) : 0;
 
@@ -68,7 +76,11 @@ export default async function ExplorePage({
     <main className="mx-auto max-w-5xl px-4 py-8">
       <h1 className="font-serif text-4xl">See the pattern</h1>
       <form className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-5">
-        <select name="state" defaultValue={searchParams.state ?? ""} className="rounded-md border px-3 py-3">
+        <select
+          name="state"
+          defaultValue={searchParams.state ?? ""}
+          className="rounded-md border px-3 py-3"
+        >
           <option value="">All states</option>
           {NIGERIA_STATES.map((s) => (
             <option key={s} value={s}>
@@ -76,7 +88,11 @@ export default async function ExplorePage({
             </option>
           ))}
         </select>
-        <select name="category" defaultValue={searchParams.category ?? ""} className="rounded-md border px-3 py-3">
+        <select
+          name="category"
+          defaultValue={searchParams.category ?? ""}
+          className="rounded-md border px-3 py-3"
+        >
           <option value="">All categories</option>
           {CATEGORIES.map((c) => (
             <option key={c} value={c}>
@@ -84,34 +100,53 @@ export default async function ExplorePage({
             </option>
           ))}
         </select>
-        <input type="date" name="from" defaultValue={searchParams.from ?? ""} className="rounded-md border px-3 py-3" />
-        <input type="date" name="to" defaultValue={searchParams.to ?? ""} className="rounded-md border px-3 py-3" />
-        <button className="rounded-md bg-accent py-3 text-white" type="submit">
+        <input
+          type="date"
+          name="from"
+          defaultValue={searchParams.from ?? ""}
+          className="rounded-md border px-3 py-3"
+        />
+        <input
+          type="date"
+          name="to"
+          defaultValue={searchParams.to ?? ""}
+          className="rounded-md border px-3 py-3"
+        />
+        <button
+          className="rounded-md bg-accent py-3 text-white"
+          type="submit"
+        >
           Filter
         </button>
       </form>
 
       <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Link href="/" className="rounded-lg bg-white p-4">
+        <Link href="/" className="rounded-lg bg-surface p-4">
           <p className="text-sm text-ink/60">Total reports</p>
           <p className="font-serif text-3xl">{total}</p>
         </Link>
-        <Link href="/" className="rounded-lg bg-white p-4">
+        <Link href="/" className="rounded-lg bg-surface p-4">
           <p className="text-sm text-ink/60">Total ₦ demanded</p>
-          <p className="font-serif text-3xl">{formatNaira(Math.round(naira * 100)) || "₦0"}</p>
+          <p className="font-serif text-3xl">
+            {formatNaira(Math.round(naira * 100)) || "₦0"}
+          </p>
         </Link>
-        <Link href="/" className="rounded-lg bg-white p-4">
+        <Link href="/" className="rounded-lg bg-surface p-4">
           <p className="text-sm text-ink/60">This month</p>
           <p className="font-serif text-3xl">{thisMonth}</p>
         </Link>
-        <Link href="/?status=resolved" className="rounded-lg bg-white p-4">
+        <Link href="/?status=resolved" className="rounded-lg bg-surface p-4">
           <p className="text-sm text-ink/60">% resolved</p>
           <p className="font-serif text-3xl">{pct}%</p>
         </Link>
       </div>
 
       <div className="mt-8">
-        <ExploreChart byVolume={byVolume} byNaira={byNaira} byWeek={weeks} />
+        <ExploreChartLoader
+          byVolume={byVolume}
+          byNaira={byNaira}
+          byWeek={weeks}
+        />
       </div>
     </main>
   );
