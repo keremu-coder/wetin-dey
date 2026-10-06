@@ -7,12 +7,14 @@ import {
   playBbmPing,
   playMentionPing,
   vibrate,
-  vibrateMention
+  vibrateMention,
+  unlockAudio
 } from "@/lib/bbm-sound";
 import { autocorrect, suggestCorrection } from "@/lib/autocorrect";
 import { MessageBody } from "@/components/MessageBody";
 import { PresenceDot, presenceFromLastSeen } from "@/components/PresenceDot";
 import { DEFAULT_FONT_ID } from "@/lib/bbm-fonts";
+import { InviteSheet } from "@/components/InviteSheet";
 
 type Reaction = { emoji: string; count: number };
 
@@ -120,6 +122,7 @@ export function ChatRoom({
   const [mySessionId, setMySessionId] = useState<string | null>(null);
   const [openReactionsFor, setOpenReactionsFor] = useState<string | null>(null);
   const [membersOpen, setMembersOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
   const [vibrateOn, setVibrateOn] = useState(true);
   const [autocorrectOn, setAutocorrectOn] = useState(true);
@@ -136,7 +139,18 @@ export function ChatRoom({
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const handleCacheRef = useRef<Map<string, string>>(new Map());
 
-  // Load my handle + session id
+  // Unlock audio on mount + first tap so BBM pings actually play.
+  useEffect(() => {
+    unlockAudio();
+    const handler = () => unlockAudio();
+    window.addEventListener("pointerdown", handler, true);
+    window.addEventListener("touchstart", handler, true);
+    return () => {
+      window.removeEventListener("pointerdown", handler, true);
+      window.removeEventListener("touchstart", handler, true);
+    };
+  }, []);
+
   useEffect(() => {
     fetch("/api/whoami")
       .then((r) => (r.ok ? r.json() : null))
@@ -147,7 +161,6 @@ export function ChatRoom({
       .catch(() => {});
   }, []);
 
-  // Load members
   useEffect(() => {
     let cancelled = false;
     fetch(`/api/communities/${slug}/members`)
@@ -165,7 +178,6 @@ export function ChatRoom({
     };
   }, [slug]);
 
-  // Initial messages
   useEffect(() => {
     let cancelled = false;
     fetch(`/api/communities/${slug}/messages`)
@@ -180,7 +192,6 @@ export function ChatRoom({
     };
   }, [slug]);
 
-  // Realtime subscription
   useEffect(() => {
     if (!isMember || !mySessionId) return;
 
@@ -255,7 +266,6 @@ export function ChatRoom({
     }
   }, [slug, isMember, mySessionId, me, soundOn, vibrateOn]);
 
-  // Auto-scroll to bottom
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -265,7 +275,6 @@ export function ChatRoom({
     }
   }, [messages]);
 
-  // Autocorrect suggestion chip
   useEffect(() => {
     if (!autocorrectOn) {
       setSuggestion(null);
@@ -274,7 +283,6 @@ export function ChatRoom({
     setSuggestion(suggestCorrection(body));
   }, [body, autocorrectOn]);
 
-  // Load fonts for handles appearing in messages (batched, cached)
   useEffect(() => {
     const handles = Array.from(
       new Set(messages.map((m) => m.author_handle).filter(Boolean))
@@ -321,6 +329,8 @@ export function ChatRoom({
     const raw = body.trim();
     if (!raw) return;
 
+    unlockAudio();
+
     const finalBody = autocorrectOn ? autocorrect(raw) : raw;
 
     setBusy(true);
@@ -358,6 +368,7 @@ export function ChatRoom({
 
   async function startVoice() {
     try {
+      unlockAudio();
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mr = new MediaRecorder(stream);
       mediaRecorderRef.current = mr;
@@ -517,6 +528,7 @@ export function ChatRoom({
           <button
             type="button"
             onClick={() => {
+              unlockAudio();
               setSoundOn((v) => !v);
               if (!soundOn) playBbmPing();
             }}
@@ -524,6 +536,31 @@ export function ChatRoom({
             aria-label="Toggle sound"
           >
             {soundOn ? "🔔" : "🔕"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              unlockAudio();
+              setInviteOpen(true);
+            }}
+            className="flex h-9 w-9 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5"
+            aria-label="Invite people"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.9"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <line x1="19" y1="8" x2="19" y2="14" />
+              <line x1="22" y1="11" x2="16" y2="11" />
+            </svg>
           </button>
           <button
             type="button"
@@ -567,7 +604,8 @@ export function ChatRoom({
           <div>
             {messages.map((m, idx) => {
               const prev = idx > 0 ? messages[idx - 1] : null;
-              const isSameAuthor = prev && prev.author_handle === m.author_handle;
+              const isSameAuthor =
+                prev && prev.author_handle === m.author_handle;
               const withinWindow =
                 prev &&
                 new Date(m.created_at).getTime() -
@@ -586,8 +624,7 @@ export function ChatRoom({
               const presence = presenceFromLastSeen(m.author_last_seen);
               const mentionsMe =
                 me && m.body ? containsMentionOf(m.body, me) : false;
-              const fontId =
-                fontByHandle[m.author_handle] || DEFAULT_FONT_ID;
+              const fontId = fontByHandle[m.author_handle] || DEFAULT_FONT_ID;
 
               return (
                 <div key={m.id}>
@@ -834,6 +871,15 @@ export function ChatRoom({
         </div>
       </form>
 
+      {inviteOpen ? (
+        <InviteSheet
+          slug={slug}
+          name={name}
+          emoji={emoji}
+          onClose={() => setInviteOpen(false)}
+        />
+      ) : null}
+
       {membersOpen ? (
         <>
           <div
@@ -860,6 +906,34 @@ export function ChatRoom({
             </div>
 
             <div className="border-b border-border px-4 py-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setMembersOpen(false);
+                  setInviteOpen(true);
+                }}
+                className="mb-2 flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-3 py-2.5 text-[0.8125rem] font-semibold text-white transition-colors hover:bg-accent-deep"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <line x1="19" y1="8" x2="19" y2="14" />
+                  <line x1="22" y1="11" x2="16" y2="11" />
+                </svg>
+                Invite people
+              </button>
+            </div>
+
+            <div className="border-b border-border px-4 py-3">
               <p className="mb-2 font-mono text-[0.65rem] uppercase tracking-wider text-faint">
                 Chat settings
               </p>
@@ -867,7 +941,10 @@ export function ChatRoom({
                 <span className="text-[0.875rem] text-ink">Ping sound</span>
                 <button
                   type="button"
-                  onClick={() => setSoundOn((v) => !v)}
+                  onClick={() => {
+                    unlockAudio();
+                    setSoundOn((v) => !v);
+                  }}
                   className={`relative h-6 w-11 rounded-full transition-colors ${
                     soundOn ? "bg-accent" : "bg-ink/10"
                   }`}
