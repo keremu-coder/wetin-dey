@@ -3,7 +3,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { getBrowserClient } from "@/lib/supabase/client";
-import { playBbmPing, vibrate } from "@/lib/bbm-sound";
+import {
+  playBbmPing,
+  playMentionPing,
+  vibrate,
+  vibrateMention
+} from "@/lib/bbm-sound";
+import { autocorrect, suggestCorrection } from "@/lib/autocorrect";
+import { MessageBody } from "@/components/MessageBody";
 import { PresenceDot, presenceFromLastSeen } from "@/components/PresenceDot";
 
 type Reaction = { emoji: string; count: number };
@@ -34,17 +41,26 @@ function timeShort(date: string): string {
   });
 }
 
+function timeWithDate(date: string): string {
+  const d = new Date(date);
+  const today = new Date();
+  if (d.toDateString() === today.toDateString()) return `Today at ${timeShort(date)}`;
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  if (d.toDateString() === yesterday.toDateString()) return `Yesterday at ${timeShort(date)}`;
+  return d.toLocaleDateString("en-NG", { month: "short", day: "numeric" }) + " at " + timeShort(date);
+}
+
 function dayLabel(date: string): string {
   const d = new Date(date);
   const today = new Date();
   const yesterday = new Date();
   yesterday.setDate(today.getDate() - 1);
-
   if (d.toDateString() === today.toDateString()) return "Today";
   if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
   return d.toLocaleDateString("en-NG", {
-    weekday: "short",
-    month: "short",
+    weekday: "long",
+    month: "long",
     day: "numeric"
   });
 }
@@ -53,14 +69,22 @@ function avatarColor(seed: string): string {
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
   const colors = [
-    "bg-[#C0392B]",
-    "bg-[#D97706]",
-    "bg-[#1F7A4D]",
-    "bg-[#7C3AED]",
-    "bg-[#0E7490]",
-    "bg-[#BE185D]"
+    "#C0392B",
+    "#D97706",
+    "#1F7A4D",
+    "#7C3AED",
+    "#0E7490",
+    "#BE185D",
+    "#4D7C0F",
+    "#A16207"
   ];
   return colors[Math.abs(h) % colors.length];
+}
+
+function containsMentionOf(text: string, handle: string): boolean {
+  if (!text || !handle) return false;
+  const pattern = new RegExp(`@${handle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+  return pattern.test(text);
 }
 
 export function ChatRoom({
@@ -88,13 +112,17 @@ export function ChatRoom({
   const [membersOpen, setMembersOpen] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
   const [vibrateOn, setVibrateOn] = useState(true);
+  const [autocorrectOn, setAutocorrectOn] = useState(true);
+  const [suggestion, setSuggestion] = useState<{ original: string; suggested: string } | null>(null);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const handleCacheRef = useRef<Map<string, string>>(new Map());
 
+  // Load my handle + session id
   useEffect(() => {
     fetch("/api/whoami")
       .then((r) => (r.ok ? r.json() : null))
@@ -105,9 +133,9 @@ export function ChatRoom({
       .catch(() => {});
   }, []);
 
+  // Load members
   useEffect(() => {
     let cancelled = false;
-
     fetch(`/api/communities/${slug}/members`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
@@ -118,15 +146,14 @@ export function ChatRoom({
         }
       })
       .catch(() => {});
-
     return () => {
       cancelled = true;
     };
   }, [slug]);
 
+  // Initial messages
   useEffect(() => {
     let cancelled = false;
-
     fetch(`/api/communities/${slug}/messages`)
       .then((r) => (r.ok ? r.json() : null))
       .then((json) => {
@@ -134,12 +161,12 @@ export function ChatRoom({
         setMessages(json.messages as Message[]);
       })
       .catch(() => {});
-
     return () => {
       cancelled = true;
     };
   }, [slug]);
 
+  // Realtime subscription
   useEffect(() => {
     if (!isMember || !mySessionId) return;
 
@@ -183,8 +210,15 @@ export function ChatRoom({
               reactions: []
             };
 
-            if (soundOn) playBbmPing();
-            if (vibrateOn) vibrate(35);
+            // BBM mention ping takes priority
+            const mentionedMe = row.body && me ? containsMentionOf(row.body, me) : false;
+            if (mentionedMe) {
+              if (soundOn) playMentionPing();
+              if (vibrateOn) vibrateMention();
+            } else {
+              if (soundOn) playBbmPing();
+              if (vibrateOn) vibrate(35);
+            }
 
             setMessages((prev) => {
               if (prev.some((m) => m.id === row.id)) return prev;
@@ -205,8 +239,9 @@ export function ChatRoom({
     } catch {
       return;
     }
-  }, [slug, isMember, mySessionId, soundOn, vibrateOn]);
+  }, [slug, isMember, mySessionId, me, soundOn, vibrateOn]);
 
+  // Auto-scroll to bottom
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -216,6 +251,15 @@ export function ChatRoom({
     }
   }, [messages]);
 
+  // Recompute suggestion chip as user types
+  useEffect(() => {
+    if (!autocorrectOn) {
+      setSuggestion(null);
+      return;
+    }
+    setSuggestion(suggestCorrection(body));
+  }, [body, autocorrectOn]);
+
   const onlineHandles = useMemo(
     () =>
       members
@@ -224,16 +268,33 @@ export function ChatRoom({
     [members]
   );
 
+  function applySuggestion() {
+    if (!suggestion) return;
+    const corrected = body.replace(
+      new RegExp(suggestion.original + "$"),
+      suggestion.suggested
+    );
+    setBody(corrected);
+    setSuggestion(null);
+    textareaRef.current?.focus();
+  }
+
   async function send(e: React.FormEvent) {
     e.preventDefault();
-    if (!body.trim()) return;
+    const raw = body.trim();
+    if (!raw) return;
+
+    const finalBody = autocorrectOn ? autocorrect(raw) : raw;
+
     setBusy(true);
     setError("");
+    setSuggestion(null);
+
     try {
       const res = await fetch(`/api/communities/${slug}/messages`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ body: body.trim() })
+        body: JSON.stringify({ body: finalBody })
       });
       const json = await res.json();
       if (!res.ok) {
@@ -352,17 +413,15 @@ export function ChatRoom({
         >
           ← Back to space
         </Link>
-        <div className="mt-6 rounded-2xl border border-border bg-surface p-8 text-center">
-          <div className="text-[2rem]">💬</div>
-          <p className="mt-3 font-serif text-[1.1rem] font-semibold text-ink">
-            Join {name} to enter the chat
+        <div className="empty-state">
+          <div className="empty-state-icon">💬</div>
+          <p className="empty-state-title">Join {name} to enter the chat</p>
+          <p className="empty-state-text">
+            <Link href={`/c/${slug}`} className="text-accent underline">
+              Go back to the space
+            </Link>{" "}
+            and tap Join.
           </p>
-          <Link
-            href={`/c/${slug}`}
-            className="mt-4 inline-block rounded-xl bg-accent px-4 py-2 text-[0.8125rem] font-semibold text-white"
-          >
-            Go to space
-          </Link>
         </div>
       </main>
     );
@@ -452,199 +511,160 @@ export function ChatRoom({
         </div>
       </header>
 
-      {/* Messages canvas */}
+      {/* Message log */}
       <div
         ref={scrollRef}
-        className="chat-canvas flex-1 overflow-y-auto px-3 py-4"
+        className="chat-log flex-1 overflow-y-auto py-4"
         style={{ overscrollBehavior: "contain" }}
       >
         {messages.length === 0 ? (
-          <div className="mt-12 text-center">
-            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-ink/5 text-[2.5rem]">
-              {emoji}
-            </div>
-            <p className="mt-4 font-serif text-[1.1rem] font-semibold text-ink">
-              Welcome to {name}
-            </p>
-            <p className="mt-1 text-[0.8125rem] text-muted">
-              Say something. Nobody will bite.
+          <div className="empty-state">
+            <div className="empty-state-icon">{emoji}</div>
+            <p className="empty-state-title">Welcome to {name}</p>
+            <p className="empty-state-text">
+              This is the beginning of this space. Say something.
             </p>
           </div>
         ) : (
-          <div className="space-y-0.5">
+          <div>
             {messages.map((m, idx) => {
               const prev = idx > 0 ? messages[idx - 1] : null;
-              const next = idx < messages.length - 1 ? messages[idx + 1] : null;
-              const isMe = me && m.author_handle === me;
-              const bg = avatarColor(m.author_handle);
-              const letter = m.author_handle.charAt(0).toUpperCase();
-              const openReactions = openReactionsFor === m.id;
-              const presence = presenceFromLastSeen(m.author_last_seen);
+              const isSameAuthor =
+                prev && prev.author_handle === m.author_handle;
+              const withinWindow =
+                prev &&
+                new Date(m.created_at).getTime() -
+                  new Date(prev.created_at).getTime() <
+                  5 * 60 * 1000;
+              const isGroupStart = !isSameAuthor || !withinWindow;
 
               const sameDayAsPrev =
                 prev &&
                 new Date(prev.created_at).toDateString() ===
                   new Date(m.created_at).toDateString();
-              const sameSenderAsPrev =
-                prev && prev.author_handle === m.author_handle && sameDayAsPrev;
-              const sameSenderAsNext =
-                next && next.author_handle === m.author_handle;
-              const showAvatar = !isMe && !sameSenderAsPrev;
-              const isLastInGroup = !sameSenderAsNext;
+
+              const isMe = me === m.author_handle;
+              const bg = avatarColor(m.author_handle);
+              const letter = m.author_handle.charAt(0).toUpperCase();
+              const presence = presenceFromLastSeen(m.author_last_seen);
+              const mentionsMe = me && m.body ? containsMentionOf(m.body, me) : false;
 
               return (
                 <div key={m.id}>
                   {!sameDayAsPrev ? (
-                    <div className="my-4 flex items-center justify-center">
-                      <span className="rounded-full bg-ink/5 px-3 py-1 font-mono text-[0.65rem] uppercase tracking-wider text-faint">
-                        {dayLabel(m.created_at)}
-                      </span>
-                    </div>
+                    <div className="chat-day-divider">{dayLabel(m.created_at)}</div>
                   ) : null}
 
                   <div
-                    className={`flex ${
-                      isMe ? "justify-end" : "justify-start"
-                    } ${sameSenderAsPrev ? "mt-0.5" : "mt-2"}`}
+                    className={`chat-msg message-in ${
+                      isGroupStart ? "chat-msg-group-start" : ""
+                    }`}
                   >
-                    <div
-                      className={`flex max-w-[80%] items-end gap-2 ${
-                        isMe ? "flex-row-reverse" : ""
-                      }`}
-                    >
-                      {!isMe ? (
-                        <div className="w-7 shrink-0">
-                          {showAvatar ? (
-                            <div className="relative">
-                              <div
-                                className={`flex h-7 w-7 items-center justify-center rounded-full ${bg} text-[0.7rem] font-semibold text-white`}
-                              >
-                                {letter}
-                              </div>
-                              <span className="absolute -bottom-0.5 -right-0.5">
-                                <PresenceDot state={presence} />
+                    {isGroupStart ? (
+                      <div className="relative">
+                        <div
+                          className="chat-msg-avatar"
+                          style={{ background: bg }}
+                        >
+                          {letter}
+                        </div>
+                        <span className="absolute -bottom-0.5 -right-0.5">
+                          <PresenceDot state={presence} />
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="chat-msg-avatar-spacer" />
+                    )}
+
+                    <div className="chat-msg-body">
+                      {isGroupStart ? (
+                        <div className="chat-msg-header">
+                          <Link
+                            href={`/u/${encodeURIComponent(m.author_handle)}`}
+                            className="chat-msg-author"
+                          >
+                            {m.author_handle}
+                            {isMe ? (
+                              <span className="ml-1.5 text-[0.7rem] font-normal text-accent">
+                                you
                               </span>
-                            </div>
-                          ) : null}
+                            ) : null}
+                          </Link>
+                          <span className="chat-msg-timestamp">
+                            {timeWithDate(m.created_at)}
+                          </span>
                         </div>
                       ) : null}
 
-                      <div
-                        className={`group relative ${
-                          isMe ? "bubble-in-sent" : "bubble-in-received"
-                        } ${
-                          isMe
-                            ? isLastInGroup
-                              ? "chat-bubble-sent"
-                              : "chat-bubble-sent-grouped"
-                            : isLastInGroup
-                            ? "chat-bubble-received"
-                            : "chat-bubble-received-grouped"
-                        } px-3.5 py-2`}
-                      >
-                        {!isMe && !sameSenderAsPrev ? (
-                          <p className="mb-0.5 text-[0.7rem] font-semibold text-accent-deep">
-                            {m.author_handle}
-                          </p>
-                        ) : null}
+                      {m.audio_url ? (
+                        <audio
+                          src={m.audio_url}
+                          controls
+                          className="my-1 h-8 max-w-[280px]"
+                        />
+                      ) : null}
 
-                        {m.audio_url ? (
-                          <audio
-                            src={m.audio_url}
-                            controls
-                            className="my-1 h-8 max-w-[220px]"
-                          />
-                        ) : null}
+                      {m.body ? (
+                        <MessageBody
+                          body={m.body}
+                          isOwn={isMe}
+                          mentionsMe={mentionsMe}
+                        />
+                      ) : null}
 
-                        {m.body ? (
-                          <p className="whitespace-pre-wrap break-words text-[0.9375rem] leading-[1.35]">
-                            {m.body}
-                          </p>
-                        ) : null}
-
-                        <div
-                          className={`mt-0.5 flex items-center justify-end gap-1 text-[0.6rem] ${
-                            isMe
-                              ? "text-white/70"
-                              : "text-black/40 dark:text-white/45"
-                          }`}
-                        >
-                          <span className="font-mono">
-                            {timeShort(m.created_at)}
-                          </span>
-                          {isMe ? (
-                            <svg
-                              width="12"
-                              height="12"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="3"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              aria-label="Sent"
+                      {m.reactions.length > 0 ? (
+                        <div className="mt-1.5 flex flex-wrap gap-1">
+                          {m.reactions.map((r) => (
+                            <button
+                              key={r.emoji}
+                              type="button"
+                              onClick={() => react(m.id, r.emoji)}
+                              className="rounded-full border border-border bg-surface px-2 py-0.5 text-[0.7rem] text-ink transition-colors hover:border-accent"
                             >
-                              <polyline points="20 6 9 17 4 12" />
-                            </svg>
-                          ) : null}
+                              {r.emoji} {r.count}
+                            </button>
+                          ))}
                         </div>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setOpenReactionsFor(openReactions ? null : m.id)
-                          }
-                          className={`absolute -top-3 ${
-                            isMe ? "left-1" : "right-1"
-                          } flex h-6 w-6 items-center justify-center rounded-full border border-border bg-surface text-[0.75rem] opacity-0 shadow-sm transition-opacity group-hover:opacity-100`}
-                          aria-label="React"
-                        >
-                          😊
-                        </button>
-
-                        {m.reactions.length > 0 ? (
-                          <div
-                            className={`mt-1.5 flex flex-wrap gap-1 ${
-                              isMe ? "justify-end" : ""
-                            }`}
-                          >
-                            {m.reactions.map((r) => (
-                              <button
-                                key={r.emoji}
-                                type="button"
-                                onClick={() => react(m.id, r.emoji)}
-                                className={`rounded-full px-1.5 py-0.5 text-[0.7rem] ${
-                                  isMe
-                                    ? "bg-white/20 text-white"
-                                    : "bg-ink/5 text-ink"
-                                }`}
-                              >
-                                {r.emoji} {r.count}
-                              </button>
-                            ))}
-                          </div>
-                        ) : null}
-
-                        {openReactions ? (
-                          <div
-                            className={`absolute z-30 flex gap-1 rounded-full border border-border bg-surface p-1.5 shadow-card-hover ${
-                              isMe ? "right-0 -top-12" : "left-0 -top-12"
-                            }`}
-                          >
-                            {QUICK_EMOJI.map((e) => (
-                              <button
-                                key={e}
-                                type="button"
-                                onClick={() => react(m.id, e)}
-                                className="flex h-7 w-7 items-center justify-center rounded-full text-[1rem] transition-colors hover:bg-ink/10"
-                              >
-                                {e}
-                              </button>
-                            ))}
-                          </div>
-                        ) : null}
-                      </div>
+                      ) : null}
                     </div>
+
+                    {/* Hover actions */}
+                    <div className="chat-msg-actions">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setOpenReactionsFor(
+                            openReactionsFor === m.id ? null : m.id
+                          )
+                        }
+                        aria-label="React"
+                        title="React"
+                      >
+                        <span className="text-[0.9rem]">😊</span>
+                      </button>
+                    </div>
+
+                    {/* Emoji picker */}
+                    {openReactionsFor === m.id ? (
+                      <>
+                        <div
+                          className="fixed inset-0 z-30"
+                          onClick={() => setOpenReactionsFor(null)}
+                        />
+                        <div className="absolute right-3 top-full z-40 mt-1 flex gap-1 rounded-full border border-border bg-surface p-1.5 shadow-card-hover">
+                          {QUICK_EMOJI.map((e) => (
+                            <button
+                              key={e}
+                              type="button"
+                              onClick={() => react(m.id, e)}
+                              className="flex h-7 w-7 items-center justify-center rounded-full text-[1rem] transition-colors hover:bg-ink/10"
+                            >
+                              {e}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    ) : null}
                   </div>
                 </div>
               );
@@ -677,17 +697,47 @@ export function ChatRoom({
           <p className="mb-1 text-[0.75rem] text-danger">{error}</p>
         ) : null}
 
-        <div className="composer-shell flex items-end gap-2 rounded-3xl border border-border-strong bg-surface px-1.5 py-1">
+        {suggestion ? (
+          <div className="mb-1.5 flex items-center gap-2 text-[0.75rem]">
+            <span className="text-muted">
+              Correct{" "}
+              <span className="font-medium text-ink line-through">
+                {suggestion.original}
+              </span>{" "}
+              →{" "}
+              <span className="font-medium text-accent-deep">
+                {suggestion.suggested}
+              </span>
+              ?
+            </span>
+            <button
+              type="button"
+              onClick={applySuggestion}
+              className="rounded-md bg-accent px-2 py-0.5 text-[0.7rem] font-semibold text-white"
+            >
+              Fix
+            </button>
+            <button
+              type="button"
+              onClick={() => setSuggestion(null)}
+              className="text-faint hover:text-ink"
+            >
+              ✕
+            </button>
+          </div>
+        ) : null}
+
+        <div className="composer-shell flex items-end gap-2 rounded-2xl border border-border-strong bg-surface px-2 py-1.5">
           <button
             type="button"
             onClick={startVoice}
             disabled={recording || busy}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-accent transition-colors hover:bg-ink/5 disabled:opacity-50"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-accent transition-colors hover:bg-ink/5 disabled:opacity-50"
             aria-label="Record voice note"
           >
             <svg
-              width="20"
-              height="20"
+              width="18"
+              height="18"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -701,9 +751,15 @@ export function ChatRoom({
             </svg>
           </button>
           <textarea
+            ref={textareaRef}
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            placeholder="Message"
+            onBlur={() => {
+              if (autocorrectOn && body.trim()) {
+                setBody(autocorrect(body));
+              }
+            }}
+            placeholder={`Message ${emoji} ${name}`}
             rows={1}
             maxLength={500}
             onKeyDown={(e) => {
@@ -712,31 +768,29 @@ export function ChatRoom({
                 send(e as unknown as React.FormEvent);
               }
             }}
-            className="!max-h-24 !min-h-[34px] flex-1 resize-none !border-0 !bg-transparent !py-1.5 !text-[0.9375rem] !outline-none !ring-0 focus:!border-0 focus:!ring-0 focus:!shadow-none"
+            className="!max-h-24 !min-h-[32px] flex-1 resize-none !border-0 !bg-transparent !py-1.5 !text-[0.9375rem] !outline-none !ring-0 focus:!border-0 focus:!ring-0 focus:!shadow-none"
             style={{ boxShadow: "none" }}
           />
-          {body.trim() ? (
-            <button
-              type="submit"
-              disabled={busy}
-              className="mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-[0.95rem] text-white transition-transform hover:bg-accent-deep active:scale-90 disabled:opacity-40"
-              aria-label="Send"
+          <button
+            type="submit"
+            disabled={busy || !body.trim()}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-white transition-transform hover:bg-accent-deep active:scale-90 disabled:opacity-30"
+            aria-label="Send"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.4"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <line x1="12" y1="19" x2="12" y2="5" />
-                <polyline points="5 12 12 5 19 12" />
-              </svg>
-            </button>
-          ) : null}
+              <line x1="12" y1="19" x2="12" y2="5" />
+              <polyline points="5 12 12 5 19 12" />
+            </svg>
+          </button>
         </div>
       </form>
 
@@ -805,6 +859,22 @@ export function ChatRoom({
                   />
                 </button>
               </div>
+              <div className="flex items-center justify-between py-2">
+                <span className="text-[0.875rem] text-ink">Autocorrect</span>
+                <button
+                  type="button"
+                  onClick={() => setAutocorrectOn((v) => !v)}
+                  className={`relative h-6 w-11 rounded-full transition-colors ${
+                    autocorrectOn ? "bg-accent" : "bg-ink/10"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                      autocorrectOn ? "translate-x-5" : "translate-x-0.5"
+                    }`}
+                  />
+                </button>
+              </div>
             </div>
 
             <MemberGroup
@@ -856,10 +926,15 @@ function MemberGroup({
           const presence = presenceFromLastSeen(m.last_seen_at);
           const bg = avatarColor(m.handle);
           return (
-            <div key={m.session_id} className="flex items-center gap-3 px-4 py-3">
+            <Link
+              key={m.session_id}
+              href={`/u/${encodeURIComponent(m.handle)}`}
+              className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-ink/5"
+            >
               <div className="relative">
                 <div
-                  className={`flex h-9 w-9 items-center justify-center rounded-full ${bg} text-[0.85rem] font-semibold text-white`}
+                  className="flex h-9 w-9 items-center justify-center rounded-full text-[0.85rem] font-semibold text-white"
+                  style={{ background: bg }}
                 >
                   {m.handle.charAt(0).toUpperCase()}
                 </div>
@@ -873,7 +948,7 @@ function MemberGroup({
                 </p>
                 <p className="text-[0.7rem] capitalize text-muted">{m.role}</p>
               </div>
-            </div>
+            </Link>
           );
         })
       )}
