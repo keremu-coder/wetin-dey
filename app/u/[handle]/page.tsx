@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { unstable_cache } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getSessionId } from "@/lib/session";
 import { FollowButton } from "@/components/FollowButton";
@@ -9,6 +10,51 @@ import { StatusLine } from "@/components/StatusLine";
 import { formatNaira } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
+
+// Cache the public profile bundle (profile + posts) for 60s.
+// Repeat visits and the immediate "load then reload" cycle hit memory.
+// Viewer-specific data (the follow check) is NOT cached and runs fresh.
+const getProfileBundle = unstable_cache(
+  async (handle: string) => {
+    const db = createServiceClient();
+
+    const [profileResult, postsResult] = await Promise.all([
+      db
+        .from("sessions")
+        .select(
+          "id, handle, handle_kind, bio, status_line, follower_count, following_count, post_count, verified_reporter, created_at"
+        )
+        .eq("handle", handle)
+        .maybeSingle(),
+      db
+        .from("reports")
+        .select(
+          "id, created_at, state, reviewed, agency_canonical, agency_raw, summary_pidgin, body, status, amount_kobo"
+        )
+        .eq("author_handle", handle)
+        .order("created_at", { ascending: false })
+        .limit(30)
+    ]);
+
+    return {
+      profile: profileResult.data,
+      posts: (postsResult.data ?? []) as Array<{
+        id: string;
+        created_at: string;
+        state: string;
+        reviewed: boolean;
+        agency_canonical: string | null;
+        agency_raw: string | null;
+        summary_pidgin: string | null;
+        body: string | null;
+        status: string;
+        amount_kobo: number | null;
+      }>
+    };
+  },
+  ["profile-bundle-v1"],
+  { revalidate: 60 }
+);
 
 function avatarColor(seed: string): string {
   let h = 0;
@@ -47,34 +93,26 @@ export default async function ProfilePage({
   params: { handle: string };
 }) {
   const handle = decodeURIComponent(params.handle);
-  const db = createServiceClient();
 
-  const { data: profile } = await db
-    .from("sessions")
-    .select(
-      "id, handle, handle_kind, bio, status_line, karma, follower_count, following_count, post_count, verified_reporter, created_at"
-    )
-    .eq("handle", handle)
-    .maybeSingle();
+  // Run the cached profile bundle and the viewer check in parallel.
+  // They don't depend on each other.
+  const [bundle, mySessionId] = await Promise.all([
+    getProfileBundle(handle),
+    getSessionId()
+  ]);
+
+  const profile = bundle.profile;
+  const posts = bundle.posts;
 
   if (!profile) return notFound();
 
-  const { data: postsRaw } = await db
-    .from("reports")
-    .select("*")
-    .eq("author_handle", handle)
-    .order("created_at", { ascending: false })
-    .limit(30);
-
-  const posts = postsRaw ?? [];
-
-  const mySessionId = await getSessionId();
   let isFollowing = false;
   let isMe = false;
 
   if (mySessionId) {
     isMe = mySessionId === profile.id;
     if (!isMe) {
+      const db = createServiceClient();
       const { data: follow } = await db
         .from("follows")
         .select("id")
