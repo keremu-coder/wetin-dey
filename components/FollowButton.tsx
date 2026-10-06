@@ -6,12 +6,19 @@ export function FollowButton({
   handle,
   initialFollowing,
   initialFollowerCount,
-  disabled
+  disabled,
+  compact = false
 }: {
   handle: string;
   initialFollowing: boolean;
   initialFollowerCount: number;
   disabled?: boolean;
+  /**
+   * Compact mode: small pill, no follower count. Used in list views
+   * (followers, following, search results) where the count would be
+   * noisy and possibly inaccurate (we don't fetch per-row counts).
+   */
+  compact?: boolean;
 }) {
   const [following, setFollowing] = useState(initialFollowing);
   const [count, setCount] = useState(initialFollowerCount);
@@ -28,16 +35,39 @@ export function FollowButton({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ handle, action: nextAction })
       });
-      const json = (await res.json()) as { ok?: boolean; follower_count?: number; error?: string };
+      const json = (await res.json()) as {
+        ok?: boolean;
+        follower_count?: number;
+        error?: string;
+      };
       if (res.ok && json.ok) {
         setFollowing(nextAction === "follow");
-        if (typeof json.follower_count === "number") setCount(json.follower_count);
+        if (typeof json.follower_count === "number") {
+          setCount(json.follower_count);
+        }
       }
     } catch {
       /* silent */
     } finally {
       setBusy(false);
     }
+  }
+
+  if (compact) {
+    return (
+      <button
+        type="button"
+        onClick={toggle}
+        disabled={busy || disabled}
+        className={`inline-flex items-center rounded-full px-3 py-1 text-[0.75rem] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+          following
+            ? "border border-border-strong bg-surface text-ink hover:bg-ink/5"
+            : "bg-accent text-white hover:bg-accent-deep"
+        }`}
+      >
+        {busy ? "…" : following ? "Following" : "Follow"}
+      </button>
+    );
   }
 
   return (

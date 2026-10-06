@@ -11,9 +11,6 @@ import { formatNaira } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
-// Cache the public profile bundle (profile + posts) for 60s.
-// Repeat visits and the immediate "load then reload" cycle hit memory.
-// Viewer-specific data (the follow check) is NOT cached and runs fresh.
 const getProfileBundle = unstable_cache(
   async (handle: string) => {
     const db = createServiceClient();
@@ -52,7 +49,7 @@ const getProfileBundle = unstable_cache(
       }>
     };
   },
-  ["profile-bundle-v1"],
+  ["profile-bundle-v2"],
   { revalidate: 60 }
 );
 
@@ -94,8 +91,6 @@ export default async function ProfilePage({
 }) {
   const handle = decodeURIComponent(params.handle);
 
-  // Run the cached profile bundle and the viewer check in parallel.
-  // They don't depend on each other.
   const [bundle, mySessionId] = await Promise.all([
     getProfileBundle(handle),
     getSessionId()
@@ -170,6 +165,7 @@ export default async function ProfilePage({
             <p className="mt-1 text-[0.8125rem] text-muted">
               Joined {joined}
             </p>
+
             <div className="mt-3 flex flex-wrap gap-5 text-[0.875rem]">
               <span>
                 <strong className="font-semibold text-ink">
@@ -177,24 +173,32 @@ export default async function ProfilePage({
                 </strong>{" "}
                 <span className="text-muted">posts</span>
               </span>
-              <span>
+              <Link
+                href={`/u/${encodeURIComponent(handle)}/followers`}
+                className="transition-colors hover:text-accent"
+              >
                 <strong className="font-semibold text-ink">
                   {profile.follower_count ?? 0}
                 </strong>{" "}
                 <span className="text-muted">followers</span>
-              </span>
-              <span>
+              </Link>
+              <Link
+                href={`/u/${encodeURIComponent(handle)}/following`}
+                className="transition-colors hover:text-accent"
+              >
                 <strong className="font-semibold text-ink">
                   {profile.following_count ?? 0}
                 </strong>{" "}
                 <span className="text-muted">following</span>
-              </span>
+              </Link>
             </div>
+
             {profile.bio ? (
               <p className="mt-3 text-[0.9375rem] leading-relaxed text-ink/85">
                 {profile.bio}
               </p>
             ) : null}
+
             {!isMe ? (
               <div className="mt-4">
                 <FollowButton
@@ -204,12 +208,18 @@ export default async function ProfilePage({
                 />
               </div>
             ) : (
-              <div className="mt-4">
+              <div className="mt-4 flex flex-wrap gap-2">
                 <Link
                   href="/settings/account"
                   className="inline-flex rounded-xl border border-border-strong bg-surface px-4 py-2 text-[0.875rem] font-medium text-ink transition-colors hover:bg-ink/5"
                 >
-                  This is you — edit your profile
+                  Edit your profile
+                </Link>
+                <Link
+                  href={`/u/${encodeURIComponent(handle)}/followers`}
+                  className="inline-flex rounded-xl border border-border-strong bg-surface px-4 py-2 text-[0.875rem] font-medium text-ink transition-colors hover:bg-ink/5"
+                >
+                  See your followers
                 </Link>
               </div>
             )}
