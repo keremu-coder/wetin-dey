@@ -96,13 +96,14 @@ export type SoundEvent = "send" | "receive" | "mention" | "notification";
 
 type ProfileSounds = Record<SoundEvent, Tone[] | null>;
 
+// IDs stay stable (stored in localStorage). Only the labels users see change.
 export const SOUND_PROFILES: Record<
   SoundProfileId,
   { label: string; description: string; sounds: ProfileSounds }
 > = {
   bbm: {
-    label: "BBM ping",
-    description: "The classic Nigerian nostalgia — two ascending tones",
+    label: "Classic Ping",
+    description: "The two-tone we grew up on",
     sounds: {
       send: [
         { freq: 880, start: 0, duration: 0.05, gain: 0.07 },
@@ -124,8 +125,8 @@ export const SOUND_PROFILES: Record<
     }
   },
   skype: {
-    label: "Skype",
-    description: "Three-note chime — bright and modern",
+    label: "Bright Chime",
+    description: "Crisp three-note, modern",
     sounds: {
       send: [
         { freq: 1568, start: 0, duration: 0.04, gain: 0.08, type: "triangle" }
@@ -159,8 +160,8 @@ export const SOUND_PROFILES: Record<
     }
   },
   whatsapp: {
-    label: "WhatsApp",
-    description: "Soft two-note pop",
+    label: "Soft Pop",
+    description: "Gentle pop for everyday messages",
     sounds: {
       send: [{ freq: 1100, start: 0, duration: 0.03, gain: 0.07 }],
       receive: [
@@ -179,8 +180,8 @@ export const SOUND_PROFILES: Record<
     }
   },
   telegram: {
-    label: "Telegram",
-    description: "Single soft bloop",
+    label: "Clean Bloop",
+    description: "One crisp note",
     sounds: {
       send: [{ freq: 900, start: 0, duration: 0.04, gain: 0.06 }],
       receive: [{ freq: 1400, start: 0, duration: 0.12, gain: 0.13 }],
@@ -192,8 +193,8 @@ export const SOUND_PROFILES: Record<
     }
   },
   classic: {
-    label: "Classic 2-tone",
-    description: "Descending knock — old phone notification",
+    label: "Retro Knock",
+    description: "Descending two-tone alert",
     sounds: {
       send: [{ freq: 1046.5, start: 0, duration: 0.05, gain: 0.07 }],
       receive: [
@@ -228,10 +229,6 @@ export function playProfile(
 
 /* ─── haptics ─────────────────────────────────────── */
 
-/**
- * Vibrate the device. Accepts a single duration (ms) or a pattern array.
- * Silent no-op on unsupported devices (iOS Safari, desktop).
- */
 export function vibrate(pattern: number | number[] = 30): void {
   if (typeof navigator === "undefined") return;
   const nav = navigator as Navigator & {
@@ -246,7 +243,6 @@ export function vibrate(pattern: number | number[] = 30): void {
   }
 }
 
-/** Double-tap haptic pattern for mentions. */
 export function vibrateMention(): void {
   vibrate([40, 60, 40]);
 }
