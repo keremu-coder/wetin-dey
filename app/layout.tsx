@@ -1,11 +1,33 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Nav, SiteFooter } from "@/components/Nav";
 import { PresencePing } from "@/components/PresencePing";
+import { Onboarding } from "@/components/Onboarding";
+import { InstallPrompt } from "@/components/InstallPrompt";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Wetin Dey",
-  description: "Nigerian community. Anonymous if you want. Pidgin first."
+  description:
+    "Nigerian community. Anonymous if you want. Pidgin first. Reports that stay online forever.",
+  applicationName: "Wetin Dey",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Wetin Dey"
+  },
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon.svg"
+  }
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0a0a0a",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  viewportFit: "cover"
 };
 
 const themeScript = `
@@ -32,6 +54,8 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen font-sans">
         <PresencePing />
+        <Onboarding />
+        <InstallPrompt />
         <Nav />
         {children}
         <SiteFooter />

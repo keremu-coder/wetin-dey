@@ -137,6 +137,7 @@ export function ChatRoom({
   const [statusByHandle, setStatusByHandle] = useState<Record<string, string>>(
     {}
   );
+  const [composerMode, setComposerMode] = useState<"voice" | "text">("voice");
   const [prefs, setPrefs] = useState<SoundPrefs>({
     profile: "bbm",
     send: true,
@@ -345,7 +346,6 @@ export function ChatRoom({
     setSuggestion(suggestCorrection(body));
   }, [body, autocorrectOn]);
 
-  // Load fonts + statuses for handles in messages
   useEffect(() => {
     const handles = Array.from(
       new Set(messages.map((m) => m.author_handle).filter(Boolean))
@@ -463,6 +463,7 @@ export function ChatRoom({
       mr.start();
       setRecording(true);
       setRecordSeconds(0);
+      if (prefsRef.current.vibrate) vibrate(20);
       timerRef.current = setInterval(() => {
         setRecordSeconds((s) => {
           if (s >= 30) {
@@ -482,6 +483,21 @@ export function ChatRoom({
       mediaRecorderRef.current &&
       mediaRecorderRef.current.state !== "inactive"
     ) {
+      mediaRecorderRef.current.stop();
+    }
+    setRecording(false);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }
+
+  function cancelVoice() {
+    if (
+      mediaRecorderRef.current &&
+      mediaRecorderRef.current.state !== "inactive"
+    ) {
+      mediaRecorderRef.current.onstop = null;
       mediaRecorderRef.current.stop();
     }
     setRecording(false);
@@ -795,11 +811,14 @@ export function ChatRoom({
                       ) : null}
 
                       {m.audio_url ? (
-                        <audio
-                          src={m.audio_url}
-                          controls
-                          className="my-1 h-8 max-w-[280px]"
-                        />
+                        <div className="my-1.5 flex items-center gap-2 rounded-2xl border border-border bg-paper px-3 py-2">
+                          <span className="text-[1.1rem]">🎤</span>
+                          <audio
+                            src={m.audio_url}
+                            controls
+                            className="h-8 max-w-[240px] flex-1"
+                          />
+                        </div>
                       ) : null}
 
                       {m.body ? (
@@ -870,30 +889,16 @@ export function ChatRoom({
         )}
       </div>
 
+      {/* ─── VOICE-FIRST COMPOSER ─── */}
       <form
         onSubmit={send}
         className="border-t border-border bg-paper/90 px-3 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] backdrop-blur-xl"
       >
-        {recording ? (
-          <div className="mb-2 flex items-center justify-between rounded-2xl bg-danger-soft px-3 py-2">
-            <span className="text-[0.8125rem] font-medium text-danger">
-              ● Recording… {recordSeconds}s / 30s
-            </span>
-            <button
-              type="button"
-              onClick={stopVoice}
-              className="rounded-lg bg-danger px-3 py-1 text-[0.75rem] font-semibold text-white"
-            >
-              Send
-            </button>
-          </div>
-        ) : null}
-
         {error ? (
           <p className="mb-1 text-[0.75rem] text-danger">{error}</p>
         ) : null}
 
-        {suggestion ? (
+        {suggestion && composerMode === "text" ? (
           <div className="mb-1.5 flex items-center gap-2 text-[0.75rem]">
             <span className="text-muted">
               Correct{" "}
@@ -923,71 +928,172 @@ export function ChatRoom({
           </div>
         ) : null}
 
-        <div className="composer-shell flex items-end gap-2 rounded-2xl border border-border-strong bg-surface px-2 py-1.5">
-          <button
-            type="button"
-            onClick={startVoice}
-            disabled={recording || busy}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-accent transition-colors hover:bg-ink/5 disabled:opacity-50"
-            aria-label="Record voice note"
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+        {recording ? (
+          <div className="flex items-center gap-3 rounded-full border border-danger bg-danger-soft px-3 py-2">
+            <span className="flex h-8 w-8 shrink-0 animate-pulse items-center justify-center rounded-full bg-danger text-white">
+              ●
+            </span>
+            <span className="flex-1 font-mono text-[0.9375rem] font-medium text-danger">
+              {String(Math.floor(recordSeconds / 60)).padStart(2, "0")}:
+              {String(recordSeconds % 60).padStart(2, "0")}
+              <span className="ml-2 text-[0.75rem] font-normal">/ 00:30</span>
+            </span>
+            <button
+              type="button"
+              onClick={cancelVoice}
+              className="shrink-0 rounded-full border border-border-strong bg-surface px-3 py-1.5 text-[0.75rem] font-medium text-ink transition-colors hover:bg-ink/5"
             >
-              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" />
-              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-              <line x1="12" y1="19" x2="12" y2="22" />
-            </svg>
-          </button>
-          <textarea
-            ref={textareaRef}
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            onBlur={() => {
-              if (autocorrectOn && body.trim()) {
-                setBody(autocorrect(body));
-              }
-            }}
-            placeholder={`Message ${emoji} ${name}`}
-            rows={1}
-            maxLength={500}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                send(e as unknown as React.FormEvent);
-              }
-            }}
-            className="!max-h-24 !min-h-[32px] flex-1 resize-none !border-0 !bg-transparent !py-1.5 !text-[0.9375rem] !outline-none !ring-0 focus:!border-0 focus:!ring-0 focus:!shadow-none"
-            style={{ boxShadow: "none" }}
-          />
-          <button
-            type="submit"
-            disabled={busy || !body.trim()}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-white transition-transform hover:bg-accent-deep active:scale-90 disabled:opacity-30"
-            aria-label="Send"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={stopVoice}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent text-white transition-transform hover:bg-accent-deep active:scale-90"
+              aria-label="Send voice note"
             >
-              <line x1="12" y1="19" x2="12" y2="5" />
-              <polyline points="5 12 12 5 19 12" />
-            </svg>
-          </button>
-        </div>
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="12" y1="19" x2="12" y2="5" />
+                <polyline points="5 12 12 5 19 12" />
+              </svg>
+            </button>
+          </div>
+        ) : composerMode === "voice" ? (
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                unlockAudio();
+                setComposerMode("text");
+                setTimeout(() => textareaRef.current?.focus(), 50);
+              }}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border-strong bg-surface text-ink transition-colors hover:bg-ink/5"
+              aria-label="Switch to text"
+              title="Type instead"
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.9"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <rect x="2" y="6" width="20" height="12" rx="3" />
+                <line x1="6" y1="10" x2="6" y2="14" />
+                <line x1="10" y1="10" x2="10" y2="14" />
+                <line x1="14" y1="10" x2="14" y2="14" />
+                <line x1="18" y1="10" x2="18" y2="14" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              onClick={startVoice}
+              disabled={busy}
+              className="flex h-14 flex-1 items-center justify-center gap-3 rounded-full bg-accent text-white transition-transform hover:bg-accent-deep active:scale-[0.98] disabled:opacity-40"
+              aria-label="Hold or tap to record voice note"
+            >
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" />
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                <line x1="12" y1="19" x2="12" y2="22" />
+              </svg>
+              <span className="font-serif text-[1rem] font-semibold">
+                Tap to talk
+              </span>
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-end gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                unlockAudio();
+                setComposerMode("voice");
+              }}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border-strong bg-surface text-ink transition-colors hover:bg-ink/5"
+              aria-label="Switch to voice"
+              title="Talk instead"
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" />
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                <line x1="12" y1="19" x2="12" y2="22" />
+              </svg>
+            </button>
+            <div className="composer-shell flex flex-1 items-end gap-2 rounded-2xl border border-border-strong bg-surface px-3 py-2">
+              <textarea
+                ref={textareaRef}
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                onBlur={() => {
+                  if (autocorrectOn && body.trim()) {
+                    setBody(autocorrect(body));
+                  }
+                }}
+                placeholder={`Message ${emoji} ${name}`}
+                rows={1}
+                maxLength={500}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    send(e as unknown as React.FormEvent);
+                  }
+                }}
+                className="!max-h-24 !min-h-[28px] flex-1 resize-none !border-0 !bg-transparent !py-1 !text-[0.9375rem] !outline-none !ring-0 focus:!border-0 focus:!ring-0 focus:!shadow-none"
+                style={{ boxShadow: "none" }}
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={busy || !body.trim()}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent text-white transition-transform hover:bg-accent-deep active:scale-90 disabled:opacity-30"
+              aria-label="Send"
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="12" y1="19" x2="12" y2="5" />
+                <polyline points="5 12 12 5 19 12" />
+              </svg>
+            </button>
+          </div>
+        )}
       </form>
 
       {inviteOpen ? (
