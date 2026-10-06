@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { BBM_FONTS, DEFAULT_FONT_ID, getFontById } from "@/lib/bbm-fonts";
-import { vibrate } from "@/lib/bbm-sound";
 
 export default function FontSettingsPage() {
   const [currentFont, setCurrentFont] = useState<string>(DEFAULT_FONT_ID);
@@ -20,14 +19,17 @@ export default function FontSettingsPage() {
       .then((r) => (r.ok ? r.json() : null))
       .then(async (d) => {
         if (cancelled) return;
-        if (!d?.id) {
+        const id: string | null =
+          d?.id ?? d?.session_id ?? d?.sessionId ?? null;
+        if (!id) {
           setLoading(false);
+          setError("Could not load your session. Reload the page.");
           return;
         }
-        setSessionId(d.id);
+        setSessionId(id);
         try {
           const r = await fetch(
-            `/api/settings/font?session_id=${encodeURIComponent(d.id)}`
+            `/api/settings/font?session_id=${encodeURIComponent(id)}`
           );
           if (r.ok) {
             const j = await r.json();
@@ -41,7 +43,10 @@ export default function FontSettingsPage() {
         if (!cancelled) setLoading(false);
       })
       .catch(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+          setError("Could not load your session.");
+        }
       });
     return () => {
       cancelled = true;
@@ -57,7 +62,6 @@ export default function FontSettingsPage() {
 
     setSaving(fontId);
     setError("");
-    vibrate(20);
 
     try {
       const res = await fetch("/api/settings/font", {
@@ -73,7 +77,15 @@ export default function FontSettingsPage() {
       }
       setCurrentFont(fontId);
       setSaved(fontId);
-      vibrate(30);
+      if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+        try {
+          (navigator as Navigator & { vibrate: (p: number) => void }).vibrate(
+            25
+          );
+        } catch {
+          /* ignore */
+        }
+      }
       setTimeout(() => setSaved(null), 1400);
     } catch {
       setError("Network error");
@@ -103,7 +115,6 @@ export default function FontSettingsPage() {
         </p>
       </header>
 
-      {/* Live preview input */}
       <section className="mb-6 rounded-2xl border border-border bg-surface p-4">
         <label className="mb-2 block font-mono text-[0.65rem] uppercase tracking-wider text-faint">
           Try it out
@@ -137,7 +148,6 @@ export default function FontSettingsPage() {
         </p>
       ) : null}
 
-      {/* Font grid */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {BBM_FONTS.map((font) => {
           const selected = font.id === currentFont;
@@ -150,10 +160,14 @@ export default function FontSettingsPage() {
               type="button"
               onClick={() => pick(font.id)}
               disabled={loading || isSaving}
-              className={`font-card ${selected ? "selected" : ""}`}
+              className={`card flex flex-col gap-2 p-4 text-left transition-colors ${
+                selected
+                  ? "!border-accent"
+                  : "hover:!border-border-strong"
+              }`}
             >
               <p
-                className="font-card-sample"
+                className="m-0 break-words leading-[1.25] text-ink"
                 style={{
                   fontFamily: font.family,
                   fontSize: font.sizeAdjust
@@ -164,13 +178,21 @@ export default function FontSettingsPage() {
                 {font.sample}
               </p>
               <div className="flex items-center justify-between">
-                <p className="font-card-label">{font.label}</p>
+                <p className="m-0 font-mono text-[0.6875rem] uppercase tracking-wider text-muted">
+                  {font.label}
+                </p>
                 {justSaved ? (
-                  <span className="font-card-check">✓ Saved</span>
+                  <span className="font-mono text-[0.6875rem] font-medium text-accent">
+                    ✓ Saved
+                  </span>
                 ) : selected ? (
-                  <span className="font-card-check">✓ Selected</span>
+                  <span className="font-mono text-[0.6875rem] font-medium text-accent">
+                    ✓ Selected
+                  </span>
                 ) : isSaving ? (
-                  <span className="font-card-label">Saving…</span>
+                  <span className="font-mono text-[0.6875rem] text-faint">
+                    Saving…
+                  </span>
                 ) : null}
               </div>
             </button>

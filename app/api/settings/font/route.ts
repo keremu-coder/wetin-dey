@@ -16,7 +16,10 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
     const sessionId = url.searchParams.get("session_id");
     if (!sessionId) {
-      return NextResponse.json({ error: "session_id required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "session_id required" },
+        { status: 400 }
+      );
     }
 
     const { data, error } = await sb()
@@ -53,7 +56,10 @@ export async function POST(req: Request) {
     const font = body?.font;
 
     if (typeof sessionId !== "string" || !sessionId) {
-      return NextResponse.json({ error: "session_id required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "session_id required" },
+        { status: 400 }
+      );
     }
     if (!isValidFontId(font)) {
       return NextResponse.json({ error: "Unknown font" }, { status: 400 });

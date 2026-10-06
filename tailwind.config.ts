@@ -18,10 +18,11 @@ const config: Config = {
           soft: "var(--color-accent-soft)",
           deep: "var(--color-accent-deep)"
         },
+        // "warm" kept as alias to accent so existing components don't break.
         warm: {
-          DEFAULT: "var(--color-warm)",
-          soft: "var(--color-warm-soft)",
-          deep: "var(--color-warm-deep)"
+          DEFAULT: "var(--color-accent)",
+          soft: "var(--color-accent-soft)",
+          deep: "var(--color-accent-deep)"
         },
         danger: {
           DEFAULT: "var(--color-danger)",
@@ -37,14 +38,16 @@ const config: Config = {
         }
       },
       fontFamily: {
-        serif: ["Fraunces", "Georgia", "serif"],
+        // "serif" aliased to Space Grotesk so existing class names work.
+        serif: ["Space Grotesk", "system-ui", "sans-serif"],
+        display: ["Space Grotesk", "system-ui", "sans-serif"],
         sans: ["Inter", "system-ui", "-apple-system", "sans-serif"],
         mono: ["JetBrains Mono", "Menlo", "monospace"]
       },
       borderRadius: {
-        xl: "12px",
-        "2xl": "16px",
-        "3xl": "24px"
+        xl: "8px",
+        "2xl": "12px",
+        "3xl": "16px"
       }
     }
   },

@@ -198,6 +198,7 @@ textarea { resize: vertical; min-height: 100px; line-height: 1.5; }
 
 /* ═══════════════════════════════════════════════
    DISCORD-STYLE MESSAGE LOG
+   Flat, no bubbles. Avatar + name + time once per group.
    ═══════════════════════════════════════════════ */
 
 .chat-log {
@@ -331,46 +332,4 @@ textarea { resize: vertical; min-height: 100px; line-height: 1.5; }
 .composer-shell:focus-within {
   border-color: color-mix(in srgb, var(--color-accent) 60%, transparent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 12%, transparent);
-}
-
-/* ═══ FONT PICKER ═══ */
-.font-card {
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  padding: 14px 16px;
-  background: var(--color-surface);
-  transition: border-color 140ms ease, transform 140ms ease;
-  cursor: pointer;
-  text-align: left;
-  width: 100%;
-}
-.font-card:hover {
-  border-color: var(--color-border-strong);
-}
-.font-card.selected {
-  border-color: var(--color-accent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 25%, transparent);
-}
-.font-card-sample {
-  color: var(--color-ink);
-  margin: 0 0 6px;
-  line-height: 1.25;
-  word-break: break-word;
-}
-.font-card-label {
-  font-family: "JetBrains Mono", monospace;
-  font-size: 0.6875rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--color-muted);
-  margin: 0;
-}
-.font-card-check {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 0.6875rem;
-  color: var(--color-accent);
-  font-weight: 500;
 }
