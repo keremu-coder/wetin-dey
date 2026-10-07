@@ -7,14 +7,6 @@ import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { notifyCommunityMembers } from "@/lib/push-server";
 
-function extFromMime(mime: string): string {
-  const m = (mime || "").toLowerCase();
-  if (m.includes("mp4") || m.includes("m4a") || m.includes("aac")) return "m4a";
-  if (m.includes("ogg")) return "ogg";
-  if (m.includes("wav")) return "wav";
-  return "webm";
-}
-
 export async function GET(
   _req: NextRequest,
   { params }: { params: { slug: string } }
@@ -30,6 +22,17 @@ export async function GET(
 
     if (!community) {
       return Response.json({ error: "not found" }, { status: 404 });
+    }
+
+    const requesterId = await getSessionId();
+    let requesterHides = false;
+    if (requesterId) {
+      const { data: me } = await db
+        .from("sessions")
+        .select("hide_presence")
+        .eq("id", requesterId)
+        .maybeSingle();
+      requesterHides = me?.hide_presence === true;
     }
 
     const { data: messages, error } = await db
@@ -52,12 +55,18 @@ export async function GET(
     if (sessionIds.length > 0) {
       const { data: profiles } = await db
         .from("sessions")
-        .select("id, handle, last_seen_at")
+        .select("id, handle, last_seen_at, hide_presence")
         .in("id", sessionIds);
 
       for (const p of profiles ?? []) {
         handleMap.set(p.id, p.handle);
-        lastSeenMap.set(p.id, p.last_seen_at ?? null);
+        const targetHides =
+          requesterHides ||
+          (p as { hide_presence?: boolean }).hide_presence === true;
+        lastSeenMap.set(
+          p.id,
+          targetHides ? null : (p.last_seen_at ?? null)
+        );
       }
     }
 
@@ -159,12 +168,15 @@ export async function POST(
           );
         }
         const audioId = nanoid();
-        const fileMime = file.type || "audio/webm";
-        const ext = extFromMime(fileMime);
+        const ext = file.type.includes("mp4")
+          ? "m4a"
+          : file.type.includes("ogg")
+            ? "ogg"
+            : "webm";
         const path = `chat/${community.id}/${audioId}.${ext}`;
         const buf = Buffer.from(await file.arrayBuffer());
         const up = await db.storage.from("voice-notes").upload(path, buf, {
-          contentType: fileMime,
+          contentType: file.type || "audio/webm",
           upsert: false
         });
         if (up.error) {
