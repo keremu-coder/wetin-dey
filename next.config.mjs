@@ -34,7 +34,8 @@ const nextConfig = {
       "frame-src https://vercel.live",
       "frame-ancestors 'none'",
       "base-uri 'self'",
-      "form-action 'self'"
+      "form-action 'self'",
+      "object-src 'none'"
     ].join("; ");
 
     const permissions = [
