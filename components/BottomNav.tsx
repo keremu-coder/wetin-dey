@@ -1,17 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
 const TABS = [
   { href: "/", label: "Spaces", icon: "💬" },
   { href: "/talk", label: "Talk Am", icon: "📰" },
-  { href: "/radar", label: "Radar", icon: "📡" }
+  { href: "/inbox", label: "Inbox", icon: "✉️" }
 ];
 
-// Fullscreen / focused flows where the tab bar would be in the way.
-// "/inbox/" (with trailing slash) matches /inbox/[id] but NOT /inbox itself,
-// so the DM list still shows the tab bar and the DM thread does not.
 const HIDDEN_PREFIXES = [
   "/c/",
   "/inbox/",
@@ -24,6 +22,27 @@ const HIDDEN_PREFIXES = [
 
 export function BottomNav() {
   const pathname = usePathname();
+  const [unread, setUnread] = useState(0);
+
+  // Poll unread DM count for the Inbox badge
+  useEffect(() => {
+    let cancelled = false;
+    function refresh() {
+      fetch("/api/dm/unread", { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (cancelled) return;
+          setUnread(typeof d?.count === "number" ? d.count : 0);
+        })
+        .catch(() => {});
+    }
+    refresh();
+    const t = setInterval(refresh, 30000);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
+  }, [pathname]);
 
   if (HIDDEN_PREFIXES.some((p) => pathname.startsWith(p))) {
     return null;
@@ -42,15 +61,23 @@ export function BottomNav() {
       <div className="mx-auto grid max-w-2xl grid-cols-3">
         {TABS.map((t) => {
           const active = isActive(t.href);
+          const showBadge = t.href === "/inbox" && unread > 0;
           return (
             <Link
               key={t.href}
               href={t.href}
-              className={`flex flex-col items-center justify-center gap-0.5 py-2.5 transition-colors ${
+              className={`relative flex flex-col items-center justify-center gap-0.5 py-2.5 transition-colors ${
                 active ? "text-accent" : "text-muted hover:text-ink"
               }`}
             >
-              <span className="text-[1.35rem] leading-none">{t.icon}</span>
+              <span className="relative text-[1.35rem] leading-none">
+                {t.icon}
+                {showBadge ? (
+                  <span className="absolute -right-2 -top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-danger px-1 font-mono text-[0.55rem] font-bold text-white">
+                    {unread > 9 ? "9+" : unread}
+                  </span>
+                ) : null}
+              </span>
               <span className="text-[0.7rem] font-medium leading-none">
                 {t.label}
               </span>
