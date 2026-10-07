@@ -5,6 +5,22 @@ import { nanoid } from "nanoid";
 import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 
+/**
+ * Derive a safe file extension from an audio MIME type.
+ * Safari/iOS MediaRecorder often emits "audio/mp4" — mislabeling that as
+ * .webm causes playback failures because the browser refuses the container
+ * based on the extension. Map explicitly; default to webm.
+ */
+function extForAudioType(t: string | undefined): string {
+  const lower = (t ?? "").toLowerCase();
+  if (lower.includes("mp4") || lower.includes("m4a")) return "m4a";
+  if (lower.includes("ogg")) return "ogg";
+  if (lower.includes("wav")) return "wav";
+  if (lower.includes("mpeg") || lower.includes("mp3")) return "mp3";
+  if (lower.includes("webm")) return "webm";
+  return "webm";
+}
+
 export async function GET(
   _req: NextRequest,
   { params }: { params: { id: string } }
@@ -108,7 +124,8 @@ export async function POST(
           );
         }
         const audioId = nanoid();
-        const path = `${audioId}.webm`;
+        const ext = extForAudioType(file.type);
+        const path = `${audioId}.${ext}`;
         const buf = Buffer.from(await file.arrayBuffer());
         const up = await db.storage.from("voice-notes").upload(path, buf, {
           contentType: file.type || "audio/webm",
