@@ -1,16 +1,14 @@
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
 import { NextRequest } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
-import { put } from "@vercel/blob";
 
 const PAGE_SIZE = 1000;
 
 function isAuthorized(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
-  // Manual export from the browser is allowed if no secret is configured,
-  // and so is any call if the user manually navigated to /api/archive/export.
   if (!secret) return true;
   const header = req.headers.get("authorization");
   return header === `Bearer ${secret}`;
@@ -24,7 +22,6 @@ export async function GET(req: NextRequest) {
   try {
     const db = createServiceClient();
 
-    // Fetch all reviewed, non-held reports in pages
     let from = 0;
     const all: unknown[] = [];
 
@@ -59,43 +56,6 @@ export async function GET(req: NextRequest) {
 
     const json = JSON.stringify(payload, null, 2);
 
-    // If BLOB_READ_WRITE_TOKEN is configured, store it. Otherwise return it.
-    const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
-    if (blobToken) {
-      try {
-        const date = new Date().toISOString().slice(0, 10);
-        const blob = await put(`archive/wetindey-${date}.json`, json, {
-          access: "public",
-          contentType: "application/json",
-          addRandomSuffix: false,
-          token: blobToken
-        });
-        // Also write to a stable "latest" URL
-        await put("archive/wetindey-latest.json", json, {
-          access: "public",
-          contentType: "application/json",
-          addRandomSuffix: false,
-          token: blobToken
-        });
-        return Response.json({
-          ok: true,
-          count: all.length,
-          url: blob.url,
-          latest: "/archive/wetindey-latest.json"
-        });
-      } catch (e) {
-        return Response.json(
-          {
-            ok: false,
-            error: "Blob write failed: " + (e as Error).message,
-            count: all.length
-          },
-          { status: 500 }
-        );
-      }
-    }
-
-    // No blob token — serve the JSON directly (fine for small archives)
     return new Response(json, {
       headers: {
         "content-type": "application/json; charset=utf-8",

@@ -1,4 +1,5 @@
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
 import { NextRequest } from "next/server";
@@ -11,11 +12,6 @@ import {
 const BATCH_SIZE = 5;
 const BASE_URL = "https://9jawatindey.vercel.app";
 
-/**
- * Cron endpoint. Vercel hits this every 10 minutes.
- * Auth: Vercel cron sends an Authorization header with CRON_SECRET.
- * If CRON_SECRET env var isn't set, we allow the call (dev/testing).
- */
 function isAuthorized(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
   if (!secret) return true;
@@ -92,12 +88,9 @@ export async function GET(req: NextRequest) {
         failedIds.push(r.id);
       }
 
-      // Telegram rate limit: 30 messages/sec per bot. We're well under.
-      // But space out posts by 500ms to be polite.
       await new Promise((res) => setTimeout(res, 500));
     }
 
-    // Count remaining
     const { count } = await db
       .from("reports")
       .select("id", { count: "exact", head: true })
