@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   SIGNALS,
@@ -10,10 +10,18 @@ import {
   unbucketCoord,
   type Signal
 } from "@/lib/radar";
+import {
+  computeTierFor,
+  tierColor,
+  tierLabel,
+  type SignalForCorroboration,
+  type TierInfo
+} from "@/lib/radar-severity";
 
 type SignalRow = {
   id: string;
   signal_type: string;
+  session_id: string;
   lat_bucket: number;
   lng_bucket: number;
   note: string | null;
@@ -21,6 +29,11 @@ type SignalRow = {
 };
 
 type Coords = { lat: number; lng: number };
+
+type SignalWithTier = SignalRow & {
+  tierInfo: TierInfo;
+  km: number;
+};
 
 export function LiveRadarPanel() {
   const [coords, setCoords] = useState<Coords | null>(null);
@@ -126,13 +139,55 @@ export function LiveRadarPanel() {
     }
   }
 
-  const recentCounts = new Map<string, number>();
-  const oneHourAgo = Date.now() - 60 * 60 * 1000;
-  for (const s of signals) {
-    const t = new Date(s.created_at).getTime();
-    if (t < oneHourAgo) continue;
-    recentCounts.set(s.signal_type, (recentCounts.get(s.signal_type) ?? 0) + 1);
-  }
+  // Enrich signals with tier info and distance
+  const signalsWithTier = useMemo<SignalWithTier[]>(() => {
+    if (!coords) return [];
+    const allForCorroboration: SignalForCorroboration[] = signals.map((s) => ({
+      id: s.id,
+      signal_type: s.signal_type,
+      session_id: s.session_id,
+      lat_bucket: s.lat_bucket,
+      lng_bucket: s.lng_bucket,
+      created_at: s.created_at
+    }));
+
+    return signals.map((s) => {
+      const tierInfo = computeTierFor(
+        {
+          id: s.id,
+          signal_type: s.signal_type,
+          session_id: s.session_id,
+          lat_bucket: s.lat_bucket,
+          lng_bucket: s.lng_bucket,
+          created_at: s.created_at
+        },
+        allForCorroboration
+      );
+      const km = approxKm(
+        coords.lat,
+        coords.lng,
+        unbucketCoord(s.lat_bucket),
+        unbucketCoord(s.lng_bucket)
+      );
+      return { ...s, tierInfo, km };
+    });
+  }, [signals, coords]);
+
+  // Recent count per button (last hour, distinct sessions per type)
+  const recentCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    const oneHourAgo = Date.now() - 60 * 60 * 1000;
+    const perType = new Map<string, Set<string>>();
+    for (const s of signals) {
+      const t = new Date(s.created_at).getTime();
+      if (t < oneHourAgo) continue;
+      const set = perType.get(s.signal_type) ?? new Set<string>();
+      set.add(s.session_id);
+      perType.set(s.signal_type, set);
+    }
+    for (const [k, v] of perType.entries()) map.set(k, v.size);
+    return map;
+  }, [signals]);
 
   if (geoState === "idle") {
     return (
@@ -213,7 +268,7 @@ export function LiveRadarPanel() {
                   <span className="text-[1.65rem] leading-none">{s.emoji}</span>
                   {count > 0 ? (
                     <span className="rounded-full bg-ink/10 px-2 py-0.5 font-mono text-[0.65rem] font-semibold text-ink">
-                      {count}
+                      {count} {count === 1 ? "person" : "people"}
                     </span>
                   ) : null}
                 </div>
@@ -249,7 +304,16 @@ export function LiveRadarPanel() {
         ) : null}
       </div>
 
-      {signals.length === 0 ? (
+      <div className="mb-3 rounded-xl border border-border bg-surface p-3">
+        <p className="text-[0.7rem] leading-relaxed text-muted">
+          <strong className="text-ink">Signals are corroborated.</strong> One
+          person alone is <em>unconfirmed</em>. When three or more different
+          people report the same thing nearby within 30 minutes, it&apos;s
+          marked <em>confirmed</em>.
+        </p>
+      </div>
+
+      {signalsWithTier.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon">📡</div>
           <p className="empty-state-title">Nothing yet near you</p>
@@ -259,29 +323,18 @@ export function LiveRadarPanel() {
         </div>
       ) : (
         <div className="space-y-2">
-          {signals.map((s) => {
+          {signalsWithTier.map((s) => {
             const def = getSignal(s.signal_type);
             if (!def) return null;
-            const km = approxKm(
-              coords!.lat,
-              coords!.lng,
-              unbucketCoord(s.lat_bucket),
-              unbucketCoord(s.lng_bucket)
-            );
-            const tone =
-              def.tone === "positive"
-                ? "border-accent/20 bg-accent-soft/40"
-                : def.tone === "negative"
-                  ? "border-danger/20 bg-danger-soft/40"
-                  : "border-gold/20 bg-gold-soft/40";
+            const tc = tierColor(s.tierInfo.tier);
             return (
               <div
                 key={s.id}
-                className={`flex items-start gap-3 rounded-xl border ${tone} p-3`}
+                className={`flex items-start gap-3 rounded-xl border ${tc.border} ${tc.bg} p-3`}
               >
                 <span className="text-[1.5rem] leading-none">{def.emoji}</span>
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-baseline justify-between gap-2">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <p className="text-[0.9375rem] font-semibold text-ink">
                       {def.label}
                     </p>
@@ -289,11 +342,18 @@ export function LiveRadarPanel() {
                       {signalAge(s.created_at)}
                     </span>
                   </div>
-                  <p className="text-[0.75rem] text-muted">
-                    ~{km.toFixed(1)} km away
-                  </p>
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    <span
+                      className={`rounded-full px-2 py-0.5 font-mono text-[0.65rem] font-semibold ${tc.badge}`}
+                    >
+                      {tierLabel(s.tierInfo.tier, s.tierInfo.distinct_sessions)}
+                    </span>
+                    <span className="text-[0.7rem] text-muted">
+                      ~{s.km.toFixed(1)} km away
+                    </span>
+                  </div>
                   {s.note ? (
-                    <p className="mt-1 text-[0.8125rem] italic text-ink/80">
+                    <p className="mt-1.5 text-[0.8125rem] italic text-ink/80">
                       &quot;{s.note}&quot;
                     </p>
                   ) : null}

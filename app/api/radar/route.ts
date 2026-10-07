@@ -9,6 +9,7 @@ import { checkRateLimit, sameOrigin } from "@/lib/rate-limit";
 type SignalRow = {
   id: string;
   signal_type: string;
+  session_id: string;
   lat_bucket: number;
   lng_bucket: number;
   note: string | null;
@@ -51,14 +52,16 @@ export async function GET(req: NextRequest) {
 
     const { data, error } = await db
       .from("radar_signals")
-      .select("id, signal_type, lat_bucket, lng_bucket, note, created_at")
+      .select(
+        "id, signal_type, session_id, lat_bucket, lng_bucket, note, created_at"
+      )
       .gte("lat_bucket", latBucket - 1)
       .lte("lat_bucket", latBucket + 1)
       .gte("lng_bucket", lngBucket - 1)
       .lte("lng_bucket", lngBucket + 1)
       .gte("created_at", threeHoursAgo)
       .order("created_at", { ascending: false })
-      .limit(100);
+      .limit(200);
 
     if (error) {
       return Response.json({ error: error.message }, { status: 500 });
@@ -87,7 +90,6 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: "no session" }, { status: 401 });
     }
 
-    // Rate limit: 6 signals per 5 minutes per session
     const limit = await checkRateLimit(sessionId, {
       key: "radar_signal",
       limit: 6,
@@ -96,7 +98,11 @@ export async function POST(req: NextRequest) {
     if (!limit.ok) {
       const mins = Math.ceil(limit.retryAfterMs / 60000);
       return Response.json(
-        { error: `Slow down — try again in ${mins} minute${mins === 1 ? "" : "s"}.` },
+        {
+          error: `Slow down — try again in ${mins} minute${
+            mins === 1 ? "" : "s"
+          }.`
+        },
         { status: 429 }
       );
     }
@@ -142,7 +148,9 @@ export async function POST(req: NextRequest) {
         lng_bucket: bucketCoord(body.lng),
         note
       })
-      .select("id, signal_type, lat_bucket, lng_bucket, note, created_at")
+      .select(
+        "id, signal_type, session_id, lat_bucket, lng_bucket, note, created_at"
+      )
       .single();
 
     if (error) {
