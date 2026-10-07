@@ -9,9 +9,12 @@ const TABS = [
   { href: "/radar", label: "Radar", icon: "📡" }
 ];
 
-// Fullscreen / focused flows where the tab bar would be in the way
+// Fullscreen / focused flows where the tab bar would be in the way.
+// "/inbox/" (with trailing slash) matches /inbox/[id] but NOT /inbox itself,
+// so the DM list still shows the tab bar and the DM thread does not.
 const HIDDEN_PREFIXES = [
   "/c/",
+  "/inbox/",
   "/signin",
   "/join",
   "/forgot-password",
