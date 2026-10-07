@@ -12,50 +12,47 @@ import { formatNaira } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
+type Tab = "posts" | "followers" | "following";
+
 type ResolvedHandle =
   | { status: "ok"; handle: string; profile_id: string }
   | { status: "redirect"; to: string }
   | { status: "none" };
 
-/**
- * Resolve a URL handle to a current handle.
- *
- * 1. Direct match on sessions.handle → OK
- * 2. Match on sessions.previous_handles → redirect to current handle
- * 3. No match → 404
- *
- * Cached for 5 minutes so repeat visits are instant.
- */
 const resolveHandle = unstable_cache(
   async (raw: string): Promise<ResolvedHandle> => {
     const db = createServiceClient();
     const cleaned = raw.trim().toLowerCase();
 
-    // 1. Direct match
     const { data: direct } = await db
       .from("sessions")
       .select("id, handle")
-      .eq("handle", cleaned)
+      .ilike("handle", cleaned)
       .maybeSingle();
 
     if (direct?.handle) {
       return { status: "ok", handle: direct.handle, profile_id: direct.id };
     }
 
-    // 2. Previous handle
-    const { data: viaPrevious } = await db
+    const { data: candidates } = await db
       .from("sessions")
       .select("id, handle, previous_handles")
-      .contains("previous_handles", [cleaned])
-      .maybeSingle();
+      .not("previous_handles", "is", null)
+      .limit(500);
 
-    if (viaPrevious?.handle) {
-      return { status: "redirect", to: viaPrevious.handle };
+    for (const c of candidates ?? []) {
+      if (!Array.isArray(c.previous_handles)) continue;
+      const found = c.previous_handles.some(
+        (h: unknown) => typeof h === "string" && h.toLowerCase() === cleaned
+      );
+      if (found && c.handle) {
+        return { status: "redirect", to: c.handle };
+      }
     }
 
     return { status: "none" };
   },
-  ["resolve-handle-v1"],
+  ["resolve-handle-v2"],
   { revalidate: 300 }
 );
 
@@ -77,6 +74,7 @@ const getProfileBundle = unstable_cache(
           "id, created_at, state, reviewed, agency_canonical, agency_raw, summary_pidgin, body, status, amount_kobo"
         )
         .eq("author_handle", handle)
+        .eq("held", false)
         .order("created_at", { ascending: false })
         .limit(30)
     ]);
@@ -97,9 +95,62 @@ const getProfileBundle = unstable_cache(
       }>
     };
   },
-  ["profile-bundle-v3"],
+  ["profile-bundle-v5"],
   { revalidate: 60 }
 );
+
+type PersonRow = {
+  id: string;
+  handle: string;
+  status_line: string | null;
+  handle_kind: string | null;
+};
+
+async function getFollowers(profileId: string): Promise<PersonRow[]> {
+  const db = createServiceClient();
+  const { data: followRows } = await db
+    .from("follows")
+    .select("follower_session_id, created_at")
+    .eq("followed_session_id", profileId)
+    .order("created_at", { ascending: false })
+    .limit(200);
+
+  const ids = (followRows ?? []).map((r) => r.follower_session_id);
+  if (ids.length === 0) return [];
+
+  const { data: sessions } = await db
+    .from("sessions")
+    .select("id, handle, status_line, handle_kind")
+    .in("id", ids);
+
+  const people = (sessions ?? []) as PersonRow[];
+  const order = new Map(ids.map((id, i) => [id, i]));
+  people.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+  return people;
+}
+
+async function getFollowing(profileId: string): Promise<PersonRow[]> {
+  const db = createServiceClient();
+  const { data: followRows } = await db
+    .from("follows")
+    .select("followed_session_id, created_at")
+    .eq("follower_session_id", profileId)
+    .order("created_at", { ascending: false })
+    .limit(200);
+
+  const ids = (followRows ?? []).map((r) => r.followed_session_id);
+  if (ids.length === 0) return [];
+
+  const { data: sessions } = await db
+    .from("sessions")
+    .select("id, handle, status_line, handle_kind")
+    .in("id", ids);
+
+  const people = (sessions ?? []) as PersonRow[];
+  const order = new Map(ids.map((id, i) => [id, i]));
+  people.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+  return people;
+}
 
 function avatarColor(seed: string): string {
   let h = 0;
@@ -113,6 +164,22 @@ function avatarColor(seed: string): string {
     "bg-[#BE185D]",
     "bg-[#4D7C0F]",
     "bg-[#A16207]"
+  ];
+  return colors[Math.abs(h) % colors.length];
+}
+
+function avatarHex(seed: string): string {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
+  const colors = [
+    "#C0392B",
+    "#D97706",
+    "#1F7A4D",
+    "#7C3AED",
+    "#0E7490",
+    "#BE185D",
+    "#4D7C0F",
+    "#A16207"
   ];
   return colors[Math.abs(h) % colors.length];
 }
@@ -133,22 +200,29 @@ function timeAgo(date: string): string {
 }
 
 export default async function ProfilePage({
-  params
+  params,
+  searchParams
 }: {
   params: { handle: string };
+  searchParams: { tab?: string };
 }) {
   const requested = decodeURIComponent(params.handle).trim().toLowerCase();
-
   const resolved = await resolveHandle(requested);
 
   if (resolved.status === "none") return notFound();
-
   if (resolved.status === "redirect") {
     redirect(`/u/${encodeURIComponent(resolved.to)}`);
   }
 
-  // resolved.status === "ok"
   const handle = resolved.handle;
+
+  const rawTab = (searchParams.tab ?? "posts").toLowerCase();
+  const tab: Tab =
+    rawTab === "followers"
+      ? "followers"
+      : rawTab === "following"
+        ? "following"
+        : "posts";
 
   const [bundle, mySessionId] = await Promise.all([
     getProfileBundle(handle),
@@ -156,9 +230,40 @@ export default async function ProfilePage({
   ]);
 
   const profile = bundle.profile;
-  const posts = bundle.posts;
-
   if (!profile) return notFound();
+
+  const posts = tab === "posts" ? bundle.posts : [];
+
+  const [people, myFollowing] = await Promise.all([
+    tab === "followers"
+      ? getFollowers(profile.id)
+      : tab === "following"
+        ? getFollowing(profile.id)
+        : Promise.resolve([] as PersonRow[]),
+    (async () => {
+      if (!mySessionId) return new Set<string>();
+      const ids: string[] = [];
+      if (tab === "followers" && bundle.profile) {
+        // will fill after we know people — placeholder
+      }
+      return new Set(ids);
+    })()
+  ]);
+
+  // Determine who I already follow among the visible people
+  let myFollowSet = myFollowing;
+  if (mySessionId && people.length > 0) {
+    const db = createServiceClient();
+    const { data: mine } = await db
+      .from("follows")
+      .select("followed_session_id")
+      .eq("follower_session_id", mySessionId)
+      .in(
+        "followed_session_id",
+        people.map((p) => p.id)
+      );
+    myFollowSet = new Set((mine ?? []).map((f) => f.followed_session_id));
+  }
 
   let isFollowing = false;
   let isMe = false;
@@ -185,6 +290,28 @@ export default async function ProfilePage({
     month: "long",
     year: "numeric"
   });
+
+  const tabs: Array<{ id: Tab; label: string; count: number; href: string }> =
+    [
+      {
+        id: "posts",
+        label: "Posts",
+        count: profile.post_count ?? 0,
+        href: `/u/${encodeURIComponent(handle)}`
+      },
+      {
+        id: "followers",
+        label: "Followers",
+        count: profile.follower_count ?? 0,
+        href: `/u/${encodeURIComponent(handle)}?tab=followers`
+      },
+      {
+        id: "following",
+        label: "Following",
+        count: profile.following_count ?? 0,
+        href: `/u/${encodeURIComponent(handle)}?tab=following`
+      }
+    ];
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-6 pb-28">
@@ -231,6 +358,7 @@ export default async function ProfilePage({
         </Link>
       </div>
 
+      {/* Profile header */}
       <section className="rounded-2xl border border-border bg-surface p-6 shadow-card">
         <div className="flex items-start gap-4">
           <div
@@ -270,33 +398,6 @@ export default async function ProfilePage({
               Joined {joined}
             </p>
 
-            <div className="mt-3 flex flex-wrap gap-5 text-[0.875rem]">
-              <span>
-                <strong className="font-semibold text-ink">
-                  {profile.post_count ?? 0}
-                </strong>{" "}
-                <span className="text-muted">posts</span>
-              </span>
-              <Link
-                href={`/u/${encodeURIComponent(handle)}/followers`}
-                className="transition-colors hover:text-accent"
-              >
-                <strong className="font-semibold text-ink">
-                  {profile.follower_count ?? 0}
-                </strong>{" "}
-                <span className="text-muted">followers</span>
-              </Link>
-              <Link
-                href={`/u/${encodeURIComponent(handle)}/following`}
-                className="transition-colors hover:text-accent"
-              >
-                <strong className="font-semibold text-ink">
-                  {profile.following_count ?? 0}
-                </strong>{" "}
-                <span className="text-muted">following</span>
-              </Link>
-            </div>
-
             {profile.bio ? (
               <p className="mt-3 text-[0.9375rem] leading-relaxed text-ink/85">
                 {profile.bio}
@@ -320,69 +421,172 @@ export default async function ProfilePage({
                 >
                   Edit your profile
                 </Link>
-                <Link
-                  href={`/u/${encodeURIComponent(handle)}/followers`}
-                  className="inline-flex rounded-xl border border-border-strong bg-surface px-4 py-2 text-[0.875rem] font-medium text-ink transition-colors hover:bg-ink/5"
-                >
-                  See your followers
-                </Link>
               </div>
             )}
           </div>
         </div>
       </section>
 
-      <h2 className="mt-10 mb-4 font-serif text-[1.35rem] font-semibold text-ink">
-        Posts
-      </h2>
+      {/* Tabs */}
+      <div className="mt-6 flex gap-1 border-b border-border">
+        {tabs.map((t) => {
+          const active = t.id === tab;
+          return (
+            <Link
+              key={t.id}
+              href={t.href}
+              className={`flex flex-1 flex-col items-center gap-0.5 border-b-2 px-3 py-3 text-center transition-colors ${
+                active
+                  ? "border-accent text-ink"
+                  : "border-transparent text-muted hover:text-ink"
+              }`}
+            >
+              <span className="font-serif text-[0.9375rem] font-semibold">
+                {t.label}
+              </span>
+              <span className="font-mono text-[0.7rem] text-faint">
+                {t.count}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
 
-      {posts.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-state-icon">📝</div>
-          <p className="empty-state-title">No post yet</p>
-          <p className="empty-state-text">
-            When @{handle} posts, e go show here.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {posts.map((r) => {
-            const title = r.agency_canonical || r.agency_raw || "Post";
-            const blurb = r.summary_pidgin || r.body?.slice(0, 180) || "";
-            return (
-              <article
-                key={r.id}
-                className="group overflow-hidden rounded-2xl border border-border bg-surface shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover"
-              >
-                <div className="p-5">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="font-mono text-[0.7rem] uppercase tracking-wide text-faint">
-                      {timeAgo(r.created_at)} · {r.state}
-                    </p>
-                    <ReviewedFlag reviewed={r.reviewed} />
-                  </div>
-                  <Link href={`/r/${r.id}`} className="mt-3 block">
-                    <h3 className="font-serif text-[1.2rem] font-semibold leading-tight text-ink transition-colors group-hover:text-accent">
-                      {title}
-                    </h3>
+      {/* Tab content */}
+      <div className="mt-4">
+        {tab === "posts" ? (
+          posts.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-state-icon">📝</div>
+              <p className="empty-state-title">No posts yet</p>
+              <p className="empty-state-text">
+                When @{handle} posts, e go show here.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {posts.map((r) => {
+                const title = r.agency_canonical || r.agency_raw || "Post";
+                const blurb = r.summary_pidgin || r.body?.slice(0, 180) || "";
+                return (
+                  <article
+                    key={r.id}
+                    className="group overflow-hidden rounded-2xl border border-border bg-surface shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover"
+                  >
+                    <div className="p-5">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="font-mono text-[0.7rem] uppercase tracking-wide text-faint">
+                          {timeAgo(r.created_at)} · {r.state}
+                        </p>
+                        <ReviewedFlag reviewed={r.reviewed} />
+                      </div>
+                      <Link href={`/r/${r.id}`} className="mt-3 block">
+                        <h3 className="font-serif text-[1.2rem] font-semibold leading-tight text-ink transition-colors group-hover:text-accent">
+                          {title}
+                        </h3>
+                      </Link>
+                      <p className="mt-2 line-clamp-3 text-[0.9375rem] leading-relaxed text-ink/85">
+                        {blurb}
+                      </p>
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <StatusBadge status={r.status} />
+                        {r.amount_kobo != null ? (
+                          <span className="rounded-full bg-warm-soft px-2.5 py-1 text-[0.75rem] font-medium text-warm-deep">
+                            {formatNaira(r.amount_kobo)}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )
+        ) : people.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-state-icon">
+              {tab === "followers" ? "👥" : "👣"}
+            </div>
+            <p className="empty-state-title">
+              {tab === "followers"
+                ? isMe
+                  ? "Nobody follows you yet"
+                  : "No followers yet"
+                : isMe
+                  ? "You no follow anybody yet"
+                  : "Not following anyone"}
+            </p>
+            <p className="empty-state-text">
+              {tab === "followers"
+                ? isMe
+                  ? "Post something worth following."
+                  : `When people follow @${handle}, they'll show here.`
+                : isMe
+                  ? "Find people to follow from their posts or profiles."
+                  : `When @${handle} follows someone, they'll show here.`}
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-hidden rounded-2xl border border-border bg-surface">
+            {people.map((p, i) => {
+              const bg = avatarHex(p.handle);
+              const isThisMe = mySessionId === p.id;
+              return (
+                <div
+                  key={p.id}
+                  className={`flex items-start gap-3 px-4 py-3.5 ${
+                    i !== 0 ? "border-t border-border" : ""
+                  }`}
+                >
+                  <Link
+                    href={`/u/${encodeURIComponent(p.handle)}`}
+                    className="flex min-w-0 flex-1 items-start gap-3"
+                  >
+                    <div
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[0.9375rem] font-semibold text-white"
+                      style={{ background: bg }}
+                    >
+                      {p.handle.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[0.9375rem] font-medium text-ink">
+                        @{p.handle}
+                      </p>
+                      {p.status_line ? (
+                        <StatusLine
+                          status={p.status_line}
+                          className="mt-0.5 !text-[0.75rem]"
+                        />
+                      ) : p.handle_kind === "named" ? (
+                        <p className="text-[0.7rem] text-muted">
+                          Named account
+                        </p>
+                      ) : (
+                        <p className="text-[0.7rem] text-muted">Anonymous</p>
+                      )}
+                    </div>
                   </Link>
-                  <p className="mt-2 line-clamp-3 text-[0.9375rem] leading-relaxed text-ink/85">
-                    {blurb}
-                  </p>
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <StatusBadge status={r.status} />
-                    {r.amount_kobo != null ? (
-                      <span className="rounded-full bg-warm-soft px-2.5 py-1 text-[0.75rem] font-medium text-warm-deep">
-                        {formatNaira(r.amount_kobo)}
-                      </span>
-                    ) : null}
-                  </div>
+
+                  {!isThisMe ? (
+                    <div className="shrink-0 pt-0.5">
+                      <FollowButton
+                        handle={p.handle}
+                        initialFollowing={myFollowSet.has(p.id)}
+                        initialFollowerCount={0}
+                        compact
+                      />
+                    </div>
+                  ) : (
+                    <span className="shrink-0 pt-1 text-[0.7rem] text-faint">
+                      you
+                    </span>
+                  )}
                 </div>
-              </article>
-            );
-          })}
-        </div>
-      )}
+              );
+            })}
+          </div>
+        )}
+      </div>
     </main>
   );
 }
