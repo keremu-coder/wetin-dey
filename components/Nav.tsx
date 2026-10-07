@@ -12,6 +12,7 @@ type Row = {
   label: string;
   hint?: string;
   tone?: "default" | "accent" | "danger";
+  badge?: number;
 };
 
 type Section = {
@@ -39,6 +40,7 @@ export function Nav() {
   const pathname = usePathname();
   const [me, setMe] = useState<WhoAmI | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [unreadDMs, setUnreadDMs] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
@@ -49,7 +51,27 @@ export function Nav() {
       .catch(() => {});
   }, []);
 
-  // Pull status line for the header
+  // Poll unread DM count
+  useEffect(() => {
+    let cancelled = false;
+    function refresh() {
+      fetch("/api/dm/unread", { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (cancelled) return;
+          setUnreadDMs(typeof d?.count === "number" ? d.count : 0);
+        })
+        .catch(() => {});
+    }
+    refresh();
+    const t = setInterval(refresh, 30000);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
+  }, [pathname]);
+
+  // Pull status line when drawer opens
   useEffect(() => {
     if (!drawerOpen || !me) return;
     let cancelled = false;
@@ -59,9 +81,7 @@ export function Nav() {
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (cancelled) return;
-        setStatus(
-          typeof d?.status_line === "string" ? d.status_line : null
-        );
+        setStatus(typeof d?.status_line === "string" ? d.status_line : null);
       })
       .catch(() => {});
     return () => {
@@ -117,7 +137,11 @@ export function Nav() {
           href: "/inbox",
           icon: "✉️",
           label: "Inbox",
-          hint: "Private messages"
+          hint:
+            unreadDMs > 0
+              ? `${unreadDMs} new message${unreadDMs === 1 ? "" : "s"}`
+              : "Private messages",
+          badge: unreadDMs > 0 ? unreadDMs : undefined
         },
         {
           href: "/settings",
@@ -198,7 +222,7 @@ export function Nav() {
               <button
                 type="button"
                 onClick={() => setDrawerOpen(true)}
-                className="flex h-10 w-10 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5"
+                className="relative flex h-10 w-10 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5"
                 aria-label="Open menu"
               >
                 <svg
@@ -213,6 +237,11 @@ export function Nav() {
                   <line x1="4" y1="8" x2="20" y2="8" />
                   <line x1="4" y1="16" x2="20" y2="16" />
                 </svg>
+                {unreadDMs > 0 ? (
+                  <span className="absolute right-1.5 top-1.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-danger px-1 font-mono text-[0.55rem] font-bold text-white">
+                    {unreadDMs > 9 ? "9+" : unreadDMs}
+                  </span>
+                ) : null}
               </button>
             </div>
           </div>
@@ -226,7 +255,6 @@ export function Nav() {
             onClick={() => setDrawerOpen(false)}
           />
           <aside className="fixed right-0 top-0 z-[60] flex h-full w-[86%] max-w-sm flex-col overflow-hidden border-l border-border bg-paper slide-in-right">
-            {/* BBM-style profile header */}
             <div
               className="relative shrink-0 px-5 pt-6 pb-5"
               style={{
@@ -281,7 +309,6 @@ export function Nav() {
               )}
             </div>
 
-            {/* Sections */}
             <div className="flex-1 overflow-y-auto">
               {sections.map((section) => (
                 <div key={section.title} className="pt-4">
@@ -301,13 +328,18 @@ export function Nav() {
                           }`}
                         >
                           <div
-                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[1.15rem] ${
+                            className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[1.15rem] ${
                               row.tone === "accent"
                                 ? "bg-accent-soft"
                                 : "bg-ink/5"
                             }`}
                           >
                             <span>{row.icon}</span>
+                            {row.badge ? (
+                              <span className="absolute -right-1 -top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-danger px-1 font-mono text-[0.55rem] font-bold text-white">
+                                {row.badge > 9 ? "9+" : row.badge}
+                              </span>
+                            ) : null}
                           </div>
                           <div className="min-w-0 flex-1">
                             <p
@@ -362,7 +394,6 @@ export function Nav() {
               ) : null}
             </div>
 
-            {/* Footer */}
             <div className="shrink-0 border-t border-border bg-paper/95 px-5 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
               <p className="text-center font-mono text-[0.65rem] text-faint">
                 Wetin Dey · made in Nigeria 🇳🇬

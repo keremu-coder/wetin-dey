@@ -64,7 +64,6 @@ export async function sendPushToSessions(
         );
       } catch (err) {
         const statusCode = (err as { statusCode?: number }).statusCode;
-        // 404/410 = subscription dead, remove it
         if (statusCode === 404 || statusCode === 410) {
           deadEndpoints.push(t.endpoint);
         }
@@ -73,14 +72,13 @@ export async function sendPushToSessions(
   );
 
   if (deadEndpoints.length > 0) {
-    await sb().from("push_subscriptions").delete().in("endpoint", deadEndpoints);
+    await sb()
+      .from("push_subscriptions")
+      .delete()
+      .in("endpoint", deadEndpoints);
   }
 }
 
-/**
- * Notify every member of a community (except the sender) that a new message arrived.
- * Skips members who are the sender.
- */
 export async function notifyCommunityMembers(params: {
   communityId: string;
   senderSessionId: string;
@@ -124,5 +122,40 @@ export async function notifyCommunityMembers(params: {
     body: preview,
     tag: `chat-${communityId}`,
     url: `/c/${communitySlug}/chat`
+  });
+}
+
+export async function notifyDMRecipient(params: {
+  recipientSessionId: string;
+  senderHandle: string;
+  threadId: string;
+  body: string;
+}): Promise<void> {
+  const { recipientSessionId, senderHandle, threadId, body } = params;
+
+  // Skip push if the recipient was active in the last 30 seconds.
+  // Reduces notification spam during active conversation.
+  try {
+    const { data: recipient } = await sb()
+      .from("sessions")
+      .select("last_seen_at")
+      .eq("id", recipientSessionId)
+      .maybeSingle();
+
+    if (recipient?.last_seen_at) {
+      const age = Date.now() - new Date(recipient.last_seen_at).getTime();
+      if (age < 30 * 1000) return;
+    }
+  } catch {
+    /* ignore */
+  }
+
+  const preview = body.length > 90 ? body.slice(0, 90) + "…" : body;
+
+  await sendPushToSessions([recipientSessionId], {
+    title: `@${senderHandle} sent you a message`,
+    body: preview,
+    tag: `dm-${threadId}`,
+    url: `/inbox/${threadId}`
   });
 }

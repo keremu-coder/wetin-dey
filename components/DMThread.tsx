@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { getBrowserClient } from "@/lib/supabase/client";
 import { timeAgoShort } from "@/lib/dm";
 import { FilterWarning } from "./FilterWarning";
 import { DMComposer } from "./DMComposer";
@@ -12,6 +13,7 @@ type Message = {
   body: string;
   held: boolean;
   filter_level: string;
+  read_at: string | null;
   created_at: string;
 };
 
@@ -31,22 +33,6 @@ function avatarColor(seed: string): string {
   return colors[Math.abs(h) % colors.length];
 }
 
-function timeWithDate(date: string): string {
-  const d = new Date(date);
-  const today = new Date();
-  if (d.toDateString() === today.toDateString()) {
-    return `Today at ${d.toLocaleTimeString("en-NG", {
-      hour: "numeric",
-      minute: "2-digit"
-    })}`;
-  }
-  return (
-    d.toLocaleDateString("en-NG", { month: "short", day: "numeric" }) +
-    " " +
-    d.toLocaleTimeString("en-NG", { hour: "numeric", minute: "2-digit" })
-  );
-}
-
 export function DMThread({
   threadId,
   mySessionId,
@@ -61,6 +47,8 @@ export function DMThread({
   const [error, setError] = useState("");
   const [blockReason, setBlockReason] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const lastMarkRef = useRef<number>(0);
+  const seenDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   async function load() {
     try {
@@ -81,20 +69,125 @@ export function DMThread({
     }
   }
 
+  async function markRead() {
+    const now = Date.now();
+    // throttle: at most once every 3 seconds
+    if (now - lastMarkRef.current < 3000) return;
+    lastMarkRef.current = now;
+    try {
+      await fetch(`/api/dm/threads/${threadId}/read`, { method: "POST" });
+    } catch {
+      /* silent */
+    }
+  }
+
+  // Initial load + polling fallback (in case realtime isn't subscribed)
   useEffect(() => {
     void load();
+    void markRead();
     const t = setInterval(() => {
       void load();
+      void markRead();
     }, 5000);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [threadId]);
 
+  // Realtime subscription on this thread's messages.
   useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    el.scrollTop = el.scrollHeight;
+    if (!mySessionId) return;
+
+    let cancelled = false;
+    let channel: ReturnType<
+      ReturnType<typeof getBrowserClient>["channel"]
+    > | null = null;
+
+    try {
+      const supabase = getBrowserClient();
+      channel = supabase
+        .channel(`dm:${threadId}:${mySessionId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "dm_messages",
+            filter: `thread_id=eq.${threadId}`
+          },
+          (payload) => {
+            if (cancelled) return;
+            const row = payload.new as {
+              id: string;
+              sender_id: string;
+              body: string;
+              held: boolean;
+              filter_level: string;
+              read_at: string | null;
+              created_at: string;
+            };
+
+            if (row.sender_id === mySessionId) return;
+            if (row.held) return;
+
+            setMessages((prev) => {
+              if (prev.some((m) => m.id === row.id)) return prev;
+              return [...prev, row as Message];
+            });
+
+            // Mark as read immediately since user is viewing
+            void markRead();
+          }
+        )
+        .subscribe();
+    } catch {
+      /* silent */
+    }
+
+    return () => {
+      cancelled = true;
+      if (channel) {
+        try {
+          channel.unsubscribe();
+        } catch {
+          /* ignore */
+        }
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [threadId, mySessionId]);
+
+  // Re-mark as read when the tab regains focus
+  useEffect(() => {
+    function onFocus() {
+      void load();
+      void markRead();
+    }
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") onFocus();
+    });
+    return () => {
+      window.removeEventListener("focus", onFocus);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [threadId]);
+
+  // Debounced scroll to bottom whenever message count changes
+  useEffect(() => {
+    if (seenDebounceRef.current) clearTimeout(seenDebounceRef.current);
+    seenDebounceRef.current = setTimeout(() => {
+      const el = scrollRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+    }, 60);
+    return () => {
+      if (seenDebounceRef.current) clearTimeout(seenDebounceRef.current);
+    };
   }, [messages.length]);
+
+  // Are all my messages seen? Only show "Seen" under the last one I sent
+  // if the OTHER person has read it.
+  const lastMine = [...messages].reverse().find((m) => m.sender_id === mySessionId);
+  const lastMineSeen = lastMine?.read_at != null;
 
   const bg = avatarColor(otherHandle);
 
@@ -185,6 +278,7 @@ export function DMThread({
 
             {messages.map((m) => {
               const mine = m.sender_id === mySessionId;
+              const isLastMine = mine && m.id === lastMine?.id;
               return (
                 <div
                   key={m.id}
@@ -203,11 +297,14 @@ export function DMThread({
                       </p>
                     </div>
                     <p
-                      className={`mt-0.5 text-[0.65rem] text-faint ${
-                        mine ? "text-right" : ""
+                      className={`mt-0.5 flex items-center gap-1 text-[0.65rem] text-faint ${
+                        mine ? "justify-end" : ""
                       }`}
                     >
-                      {timeAgoShort(m.created_at)}
+                      <span>{timeAgoShort(m.created_at)}</span>
+                      {isLastMine && lastMineSeen ? (
+                        <span className="text-accent">· Seen</span>
+                      ) : null}
                     </p>
                   </div>
                 </div>

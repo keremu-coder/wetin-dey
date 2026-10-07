@@ -39,20 +39,14 @@ export async function GET(
       .eq("id", otherId)
       .maybeSingle();
 
-    // Only show messages the recipient is allowed to see.
-    // A held message is one the filter blocked. The sender sees it (with
-    // a warning); the recipient never does.
-    let q = db
+    const { data: all } = await db
       .from("dm_messages")
-      .select("id, sender_id, body, filter_level, held, created_at")
+      .select(
+        "id, sender_id, body, filter_level, held, created_at, read_at"
+      )
       .eq("thread_id", thread.id)
       .order("created_at", { ascending: true })
       .limit(200);
-
-    // Simple access rule: if the requester is the recipient of a held
-    // message, hide it. Implemented as: fetch all non-held + the ones I sent
-    // that are held.
-    const { data: all } = await q;
 
     const messages = (all ?? []).filter((m) => {
       if (!m.held) return true;
@@ -72,6 +66,7 @@ export async function GET(
         body: m.body,
         held: m.held,
         filter_level: m.filter_level,
+        read_at: m.read_at,
         created_at: m.created_at
       }))
     });

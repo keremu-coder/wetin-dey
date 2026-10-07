@@ -2,10 +2,12 @@ export const runtime = "nodejs";
 
 import { NextRequest } from "next/server";
 import { nanoid } from "nanoid";
+import { waitUntil } from "@vercel/functions";
 import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { analyzeMessage, blockReason } from "@/lib/dm-filter";
 import { DM_BODY_MAX } from "@/lib/dm";
+import { notifyDMRecipient } from "@/lib/push-server";
 
 export async function POST(
   req: NextRequest,
@@ -54,7 +56,6 @@ export async function POST(
       );
     }
 
-    // ─── Contact-info filter ───
     const analysis = analyzeMessage(text);
 
     if (analysis.level === "block") {
@@ -62,7 +63,6 @@ export async function POST(
         blockReason(analysis) ??
         "This message contains contact info and can't be sent.";
 
-      // Log the violation for enforcement history (Session D uses this).
       try {
         await db.from("dm_violations").insert({
           id: nanoid(),
@@ -97,18 +97,32 @@ export async function POST(
         filter_level: analysis.level,
         held: false
       })
-      .select("id, sender_id, body, created_at, held, filter_level")
+      .select("id, sender_id, body, created_at, held, filter_level, read_at")
       .single();
 
     if (error) {
       return Response.json({ error: error.message }, { status: 500 });
     }
 
-    // Bump thread activity
     await db
       .from("dm_threads")
       .update({ last_message_at: new Date().toISOString() })
       .eq("id", thread.id);
+
+    // Push to recipient in the background. Non-blocking.
+    const recipientId =
+      thread.session_a === sessionId ? thread.session_b : thread.session_a;
+
+    waitUntil(
+      notifyDMRecipient({
+        recipientSessionId: recipientId,
+        senderHandle: me.handle,
+        threadId: thread.id,
+        body: text
+      }).catch((err) => {
+        console.error("[dm push]", err);
+      })
+    );
 
     return Response.json({ ok: true, message: data });
   } catch (e) {
