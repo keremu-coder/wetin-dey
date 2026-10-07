@@ -7,6 +7,7 @@ import { FollowButton } from "@/components/FollowButton";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ReviewedFlag } from "@/components/ReviewedFlag";
 import { StatusLine } from "@/components/StatusLine";
+import { StartDMButton } from "@/components/StartDMButton";
 import { formatNaira } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
@@ -103,8 +104,10 @@ export default async function ProfilePage({
 
   let isFollowing = false;
   let isMe = false;
+  let isSignedIn = false;
 
   if (mySessionId) {
+    isSignedIn = true;
     isMe = mySessionId === profile.id;
     if (!isMe) {
       const db = createServiceClient();
@@ -200,12 +203,13 @@ export default async function ProfilePage({
             ) : null}
 
             {!isMe ? (
-              <div className="mt-4">
+              <div className="mt-4 flex flex-wrap items-center gap-2">
                 <FollowButton
                   handle={handle}
                   initialFollowing={isFollowing}
                   initialFollowerCount={profile.follower_count ?? 0}
                 />
+                {isSignedIn ? <StartDMButton handle={handle} /> : null}
               </div>
             ) : (
               <div className="mt-4 flex flex-wrap gap-2">
