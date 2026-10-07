@@ -48,13 +48,13 @@ export default async function SettingsPage() {
           href: "/settings/account",
           icon: "👤",
           label: "Profile",
-          hint: profile.email ? profile.email : "No email attached"
+          hint: "Your handle, picture, and status line"
         },
         {
           href: "/settings/security",
           icon: "🔒",
           label: "Security",
-          hint: "Password, sign-in, devices"
+          hint: "Optional — add a recovery method"
         },
         {
           href: "/settings/notifications",
@@ -72,6 +72,18 @@ export default async function SettingsPage() {
           icon: "🛡️",
           label: "Privacy",
           hint: "What people can see about you"
+        },
+        {
+          href: "/settings/dm",
+          icon: "✉️",
+          label: "Direct messages",
+          hint: "Who can start a conversation with you"
+        },
+        {
+          href: "/settings/presence",
+          icon: "👁️",
+          label: "Presence",
+          hint: "Hide your online status"
         },
         {
           href: "/settings/blocked",
@@ -140,7 +152,7 @@ export default async function SettingsPage() {
   ];
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-6 pb-24">
+    <main className="mx-auto max-w-2xl px-4 py-6 pb-28">
       <div className="mb-6 flex items-center gap-3">
         <Link
           href="/"
@@ -199,14 +211,15 @@ export default async function SettingsPage() {
             style={{ width: `${anonymityScore}%` }}
           />
         </div>
-        {anonymityScore < 100 ? (
+        {anonymityScore === 100 ? (
           <p className="mt-2 text-[0.7rem] leading-relaxed text-faint">
-            You are not at 100% because we hold an email address for your
-            account. Reports you post still publish anonymously.
+            We hold nothing that can link you to your reports. This is the
+            default.
           </p>
         ) : (
           <p className="mt-2 text-[0.7rem] leading-relaxed text-faint">
-            We hold nothing that can link you to your reports.
+            You added optional contact info for account recovery. Reports you
+            post still publish anonymously.
           </p>
         )}
       </div>
@@ -229,7 +242,7 @@ export default async function SettingsPage() {
                 Message font
               </p>
               <p className="text-[0.75rem] text-muted">
-                Your messages show up in this font for everyone — like BBM
+                Your messages show up in this font for everyone
               </p>
             </div>
             <span className="text-faint">›</span>
@@ -241,10 +254,10 @@ export default async function SettingsPage() {
             <span className={`text-[1.25rem] ${iconClass}`}>🔊</span>
             <div className="min-w-0 flex-1">
               <p className="text-[0.9375rem] font-medium text-ink">
-                Sounds &amp; notifications
+                Sounds
               </p>
               <p className="text-[0.75rem] text-muted">
-                BBM ping by default — pick your own
+                Pick your message tones
               </p>
             </div>
             <span className="text-faint">›</span>
