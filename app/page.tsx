@@ -11,6 +11,7 @@ type Community = {
   slug: string;
   name: string;
   emoji: string;
+  avatar_url: string | null;
   member_count: number;
   post_count: number;
   is_public: boolean;
@@ -79,12 +80,13 @@ export default async function HomePage() {
     if (ids.length > 0) {
       const { data: communities } = await db
         .from("communities")
-        .select("id, slug, name, emoji, member_count, post_count, is_public")
+        .select(
+          "id, slug, name, emoji, avatar_url, member_count, post_count, is_public"
+        )
         .in("id", ids);
 
       spaces = (communities ?? []) as Community[];
 
-      // Pull the last few messages per space so we can show a real preview
       const { data: messages } = await db
         .from("community_messages")
         .select("community_id, session_id, body, audio_url, created_at")
@@ -92,7 +94,6 @@ export default async function HomePage() {
         .order("created_at", { ascending: false })
         .limit(ids.length * 8);
 
-      // Get handle for message senders
       const senderIds = Array.from(
         new Set((messages ?? []).map((m) => m.session_id))
       );
@@ -206,21 +207,28 @@ export default async function HomePage() {
                   i !== 0 ? "border-t border-border" : ""
                 }`}
               >
-                {/* Avatar — gradient circle with emoji */}
                 <div className="relative shrink-0">
-                  <div
-                    className="flex h-12 w-12 items-center justify-center rounded-full text-[1.35rem] shadow-sm"
-                    style={{ background: gradient }}
-                  >
-                    <span style={{ filter: "saturate(1.2)" }}>{s.emoji}</span>
-                  </div>
+                  {s.avatar_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={s.avatar_url}
+                      alt={s.name}
+                      className="h-12 w-12 rounded-full border border-border object-cover shadow-sm"
+                    />
+                  ) : (
+                    <div
+                      className="flex h-12 w-12 items-center justify-center rounded-full text-[1.35rem] shadow-sm"
+                      style={{ background: gradient }}
+                    >
+                      <span style={{ filter: "saturate(1.2)" }}>{s.emoji}</span>
+                    </div>
+                  )}
                   <span
                     className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-accent ring-2 ring-surface"
                     aria-hidden
                   />
                 </div>
 
-                {/* Body — name, preview, metadata */}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline justify-between gap-2">
                     <p className="truncate text-[0.9375rem] font-semibold text-ink">

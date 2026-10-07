@@ -4,6 +4,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { getSessionId } from "@/lib/session";
 import { isMember } from "@/lib/community";
 import { ReportCard } from "@/components/ReportCard";
+import { SpaceAvatarUploader } from "@/components/SpaceAvatarUploader";
 import { CommunityJoinButton } from "./join-button";
 import { InviteButton } from "./invite-button";
 
@@ -40,7 +41,16 @@ export default async function CommunityPage({
         </Link>
 
         <div className="mt-6 rounded-2xl border border-border bg-surface p-8 text-center">
-          <div className="text-[3rem]">{community.emoji}</div>
+          {community.avatar_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={community.avatar_url}
+              alt={community.name}
+              className="mx-auto h-20 w-20 rounded-2xl border border-border object-cover"
+            />
+          ) : (
+            <div className="text-[3rem]">{community.emoji}</div>
+          )}
 
           <p className="mt-4 font-serif text-[1.35rem] font-semibold text-ink">
             {community.name}
@@ -71,7 +81,6 @@ export default async function CommunityPage({
     );
   }
 
-  // Check for an active check-in so we can show a banner
   const nowIso = new Date().toISOString();
   const { data: activeCheckin } = await db
     .from("checkin_requests")
@@ -102,9 +111,18 @@ export default async function CommunityPage({
 
       <div className="mt-4 rounded-2xl border border-border bg-surface p-5">
         <div className="flex items-start gap-4">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-ink/5 text-[2rem]">
-            {community.emoji}
-          </div>
+          {community.avatar_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={community.avatar_url}
+              alt={community.name}
+              className="h-16 w-16 shrink-0 rounded-2xl border border-border object-cover"
+            />
+          ) : (
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-ink/5 text-[2rem]">
+              {community.emoji}
+            </div>
+          )}
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <h1 className="font-serif text-[1.4rem] font-semibold text-ink">
@@ -129,6 +147,15 @@ export default async function CommunityPage({
             ) : null}
           </div>
         </div>
+
+        {isOwner ? (
+          <div className="mt-5 border-t border-border pt-4">
+            <SpaceAvatarUploader
+              slug={community.slug}
+              currentAvatarUrl={community.avatar_url ?? null}
+            />
+          </div>
+        ) : null}
 
         {member || isOwner ? (
           <Link

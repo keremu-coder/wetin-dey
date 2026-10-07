@@ -53,6 +53,7 @@ export default async function ChatPage({
       slug={community.slug}
       name={community.name}
       emoji={community.emoji}
+      avatarUrl={community.avatar_url ?? null}
       isMember={member || isOwner}
       isOwner={isOwner}
     />

@@ -126,12 +126,14 @@ export function ChatRoom({
   slug,
   name,
   emoji,
+  avatarUrl,
   isMember,
   isOwner
 }: {
   slug: string;
   name: string;
   emoji: string;
+  avatarUrl?: string | null;
   isMember: boolean;
   isOwner: boolean;
 }) {
@@ -801,9 +803,18 @@ export function ChatRoom({
             onClick={() => setMembersOpen(true)}
             className="flex min-w-0 items-center gap-2 rounded-full px-2 py-1 transition-colors hover:bg-ink/5"
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-ink/5 text-[1.1rem]">
-              {emoji}
-            </div>
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={avatarUrl}
+                alt={name}
+                className="h-9 w-9 shrink-0 rounded-full border border-border object-cover"
+              />
+            ) : (
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ink/5 text-[1.1rem]">
+                {emoji}
+              </div>
+            )}
             <div className="min-w-0 text-left">
               <p className="truncate text-[0.9375rem] font-semibold text-ink">
                 {name}
