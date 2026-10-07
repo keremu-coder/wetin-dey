@@ -21,21 +21,43 @@ type LastMessage = {
   body: string | null;
   audio_url: string | null;
   created_at: string;
+  sender_handle: string;
 };
 
-function timeAgo(date: string): string {
-  const diff = Date.now() - new Date(date).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "now";
-  if (mins < 60) return `${mins}m`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h`;
-  const days = Math.floor(hrs / 24);
-  if (days < 7) return `${days}d`;
-  return new Date(date).toLocaleDateString("en-NG", {
+function timeShort(date: string): string {
+  const d = new Date(date);
+  const today = new Date();
+  if (d.toDateString() === today.toDateString()) {
+    return d.toLocaleTimeString("en-NG", {
+      hour: "numeric",
+      minute: "2-digit"
+    });
+  }
+  const diff = Date.now() - d.getTime();
+  const days = Math.floor(diff / (24 * 60 * 60 * 1000));
+  if (days < 7) {
+    return d.toLocaleDateString("en-NG", { weekday: "short" });
+  }
+  return d.toLocaleDateString("en-NG", {
     month: "short",
     day: "numeric"
   });
+}
+
+function spaceGradient(seed: string): string {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
+  const palettes = [
+    "linear-gradient(135deg, #1F7A4D 0%, #14532d 100%)",
+    "linear-gradient(135deg, #C0392B 0%, #7f1d1d 100%)",
+    "linear-gradient(135deg, #7C3AED 0%, #4c1d95 100%)",
+    "linear-gradient(135deg, #0E7490 0%, #164e63 100%)",
+    "linear-gradient(135deg, #D97706 0%, #92400e 100%)",
+    "linear-gradient(135deg, #BE185D 0%, #831843 100%)",
+    "linear-gradient(135deg, #4D7C0F 0%, #365314 100%)",
+    "linear-gradient(135deg, #A16207 0%, #713f12 100%)"
+  ];
+  return palettes[Math.abs(h) % palettes.length];
 }
 
 export default async function HomePage() {
@@ -62,16 +84,38 @@ export default async function HomePage() {
 
       spaces = (communities ?? []) as Community[];
 
+      // Pull the last few messages per space so we can show a real preview
       const { data: messages } = await db
         .from("community_messages")
-        .select("community_id, body, audio_url, created_at")
+        .select("community_id, session_id, body, audio_url, created_at")
         .in("community_id", ids)
         .order("created_at", { ascending: false })
-        .limit(ids.length * 5);
+        .limit(ids.length * 8);
 
-      for (const m of (messages ?? []) as LastMessage[]) {
+      // Get handle for message senders
+      const senderIds = Array.from(
+        new Set((messages ?? []).map((m) => m.session_id))
+      );
+      const handleMap = new Map<string, string>();
+      if (senderIds.length > 0) {
+        const { data: sessions } = await db
+          .from("sessions")
+          .select("id, handle")
+          .in("id", senderIds);
+        for (const s of sessions ?? []) {
+          handleMap.set(s.id, s.handle);
+        }
+      }
+
+      for (const m of messages ?? []) {
         if (!lastMessages.has(m.community_id)) {
-          lastMessages.set(m.community_id, m);
+          lastMessages.set(m.community_id, {
+            community_id: m.community_id,
+            body: m.body,
+            audio_url: m.audio_url,
+            created_at: m.created_at,
+            sender_handle: handleMap.get(m.session_id) ?? "Anonymous"
+          });
         }
       }
 
@@ -94,9 +138,9 @@ export default async function HomePage() {
       <StatusBar />
       <StatusStrip />
 
-      <div className="mb-4 flex items-center justify-between gap-3">
+      <div className="mb-3 flex items-center justify-between gap-3">
         <h1 className="font-serif text-[1.4rem] font-semibold leading-tight text-ink">
-          Your spaces
+          Spaces
         </h1>
         <div className="flex items-center gap-1">
           <Link
@@ -149,32 +193,55 @@ export default async function HomePage() {
             const preview = last
               ? last.audio_url
                 ? "🎤 Voice note"
-                : (last.body ?? "").slice(0, 80)
+                : (last.body ?? "").slice(0, 100)
               : "No messages yet";
-            const time = last ? timeAgo(last.created_at) : "";
+            const time = last ? timeShort(last.created_at) : "";
+            const gradient = spaceGradient(s.slug);
 
             return (
               <Link
                 key={s.id}
                 href={`/c/${s.slug}/chat`}
-                className={`flex items-start gap-3 px-4 py-3.5 transition-colors hover:bg-ink/5 ${
+                className={`flex items-center gap-3 px-3.5 py-3 transition-colors hover:bg-ink/5 ${
                   i !== 0 ? "border-t border-border" : ""
                 }`}
               >
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-ink/5 text-[1.5rem]">
-                  {s.emoji}
+                {/* Avatar — gradient circle with emoji */}
+                <div className="relative shrink-0">
+                  <div
+                    className="flex h-12 w-12 items-center justify-center rounded-full text-[1.35rem] shadow-sm"
+                    style={{ background: gradient }}
+                  >
+                    <span style={{ filter: "saturate(1.2)" }}>{s.emoji}</span>
+                  </div>
+                  <span
+                    className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-accent ring-2 ring-surface"
+                    aria-hidden
+                  />
                 </div>
+
+                {/* Body — name, preview, metadata */}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline justify-between gap-2">
                     <p className="truncate text-[0.9375rem] font-semibold text-ink">
                       {s.name}
                     </p>
-                    <span className="shrink-0 font-mono text-[0.65rem] text-faint">
+                    <span className="shrink-0 font-mono text-[0.68rem] text-faint">
                       {time}
                     </span>
                   </div>
-                  <p className="mt-0.5 truncate text-[0.8125rem] text-muted">
-                    {preview}
+                  <div className="mt-0.5 flex items-center gap-1.5">
+                    {last ? (
+                      <span className="shrink-0 font-mono text-[0.7rem] text-muted">
+                        @{last.sender_handle}:
+                      </span>
+                    ) : null}
+                    <p className="truncate text-[0.8125rem] text-muted">
+                      {preview}
+                    </p>
+                  </div>
+                  <p className="mt-0.5 font-mono text-[0.6rem] uppercase tracking-wider text-faint">
+                    {s.member_count} member{s.member_count === 1 ? "" : "s"}
                   </p>
                 </div>
               </Link>

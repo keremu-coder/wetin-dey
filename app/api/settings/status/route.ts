@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { isValidStatus, normalizeStatus } from "@/lib/status";
+import { isValidAvailability } from "@/lib/presence";
+
+export const runtime = "nodejs";
 
 function sb() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -23,7 +26,7 @@ export async function GET(req: Request) {
     }
     const { data, error } = await sb()
       .from("sessions")
-      .select("status_line, status_line_updated_at")
+      .select("status_line, status_line_updated_at, availability")
       .eq("id", sessionId)
       .maybeSingle();
 
@@ -32,7 +35,8 @@ export async function GET(req: Request) {
     }
     return NextResponse.json({
       status_line: data?.status_line ?? null,
-      status_line_updated_at: data?.status_line_updated_at ?? null
+      status_line_updated_at: data?.status_line_updated_at ?? null,
+      availability: data?.availability ?? "auto"
     });
   } catch (err) {
     return NextResponse.json(
@@ -47,9 +51,11 @@ export async function POST(req: Request) {
     const body = (await req.json()) as {
       session_id?: unknown;
       status_line?: unknown;
+      availability?: unknown;
     };
     const sessionId = body?.session_id;
     const rawStatus = body?.status_line;
+    const rawAvailability = body?.availability;
 
     if (typeof sessionId !== "string" || !sessionId) {
       return NextResponse.json(
@@ -58,36 +64,56 @@ export async function POST(req: Request) {
       );
     }
 
-    // Allow clearing with empty string or null
-    const isClearing =
-      rawStatus === null || rawStatus === "" ||
-      (typeof rawStatus === "string" && rawStatus.trim() === "");
+    const update: Record<string, unknown> = {};
 
-    const statusLine = isClearing
-      ? null
-      : isValidStatus(rawStatus)
-        ? normalizeStatus(rawStatus)
-        : undefined;
+    // Status line is optional in this call — only touch it if the caller
+    // sent the field.
+    if (rawStatus !== undefined) {
+      const isClearing =
+        rawStatus === null ||
+        rawStatus === "" ||
+        (typeof rawStatus === "string" && rawStatus.trim() === "");
 
-    if (statusLine === undefined) {
+      if (isClearing) {
+        update.status_line = null;
+        update.status_line_updated_at = new Date().toISOString();
+      } else if (isValidStatus(rawStatus)) {
+        update.status_line = normalizeStatus(rawStatus);
+        update.status_line_updated_at = new Date().toISOString();
+      } else {
+        return NextResponse.json(
+          { error: "Status must be 1–60 characters." },
+          { status: 400 }
+        );
+      }
+    }
+
+    if (rawAvailability !== undefined) {
+      if (!isValidAvailability(rawAvailability)) {
+        return NextResponse.json(
+          { error: "Unknown availability." },
+          { status: 400 }
+        );
+      }
+      update.availability = rawAvailability;
+    }
+
+    if (Object.keys(update).length === 0) {
       return NextResponse.json(
-        { error: "Status must be 1–60 characters." },
+        { error: "Nothing to update." },
         { status: 400 }
       );
     }
 
     const { error } = await sb()
       .from("sessions")
-      .update({
-        status_line: statusLine,
-        status_line_updated_at: new Date().toISOString()
-      })
+      .update(update)
       .eq("id", sessionId);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
-    return NextResponse.json({ ok: true, status_line: statusLine });
+    return NextResponse.json({ ok: true, ...update });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Unknown error" },

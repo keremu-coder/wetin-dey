@@ -2,11 +2,21 @@
 
 import { useEffect, useState } from "react";
 import { STATUS_MAX_LENGTH } from "@/lib/status";
+import {
+  AVAILABILITY_CHOICES,
+  computePresence,
+  presenceDef,
+  presenceLine,
+  type AvailabilityId
+} from "@/lib/presence";
 import { unlockAudio, vibrate } from "@/lib/sounds";
 
-type WhoAmI = {
+type Me = {
   id: string;
   handle: string;
+  availability: AvailabilityId;
+  status_line: string | null;
+  last_seen_at: string | null;
 };
 
 function avatarColor(seed: string): string {
@@ -26,11 +36,13 @@ function avatarColor(seed: string): string {
 }
 
 export function StatusBar() {
-  const [me, setMe] = useState<WhoAmI | null>(null);
-  const [status, setStatus] = useState<string | null>(null);
+  const [me, setMe] = useState<Me | null>(null);
   const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState("");
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  const [draftStatus, setDraftStatus] = useState("");
+  const [draftAvailability, setDraftAvailability] =
+    useState<AvailabilityId>("auto");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -48,19 +60,26 @@ export function StatusBar() {
           if (!cancelled) setLoading(false);
           return;
         }
-        if (cancelled) return;
-        setMe({ id: who.id, handle: who.handle });
-
         const res = await fetch(
           `/api/settings/status?session_id=${encodeURIComponent(who.id)}`,
           { cache: "no-store" }
         );
+        let availability: AvailabilityId = "auto";
+        let statusLine: string | null = null;
         if (res.ok) {
           const j = await res.json();
-          if (!cancelled) {
-            setStatus(typeof j?.status_line === "string" ? j.status_line : null);
-          }
+          availability = (j?.availability ?? "auto") as AvailabilityId;
+          statusLine =
+            typeof j?.status_line === "string" ? j.status_line : null;
         }
+        if (cancelled) return;
+        setMe({
+          id: who.id,
+          handle: who.handle,
+          availability,
+          status_line: statusLine,
+          last_seen_at: new Date().toISOString()
+        });
       } catch {
         /* ignore */
       } finally {
@@ -72,11 +91,13 @@ export function StatusBar() {
     };
   }, []);
 
-  function openEditor() {
+  function openSheet() {
+    if (!me) return;
     unlockAudio();
-    setDraft(status ?? "");
+    setDraftStatus(me.status_line ?? "");
+    setDraftAvailability(me.availability);
     setError("");
-    setEditing(true);
+    setSheetOpen(true);
   }
 
   async function save() {
@@ -87,16 +108,29 @@ export function StatusBar() {
       const res = await fetch("/api/settings/status", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ session_id: me.id, status_line: draft })
+        body: JSON.stringify({
+          session_id: me.id,
+          status_line: draftStatus,
+          availability: draftAvailability
+        })
       });
       const json = await res.json();
       if (!res.ok) {
         setError(json?.error ?? "Could not save");
         return;
       }
-      setStatus(json.status_line ?? null);
+      setMe({
+        ...me,
+        availability: draftAvailability,
+        status_line:
+          typeof json.status_line === "string"
+            ? json.status_line
+            : json.status_line === null
+              ? null
+              : me.status_line
+      });
       vibrate(20);
-      setEditing(false);
+      setSheetOpen(false);
     } catch {
       setError("Network error");
     } finally {
@@ -107,12 +141,15 @@ export function StatusBar() {
   if (loading || !me) return null;
 
   const bg = avatarColor(me.handle);
+  const presenceState = computePresence(me.availability, me.last_seen_at);
+  const def = presenceDef(presenceState);
+  const line = presenceLine(presenceState, me.status_line);
 
   return (
     <>
       <button
         type="button"
-        onClick={openEditor}
+        onClick={openSheet}
         className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-border bg-surface p-3.5 text-left transition-colors hover:border-accent/50"
       >
         <div className="relative shrink-0">
@@ -122,61 +159,99 @@ export function StatusBar() {
           >
             {me.handle.charAt(0).toUpperCase()}
           </div>
-          {status ? (
-            <span className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full border-2 border-surface bg-accent text-[0.55rem] text-white">
-              ✓
-            </span>
-          ) : null}
+          <span
+            className="absolute -bottom-0.5 -right-0.5 inline-block rounded-full border-2 border-paper"
+            style={{
+              background: def.color,
+              width: 14,
+              height: 14
+            }}
+          />
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate font-mono text-[0.65rem] uppercase tracking-wider text-faint">
             @{me.handle}
           </p>
-          {status ? (
-            <p className="mt-0.5 truncate text-[0.9375rem] italic leading-snug text-ink">
-              {status}
-            </p>
-          ) : (
-            <p className="mt-0.5 text-[0.9375rem] leading-snug text-muted">
-              Tap to set your status…
-            </p>
-          )}
+          <p className="mt-0.5 truncate text-[0.9375rem] leading-snug text-ink">
+            {line}
+          </p>
         </div>
         <span className="shrink-0 rounded-full border border-border-strong bg-paper px-3 py-1 text-[0.7rem] font-medium text-ink">
-          {status ? "Edit" : "Set"}
+          Edit
         </span>
       </button>
 
-      {editing ? (
+      {sheetOpen ? (
         <>
           <div
             className="fixed inset-0 z-[80] bg-black/60 fade-in"
-            onClick={() => setEditing(false)}
+            onClick={() => setSheetOpen(false)}
           />
           <div className="fixed inset-x-0 bottom-0 z-[90] rounded-t-3xl border-t border-border bg-surface px-5 pt-5 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] fade-in">
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-border-strong" />
 
             <h2 className="font-serif text-[1.25rem] font-semibold text-ink">
-              Set your status
+              Your status
             </h2>
             <p className="mt-1 text-[0.8125rem] leading-relaxed text-muted">
-              A short line under your name everywhere — chat, spaces, your
-              profile. Like BBM.
+              What people see under your name — availability + a short line.
+              Like BBM.
             </p>
 
+            <p className="mt-5 mb-2 font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+              Availability
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {AVAILABILITY_CHOICES.map((c) => {
+                const selected = draftAvailability === c.id;
+                const previewState = computePresence(
+                  c.id,
+                  new Date().toISOString()
+                );
+                const dot = presenceDef(previewState).color;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => setDraftAvailability(c.id)}
+                    className={`flex items-center gap-2 rounded-xl border p-3 text-left transition-colors ${
+                      selected
+                        ? "border-accent bg-accent-soft/40"
+                        : "border-border-strong hover:bg-ink/5"
+                    }`}
+                  >
+                    <span
+                      className="inline-block rounded-full border-2 border-paper"
+                      style={{ background: dot, width: 12, height: 12 }}
+                    />
+                    <div className="min-w-0">
+                      <p className="truncate text-[0.8125rem] font-semibold text-ink">
+                        {c.label}
+                      </p>
+                      <p className="truncate text-[0.65rem] text-muted">
+                        {c.hint}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            <p className="mt-5 mb-2 font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+              Status line
+            </p>
             <textarea
-              value={draft}
+              value={draftStatus}
               onChange={(e) =>
-                setDraft(e.target.value.slice(0, STATUS_MAX_LENGTH))
+                setDraftStatus(e.target.value.slice(0, STATUS_MAX_LENGTH))
               }
               placeholder="Wetin dey your mind?"
               rows={2}
-              autoFocus
               maxLength={STATUS_MAX_LENGTH}
-              className="mt-4 !min-h-[64px] text-[0.9375rem]"
+              className="!min-h-[56px] text-[0.9375rem]"
             />
             <p className="mt-1 text-right font-mono text-[0.65rem] text-faint">
-              {draft.length}/{STATUS_MAX_LENGTH}
+              {draftStatus.length}/{STATUS_MAX_LENGTH}
             </p>
 
             {error ? (
@@ -185,20 +260,10 @@ export function StatusBar() {
               </p>
             ) : null}
 
-            <div className="mt-4 flex flex-wrap gap-2">
-              {status ? (
-                <button
-                  type="button"
-                  onClick={() => setDraft("")}
-                  disabled={saving}
-                  className="rounded-xl border border-border-strong bg-paper px-4 py-3 text-[0.875rem] font-medium text-ink transition-colors hover:bg-ink/5 disabled:opacity-50"
-                >
-                  Clear
-                </button>
-              ) : null}
+            <div className="mt-4 flex gap-2">
               <button
                 type="button"
-                onClick={() => setEditing(false)}
+                onClick={() => setSheetOpen(false)}
                 disabled={saving}
                 className="ml-auto rounded-xl border border-border-strong bg-paper px-4 py-3 text-[0.875rem] font-medium text-ink transition-colors hover:bg-ink/5 disabled:opacity-50"
               >

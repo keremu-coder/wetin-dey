@@ -32,7 +32,9 @@ export async function GET() {
 
     const { data: sessions } = await db
       .from("sessions")
-      .select("handle, status_line, status_line_updated_at")
+      .select(
+        "handle, status_line, status_line_updated_at, availability, last_seen_at"
+      )
       .in("id", ids)
       .not("status_line", "is", null)
       .order("status_line_updated_at", { ascending: false })
@@ -42,7 +44,9 @@ export async function GET() {
       .filter((s) => s.status_line && s.status_line.trim().length > 0)
       .map((s) => ({
         handle: s.handle,
-        status_line: s.status_line as string
+        status_line: s.status_line,
+        availability: s.availability ?? "auto",
+        last_seen_at: s.last_seen_at
       }));
 
     return Response.json({ people });
