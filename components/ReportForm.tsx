@@ -75,6 +75,8 @@ const COMMUNITY_TYPES = [
   { value: "rant", label: "Rant" }
 ];
 
+type TargetType = "public" | "private";
+
 export function ReportForm({
   tab = "talk",
   communitySlug = null
@@ -89,6 +91,7 @@ export function ReportForm({
   const [postType, setPostType] = useState(
     tab === "talk" ? "report_am" : "talk_am"
   );
+  const [targetType, setTargetType] = useState<TargetType>("public");
   const [title, setTitle] = useState("");
 
   const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
@@ -210,6 +213,7 @@ export function ReportForm({
     const fd = new FormData(form);
 
     fd.set("post_type", postType);
+    fd.set("target_type", targetType);
 
     if (communitySlug) {
       fd.set("community_slug", communitySlug);
@@ -310,6 +314,63 @@ export function ReportForm({
       {tab === "talk" && postType === "report_am" ? (
         <>
           <div>
+            <FieldLabel required>Who is this about?</FieldLabel>
+            <div className="space-y-2">
+              <label
+                className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3.5 transition-colors ${
+                  targetType === "public"
+                    ? "border-accent bg-accent-soft/40"
+                    : "border-border-strong hover:bg-ink/5"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="target_type_ui"
+                  value="public"
+                  checked={targetType === "public"}
+                  onChange={() => setTargetType("public")}
+                  className="mt-0.5 h-4 w-4 shrink-0"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[0.875rem] font-semibold text-ink">
+                    A public agency or official
+                  </p>
+                  <p className="mt-0.5 text-[0.75rem] leading-snug text-muted">
+                    NEPA, police, customs, or a named public official acting in
+                    their official capacity. Publishes immediately.
+                  </p>
+                </div>
+              </label>
+
+              <label
+                className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3.5 transition-colors ${
+                  targetType === "private"
+                    ? "border-gold bg-gold-soft/40"
+                    : "border-border-strong hover:bg-ink/5"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="target_type_ui"
+                  value="private"
+                  checked={targetType === "private"}
+                  onChange={() => setTargetType("private")}
+                  className="mt-0.5 h-4 w-4 shrink-0"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[0.875rem] font-semibold text-ink">
+                    A private individual by name
+                  </p>
+                  <p className="mt-0.5 text-[0.75rem] leading-snug text-muted">
+                    A specific person acting privately. Held for manual review
+                    before publishing — higher evidence bar.
+                  </p>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div>
             <FieldLabel required>Category</FieldLabel>
             <div className="flex flex-wrap gap-2">
               {CATEGORIES.map((c: Category) => (
@@ -356,6 +417,7 @@ export function ReportForm({
             name="agency"
             value={title || "Community post"}
           />
+          <input type="hidden" name="target_type" value="public" />
         </>
       )}
 

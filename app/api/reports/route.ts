@@ -9,6 +9,7 @@ import { hashDedupe } from "@/lib/rateLimit";
 import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { stripSession, type Report } from "@/lib/types";
+import { scoreDefamation } from "@/lib/defamation";
 
 const ALLOWED_TYPES = [
   "talk_am",
@@ -43,9 +44,15 @@ export async function GET(req: NextRequest) {
     .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
 
   if (tab === "talk") {
-    q = q.in("post_type", TALK_AM_TYPES).eq("reviewed", true).is("community_id", null);
+    q = q
+      .in("post_type", TALK_AM_TYPES)
+      .eq("reviewed", true)
+      .eq("held", false)
+      .is("community_id", null);
   } else {
-    q = q.in("post_type", ["talk_am", "news", "talent", "rant"]).is("community_id", null);
+    q = q
+      .in("post_type", ["talk_am", "news", "talent", "rant"])
+      .is("community_id", null);
   }
 
   if (state) q = q.eq("state", state);
@@ -90,7 +97,9 @@ export async function POST(req: NextRequest) {
   const lga = String(form.get("lga") ?? "").trim() || null;
   const body = String(form.get("body") ?? "").trim();
   const amountRaw = String(form.get("amount") ?? "").trim();
-  const anonymous = true;
+  const targetTypeRaw = String(form.get("target_type") ?? "public").trim();
+  const targetType: "public" | "private" =
+    targetTypeRaw === "private" ? "private" : "public";
 
   if (!ALLOWED_TYPES.includes(postType)) {
     return jsonError("post type no correct", 400);
@@ -190,7 +199,7 @@ export async function POST(req: NextRequest) {
     communityId = c.id;
   }
 
-  // Evidence verification
+  // ─── Evidence verification (existing heuristic) ───
   const { scoreEvidence } = await import("@/lib/verification");
 
   const { count: sessionPostCount } = await db
@@ -206,12 +215,25 @@ export async function POST(req: NextRequest) {
     sessionPostCount: sessionPostCount ?? 0
   });
 
-  if (verification.requiresManualReview) {
-    return jsonError(
-      "This report names a private individual. It is held for manual review and will publish within 24 hours if it meets our guidelines.",
-      202
-    );
-  }
+  // ─── Defamation heuristic (new) ───
+  const defamation = scoreDefamation({
+    body,
+    agency_raw,
+    agency_canonical: agency_raw,
+    amount_kobo,
+    evidence_url: evidenceUrl,
+    public_link: evidenceLink
+  });
+
+  // ─── Decide held ───
+  // A report is held (not published to the public feed) if ANY of:
+  //   1. The user explicitly said it targets a private individual
+  //   2. The existing verification heuristic says it requires manual review
+  //   3. The defamation heuristic flags it as high risk
+  const held =
+    targetType === "private" ||
+    verification.requiresManualReview ||
+    defamation.held;
 
   // Upload evidence
   if (file instanceof File && file.size > 0) {
@@ -242,7 +264,8 @@ export async function POST(req: NextRequest) {
       if (up.error) {
         return jsonError("Upload failed: " + up.error.message, 500);
       }
-      evidenceUrl = db.storage.from("evidence").getPublicUrl(path).data.publicUrl;
+      evidenceUrl = db.storage.from("evidence").getPublicUrl(path).data
+        .publicUrl;
     } catch (e) {
       return jsonError("Upload error: " + (e as Error).message, 500);
     }
@@ -260,7 +283,8 @@ export async function POST(req: NextRequest) {
       if (up.error) {
         return jsonError("Voice upload failed: " + up.error.message, 500);
       }
-      evidenceUrl = db.storage.from("evidence").getPublicUrl(path).data.publicUrl;
+      evidenceUrl = db.storage.from("evidence").getPublicUrl(path).data
+        .publicUrl;
     } catch (e) {
       return jsonError("Voice error: " + (e as Error).message, 500);
     }
@@ -296,12 +320,19 @@ export async function POST(req: NextRequest) {
     dedupe_hash,
     evidence_tier: verification.tier,
     source_domain: verification.sourceDomain,
-    target_type: verification.targetType,
-    requires_manual_review: false,
+    target_type: targetType,
+    held,
+    defamation_risk: defamation.risk,
+    defamation_reasons: defamation.reasons,
+    requires_manual_review: held,
     community_id: communityId
   };
 
-  const { data, error } = await db.from("reports").insert(row).select("*").single();
+  const { data, error } = await db
+    .from("reports")
+    .insert(row)
+    .select("*")
+    .single();
 
   if (error) {
     if (String(error.message).toLowerCase().includes("rate limit")) {
@@ -323,6 +354,24 @@ export async function POST(req: NextRequest) {
       })
         .then(async (output) => {
           if (output && output.confidence >= 0.5) {
+            // Combine AI defamation risk with heuristic risk. Take the max.
+            const aiRisk =
+              typeof output.defamation_risk === "number"
+                ? output.defamation_risk
+                : 0;
+            const combinedRisk = Math.max(defamation.risk, aiRisk);
+            const combinedReasons = Array.from(
+              new Set([
+                ...defamation.reasons,
+                ...(Array.isArray(output.defamation_reasons)
+                  ? output.defamation_reasons
+                  : [])
+              ])
+            );
+            const heldByAi = combinedRisk >= 0.6;
+
+            const stillHeld = held || heldByAi;
+
             await db
               .from("reports")
               .update({
@@ -331,7 +380,12 @@ export async function POST(req: NextRequest) {
                 agency_canonical: output.agency_canonical,
                 incident_date: output.incident_date,
                 formalization_confidence: output.confidence,
-                reviewed: output.confidence >= 0.7
+                // Never mark reviewed=true if held
+                reviewed:
+                  !stillHeld && output.confidence >= 0.7,
+                defamation_risk: combinedRisk,
+                defamation_reasons: combinedReasons,
+                held: stillHeld
               })
               .eq("id", id);
           }
@@ -343,5 +397,5 @@ export async function POST(req: NextRequest) {
   }
 
   const report = stripSession(data as Report);
-  return Response.json({ id: report.id, report }, { status: 201 });
+  return Response.json({ id: report.id, report, held }, { status: 201 });
 }

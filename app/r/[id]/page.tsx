@@ -6,6 +6,8 @@ import { CommentThread } from "@/components/CommentThread";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ReviewedFlag } from "@/components/ReviewedFlag";
 import { PostActions } from "@/components/PostActions";
+import { PublishedReplies } from "@/components/PublishedReplies";
+import { ReplyTrigger } from "@/components/ReplyTrigger";
 import { formatNaira } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
@@ -25,12 +27,14 @@ function EvidenceBlock(report: {
     tier === "strong"
       ? "text-accent-deep border-accent/30 bg-accent-soft/40"
       : tier === "medium"
-      ? "text-warm-deep border-warm/30 bg-warm-soft/40"
-      : "text-faint border-border bg-ink/5";
+        ? "text-warm-deep border-warm/30 bg-warm-soft/40"
+        : "text-faint border-border bg-ink/5";
 
   return (
     <div className="mb-6 overflow-hidden rounded-2xl border border-border bg-surface">
-      <div className={`flex items-center justify-between border-b px-5 py-3 ${tierColor}`}>
+      <div
+        className={`flex items-center justify-between border-b px-5 py-3 ${tierColor}`}
+      >
         <div className="flex items-center gap-2">
           <span className="inline-block h-2 w-2 rounded-full bg-current" />
           <p className="text-[0.75rem] font-semibold uppercase tracking-wide">
@@ -44,6 +48,7 @@ function EvidenceBlock(report: {
 
       <div className="p-5">
         {report.evidence_type === "photo" && report.evidence_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={report.evidence_url}
             alt="Evidence"
@@ -75,8 +80,8 @@ function EvidenceBlock(report: {
             </p>
             <audio src={report.evidence_url} controls className="h-10 w-full" />
             <p className="text-[0.7rem] leading-relaxed text-faint">
-              This is the reporter's own account. It is not a recording of the
-              incident itself.
+              This is the reporter&apos;s own account. It is not a recording of
+              the incident itself.
             </p>
           </div>
         ) : null}
@@ -110,7 +115,7 @@ export default async function ReportPage({
 
   if (!report) return notFound();
 
-  // Current user (for "is this my post?")
+  // Current user
   const sessionId = await getSessionId();
   let currentHandle: string | null = null;
   if (sessionId) {
@@ -128,6 +133,52 @@ export default async function ReportPage({
   const isOwnPost = !!authorHandle && currentHandle === authorHandle;
   const postUrl = `/r/${report.id}`;
 
+  const held =
+    (report as { held?: boolean | null }).held === true;
+  const isPublic = report.reviewed === true && !held;
+
+  // Held + not mine + not yet reviewed → show only a "under review" placeholder.
+  // Prevents a private-individual report being visible to anyone who guesses the URL.
+  if (held && !isOwnPost) {
+    return (
+      <main className="mx-auto max-w-2xl px-4 py-6 pb-24">
+        <Link
+          href="/"
+          className="font-mono text-[0.7rem] uppercase tracking-widest text-faint hover:text-accent"
+        >
+          ← Back to feed
+        </Link>
+
+        <div className="mt-6 rounded-2xl border border-border bg-surface p-8 text-center">
+          <div className="text-[2.5rem]">🔒</div>
+          <p className="mt-3 font-serif text-[1.15rem] font-semibold text-ink">
+            This report is under review
+          </p>
+          <p className="mt-2 text-[0.875rem] leading-relaxed text-muted">
+            Our moderators are checking it against our guidelines. If it meets
+            the publication bar, it will appear here shortly.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  // Load approved right-of-reply responses
+  const { data: repliesRaw } = await db
+    .from("report_replies")
+    .select("id, submitter_name, body, approved_at, created_at")
+    .eq("report_id", report.id)
+    .eq("status", "approved")
+    .order("created_at", { ascending: true });
+
+  const replies = (repliesRaw ?? []) as Array<{
+    id: string;
+    submitter_name: string;
+    body: string;
+    approved_at: string | null;
+    created_at: string;
+  }>;
+
   const upvotes = (report as { upvotes?: number }).upvotes ?? 0;
   const downvotes = (report as { downvotes?: number }).downvotes ?? 0;
   const meToo = (report as { me_too_count?: number }).me_too_count ?? 0;
@@ -135,7 +186,6 @@ export default async function ReportPage({
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-6 pb-24">
-      {/* Back link */}
       <Link
         href="/"
         className="inline-flex items-center gap-1 font-mono text-[0.7rem] uppercase tracking-widest text-faint transition-colors hover:text-accent"
@@ -143,13 +193,27 @@ export default async function ReportPage({
         ← Back to feed
       </Link>
 
+      {/* Held banner (visible to the author) */}
+      {held && isOwnPost ? (
+        <div className="mt-4 rounded-2xl border-2 border-gold/50 bg-gold-soft/50 p-4">
+          <p className="text-[0.875rem] font-semibold text-ink">
+            ⏳ Your report is held for review
+          </p>
+          <p className="mt-1 text-[0.8125rem] leading-relaxed text-ink/80">
+            Because it names a private individual or carries elevated legal
+            risk, a moderator will review it before it appears in the public
+            feed. You can still see it here.
+          </p>
+        </div>
+      ) : null}
+
       {/* Header */}
       <div className="mt-4 mb-5">
         <div className="flex items-start justify-between gap-3">
           <h1 className="font-serif text-[1.85rem] font-semibold leading-tight text-ink">
             {title}
           </h1>
-          <ReviewedFlag reviewed={report.reviewed} />
+          <ReviewedFlag reviewed={report.reviewed && !held} />
         </div>
         <p className="mt-1 font-mono text-[0.7rem] uppercase tracking-wide text-faint">
           {report.state}
@@ -228,24 +292,28 @@ export default async function ReportPage({
         />
       </div>
 
-      {/* Trust disclaimer */}
-      <div className="mb-8 rounded-2xl border border-border bg-surface/50 p-4">
-        <p className="text-[0.75rem] leading-relaxed text-faint">
+      {/* Right of reply — published responses */}
+      <PublishedReplies replies={replies} />
+
+      {/* Trust disclaimer + reply trigger */}
+      <div className="mb-6 rounded-2xl border border-border bg-surface/50 p-4">
+        <p className="mb-3 text-[0.75rem] leading-relaxed text-faint">
           This report was submitted by a citizen with attached evidence. Wetin
           Dey has not independently verified it. If you are named and believe
-          this is false, submit a{" "}
+          this is false, submit a reply below or{" "}
           <Link
             href={`/takedown?post=${report.id}`}
             className="underline hover:text-accent"
           >
-            dispute
+            request a takedown
           </Link>
           .
         </p>
+        <ReplyTrigger reportId={report.id} />
       </div>
 
       {/* Comments */}
-      <CommentThread reportId={report.id} />
+      {isPublic || isOwnPost ? <CommentThread reportId={report.id} /> : null}
     </main>
   );
 }

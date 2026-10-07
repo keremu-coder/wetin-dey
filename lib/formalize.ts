@@ -18,6 +18,11 @@ export type FormalizeOutput = {
   incident_date: string | null;
   normalized_amount_kobo: number | null;
   confidence: number;
+  /** Legal/reputational risk score 0.0–1.0. High = serious accusation at a
+   * named private individual with weak evidence. */
+  defamation_risk: number;
+  /** Short reasons, e.g. ["names individual", "accuses of bribery"]. */
+  defamation_reasons: string[];
 };
 
 const GROQ_MODEL = "openai/gpt-oss-120b";
@@ -41,13 +46,23 @@ TASK: Return a single JSON object with exactly these fields:
   "agency_canonical": "Normalized agency name from this list: [${agencyList}]. If no match, return the raw agency name.",
   "incident_date": "ISO date (YYYY-MM-DD) or null if not stated",
   "normalized_amount_kobo": "Integer in kobo (N1 = 100 kobo), or null if not stated",
-  "confidence": 0.0-1.0
+  "confidence": 0.0-1.0,
+  "defamation_risk": 0.0-1.0,
+  "defamation_reasons": ["short string reasons"]
 }
+
+RULES FOR defamation_risk:
+- Score HIGH (0.6-1.0) if the report levels a serious personal accusation (theft, bribery, extortion, assault, sexual misconduct, fraud, cultism) at a NAMED PRIVATE INDIVIDUAL with weak or no evidence attached.
+- Score LOW (0.0-0.3) if the report criticizes a public agency (NEPA, police, customs) or a named public official ACTING IN THEIR OFFICIAL CAPACITY — even harshly. Criticizing public officials for doing their job is legitimate civic reporting, not defamation.
+- Score MEDIUM (0.3-0.6) if there is ambiguity.
+- Score on LEGAL EXPOSURE (would this survive a Nigerian defamation suit), NOT on how well-formed the report is. Confidence and defamation_risk are orthogonal.
 
 Return ONLY valid JSON. No markdown. No preamble. No code fences.`;
 }
 
-export async function formalizeReport(input: FormalizeInput): Promise<FormalizeOutput> {
+export async function formalizeReport(
+  input: FormalizeInput
+): Promise<FormalizeOutput> {
   const key = process.env.GROQ_API_KEY;
   if (!key) throw new Error("GROQ_API_KEY not set");
 
@@ -55,14 +70,15 @@ export async function formalizeReport(input: FormalizeInput): Promise<FormalizeO
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${key}`
+      Authorization: `Bearer ${key}`
     },
     body: JSON.stringify({
       model: GROQ_MODEL,
       messages: [
         {
           role: "system",
-          content: "You are a formalization engine. Return only valid JSON. No markdown, no code fences, no explanation."
+          content:
+            "You are a formalization engine. Return only valid JSON. No markdown, no code fences, no explanation."
         },
         { role: "user", content: buildPrompt(input) }
       ],
@@ -80,6 +96,27 @@ export async function formalizeReport(input: FormalizeInput): Promise<FormalizeO
   const text = data?.choices?.[0]?.message?.content;
   if (!text) throw new Error("Groq returned no text");
 
-  const parsed = JSON.parse(text) as FormalizeOutput;
-  return parsed;
+  const parsed = JSON.parse(text) as Partial<FormalizeOutput>;
+
+  return {
+    summary_pidgin: parsed.summary_pidgin ?? "",
+    summary_english: parsed.summary_english ?? "",
+    agency_canonical: parsed.agency_canonical ?? input.agency_raw,
+    incident_date: parsed.incident_date ?? null,
+    normalized_amount_kobo:
+      typeof parsed.normalized_amount_kobo === "number"
+        ? parsed.normalized_amount_kobo
+        : null,
+    confidence:
+      typeof parsed.confidence === "number" ? parsed.confidence : 0,
+    defamation_risk:
+      typeof parsed.defamation_risk === "number"
+        ? parsed.defamation_risk
+        : 0,
+    defamation_reasons: Array.isArray(parsed.defamation_reasons)
+      ? parsed.defamation_reasons.filter(
+          (r): r is string => typeof r === "string"
+        )
+      : []
+  };
 }
