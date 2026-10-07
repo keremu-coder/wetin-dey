@@ -36,6 +36,14 @@ function avatarColor(seed: string): string {
   return colors[Math.abs(h) % colors.length];
 }
 
+// Routes that render their own fullscreen header (chat, DM thread).
+// Global nav is hidden so their headers aren't covered.
+function isFullscreenRoute(pathname: string): boolean {
+  if (/^\/c\/[^/]+\/chat/.test(pathname)) return true;
+  if (/^\/inbox\/[^/]+/.test(pathname)) return true;
+  return false;
+}
+
 export function Nav() {
   const pathname = usePathname();
   const [me, setMe] = useState<WhoAmI | null>(null);
@@ -51,7 +59,6 @@ export function Nav() {
       .catch(() => {});
   }, []);
 
-  // Poll unread DM count
   useEffect(() => {
     let cancelled = false;
     function refresh() {
@@ -71,7 +78,6 @@ export function Nav() {
     };
   }, [pathname]);
 
-  // Pull status line when drawer opens
   useEffect(() => {
     if (!drawerOpen || !me) return;
     let cancelled = false;
@@ -98,7 +104,7 @@ export function Nav() {
     window.location.href = "/";
   }
 
-  const isChatPage = /^\/c\/[^/]+\/chat/.test(pathname);
+  const hideNav = isFullscreenRoute(pathname);
 
   const sections: Section[] = [
     {
@@ -183,8 +189,11 @@ export function Nav() {
 
   return (
     <>
-      {!isChatPage ? (
-        <header className="sticky top-0 z-40 border-b border-border bg-paper/90 backdrop-blur-md">
+      {!hideNav ? (
+        <header
+          className="sticky top-0 z-40 border-b border-border bg-paper/90 backdrop-blur-md"
+          style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
+        >
           <div className="mx-auto flex max-w-2xl items-center justify-between gap-2 px-3 py-3">
             <Link href="/" className="flex items-center gap-1.5">
               <span className="inline-block h-2 w-2 rounded-full bg-accent" />
@@ -256,15 +265,17 @@ export function Nav() {
           />
           <aside className="fixed right-0 top-0 z-[60] flex h-full w-[86%] max-w-sm flex-col overflow-hidden border-l border-border bg-paper slide-in-right">
             <div
-              className="relative shrink-0 px-5 pt-6 pb-5"
+              className="relative shrink-0 px-5 pb-5"
               style={{
+                paddingTop: "calc(1.5rem + env(safe-area-inset-top, 0px))",
                 background: `linear-gradient(135deg, ${gradient} 0%, #052e1f 100%)`
               }}
             >
               <button
                 type="button"
                 onClick={() => setDrawerOpen(false)}
-                className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+                className="absolute right-4 flex h-8 w-8 items-center justify-center rounded-full text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+                style={{ top: "calc(1rem + env(safe-area-inset-top, 0px))" }}
                 aria-label="Close menu"
               >
                 ✕
@@ -394,7 +405,10 @@ export function Nav() {
               ) : null}
             </div>
 
-            <div className="shrink-0 border-t border-border bg-paper/95 px-5 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
+            <div
+              className="shrink-0 border-t border-border bg-paper/95 px-5 py-3"
+              style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
+            >
               <p className="text-center font-mono text-[0.65rem] text-faint">
                 Wetin Dey · made in Nigeria 🇳🇬
               </p>

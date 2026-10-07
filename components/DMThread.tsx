@@ -36,42 +36,36 @@ function avatarColor(seed: string): string {
 export function DMThread({
   threadId,
   mySessionId,
-  otherHandle
+  otherHandle,
+  initialMessages
 }: {
   threadId: string;
   mySessionId: string;
   otherHandle: string;
+  initialMessages: Message[];
 }) {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [error, setError] = useState("");
   const [blockReason, setBlockReason] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const lastMarkRef = useRef<number>(0);
-  const seenDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scrollDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  async function load() {
+  async function refresh() {
     try {
       const res = await fetch(`/api/dm/threads/${threadId}`, {
         cache: "no-store"
       });
       const json = await res.json();
-      if (!res.ok) {
-        setError(json?.error ?? "Load failed");
-        setLoading(false);
-        return;
-      }
+      if (!res.ok) return;
       setMessages((json.messages ?? []) as Message[]);
-      setLoading(false);
     } catch {
-      setError("Network error");
-      setLoading(false);
+      /* silent */
     }
   }
 
   async function markRead() {
     const now = Date.now();
-    // throttle: at most once every 3 seconds
     if (now - lastMarkRef.current < 3000) return;
     lastMarkRef.current = now;
     try {
@@ -80,18 +74,6 @@ export function DMThread({
       /* silent */
     }
   }
-
-  // Initial load + polling fallback (in case realtime isn't subscribed)
-  useEffect(() => {
-    void load();
-    void markRead();
-    const t = setInterval(() => {
-      void load();
-      void markRead();
-    }, 5000);
-    return () => clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [threadId]);
 
   // Realtime subscription on this thread's messages.
   useEffect(() => {
@@ -134,7 +116,6 @@ export function DMThread({
               return [...prev, row as Message];
             });
 
-            // Mark as read immediately since user is viewing
             void markRead();
           }
         )
@@ -156,71 +137,66 @@ export function DMThread({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [threadId, mySessionId]);
 
-  // Re-mark as read when the tab regains focus
+  // Background poll as a safety net (every 30s — realtime should handle it)
+  useEffect(() => {
+    const t = setInterval(() => {
+      void refresh();
+    }, 30000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [threadId]);
+
+  // On focus, refresh + mark read
   useEffect(() => {
     function onFocus() {
-      void load();
+      void refresh();
       void markRead();
     }
     window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", () => {
+    function onVis() {
       if (document.visibilityState === "visible") onFocus();
-    });
+    }
+    document.addEventListener("visibilitychange", onVis);
     return () => {
       window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVis);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [threadId]);
 
-  // Debounced scroll to bottom whenever message count changes
+  // Scroll to bottom on mount + when new messages arrive
   useEffect(() => {
-    if (seenDebounceRef.current) clearTimeout(seenDebounceRef.current);
-    seenDebounceRef.current = setTimeout(() => {
+    if (scrollDebounceRef.current) clearTimeout(scrollDebounceRef.current);
+    scrollDebounceRef.current = setTimeout(() => {
       const el = scrollRef.current;
       if (el) el.scrollTop = el.scrollHeight;
-    }, 60);
+    }, 40);
     return () => {
-      if (seenDebounceRef.current) clearTimeout(seenDebounceRef.current);
+      if (scrollDebounceRef.current) clearTimeout(scrollDebounceRef.current);
     };
   }, [messages.length]);
 
-  // Are all my messages seen? Only show "Seen" under the last one I sent
-  // if the OTHER person has read it.
-  const lastMine = [...messages].reverse().find((m) => m.sender_id === mySessionId);
+  const lastMine = [...messages]
+    .reverse()
+    .find((m) => m.sender_id === mySessionId);
   const lastMineSeen = lastMine?.read_at != null;
 
   const bg = avatarColor(otherHandle);
 
-  if (loading) {
-    return (
-      <div className="empty-state">
-        <div className="empty-state-icon">⏳</div>
-        <p className="empty-state-text">Loading…</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-6">
-        <p className="rounded-xl bg-danger-soft px-3 py-2 text-[0.8125rem] text-danger">
-          {error}
-        </p>
-      </div>
-    );
-  }
-
   return (
     <div className="fixed inset-x-0 top-0 bottom-0 flex flex-col bg-paper">
-      <header className="flex items-center gap-3 border-b border-border bg-paper/95 px-3 py-2.5 backdrop-blur-xl">
+      <header
+        className="flex shrink-0 items-center gap-3 border-b border-border bg-paper/95 px-3 py-2.5 backdrop-blur-xl"
+        style={{ paddingTop: "calc(0.625rem + env(safe-area-inset-top, 0px))" }}
+      >
         <Link
           href="/inbox"
-          className="flex h-9 w-9 items-center justify-center rounded-full text-accent transition-colors hover:bg-ink/5"
-          aria-label="Back"
+          className="flex h-10 w-10 items-center justify-center rounded-full text-accent transition-colors hover:bg-ink/5"
+          aria-label="Back to inbox"
         >
           <svg
-            width="22"
-            height="22"
+            width="24"
+            height="24"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -233,7 +209,7 @@ export function DMThread({
         </Link>
         <Link
           href={`/u/${encodeURIComponent(otherHandle)}`}
-          className="flex min-w-0 flex-1 items-center gap-2"
+          className="flex min-w-0 flex-1 items-center gap-2.5"
         >
           <div
             className="flex h-9 w-9 items-center justify-center rounded-full text-[0.9375rem] font-semibold text-white"
@@ -321,6 +297,12 @@ export function DMThread({
         }}
         onBlocked={(reason) => setBlockReason(reason)}
       />
+
+      {error ? (
+        <p className="absolute bottom-20 left-1/2 -translate-x-1/2 rounded-lg bg-danger-soft px-3 py-1.5 text-[0.75rem] text-danger">
+          {error}
+        </p>
+      ) : null}
 
       {blockReason ? (
         <FilterWarning
