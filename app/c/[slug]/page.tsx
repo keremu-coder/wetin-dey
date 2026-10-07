@@ -29,7 +29,6 @@ export default async function CommunityPage({
   const isOwner = role === "owner";
 
   // Private space, visitor is not a member: show a join screen.
-  // The URL is the invite — anyone with it can join.
   if (!member && !isOwner && !community.is_public) {
     return (
       <main className="mx-auto max-w-2xl px-4 py-10 pb-24">
@@ -72,7 +71,17 @@ export default async function CommunityPage({
     );
   }
 
-  // Public space OR member OR owner — show the full space
+  // Check for an active check-in so we can show a banner
+  const nowIso = new Date().toISOString();
+  const { data: activeCheckin } = await db
+    .from("checkin_requests")
+    .select("id, reason")
+    .eq("community_id", community.id)
+    .gt("expires_at", nowIso)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
   const { data: posts } = await db
     .from("reports")
     .select("*")
@@ -129,6 +138,42 @@ export default async function CommunityPage({
             💬 Enter live chat
           </Link>
         ) : null}
+
+        {activeCheckin ? (
+          <Link
+            href={`/c/${community.slug}/checkin`}
+            className="mt-3 flex items-center gap-3 rounded-2xl border-2 border-gold/50 bg-gold-soft/50 p-3.5 transition-colors hover:border-gold"
+          >
+            <span className="text-[1.4rem]">🔔</span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[0.875rem] font-semibold text-ink">
+                Check-in in progress
+              </p>
+              <p className="truncate text-[0.75rem] text-ink/70">
+                {activeCheckin.reason
+                  ? activeCheckin.reason
+                  : "Tap to reply I'm safe / I need help"}
+              </p>
+            </div>
+            <span className="text-faint">›</span>
+          </Link>
+        ) : (
+          <Link
+            href={`/c/${community.slug}/checkin`}
+            className="mt-3 flex items-center gap-3 rounded-2xl border border-border bg-paper p-3.5 transition-colors hover:border-accent"
+          >
+            <span className="text-[1.4rem]">🛡️</span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[0.875rem] font-semibold text-ink">
+                Family check-in
+              </p>
+              <p className="truncate text-[0.75rem] text-muted">
+                Private rollcall — are you safe?
+              </p>
+            </div>
+            <span className="text-faint">›</span>
+          </Link>
+        )}
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <CommunityJoinButton
