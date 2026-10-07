@@ -36,8 +36,6 @@ function avatarColor(seed: string): string {
   return colors[Math.abs(h) % colors.length];
 }
 
-// Routes that render their own fullscreen header (chat, DM thread).
-// Global nav is hidden so their headers aren't covered.
 function isFullscreenRoute(pathname: string): boolean {
   if (/^\/c\/[^/]+\/chat/.test(pathname)) return true;
   if (/^\/inbox\/[^/]+/.test(pathname)) return true;
@@ -50,6 +48,7 @@ export function Nav() {
   const [status, setStatus] = useState<string | null>(null);
   const [unreadDMs, setUnreadDMs] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [signOutConfirm, setSignOutConfirm] = useState(false);
 
   useEffect(() => {
     getWhoAmI()
@@ -97,11 +96,17 @@ export function Nav() {
 
   useEffect(() => {
     setDrawerOpen(false);
+    setSignOutConfirm(false);
   }, [pathname]);
 
-  async function signOut() {
-    await fetch("/api/auth/signout", { method: "POST" });
-    window.location.href = "/";
+  async function performSignOut() {
+    try {
+      await fetch("/api/auth/signout", { method: "POST" });
+    } catch {
+      /* ignore */
+    }
+    // Hard redirect so all client state clears
+    window.location.href = "/signin";
   }
 
   const hideNav = isFullscreenRoute(pathname);
@@ -169,21 +174,6 @@ export function Nav() {
       ]
     }
   ];
-
-  if (!me) {
-    sections.push({
-      title: "Get started",
-      rows: [
-        {
-          href: "/signin",
-          icon: "🔑",
-          label: "Sign in or join",
-          hint: "Get a handle, follow people",
-          tone: "accent"
-        }
-      ]
-    });
-  }
 
   const gradient = me ? avatarColor(me.handle) : "#10b981";
 
@@ -299,25 +289,7 @@ export function Nav() {
                     </p>
                   </div>
                 </Link>
-              ) : (
-                <Link
-                  href="/signin"
-                  className="flex items-center gap-3"
-                  onClick={() => setDrawerOpen(false)}
-                >
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-white/20 text-[1.4rem] font-semibold text-white ring-2 ring-white/30 backdrop-blur">
-                    ?
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-serif text-[1.15rem] font-semibold text-white">
-                      Sign in
-                    </p>
-                    <p className="text-[0.8125rem] text-white/85">
-                      Get a handle, follow people
-                    </p>
-                  </div>
-                </Link>
-              )}
+              ) : null}
             </div>
 
             <div className="flex-1 overflow-y-auto">
@@ -387,27 +359,66 @@ export function Nav() {
 
               {me ? (
                 <div className="pt-4 pb-6">
-                  <button
-                    type="button"
-                    onClick={signOut}
-                    className="flex w-full items-center gap-3 px-5 py-3.5 text-left transition-colors hover:bg-danger-soft/40"
-                  >
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-danger-soft text-[1.15rem]">
-                      <span>↩️</span>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[0.9375rem] font-semibold text-danger">
-                        Sign out
+                  {!signOutConfirm ? (
+                    <button
+                      type="button"
+                      onClick={() => setSignOutConfirm(true)}
+                      className="flex w-full items-center gap-3 px-5 py-3.5 text-left transition-colors hover:bg-danger-soft/40"
+                    >
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-danger-soft text-[1.15rem]">
+                        <span>↩️</span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[0.9375rem] font-semibold text-danger">
+                          Sign out
+                        </p>
+                      </div>
+                    </button>
+                  ) : (
+                    <div className="mx-5 rounded-2xl border border-danger/30 bg-danger-soft p-4">
+                      <p className="text-[0.875rem] font-semibold text-ink">
+                        Sign out?
                       </p>
+                      <p className="mt-1 text-[0.75rem] leading-relaxed text-ink/80">
+                        You&apos;ll need your <strong>recovery code</strong> to
+                        sign back in. If you haven&apos;t saved it, go to{" "}
+                        <Link
+                          href="/settings/account"
+                          className="underline"
+                          onClick={() => setDrawerOpen(false)}
+                        >
+                          Settings → Account
+                        </Link>{" "}
+                        first.
+                      </p>
+                      <div className="mt-3 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setSignOutConfirm(false)}
+                          className="flex-1 rounded-lg border border-border-strong bg-paper py-2 text-[0.8125rem] font-medium text-ink"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={performSignOut}
+                          className="flex-1 rounded-lg bg-danger py-2 text-[0.8125rem] font-semibold text-white"
+                        >
+                          Sign out
+                        </button>
+                      </div>
                     </div>
-                  </button>
+                  )}
                 </div>
               ) : null}
             </div>
 
             <div
               className="shrink-0 border-t border-border bg-paper/95 px-5 py-3"
-              style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
+              style={{
+                paddingBottom:
+                  "calc(0.75rem + env(safe-area-inset-bottom, 0px))"
+              }}
             >
               <p className="text-center font-mono text-[0.65rem] text-faint">
                 Wetin Dey · made in Nigeria 🇳🇬

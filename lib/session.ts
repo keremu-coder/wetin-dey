@@ -9,6 +9,7 @@ import {
   generateLegacyHandle
 } from "./handles";
 import { createServiceClient } from "./supabase/server";
+import { generateRecoveryCode } from "./recovery-code";
 
 const encoder = new TextEncoder();
 
@@ -135,6 +136,8 @@ export type SessionProfile = {
   auth_provider: string | null;
   bio: string | null;
   avatar_url: string | null;
+  status_line?: string | null;
+  recovery_code?: string | null;
   karma: number;
   verified_reporter: boolean;
   follower_count: number;
@@ -142,6 +145,26 @@ export type SessionProfile = {
   post_count: number;
   created_at: string;
 };
+
+/**
+ * Generates a unique recovery code. Retries a few times on collision.
+ * Codes are stored in the DB and are what a user types to sign back in.
+ */
+async function uniqueRecoveryCode(
+  db: ReturnType<typeof createServiceClient>
+): Promise<string> {
+  for (let i = 0; i < 5; i++) {
+    const candidate = generateRecoveryCode();
+    const { data } = await db
+      .from("sessions")
+      .select("id")
+      .eq("recovery_code", candidate)
+      .maybeSingle();
+    if (!data) return candidate;
+  }
+  // Fallback: impossible collision; just return something unique
+  return generateRecoveryCode() + Date.now().toString(36).slice(-4).toUpperCase();
+}
 
 export async function getOrCreateSessionProfile(
   sessionId: string
@@ -154,7 +177,25 @@ export async function getOrCreateSessionProfile(
     .eq("id", sessionId)
     .maybeSingle();
 
-  if (existing) return existing as SessionProfile;
+  if (existing) {
+    // Backfill: if an existing session predates the recovery_code column,
+    // generate one now. Same for avatar (it's a nullable column already).
+    if (!existing.recovery_code) {
+      try {
+        const code = await uniqueRecoveryCode(db);
+        const { data: updated } = await db
+          .from("sessions")
+          .update({ recovery_code: code })
+          .eq("id", sessionId)
+          .select("*")
+          .single();
+        if (updated) return updated as SessionProfile;
+      } catch {
+        /* fall through and return original */
+      }
+    }
+    return existing as SessionProfile;
+  }
 
   async function tryHandle(candidate: string): Promise<boolean> {
     const { data: clash } = await db
@@ -199,13 +240,16 @@ export async function getOrCreateSessionProfile(
     handle = `User_${Date.now().toString().slice(-6)}`;
   }
 
+  const recovery_code = await uniqueRecoveryCode(db);
+
   const { data: created, error } = await db
     .from("sessions")
     .insert({
       id: sessionId,
       handle,
       handle_kind: "anonymous",
-      auth_provider: "none"
+      auth_provider: "none",
+      recovery_code
     })
     .select("*")
     .single();
