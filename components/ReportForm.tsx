@@ -9,6 +9,11 @@ import {
   NIGERIA_STATES,
   type Category
 } from "@/lib/constants";
+import {
+  pickRecorderFormat,
+  actualMime,
+  extFromType
+} from "@/lib/voice-recorder";
 
 async function stripExifInBrowser(file: File): Promise<Blob> {
   try {
@@ -123,19 +128,36 @@ export function ReportForm({
     setError("");
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream);
+
+      const format = pickRecorderFormat();
+
+      let mr: MediaRecorder;
+      try {
+        mr = format.mimeType
+          ? new MediaRecorder(stream, { mimeType: format.mimeType })
+          : new MediaRecorder(stream);
+      } catch {
+        mr = new MediaRecorder(stream);
+      }
+
       recorderRef.current = mr;
       chunksRef.current = [];
+
       mr.ondataavailable = (e) => {
         if (e.data.size > 0) chunksRef.current.push(e.data);
       };
       mr.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        const mime = actualMime(mr, format.mimeType);
+        const blob = new Blob(chunksRef.current, { type: mime });
+        const ext = extFromType(mime);
         setTestimonyFile(
-          new File([blob], "testimony.webm", { type: "audio/webm" })
+          new File([blob], `testimony.${ext}`, {
+            type: mime || "audio/webm"
+          })
         );
         stream.getTracks().forEach((t) => t.stop());
       };
+
       mr.start();
       setTestimonyRecording(true);
       setTestimonySeconds(0);
@@ -309,7 +331,11 @@ export function ReportForm({
           </div>
 
           <div>
-            <FieldLabel htmlFor="agency" required hint="e.g. Ikeja Electric, Zone 16 Police">
+            <FieldLabel
+              htmlFor="agency"
+              required
+              hint="e.g. Ikeja Electric, Zone 16 Police"
+            >
               Which agency / office?
             </FieldLabel>
             <input
@@ -325,7 +351,11 @@ export function ReportForm({
       ) : (
         <>
           <input type="hidden" name="category" value="other" />
-          <input type="hidden" name="agency" value={title || "Community post"} />
+          <input
+            type="hidden"
+            name="agency"
+            value={title || "Community post"}
+          />
         </>
       )}
 
@@ -352,7 +382,9 @@ export function ReportForm({
 
       <div>
         <FieldLabel htmlFor="body" hint="50–5000 chars" required>
-          {tab === "talk" && postType === "report_am" ? "Wetin happen?" : "Your post"}
+          {tab === "talk" && postType === "report_am"
+            ? "Wetin happen?"
+            : "Your post"}
         </FieldLabel>
         <textarea
           id="body"
@@ -370,14 +402,20 @@ export function ReportForm({
           }
         />
         <div className="mt-1.5 flex items-center justify-between">
-          <p className={`text-[0.75rem] ${bodyOk ? "text-faint" : "text-faint/70"}`}>
+          <p
+            className={`text-[0.75rem] ${
+              bodyOk ? "text-faint" : "text-faint/70"
+            }`}
+          >
             {bodyOk
               ? "Ready when you are."
               : bodyLength === 0
-              ? "Minimum 50 characters."
-              : `${50 - bodyLength} more characters needed.`}
+                ? "Minimum 50 characters."
+                : `${50 - bodyLength} more characters needed.`}
           </p>
-          <p className="font-mono text-[0.7rem] text-faint">{bodyLength}/5000</p>
+          <p className="font-mono text-[0.7rem] text-faint">
+            {bodyLength}/5000
+          </p>
         </div>
       </div>
 
@@ -404,7 +442,7 @@ export function ReportForm({
       ) : null}
 
       {requiresEvidence ? (
-        <div className="rounded-2xl border-2 border-warm/40 bg-warm-soft/30 p-5">
+        <div className="rounded-2xl border-2 border-gold/40 bg-gold-soft/30 p-5">
           <div className="mb-4">
             <p className="font-serif text-[1.1rem] font-semibold text-ink">
               Evidence <span className="text-danger">*</span>
@@ -428,7 +466,8 @@ export function ReportForm({
             />
             {evidenceKind && evidenceFile ? (
               <p className="mt-2 text-[0.75rem] text-accent-deep">
-                ✓ {evidenceKind} attached — {Math.round(evidenceFile.size / 1024)} KB
+                ✓ {evidenceKind} attached —{" "}
+                {Math.round(evidenceFile.size / 1024)} KB
               </p>
             ) : null}
           </div>
@@ -474,7 +513,10 @@ export function ReportForm({
           </div>
 
           <div className="border-t border-border pt-4">
-            <FieldLabel htmlFor="public_link" hint="news article, court record, FOI response">
+            <FieldLabel
+              htmlFor="public_link"
+              hint="news article, court record, FOI response"
+            >
               3. Or link to public source
             </FieldLabel>
             <input
@@ -527,13 +569,13 @@ export function ReportForm({
       <button
         type="submit"
         disabled={busy || (requiresEvidence && !hasEvidence)}
-        className="w-full rounded-2xl bg-warm px-5 py-4 font-serif text-[1.05rem] font-semibold text-white shadow-button transition-all hover:bg-warm-deep disabled:cursor-not-allowed disabled:opacity-60"
+        className="w-full rounded-2xl bg-accent px-5 py-4 font-serif text-[1.05rem] font-semibold text-white shadow-button transition-all hover:bg-accent-deep disabled:cursor-not-allowed disabled:opacity-60"
       >
         {busy
           ? "Dey post am…"
           : requiresEvidence && !hasEvidence
-          ? "Attach evidence to publish"
-          : "Post am"}
+            ? "Attach evidence to publish"
+            : "Post am"}
       </button>
     </form>
   );
