@@ -13,19 +13,21 @@ type Bucket = {
 const memBuckets = new Map<string, Bucket>();
 
 type Rule = {
-  key: string;       // unique per session+endpoint
-  limit: number;     // max requests
-  windowMs: number;  // window length
+  key: string;
+  limit: number;
+  windowMs: number;
 };
 
-/**
- * Returns true if the request is allowed, false if rate limited.
- * Also returns the ms until the window resets if limited.
- */
+// Both branches include retryAfterMs so callers never need discriminated
+// union narrowing — works regardless of tsconfig strict mode.
+export type RateLimitResult =
+  | { ok: true; retryAfterMs: 0 }
+  | { ok: false; retryAfterMs: number };
+
 export async function checkRateLimit(
   sessionId: string,
   rule: Rule
-): Promise<{ ok: true } | { ok: false; retryAfterMs: number }> {
+): Promise<RateLimitResult> {
   const now = Date.now();
   const bucketKey = `${sessionId}:${rule.key}`;
 
@@ -44,7 +46,7 @@ export async function checkRateLimit(
   }
 
   // Slow path: also check the database for cross-instance abuse.
-  // We only do this for limits of 10 or less to keep DB load low.
+  // Only for tight limits (<=10) to keep DB load low.
   if (rule.limit <= 10) {
     try {
       const db = createServiceClient();
@@ -57,13 +59,9 @@ export async function checkRateLimit(
         .gte("created_at", sinceIso);
 
       if ((count ?? 0) >= rule.limit) {
-        return {
-          ok: false,
-          retryAfterMs: rule.windowMs
-        };
+        return { ok: false, retryAfterMs: rule.windowMs };
       }
 
-      // Fire and forget — don't block the response
       void db.from("rate_events").insert({
         session_id: sessionId,
         bucket: rule.key
@@ -73,7 +71,7 @@ export async function checkRateLimit(
     }
   }
 
-  return { ok: true };
+  return { ok: true, retryAfterMs: 0 };
 }
 
 /** Origin check for POST routes — returns true if request seems same-site. */
@@ -81,7 +79,7 @@ export function sameOrigin(req: Request): boolean {
   const origin = req.headers.get("origin");
   const referer = req.headers.get("referer");
   const host = req.headers.get("host");
-  if (!host) return true; // can't verify, allow
+  if (!host) return true;
   const expected = `https://${host}`;
   if (origin && origin !== expected) return false;
   if (!origin && referer && !referer.startsWith(expected)) return false;
