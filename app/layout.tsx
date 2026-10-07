@@ -4,6 +4,7 @@ import { PresencePing } from "@/components/PresencePing";
 import { Onboarding } from "@/components/Onboarding";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { PushRegistrar } from "@/components/PushRegistrar";
+import { BottomNav } from "@/components/BottomNav";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -48,9 +49,6 @@ const themeScript = `
 })();
 `;
 
-// Only Inter (body) and Space Grotesk (headings) block the initial paint.
-// The BBM display fonts (Caveat, Pacifico, etc.) load asynchronously —
-// if a user hasn't selected one, they never download.
 const CORE_FONTS_HREF =
   "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap";
 
@@ -72,9 +70,7 @@ export default function RootLayout({
           href="https://fonts.gstatic.com"
           crossOrigin="anonymous"
         />
-        {/* Core fonts — blocking, these are used everywhere */}
         <link rel="stylesheet" href={CORE_FONTS_HREF} />
-        {/* BBM display fonts — async, only loaded if the browser renders them */}
         <link
           rel="preload"
           as="style"
@@ -94,6 +90,7 @@ export default function RootLayout({
         <Nav />
         {children}
         <SiteFooter />
+        <BottomNav />
       </body>
     </html>
   );

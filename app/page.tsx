@@ -1,134 +1,182 @@
 import Link from "next/link";
-import { unstable_cache } from "next/cache";
-import { HomeFeed } from "@/components/ReportCard";
-import { PAGE_SIZE } from "@/lib/constants";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
-import { stripSession, type Report } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-const TALK_AM_TYPES = ["report_am", "ask", "help"];
+type Community = {
+  id: string;
+  slug: string;
+  name: string;
+  emoji: string;
+  member_count: number;
+  post_count: number;
+  is_public: boolean;
+};
 
-// Cache the reviewed count for 30s. Without this, every home visit runs
-// a count(*) over the whole reports table — expensive at scale.
-const getReviewedCount = unstable_cache(
-  async () => {
-    const db = createServiceClient();
-    const { count } = await db
-      .from("reports")
-      .select("id", { count: "exact", head: true })
-      .eq("reviewed", true)
-      .in("post_type", TALK_AM_TYPES)
-      .is("community_id", null);
-    return count ?? 0;
-  },
-  ["talk-am-reviewed-count-v1"],
-  { revalidate: 30 }
-);
+type LastMessage = {
+  community_id: string;
+  body: string | null;
+  audio_url: string | null;
+  created_at: string;
+};
 
-export default async function HomePage({
-  searchParams
-}: {
-  searchParams: {
-    page?: string;
-    state?: string;
-    category?: string;
-    agency?: string;
-    status?: string;
-  };
-}) {
-  const page = Math.max(1, Number(searchParams.page ?? "1") || 1);
+function timeAgo(date: string): string {
+  const diff = Date.now() - new Date(date).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "now";
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d`;
+  return new Date(date).toLocaleDateString("en-NG", {
+    month: "short",
+    day: "numeric"
+  });
+}
 
-  // These two are independent — run in parallel.
-  const [sessionId, reviewedCount] = await Promise.all([
-    getSessionId(),
-    getReviewedCount()
-  ]);
-
+export default async function HomePage() {
+  const sessionId = await getSessionId();
   const db = createServiceClient();
-  const allowUnreviewed = reviewedCount < 5;
 
-  // Build the reports query and the "who am I" lookup in parallel.
-  let q = db
-    .from("reports")
-    .select("*")
-    .in("post_type", TALK_AM_TYPES)
-    .is("community_id", null)
-    .order("created_at", { ascending: false })
-    .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
+  let spaces: Community[] = [];
+  const lastMessages = new Map<string, LastMessage>();
 
-  if (!allowUnreviewed) {
-    q = q.eq("reviewed", true);
+  if (sessionId) {
+    const { data: memberRows } = await db
+      .from("community_members")
+      .select("community_id, joined_at")
+      .eq("session_id", sessionId)
+      .order("joined_at", { ascending: false });
+
+    const ids = (memberRows ?? []).map((m) => m.community_id);
+
+    if (ids.length > 0) {
+      const { data: communities } = await db
+        .from("communities")
+        .select("id, slug, name, emoji, member_count, post_count, is_public")
+        .in("id", ids);
+
+      spaces = (communities ?? []) as Community[];
+
+      const { data: messages } = await db
+        .from("community_messages")
+        .select("community_id, body, audio_url, created_at")
+        .in("community_id", ids)
+        .order("created_at", { ascending: false })
+        .limit(ids.length * 5);
+
+      for (const m of (messages ?? []) as LastMessage[]) {
+        if (!lastMessages.has(m.community_id)) {
+          lastMessages.set(m.community_id, m);
+        }
+      }
+
+      spaces.sort((a, b) => {
+        const aTime = lastMessages.get(a.id)
+          ? new Date(lastMessages.get(a.id)!.created_at).getTime()
+          : 0;
+        const bTime = lastMessages.get(b.id)
+          ? new Date(lastMessages.get(b.id)!.created_at).getTime()
+          : 0;
+        return bTime - aTime;
+      });
+    }
   }
-  if (searchParams.category) q = q.eq("category", searchParams.category);
-  if (searchParams.agency) q = q.eq("agency_canonical", searchParams.agency);
-  if (searchParams.status) q = q.eq("status", searchParams.status);
-  if (searchParams.state) q = q.eq("state", searchParams.state);
 
-  const [meResult, reportsResult] = await Promise.all([
-    sessionId
-      ? db.from("sessions").select("handle").eq("id", sessionId).maybeSingle()
-      : Promise.resolve({ data: null, error: null }),
-    q
-  ]);
-
-  const currentHandle = meResult.data?.handle ?? null;
-
-  const reports = ((reportsResult.data ?? []) as Report[])
-    .filter((r) => r.reviewed || allowUnreviewed || r.session_id === sessionId)
-    .map((r) => stripSession(r) as Report);
+  const hasSpaces = spaces.length > 0;
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-6 pb-24">
-      <div className="mb-6 flex gap-2 border-b border-border">
-        <Link
-          href="/"
-          className="border-b-2 border-accent px-4 py-3 font-serif text-[1.05rem] font-semibold text-ink"
-        >
-          Talk Am
-        </Link>
-        <Link
-          href="/community"
-          className="border-b-2 border-transparent px-4 py-3 font-serif text-[1.05rem] font-semibold text-muted transition-colors hover:text-ink"
-        >
-          Community
-        </Link>
-        <Link
-          href="/communities"
-          className="border-b-2 border-transparent px-4 py-3 font-serif text-[1.05rem] font-semibold text-muted transition-colors hover:text-ink"
-        >
-          Spaces
-        </Link>
-      </div>
-
-      <div className="mb-6">
-        <h1 className="font-serif text-[2rem] font-semibold leading-tight text-ink">
-          Talk Am
+    <main className="mx-auto max-w-2xl px-4 py-6 pb-28">
+      <div className="mb-6 flex items-center justify-between gap-3">
+        <h1 className="font-serif text-[1.75rem] font-semibold leading-tight text-ink">
+          Your spaces
         </h1>
-        <p className="mt-1 text-[0.9375rem] leading-relaxed text-muted">
-          Civic reports and accountability. Everything here requires evidence.
-          Nothing gets deleted. Nothing carries ads. Ever.
-        </p>
+        <div className="flex items-center gap-1">
+          <Link
+            href="/communities"
+            className="flex h-10 w-10 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5"
+            aria-label="Explore public spaces"
+            title="Explore public spaces"
+          >
+            <span className="text-[1.2rem]">🧭</span>
+          </Link>
+          <Link
+            href="/communities/new"
+            className="flex h-10 items-center justify-center rounded-full bg-accent px-4 text-[0.8125rem] font-semibold text-white transition-colors hover:bg-accent-deep"
+          >
+            + New
+          </Link>
+        </div>
       </div>
 
-      <HomeFeed
-        reports={reports}
-        page={page}
-        currentHandle={currentHandle}
-        filters={{
-          state: searchParams.state,
-          category: searchParams.category,
-          agency: searchParams.agency
-        }}
-      />
+      {!hasSpaces ? (
+        <div className="rounded-2xl border border-border bg-surface p-6">
+          <div className="text-center">
+            <div className="text-[2.5rem]">💬</div>
+            <p className="mt-3 font-serif text-[1.15rem] font-semibold text-ink">
+              No spaces yet
+            </p>
+            <p className="mt-1 text-[0.875rem] leading-relaxed text-muted">
+              A space is a group chat — family, church cell, estate security,
+              or your friends. Like WhatsApp, but no phone number needed.
+            </p>
+          </div>
 
-      <Link
-        href="/submit?tab=talk"
-        className="mt-10 flex min-h-[52px] items-center justify-center rounded-2xl bg-accent px-5 font-serif text-[1.05rem] font-semibold text-white shadow-button transition-all hover:bg-accent-deep hover:shadow-card"
-      >
-        Report Wetin Happen
-      </Link>
+          <Link
+            href="/communities/new"
+            className="mt-5 flex min-h-[52px] items-center justify-center gap-2 rounded-2xl bg-accent px-5 font-serif text-[1.05rem] font-semibold text-white transition-colors hover:bg-accent-deep"
+          >
+            👥 Create your first space
+          </Link>
+          <Link
+            href="/communities"
+            className="mt-2 flex min-h-[52px] items-center justify-center gap-2 rounded-2xl border border-border-strong bg-surface px-5 font-serif text-[1.05rem] font-semibold text-ink transition-colors hover:bg-ink/5"
+          >
+            🧭 Browse public spaces
+          </Link>
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-2xl border border-border bg-surface">
+          {spaces.map((s, i) => {
+            const last = lastMessages.get(s.id);
+            const preview = last
+              ? last.audio_url
+                ? "🎤 Voice note"
+                : (last.body ?? "").slice(0, 80)
+              : "No messages yet";
+            const time = last ? timeAgo(last.created_at) : "";
+
+            return (
+              <Link
+                key={s.id}
+                href={`/c/${s.slug}/chat`}
+                className={`flex items-start gap-3 px-4 py-3.5 transition-colors hover:bg-ink/5 ${
+                  i !== 0 ? "border-t border-border" : ""
+                }`}
+              >
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-ink/5 text-[1.5rem]">
+                  {s.emoji}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="truncate text-[0.9375rem] font-semibold text-ink">
+                      {s.name}
+                    </p>
+                    <span className="shrink-0 font-mono text-[0.65rem] text-faint">
+                      {time}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 truncate text-[0.8125rem] text-muted">
+                    {preview}
+                  </p>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      )}
     </main>
   );
 }

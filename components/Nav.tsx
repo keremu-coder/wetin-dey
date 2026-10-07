@@ -6,16 +6,6 @@ import { usePathname } from "next/navigation";
 import { ThemeToggle } from "./ThemeToggle";
 import { getWhoAmI, type WhoAmI } from "@/lib/whoami-cache";
 
-const DRAWER_ITEMS = [
-  { href: "/", label: "Talk Am", icon: "📰" },
-  { href: "/community", label: "Community", icon: "🫂" },
-  { href: "/communities", label: "Spaces", icon: "🏘️" },
-  { href: "/radar", label: "Live Radar", icon: "📡" },
-  { href: "/explore", label: "Explore", icon: "🌍" },
-  { href: "/search", label: "Search", icon: "🔎" },
-  { href: "/inbox", label: "Inbox", icon: "✉️" }
-];
-
 export function Nav() {
   const pathname = usePathname();
   const [me, setMe] = useState<WhoAmI | null>(null);
@@ -38,47 +28,52 @@ export function Nav() {
     window.location.href = "/";
   }
 
+  // Hide the top nav on fullscreen flows (chat has its own header)
+  const isChatPage = /^\/c\/[^/]+\/chat/.test(pathname);
+
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-border bg-paper/90 backdrop-blur-md">
-        <div className="mx-auto flex max-w-2xl items-center justify-between gap-2 px-3 py-3">
-          <Link href="/" className="flex items-center gap-1.5">
-            <span className="inline-block h-2 w-2 rounded-full bg-accent" />
-            <span className="font-serif text-[1.15rem] font-semibold leading-none tracking-tight text-ink">
-              Wetin Dey
-            </span>
-          </Link>
-
-          <div className="flex items-center gap-2">
-            <Link
-              href="/submit"
-              className="rounded-full bg-accent px-3 py-1.5 text-[0.8125rem] font-semibold text-white transition-all hover:bg-accent-deep"
-            >
-              Post
+      {!isChatPage ? (
+        <header className="sticky top-0 z-40 border-b border-border bg-paper/90 backdrop-blur-md">
+          <div className="mx-auto flex max-w-2xl items-center justify-between gap-2 px-3 py-3">
+            <Link href="/" className="flex items-center gap-1.5">
+              <span className="inline-block h-2 w-2 rounded-full bg-accent" />
+              <span className="font-serif text-[1.15rem] font-semibold leading-none tracking-tight text-ink">
+                Wetin Dey
+              </span>
             </Link>
-            <button
-              type="button"
-              onClick={() => setDrawerOpen(true)}
-              className="flex h-10 w-10 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5"
-              aria-label="Open menu"
-            >
-              <svg
-                width="22"
-                height="22"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
+
+            <div className="flex items-center gap-2">
+              <Link
+                href="/submit"
+                className="rounded-full bg-accent px-3 py-1.5 text-[0.8125rem] font-semibold text-white transition-all hover:bg-accent-deep"
               >
-                <line x1="4" y1="7" x2="20" y2="7" />
-                <line x1="4" y1="12" x2="20" y2="12" />
-                <line x1="4" y1="17" x2="20" y2="17" />
-              </svg>
-            </button>
+                Post
+              </Link>
+              <button
+                type="button"
+                onClick={() => setDrawerOpen(true)}
+                className="flex h-10 w-10 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5"
+                aria-label="Open menu"
+              >
+                <svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                >
+                  <line x1="4" y1="7" x2="20" y2="7" />
+                  <line x1="4" y1="12" x2="20" y2="12" />
+                  <line x1="4" y1="17" x2="20" y2="17" />
+                </svg>
+              </button>
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
+      ) : null}
 
       {drawerOpen ? (
         <>
@@ -115,7 +110,7 @@ export function Nav() {
                       @{me.handle}
                     </p>
                     <p className="text-[0.75rem] text-muted">
-                      View your profile and spaces
+                      View your profile
                     </p>
                   </div>
                   <span className="text-faint">›</span>
@@ -136,29 +131,6 @@ export function Nav() {
             )}
 
             <nav className="py-2">
-              {DRAWER_ITEMS.map((item) => {
-                const active = pathname === item.href;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`flex items-center gap-3 px-4 py-3 transition-colors ${
-                      active ? "bg-ink/5 text-ink" : "text-ink hover:bg-ink/5"
-                    }`}
-                  >
-                    <span className="text-[1.15rem]">{item.icon}</span>
-                    <span className="text-[0.9375rem] font-medium">
-                      {item.label}
-                    </span>
-                    {active ? (
-                      <span className="ml-auto h-2 w-2 rounded-full bg-accent" />
-                    ) : null}
-                  </Link>
-                );
-              })}
-
-              <div className="my-2 border-t border-border" />
-
               <Link
                 href="/me"
                 className={`flex items-center gap-3 px-4 py-3 transition-colors ${
@@ -174,6 +146,18 @@ export function Nav() {
               </Link>
 
               <Link
+                href="/inbox"
+                className={`flex items-center gap-3 px-4 py-3 transition-colors ${
+                  pathname === "/inbox"
+                    ? "bg-ink/5 text-ink"
+                    : "text-ink hover:bg-ink/5"
+                }`}
+              >
+                <span className="text-[1.15rem]">✉️</span>
+                <span className="text-[0.9375rem] font-medium">Inbox</span>
+              </Link>
+
+              <Link
                 href="/settings"
                 className={`flex items-center gap-3 px-4 py-3 transition-colors ${
                   pathname === "/settings"
@@ -182,9 +166,7 @@ export function Nav() {
                 }`}
               >
                 <span className="text-[1.15rem]">⚙️</span>
-                <span className="text-[0.9375rem] font-medium">
-                  Settings
-                </span>
+                <span className="text-[0.9375rem] font-medium">Settings</span>
               </Link>
 
               <Link
@@ -196,9 +178,7 @@ export function Nav() {
                 }`}
               >
                 <span className="text-[1.15rem]">💬</span>
-                <span className="text-[0.9375rem] font-medium">
-                  Help
-                </span>
+                <span className="text-[0.9375rem] font-medium">Help</span>
               </Link>
             </nav>
 
@@ -230,10 +210,11 @@ export function Nav() {
 
 export function SiteFooter() {
   return (
-    <footer className="mx-auto mt-16 max-w-2xl px-4 pb-24">
+    <footer className="mx-auto mt-16 max-w-2xl px-4 pb-28">
       <div className="border-t border-border pt-6">
         <p className="text-[0.8125rem] leading-relaxed text-muted">
-          Wetin Dey na community. Anonymous if you want. No court judgment — na talk.
+          Wetin Dey na community. Anonymous if you want. No court judgment — na
+          talk.
         </p>
         <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-[0.8125rem] text-faint">
           <Link href="/terms" className="transition-colors hover:text-accent">
@@ -242,7 +223,10 @@ export function SiteFooter() {
           <Link href="/privacy" className="transition-colors hover:text-accent">
             Privacy
           </Link>
-          <Link href="/guidelines" className="transition-colors hover:text-accent">
+          <Link
+            href="/guidelines"
+            className="transition-colors hover:text-accent"
+          >
             Guidelines
           </Link>
           <Link href="/takedown" className="transition-colors hover:text-accent">
