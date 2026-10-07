@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { NextRequest } from "next/server";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
+import { checkRateLimit, sameOrigin } from "@/lib/rate-limit";
 
 const VALID_TARGETS = ["message", "community", "comment"] as const;
 type Target = (typeof VALID_TARGETS)[number];
@@ -19,9 +20,26 @@ type Reason = (typeof VALID_REASONS)[number];
 
 export async function POST(req: NextRequest) {
   try {
+    if (!sameOrigin(req)) {
+      return Response.json({ error: "bad origin" }, { status: 403 });
+    }
+
     const sessionId = await getSessionId();
     if (!sessionId) {
       return Response.json({ error: "no session" }, { status: 401 });
+    }
+
+    // Rate limit: 20 flags per hour per session.
+    const limit = await checkRateLimit(sessionId, {
+      key: "content_flag",
+      limit: 20,
+      windowMs: 60 * 60 * 1000
+    });
+    if (!limit.ok) {
+      return Response.json(
+        { error: "Too many reports. Try again later." },
+        { status: 429 }
+      );
     }
 
     const body = (await req.json()) as {
@@ -54,8 +72,6 @@ export async function POST(req: NextRequest) {
 
     const db = createServiceClient();
 
-    // Upsert: if this session already flagged this target, just bump the note.
-    // Unique index on (session_id, target_type, target_id) handles the conflict.
     const { error } = await db.from("content_flags").upsert(
       {
         session_id: sessionId,
