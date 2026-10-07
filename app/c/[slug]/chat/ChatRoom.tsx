@@ -128,7 +128,13 @@ export function ChatRoom({
   emoji,
   avatarUrl,
   isMember,
-  isOwner
+  isOwner,
+  initialMessages,
+  initialMembers,
+  initialMe,
+  initialMySessionId,
+  initialFonts,
+  initialStatuses
 }: {
   slug: string;
   name: string;
@@ -136,17 +142,23 @@ export function ChatRoom({
   avatarUrl?: string | null;
   isMember: boolean;
   isOwner: boolean;
+  initialMessages: Message[];
+  initialMembers: Member[];
+  initialMe: string | null;
+  initialMySessionId: string | null;
+  initialFonts: Record<string, string>;
+  initialStatuses: Record<string, string>;
 }) {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [members, setMembers] = useState<Member[]>([]);
+  const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const [members, setMembers] = useState<Member[]>(initialMembers);
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [recording, setRecording] = useState(false);
   const [recordSeconds, setRecordSeconds] = useState(0);
-  const [me, setMe] = useState<string | null>(null);
-  const [mySessionId, setMySessionId] = useState<string | null>(null);
+  const [me] = useState<string | null>(initialMe);
+  const [mySessionId] = useState<string | null>(initialMySessionId);
   const [openReactionsFor, setOpenReactionsFor] = useState<string | null>(null);
   const [membersOpen, setMembersOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -164,10 +176,10 @@ export function ChatRoom({
     original: string;
     suggested: string;
   } | null>(null);
-  const [fontByHandle, setFontByHandle] = useState<Record<string, string>>({});
-  const [statusByHandle, setStatusByHandle] = useState<Record<string, string>>(
-    {}
-  );
+  const [fontByHandle, setFontByHandle] =
+    useState<Record<string, string>>(initialFonts);
+  const [statusByHandle, setStatusByHandle] =
+    useState<Record<string, string>>(initialStatuses);
   const [composerMode, setComposerMode] = useState<"voice" | "text">("voice");
   const [prefs, setPrefs] = useState<SoundPrefs>({
     profile: "bbm",
@@ -188,9 +200,24 @@ export function ChatRoom({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const handleCacheRef = useRef<Map<string, string>>(new Map());
+
+  // Pre-seed the handle cache from server-provided members so the realtime
+  // handler can resolve handles immediately.
+  const handleCacheRef = useRef<Map<string, string>>(
+    new Map(initialMembers.map((m) => [m.session_id, m.handle]))
+  );
+
   const prefsRef = useRef<SoundPrefs>(prefs);
-  const fetchedHandlesRef = useRef<Set<string>>(new Set());
+
+  // Pre-mark all server-provided handles as fetched so we don't re-request
+  // their fonts/statuses on mount.
+  const fetchedHandlesRef = useRef<Set<string>>(
+    new Set([
+      ...Object.keys(initialFonts),
+      ...Object.keys(initialStatuses)
+    ])
+  );
+
   const askedForNotificationsRef = useRef(false);
 
   useEffect(() => {
@@ -224,47 +251,6 @@ export function ChatRoom({
       window.removeEventListener("touchstart", handler, true);
     };
   }, []);
-
-  useEffect(() => {
-    fetch("/api/whoami")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (d?.handle) setMe(d.handle);
-        if (d?.id) setMySessionId(d.id);
-      })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch(`/api/communities/${slug}/members`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (cancelled || !d?.members) return;
-        setMembers(d.members);
-        for (const m of d.members as Member[]) {
-          handleCacheRef.current.set(m.session_id, m.handle);
-        }
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [slug]);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch(`/api/communities/${slug}/messages`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((json) => {
-        if (cancelled || !json?.messages) return;
-        setMessages(json.messages as Message[]);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [slug]);
 
   const loadBroadcasts = useMemo(
     () => async () => {
@@ -403,6 +389,9 @@ export function ChatRoom({
     setSuggestion(suggestCorrection(body));
   }, [body, autocorrectOn]);
 
+  // Only fetch profiles for handles NOT already server-provided.
+  // Runs when a new message arrives from someone whose profile we don't
+  // have cached yet.
   useEffect(() => {
     const handles = Array.from(
       new Set(messages.map((m) => m.author_handle).filter(Boolean))
