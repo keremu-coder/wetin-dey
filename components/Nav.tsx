@@ -372,8 +372,38 @@ export function Nav() {
 
               <div className="pt-4">
                 <p className="px-5 pb-2 font-mono text-[0.62rem] uppercase tracking-widest text-faint">
-                  Appearance
+                  Appearance & sounds
                 </p>
+                <Link
+                  href="/settings/sounds"
+                  onClick={() => setDrawerOpen(false)}
+                  className={`group flex items-center gap-3 px-5 py-3.5 transition-colors ${
+                    pathname === "/settings/sounds"
+                      ? "bg-ink/[0.04]"
+                      : "hover:bg-ink/5"
+                  }`}
+                >
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-ink/5 text-[1.15rem]">
+                    <span>🔊</span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className={`truncate text-[0.9375rem] font-semibold leading-tight ${
+                        pathname === "/settings/sounds"
+                          ? "text-accent"
+                          : "text-ink"
+                      }`}
+                    >
+                      Sounds
+                    </p>
+                    <p className="mt-0.5 truncate text-[0.75rem] text-muted">
+                      Pick your message tones
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-faint transition-transform group-hover:translate-x-0.5">
+                    ›
+                  </span>
+                </Link>
                 <div className="px-5 py-2">
                   <ThemeToggle />
                 </div>

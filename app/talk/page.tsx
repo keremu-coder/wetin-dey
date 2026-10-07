@@ -1,8 +1,8 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { unstable_cache } from "next/cache";
 import { HomeFeed } from "@/components/ReportCard";
 import { DailyPrompt } from "@/components/DailyPrompt";
-import { LiveRadarPanel } from "@/components/LiveRadarPanel";
 import { PAGE_SIZE } from "@/lib/constants";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -28,7 +28,7 @@ const getReviewedCount = unstable_cache(
   { revalidate: 30 }
 );
 
-type Tab = "civic" | "community" | "live";
+type Tab = "civic" | "community";
 
 export default async function TalkAmPage({
   searchParams
@@ -43,32 +43,16 @@ export default async function TalkAmPage({
   };
 }) {
   const rawTab = (searchParams.tab ?? "civic").toLowerCase();
-  const tab: Tab =
-    rawTab === "community" ? "community" : rawTab === "live" ? "live" : "civic";
 
-  const isLive = tab === "live";
+  // Legacy: /talk?tab=live now lives at /radar
+  if (rawTab === "live") {
+    redirect("/radar");
+  }
+
+  const tab: Tab = rawTab === "community" ? "community" : "civic";
   const isCommunity = tab === "community";
   const activeTypes = isCommunity ? COMMUNITY_TYPES : TALK_AM_TYPES;
   const page = Math.max(1, Number(searchParams.page ?? "1") || 1);
-
-  // Only fetch reports for civic/community tabs. Live tab has its own panel.
-  if (isLive) {
-    return (
-      <main className="mx-auto max-w-2xl px-4 py-6 pb-28">
-        <Tabs tab={tab} />
-        <div className="mb-6">
-          <h1 className="font-serif text-[2rem] font-semibold leading-tight text-ink">
-            Live
-          </h1>
-          <p className="mt-1 text-[0.9375rem] leading-relaxed text-muted">
-            Real-time signals from your area. NEPA status, checkpoints, floods.
-            One tap to signal. Rounded to ~1 km. Nothing precise stored.
-          </p>
-        </div>
-        <LiveRadarPanel />
-      </main>
-    );
-  }
 
   const [sessionId, reviewedCount] = await Promise.all([
     getSessionId(),
@@ -116,7 +100,28 @@ export default async function TalkAmPage({
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-6 pb-28">
-      <Tabs tab={tab} />
+      <div className="mb-6 flex gap-2 border-b border-border">
+        <Link
+          href="/talk"
+          className={`border-b-2 px-4 py-3 font-serif text-[1.05rem] font-semibold transition-colors ${
+            !isCommunity
+              ? "border-accent text-ink"
+              : "border-transparent text-muted hover:text-ink"
+          }`}
+        >
+          Talk Am
+        </Link>
+        <Link
+          href="/talk?tab=community"
+          className={`border-b-2 px-4 py-3 font-serif text-[1.05rem] font-semibold transition-colors ${
+            isCommunity
+              ? "border-accent text-ink"
+              : "border-transparent text-muted hover:text-ink"
+          }`}
+        >
+          Community
+        </Link>
+      </div>
 
       <div className="mb-6">
         <h1 className="font-serif text-[2rem] font-semibold leading-tight text-ink">
@@ -149,34 +154,5 @@ export default async function TalkAmPage({
         {isCommunity ? "Post to Community" : "Report Wetin Happen"}
       </Link>
     </main>
-  );
-}
-
-function Tabs({ tab }: { tab: Tab }) {
-  const items: Array<{ id: Tab; label: string; href: string }> = [
-    { id: "civic", label: "Talk Am", href: "/talk" },
-    { id: "community", label: "Community", href: "/talk?tab=community" },
-    { id: "live", label: "Live", href: "/talk?tab=live" }
-  ];
-
-  return (
-    <div className="mb-6 flex gap-2 border-b border-border">
-      {items.map((it) => {
-        const active = it.id === tab;
-        return (
-          <Link
-            key={it.id}
-            href={it.href}
-            className={`border-b-2 px-4 py-3 font-serif text-[1.05rem] font-semibold transition-colors ${
-              active
-                ? "border-accent text-ink"
-                : "border-transparent text-muted hover:text-ink"
-            }`}
-          >
-            {it.label}
-          </Link>
-        );
-      })}
-    </div>
   );
 }

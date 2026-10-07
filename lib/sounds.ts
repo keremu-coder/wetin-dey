@@ -103,18 +103,16 @@ export type SoundEvent = "send" | "receive" | "mention" | "notification";
 
 type ProfileSounds = Record<SoundEvent, Tone[] | null>;
 
-// Send sounds are now noticeably louder than before — a tap-confirmation
-// you can actually hear on a phone speaker over ambient noise.
+// Names are ours, not anyone else's. Internal IDs stay stable so saved
+// preferences keep working — only the labels change.
 export const SOUND_PROFILES: Record<
   SoundProfileId,
   { label: string; description: string; sounds: ProfileSounds }
 > = {
   bbm: {
-    label: "Classic Ping",
-    description: "The two-tone we grew up on",
+    label: "Ping",
+    description: "Warm two-tone chirp",
     sounds: {
-      // Deliberate: send is a distinct high-then-higher chirp, not a
-      // quieter version of receive. Both tones near half-volume peak.
       send: [
         { freq: 1200, start: 0, duration: 0.05, gain: 0.18 },
         { freq: 1800, start: 0.045, duration: 0.09, gain: 0.22 }
@@ -135,10 +133,9 @@ export const SOUND_PROFILES: Record<
     }
   },
   skype: {
-    label: "Bright Chime",
-    description: "Crisp three-note, modern",
+    label: "Chime",
+    description: "Bright three-note, modern",
     sounds: {
-      // Skype-style upward swoosh — very audible on send.
       send: [
         {
           freq: 900,
@@ -178,8 +175,8 @@ export const SOUND_PROFILES: Record<
     }
   },
   whatsapp: {
-    label: "Soft Pop",
-    description: "Gentle pop for everyday messages",
+    label: "Pop",
+    description: "Soft pop, easy on the ear",
     sounds: {
       send: [
         {
@@ -206,7 +203,7 @@ export const SOUND_PROFILES: Record<
     }
   },
   telegram: {
-    label: "Clean Bloop",
+    label: "Bloop",
     description: "One crisp note",
     sounds: {
       send: [
@@ -214,21 +211,21 @@ export const SOUND_PROFILES: Record<
           freq: 1200,
           freqEnd: 1800,
           start: 0,
-          duration: 0.10,
+          duration: 0.1,
           gain: 0.18
         }
       ],
       receive: [{ freq: 1400, start: 0, duration: 0.12, gain: 0.18 }],
       mention: [
         { freq: 1400, start: 0, duration: 0.08, gain: 0.18 },
-        { freq: 1864.66, start: 0.08, duration: 0.14, gain: 0.20 }
+        { freq: 1864.66, start: 0.08, duration: 0.14, gain: 0.2 }
       ],
       notification: [{ freq: 1400, start: 0, duration: 0.12, gain: 0.17 }]
     }
   },
   classic: {
-    label: "Retro Knock",
-    description: "Descending two-tone alert",
+    label: "Knock",
+    description: "Descending alert tone",
     sounds: {
       send: [{ freq: 1100, start: 0, duration: 0.08, gain: 0.18 }],
       receive: [
@@ -244,7 +241,7 @@ export const SOUND_PROFILES: Record<
     }
   },
   none: {
-    label: "Silent",
+    label: "Silence",
     description: "No sound — vibration only",
     sounds: { send: null, receive: null, mention: null, notification: null }
   }
