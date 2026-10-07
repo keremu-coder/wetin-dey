@@ -2,14 +2,17 @@
 
 import { useEffect, useState } from "react";
 
-const STORAGE_KEY = "wetindey:install-prompt-dismissed:v1";
+const DISMISSED_KEY = "wetindey:install-prompt-dismissed:v1";
+const CHAT_VISITED_KEY = "wetindey:chat-visited:v1";
+const ONBOARDED_KEY = "wetindey:onboarded:v1";
 
 type Platform = "ios" | "android" | "other";
 
 function detectPlatform(): Platform {
   if (typeof navigator === "undefined") return "other";
   const ua = navigator.userAgent;
-  if (/iPad|iPhone|iPod/.test(ua) && !(window as unknown as { MSStream?: unknown }).MSStream) return "ios";
+  const w = window as unknown as { MSStream?: unknown };
+  if (/iPad|iPhone|iPod/.test(ua) && !w.MSStream) return "ios";
   if (/Android/i.test(ua)) return "android";
   return "other";
 }
@@ -23,6 +26,16 @@ function isStandalone(): boolean {
   );
 }
 
+/**
+ * Sequencing rules for the install prompt:
+ *   1. Only show if the user has been through onboarding.
+ *   2. Only show if the user has actually visited a chat at least once
+ *      (they've invested something before we ask them to install).
+ *   3. Only show if they haven't dismissed it before.
+ *   4. Only show on mobile (iOS or Android).
+ *   5. Show 8 seconds after landing on the page, so we never stack with
+ *      onboarding or a notification permission prompt.
+ */
 export function InstallPrompt() {
   const [show, setShow] = useState(false);
   const [platform, setPlatform] = useState<Platform>("other");
@@ -32,23 +45,24 @@ export function InstallPrompt() {
     if (isStandalone()) return;
 
     try {
-      if (window.localStorage.getItem(STORAGE_KEY)) return;
+      if (window.localStorage.getItem(DISMISSED_KEY)) return;
+      if (!window.localStorage.getItem(ONBOARDED_KEY)) return;
+      if (!window.localStorage.getItem(CHAT_VISITED_KEY)) return;
     } catch {
-      /* ignore */
+      return;
     }
 
     const p = detectPlatform();
     if (p === "other") return;
     setPlatform(p);
 
-    // Don't show immediately — let them see the app first.
-    const t = setTimeout(() => setShow(true), 12000);
+    const t = setTimeout(() => setShow(true), 8000);
     return () => clearTimeout(t);
   }, []);
 
   function dismiss() {
     try {
-      window.localStorage.setItem(STORAGE_KEY, "1");
+      window.localStorage.setItem(DISMISSED_KEY, "1");
     } catch {
       /* ignore */
     }

@@ -179,6 +179,7 @@ export function ChatRoom({
   const [notifPerm, setNotifPerm] = useState<
     NotificationPermission | "unsupported"
   >("default");
+  const [showEnableBanner, setShowEnableBanner] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -188,6 +189,7 @@ export function ChatRoom({
   const handleCacheRef = useRef<Map<string, string>>(new Map());
   const prefsRef = useRef<SoundPrefs>(prefs);
   const fetchedHandlesRef = useRef<Set<string>>(new Set());
+  const askedForNotificationsRef = useRef(false);
 
   useEffect(() => {
     const initial = loadPrefs();
@@ -198,6 +200,17 @@ export function ChatRoom({
       prefsRef.current = p;
     });
     setNotifPerm(notificationPermission());
+
+    // Mark that this user has been inside a chat. Used by the install
+    // prompt to sequence itself after the user has invested something.
+    try {
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("wetindey:chat-visited:v1", "1");
+      }
+    } catch {
+      /* ignore */
+    }
+
     return unsub;
   }, []);
 
@@ -212,17 +225,10 @@ export function ChatRoom({
     };
   }, []);
 
-  useEffect(() => {
-    if (!prefs.browserNotifications) return;
-    if (notificationPermission() === "default") {
-      const t = setTimeout(() => {
-        requestNotificationPermission()
-          .then(() => setNotifPerm(notificationPermission()))
-          .catch(() => {});
-      }, 2500);
-      return () => clearTimeout(t);
-    }
-  }, [prefs.browserNotifications]);
+  // NOTE: We deliberately do NOT auto-request notification permission on
+  // mount. It's requested contextually on the user's first send, so we
+  // never stack a system permission dialog on top of onboarding / install
+  // prompts.
 
   useEffect(() => {
     fetch("/api/whoami")
@@ -459,12 +465,35 @@ export function ChatRoom({
     setDismissedBroadcastIds((prev) => new Set(prev).add(id));
   }
 
+  /** Request notification permission once, on first real user action. */
+  async function maybeAskForNotifications() {
+    if (askedForNotificationsRef.current) return;
+    if (notificationPermission() === "granted") return;
+    if (notificationPermission() === "denied") return;
+    if (notificationPermission() === "unsupported") return;
+    askedForNotificationsRef.current = true;
+    try {
+      const ok = await requestNotificationPermission();
+      setNotifPerm(notificationPermission());
+      if (ok) {
+        const next = { ...prefsRef.current, browserNotifications: true };
+        setPrefs(next);
+        prefsRef.current = next;
+      } else {
+        setShowEnableBanner(true);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
   async function send(e: React.FormEvent) {
     e.preventDefault();
     const raw = body.trim();
     if (!raw) return;
 
     unlockAudio();
+    void maybeAskForNotifications();
 
     const finalBody = autocorrectOn ? autocorrect(raw) : raw;
     const p = prefsRef.current;
@@ -554,6 +583,7 @@ export function ChatRoom({
   async function startVoice() {
     try {
       unlockAudio();
+      void maybeAskForNotifications();
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
       const format = pickRecorderFormat();
@@ -1110,6 +1140,29 @@ export function ChatRoom({
           </div>
         )}
       </div>
+
+      {showEnableBanner && !recording ? (
+        <div className="flex items-center gap-3 border-t border-border bg-accent-soft px-3 py-2">
+          <span className="text-[1.1rem]">🔔</span>
+          <p className="min-w-0 flex-1 text-[0.8125rem] text-ink">
+            Turn on notifications so you know when someone replies.
+          </p>
+          <Link
+            href="/settings/sounds"
+            className="shrink-0 rounded-lg bg-accent px-3 py-1.5 text-[0.75rem] font-semibold text-white transition-colors hover:bg-accent-deep"
+          >
+            Open settings
+          </Link>
+          <button
+            type="button"
+            onClick={() => setShowEnableBanner(false)}
+            className="shrink-0 text-faint transition-colors hover:text-ink"
+            aria-label="Dismiss"
+          >
+            ✕
+          </button>
+        </div>
+      ) : null}
 
       <form
         onSubmit={send}
