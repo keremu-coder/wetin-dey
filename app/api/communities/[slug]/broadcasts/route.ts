@@ -5,10 +5,15 @@ import { nanoid } from "nanoid";
 import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sendPushToSessions } from "@/lib/push-server";
-import {
-  BROADCAST_MAX_MB,
-  BROADCAST_TITLE_MAX
-} from "@/lib/broadcasts";
+import { BROADCAST_MAX_MB, BROADCAST_TITLE_MAX } from "@/lib/broadcasts";
+
+function extFromMime(mime: string): string {
+  const m = (mime || "").toLowerCase();
+  if (m.includes("mp4") || m.includes("m4a") || m.includes("aac")) return "m4a";
+  if (m.includes("ogg")) return "ogg";
+  if (m.includes("wav")) return "wav";
+  return "webm";
+}
 
 export async function GET(
   _req: NextRequest,
@@ -30,13 +35,14 @@ export async function GET(
     const nowIso = new Date().toISOString();
     const { data: broadcasts } = await db
       .from("broadcasts")
-      .select("id, session_id, audio_url, duration_seconds, title, created_at, expires_at")
+      .select(
+        "id, session_id, audio_url, duration_seconds, title, created_at, expires_at"
+      )
       .eq("community_id", community.id)
       .gt("expires_at", nowIso)
       .order("created_at", { ascending: false })
       .limit(5);
 
-    // Fetch author handles
     const ids = Array.from(
       new Set((broadcasts ?? []).map((b) => b.session_id))
     );
@@ -92,7 +98,6 @@ export async function POST(
       return Response.json({ error: "not found" }, { status: 404 });
     }
 
-    // Only owner can broadcast (for now — can add admin role later)
     if (community.owner_session_id !== sessionId) {
       return Response.json(
         { error: "Only the space owner can broadcast." },
@@ -121,21 +126,19 @@ export async function POST(
     }
 
     const title =
-      titleRaw.length > 0
-        ? titleRaw.slice(0, BROADCAST_TITLE_MAX)
-        : null;
+      titleRaw.length > 0 ? titleRaw.slice(0, BROADCAST_TITLE_MAX) : null;
     const duration = Number(durationRaw);
     const duration_seconds =
-      Number.isFinite(duration) && duration > 0
-        ? Math.round(duration)
-        : null;
+      Number.isFinite(duration) && duration > 0 ? Math.round(duration) : null;
 
     const audioId = nanoid();
-    const path = `broadcasts/${community.id}/${audioId}.webm`;
+    const fileMime = file.type || "audio/webm";
+    const ext = extFromMime(fileMime);
+    const path = `broadcasts/${community.id}/${audioId}.${ext}`;
     const buf = Buffer.from(await file.arrayBuffer());
 
     const up = await db.storage.from("voice-notes").upload(path, buf, {
-      contentType: file.type || "audio/webm",
+      contentType: fileMime,
       upsert: false
     });
     if (up.error) {
@@ -163,8 +166,6 @@ export async function POST(
       return Response.json({ error: error.message }, { status: 500 });
     }
 
-    // Push to every member except the sender. Don't block the response —
-    // the sender's phone should not wait for FCM.
     void (async () => {
       try {
         const { data: members } = await db

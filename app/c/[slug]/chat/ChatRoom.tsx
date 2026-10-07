@@ -14,6 +14,11 @@ import {
 } from "@/lib/sounds";
 import { loadPrefs, subscribePrefs, type SoundPrefs } from "@/lib/sound-prefs";
 import { autocorrect, suggestCorrection } from "@/lib/autocorrect";
+import {
+  pickRecorderFormat,
+  actualMime,
+  extFromType
+} from "@/lib/voice-recorder";
 import { MessageBody } from "@/components/MessageBody";
 import { PresenceDot, presenceFromLastSeen } from "@/components/PresenceDot";
 import { StatusLine } from "@/components/StatusLine";
@@ -550,17 +555,31 @@ export function ChatRoom({
     try {
       unlockAudio();
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream);
+
+      const format = pickRecorderFormat();
+
+      let mr: MediaRecorder;
+      try {
+        mr = format.mimeType
+          ? new MediaRecorder(stream, { mimeType: format.mimeType })
+          : new MediaRecorder(stream);
+      } catch {
+        mr = new MediaRecorder(stream);
+      }
+
       mediaRecorderRef.current = mr;
       chunksRef.current = [];
+
       mr.ondataavailable = (e) => {
         if (e.data.size > 0) chunksRef.current.push(e.data);
       };
       mr.onstop = async () => {
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        const mime = actualMime(mr, format.mimeType);
+        const blob = new Blob(chunksRef.current, { type: mime });
         stream.getTracks().forEach((t) => t.stop());
         await sendVoice(blob);
       };
+
       mr.start();
       setRecording(true);
       setRecordSeconds(0);
@@ -634,8 +653,14 @@ export function ChatRoom({
     }, 30);
 
     try {
+      const ext = extFromType(blob.type);
       const fd = new FormData();
-      fd.set("audio", new File([blob], "voice.webm", { type: "audio/webm" }));
+      fd.set(
+        "audio",
+        new File([blob], `voice.${ext}`, {
+          type: blob.type || "audio/webm"
+        })
+      );
       const res = await fetch(`/api/communities/${slug}/messages`, {
         method: "POST",
         body: fd
@@ -664,8 +689,6 @@ export function ChatRoom({
         )
       );
 
-      // Local URL is not used once swapped — safe to revoke after a delay
-      // so any in-flight playback has a moment to finish.
       setTimeout(() => {
         try {
           URL.revokeObjectURL(localUrl);
@@ -679,7 +702,6 @@ export function ChatRoom({
           m._cid === cid ? { ...m, _pending: false, _failed: true } : m
         )
       );
-      // Don't revoke on failure — user may still want to play locally
     }
   }
 

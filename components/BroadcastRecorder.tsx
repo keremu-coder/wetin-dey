@@ -5,6 +5,11 @@ import {
   BROADCAST_MAX_SECONDS,
   BROADCAST_TITLE_MAX
 } from "@/lib/broadcasts";
+import {
+  pickRecorderFormat,
+  actualMime,
+  extFromType
+} from "@/lib/voice-recorder";
 import { unlockAudio, vibrate } from "@/lib/sounds";
 
 export function BroadcastRecorder({
@@ -40,18 +45,32 @@ export function BroadcastRecorder({
     unlockAudio();
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream);
+
+      const format = pickRecorderFormat();
+
+      let mr: MediaRecorder;
+      try {
+        mr = format.mimeType
+          ? new MediaRecorder(stream, { mimeType: format.mimeType })
+          : new MediaRecorder(stream);
+      } catch {
+        mr = new MediaRecorder(stream);
+      }
+
       recorderRef.current = mr;
       chunksRef.current = [];
+
       mr.ondataavailable = (e) => {
         if (e.data.size > 0) chunksRef.current.push(e.data);
       };
       mr.onstop = () => {
-        const b = new Blob(chunksRef.current, { type: "audio/webm" });
+        const mime = actualMime(mr, format.mimeType);
+        const b = new Blob(chunksRef.current, { type: mime });
         setBlob(b);
         setPreviewUrl(URL.createObjectURL(b));
         stream.getTracks().forEach((t) => t.stop());
       };
+
       mr.start();
       setRecording(true);
       setSeconds(0);
@@ -93,8 +112,14 @@ export function BroadcastRecorder({
     setBusy(true);
     setError("");
     try {
+      const ext = extFromType(blob.type);
       const fd = new FormData();
-      fd.set("audio", new File([blob], "broadcast.webm", { type: "audio/webm" }));
+      fd.set(
+        "audio",
+        new File([blob], `broadcast.${ext}`, {
+          type: blob.type || "audio/webm"
+        })
+      );
       if (title.trim()) fd.set("title", title.trim());
       fd.set("duration_seconds", String(seconds));
 
@@ -144,7 +169,9 @@ export function BroadcastRecorder({
           <input
             type="text"
             value={title}
-            onChange={(e) => setTitle(e.target.value.slice(0, BROADCAST_TITLE_MAX))}
+            onChange={(e) =>
+              setTitle(e.target.value.slice(0, BROADCAST_TITLE_MAX))
+            }
             placeholder="e.g. Estate meeting Sunday 4pm"
             maxLength={BROADCAST_TITLE_MAX}
           />

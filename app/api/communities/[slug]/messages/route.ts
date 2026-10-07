@@ -7,6 +7,14 @@ import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { notifyCommunityMembers } from "@/lib/push-server";
 
+function extFromMime(mime: string): string {
+  const m = (mime || "").toLowerCase();
+  if (m.includes("mp4") || m.includes("m4a") || m.includes("aac")) return "m4a";
+  if (m.includes("ogg")) return "ogg";
+  if (m.includes("wav")) return "wav";
+  return "webm";
+}
+
 export async function GET(
   _req: NextRequest,
   { params }: { params: { slug: string } }
@@ -151,10 +159,12 @@ export async function POST(
           );
         }
         const audioId = nanoid();
-        const path = `chat/${community.id}/${audioId}.webm`;
+        const fileMime = file.type || "audio/webm";
+        const ext = extFromMime(fileMime);
+        const path = `chat/${community.id}/${audioId}.${ext}`;
         const buf = Buffer.from(await file.arrayBuffer());
         const up = await db.storage.from("voice-notes").upload(path, buf, {
-          contentType: file.type || "audio/webm",
+          contentType: fileMime,
           upsert: false
         });
         if (up.error) {
@@ -202,9 +212,6 @@ export async function POST(
       return Response.json({ error: error.message }, { status: 500 });
     }
 
-    // Fire push notifications in the background. Vercel keeps the function
-    // alive until this promise resolves, but the HTTP response goes out
-    // immediately — the sender does not wait.
     waitUntil(
       notifyCommunityMembers({
         communityId: community.id,
