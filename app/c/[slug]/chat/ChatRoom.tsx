@@ -17,6 +17,7 @@ import { autocorrect, suggestCorrection } from "@/lib/autocorrect";
 import { MessageBody } from "@/components/MessageBody";
 import { PresenceDot, presenceFromLastSeen } from "@/components/PresenceDot";
 import { StatusLine } from "@/components/StatusLine";
+import { VoiceNotePlayer } from "@/components/VoiceNotePlayer";
 import { DEFAULT_FONT_ID } from "@/lib/bbm-fonts";
 import { InviteSheet } from "@/components/InviteSheet";
 import { FlagSheet } from "@/components/FlagSheet";
@@ -259,7 +260,6 @@ export function ChatRoom({
     };
   }, [slug]);
 
-  // Load active broadcasts
   const loadBroadcasts = useMemo(
     () => async () => {
       try {
@@ -663,14 +663,23 @@ export function ChatRoom({
             : m
         )
       );
+
+      // Local URL is not used once swapped — safe to revoke after a delay
+      // so any in-flight playback has a moment to finish.
+      setTimeout(() => {
+        try {
+          URL.revokeObjectURL(localUrl);
+        } catch {
+          /* ignore */
+        }
+      }, 5000);
     } catch {
       setMessages((prev) =>
         prev.map((m) =>
           m._cid === cid ? { ...m, _pending: false, _failed: true } : m
         )
       );
-    } finally {
-      URL.revokeObjectURL(localUrl);
+      // Don't revoke on failure — user may still want to play locally
     }
   }
 
@@ -973,14 +982,7 @@ export function ChatRoom({
                       ) : null}
 
                       {m.audio_url ? (
-                        <div className="my-1.5 flex items-center gap-2 rounded-2xl border border-border bg-paper px-3 py-2">
-                          <span className="text-[1.1rem]">🎤</span>
-                          <audio
-                            src={m.audio_url}
-                            controls
-                            className="h-8 max-w-[240px] flex-1"
-                          />
-                        </div>
+                        <VoiceNotePlayer src={m.audio_url} />
                       ) : null}
 
                       {m.body ? (
