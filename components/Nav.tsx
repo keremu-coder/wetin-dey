@@ -6,9 +6,39 @@ import { usePathname } from "next/navigation";
 import { ThemeToggle } from "./ThemeToggle";
 import { getWhoAmI, type WhoAmI } from "@/lib/whoami-cache";
 
+type Row = {
+  href: string;
+  icon: string;
+  label: string;
+  hint?: string;
+  tone?: "default" | "accent" | "danger";
+};
+
+type Section = {
+  title: string;
+  rows: Row[];
+};
+
+function avatarColor(seed: string): string {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
+  const colors = [
+    "#C0392B",
+    "#D97706",
+    "#1F7A4D",
+    "#7C3AED",
+    "#0E7490",
+    "#BE185D",
+    "#4D7C0F",
+    "#A16207"
+  ];
+  return colors[Math.abs(h) % colors.length];
+}
+
 export function Nav() {
   const pathname = usePathname();
   const [me, setMe] = useState<WhoAmI | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
@@ -18,6 +48,26 @@ export function Nav() {
       })
       .catch(() => {});
   }, []);
+
+  // Pull status line for the header
+  useEffect(() => {
+    if (!drawerOpen || !me) return;
+    let cancelled = false;
+    fetch(`/api/settings/status?session_id=${encodeURIComponent(me.id)}`, {
+      cache: "no-store"
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (cancelled) return;
+        setStatus(
+          typeof d?.status_line === "string" ? d.status_line : null
+        );
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [drawerOpen, me]);
 
   useEffect(() => {
     setDrawerOpen(false);
@@ -29,6 +79,83 @@ export function Nav() {
   }
 
   const isChatPage = /^\/c\/[^/]+\/chat/.test(pathname);
+
+  const sections: Section[] = [
+    {
+      title: "Discover",
+      rows: [
+        {
+          href: "/search",
+          icon: "🔎",
+          label: "Search",
+          hint: "People, spaces, reports"
+        },
+        {
+          href: "/communities",
+          icon: "🧭",
+          label: "Browse spaces",
+          hint: "Public communities to join"
+        },
+        {
+          href: "/explore",
+          icon: "🌍",
+          label: "See the pattern",
+          hint: "The full civic archive"
+        }
+      ]
+    },
+    {
+      title: "You",
+      rows: [
+        {
+          href: "/me",
+          icon: "👤",
+          label: "My profile",
+          hint: "Your posts, followers, spaces"
+        },
+        {
+          href: "/inbox",
+          icon: "✉️",
+          label: "Inbox",
+          hint: "Private messages"
+        },
+        {
+          href: "/settings",
+          icon: "⚙️",
+          label: "Settings",
+          hint: "Account, privacy, sounds, font"
+        }
+      ]
+    },
+    {
+      title: "Help",
+      rows: [
+        {
+          href: "/support",
+          icon: "💬",
+          label: "Support",
+          hint: "Report a problem, appeal a flag"
+        }
+      ]
+    }
+  ];
+
+  if (!me) {
+    sections.push({
+      title: "Get started",
+      rows: [
+        {
+          href: "/signin",
+          icon: "🔑",
+          label: "Sign in or join",
+          hint: "Get a handle, follow people",
+          tone: "accent"
+        }
+      ]
+    });
+  }
+
+  const gradient = me ? avatarColor(me.handle) : "#10b981";
 
   return (
     <>
@@ -80,12 +207,11 @@ export function Nav() {
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
-                  strokeWidth="1.8"
+                  strokeWidth="2"
                   strokeLinecap="round"
                 >
-                  <line x1="4" y1="7" x2="20" y2="7" />
-                  <line x1="4" y1="12" x2="20" y2="12" />
-                  <line x1="4" y1="17" x2="20" y2="17" />
+                  <line x1="4" y1="8" x2="20" y2="8" />
+                  <line x1="4" y1="16" x2="20" y2="16" />
                 </svg>
               </button>
             </div>
@@ -96,168 +222,151 @@ export function Nav() {
       {drawerOpen ? (
         <>
           <div
-            className="fixed inset-0 z-50 bg-black/50 fade-in"
+            className="fixed inset-0 z-50 bg-black/60 fade-in"
             onClick={() => setDrawerOpen(false)}
           />
-          <aside className="fixed right-0 top-0 z-[60] h-full w-[85%] max-w-xs overflow-y-auto border-l border-border bg-paper slide-in-right">
-            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-paper/95 px-4 py-3 backdrop-blur">
-              <span className="font-serif text-[1.1rem] font-semibold text-ink">
-                Menu
-              </span>
+          <aside className="fixed right-0 top-0 z-[60] flex h-full w-[86%] max-w-sm flex-col overflow-hidden border-l border-border bg-paper slide-in-right">
+            {/* BBM-style profile header */}
+            <div
+              className="relative shrink-0 px-5 pt-6 pb-5"
+              style={{
+                background: `linear-gradient(135deg, ${gradient} 0%, #052e1f 100%)`
+              }}
+            >
               <button
                 type="button"
                 onClick={() => setDrawerOpen(false)}
-                className="flex h-8 w-8 items-center justify-center rounded-full text-muted transition-colors hover:bg-ink/5 hover:text-ink"
+                className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full text-white/80 transition-colors hover:bg-white/10 hover:text-white"
                 aria-label="Close menu"
               >
                 ✕
               </button>
-            </div>
 
-            {me ? (
-              <Link
-                href="/me"
-                className="block border-b border-border px-4 py-4 transition-colors hover:bg-ink/5"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent text-[1.1rem] font-semibold text-white">
+              {me ? (
+                <Link
+                  href={`/u/${encodeURIComponent(me.handle)}`}
+                  className="flex items-center gap-3"
+                  onClick={() => setDrawerOpen(false)}
+                >
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-white/20 text-[1.4rem] font-semibold text-white ring-2 ring-white/30 backdrop-blur">
                     {me.handle.charAt(0).toUpperCase()}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[0.9375rem] font-semibold text-ink">
+                    <p className="truncate font-serif text-[1.15rem] font-semibold text-white">
                       @{me.handle}
                     </p>
-                    <p className="text-[0.75rem] text-muted">
-                      View your profile
+                    <p className="mt-0.5 line-clamp-2 text-[0.8125rem] italic leading-snug text-white/85">
+                      {status ?? "Tap to set your status…"}
                     </p>
                   </div>
-                  <span className="text-faint">›</span>
-                </div>
-              </Link>
-            ) : (
-              <Link
-                href="/signin"
-                className="block border-b border-border px-4 py-4 transition-colors hover:bg-ink/5"
-              >
-                <p className="text-[0.9375rem] font-semibold text-ink">
-                  Sign in or join
-                </p>
-                <p className="text-[0.75rem] text-muted">
-                  Get your handle, follow people
-                </p>
-              </Link>
-            )}
-
-            <nav className="py-2">
-              <Link
-                href="/search"
-                className={`flex items-center gap-3 px-4 py-3 transition-colors ${
-                  pathname === "/search"
-                    ? "bg-ink/5 text-ink"
-                    : "text-ink hover:bg-ink/5"
-                }`}
-              >
-                <span className="text-[1.15rem]">🔎</span>
-                <span className="text-[0.9375rem] font-medium">Search</span>
-              </Link>
-
-              <Link
-                href="/communities"
-                className={`flex items-center gap-3 px-4 py-3 transition-colors ${
-                  pathname === "/communities"
-                    ? "bg-ink/5 text-ink"
-                    : "text-ink hover:bg-ink/5"
-                }`}
-              >
-                <span className="text-[1.15rem]">🧭</span>
-                <span className="text-[0.9375rem] font-medium">
-                  Browse spaces
-                </span>
-              </Link>
-
-              <Link
-                href="/explore"
-                className={`flex items-center gap-3 px-4 py-3 transition-colors ${
-                  pathname === "/explore"
-                    ? "bg-ink/5 text-ink"
-                    : "text-ink hover:bg-ink/5"
-                }`}
-              >
-                <span className="text-[1.15rem]">🌍</span>
-                <span className="text-[0.9375rem] font-medium">
-                  See the pattern
-                </span>
-              </Link>
-
-              <Link
-                href="/me"
-                className={`flex items-center gap-3 px-4 py-3 transition-colors ${
-                  pathname === "/me"
-                    ? "bg-ink/5 text-ink"
-                    : "text-ink hover:bg-ink/5"
-                }`}
-              >
-                <span className="text-[1.15rem]">👤</span>
-                <span className="text-[0.9375rem] font-medium">
-                  My profile
-                </span>
-              </Link>
-
-              <Link
-                href="/inbox"
-                className={`flex items-center gap-3 px-4 py-3 transition-colors ${
-                  pathname === "/inbox"
-                    ? "bg-ink/5 text-ink"
-                    : "text-ink hover:bg-ink/5"
-                }`}
-              >
-                <span className="text-[1.15rem]">✉️</span>
-                <span className="text-[0.9375rem] font-medium">Inbox</span>
-              </Link>
-
-              <Link
-                href="/settings"
-                className={`flex items-center gap-3 px-4 py-3 transition-colors ${
-                  pathname === "/settings"
-                    ? "bg-ink/5 text-ink"
-                    : "text-ink hover:bg-ink/5"
-                }`}
-              >
-                <span className="text-[1.15rem]">⚙️</span>
-                <span className="text-[0.9375rem] font-medium">Settings</span>
-              </Link>
-
-              <Link
-                href="/support"
-                className={`flex items-center gap-3 px-4 py-3 transition-colors ${
-                  pathname === "/support"
-                    ? "bg-ink/5 text-ink"
-                    : "text-ink hover:bg-ink/5"
-                }`}
-              >
-                <span className="text-[1.15rem]">💬</span>
-                <span className="text-[0.9375rem] font-medium">Help</span>
-              </Link>
-            </nav>
-
-            {me ? (
-              <div className="border-t border-border px-4 py-3">
-                <button
-                  type="button"
-                  onClick={signOut}
-                  className="flex w-full items-center gap-3 py-2 text-left text-[0.9375rem] font-medium text-danger transition-colors hover:opacity-80"
+                </Link>
+              ) : (
+                <Link
+                  href="/signin"
+                  className="flex items-center gap-3"
+                  onClick={() => setDrawerOpen(false)}
                 >
-                  <span className="text-[1.15rem]">↩️</span>
-                  Sign out
-                </button>
-              </div>
-            ) : null}
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-white/20 text-[1.4rem] font-semibold text-white ring-2 ring-white/30 backdrop-blur">
+                    ?
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-serif text-[1.15rem] font-semibold text-white">
+                      Sign in
+                    </p>
+                    <p className="text-[0.8125rem] text-white/85">
+                      Get a handle, follow people
+                    </p>
+                  </div>
+                </Link>
+              )}
+            </div>
 
-            <div className="border-t border-border px-4 py-4">
-              <p className="mb-2 font-mono text-[0.7rem] uppercase tracking-wider text-faint">
-                Appearance
+            {/* Sections */}
+            <div className="flex-1 overflow-y-auto">
+              {sections.map((section) => (
+                <div key={section.title} className="pt-4">
+                  <p className="px-5 pb-2 font-mono text-[0.62rem] uppercase tracking-widest text-faint">
+                    {section.title}
+                  </p>
+                  <div>
+                    {section.rows.map((row) => {
+                      const active = pathname === row.href;
+                      return (
+                        <Link
+                          key={row.href}
+                          href={row.href}
+                          onClick={() => setDrawerOpen(false)}
+                          className={`group flex items-center gap-3 px-5 py-3.5 transition-colors ${
+                            active ? "bg-ink/[0.04]" : "hover:bg-ink/5"
+                          }`}
+                        >
+                          <div
+                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[1.15rem] ${
+                              row.tone === "accent"
+                                ? "bg-accent-soft"
+                                : "bg-ink/5"
+                            }`}
+                          >
+                            <span>{row.icon}</span>
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p
+                              className={`truncate text-[0.9375rem] font-semibold leading-tight ${
+                                active ? "text-accent" : "text-ink"
+                              }`}
+                            >
+                              {row.label}
+                            </p>
+                            {row.hint ? (
+                              <p className="mt-0.5 truncate text-[0.75rem] text-muted">
+                                {row.hint}
+                              </p>
+                            ) : null}
+                          </div>
+                          <span className="shrink-0 text-faint transition-transform group-hover:translate-x-0.5">
+                            ›
+                          </span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+
+              <div className="pt-4">
+                <p className="px-5 pb-2 font-mono text-[0.62rem] uppercase tracking-widest text-faint">
+                  Appearance
+                </p>
+                <div className="px-5 py-2">
+                  <ThemeToggle />
+                </div>
+              </div>
+
+              {me ? (
+                <div className="pt-4 pb-6">
+                  <button
+                    type="button"
+                    onClick={signOut}
+                    className="flex w-full items-center gap-3 px-5 py-3.5 text-left transition-colors hover:bg-danger-soft/40"
+                  >
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-danger-soft text-[1.15rem]">
+                      <span>↩️</span>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[0.9375rem] font-semibold text-danger">
+                        Sign out
+                      </p>
+                    </div>
+                  </button>
+                </div>
+              ) : null}
+            </div>
+
+            {/* Footer */}
+            <div className="shrink-0 border-t border-border bg-paper/95 px-5 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
+              <p className="text-center font-mono text-[0.65rem] text-faint">
+                Wetin Dey · made in Nigeria 🇳🇬
               </p>
-              <ThemeToggle />
             </div>
           </aside>
         </>
