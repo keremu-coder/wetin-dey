@@ -1,6 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { FlagSheet } from "./FlagSheet";
+import {
+  pickRecorderFormat,
+  actualMime,
+  extFromType
+} from "@/lib/voice-recorder";
 
 type Comment = {
   id: string;
@@ -56,6 +62,10 @@ export function CommentThread({ reportId }: { reportId: string }) {
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [replyBody, setReplyBody] = useState("");
   const [replyBusy, setReplyBusy] = useState(false);
+  const [flagTarget, setFlagTarget] = useState<{
+    id: string;
+    label: string;
+  } | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -77,7 +87,6 @@ export function CommentThread({ reportId }: { reportId: string }) {
     };
   }, [reportId]);
 
-  // Group into top-level + replies map
   const { topLevel, repliesByParent } = useMemo(() => {
     const top: Comment[] = [];
     const map = new Map<string, Comment[]>();
@@ -97,18 +106,32 @@ export function CommentThread({ reportId }: { reportId: string }) {
     setError("");
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream);
+
+      const format = pickRecorderFormat();
+
+      let mr: MediaRecorder;
+      try {
+        mr = format.mimeType
+          ? new MediaRecorder(stream, { mimeType: format.mimeType })
+          : new MediaRecorder(stream);
+      } catch {
+        mr = new MediaRecorder(stream);
+      }
+
       mediaRecorderRef.current = mr;
       chunksRef.current = [];
+
       mr.ondataavailable = (e) => {
         if (e.data.size > 0) chunksRef.current.push(e.data);
       };
       mr.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        const mime = actualMime(mr, format.mimeType);
+        const blob = new Blob(chunksRef.current, { type: mime });
         setAudioBlob(blob);
         setAudioPreviewUrl(URL.createObjectURL(blob));
         stream.getTracks().forEach((t) => t.stop());
       };
+
       mr.start();
       setRecording(true);
       setRecordSeconds(0);
@@ -127,7 +150,10 @@ export function CommentThread({ reportId }: { reportId: string }) {
   }
 
   function stopRecording() {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+    if (
+      mediaRecorderRef.current &&
+      mediaRecorderRef.current.state !== "inactive"
+    ) {
       mediaRecorderRef.current.stop();
     }
     setRecording(false);
@@ -156,7 +182,13 @@ export function CommentThread({ reportId }: { reportId: string }) {
       const fd = new FormData();
       fd.set("body", body.trim());
       if (audioBlob) {
-        fd.set("audio", new File([audioBlob], "voice.webm", { type: "audio/webm" }));
+        const ext = extFromType(audioBlob.type);
+        fd.set(
+          "audio",
+          new File([audioBlob], `voice.${ext}`, {
+            type: audioBlob.type || "audio/webm"
+          })
+        );
       }
 
       const res = await fetch(`/api/reports/${reportId}/comments`, {
@@ -175,16 +207,14 @@ export function CommentThread({ reportId }: { reportId: string }) {
       setBody("");
       clearAudio();
       setBusy(false);
-    } catch (e) {
+    } catch {
       setError("Network error. Try again.");
       setBusy(false);
     }
   }
 
   async function submitReply(parentId: string) {
-    if (!replyBody.trim()) {
-      return;
-    }
+    if (!replyBody.trim()) return;
     setReplyBusy(true);
 
     try {
@@ -273,7 +303,11 @@ export function CommentThread({ reportId }: { reportId: string }) {
 
               {c.audio_url ? (
                 <div className="mt-2">
-                  <audio src={c.audio_url} controls className="h-8 w-full max-w-xs" />
+                  <audio
+                    src={c.audio_url}
+                    controls
+                    className="h-8 w-full max-w-xs"
+                  />
                 </div>
               ) : null}
 
@@ -283,7 +317,7 @@ export function CommentThread({ reportId }: { reportId: string }) {
                 </p>
               ) : null}
 
-              <div className="mt-3 flex items-center gap-2">
+              <div className="mt-3 flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   onClick={() => vote(c.id, "up")}
@@ -310,6 +344,17 @@ export function CommentThread({ reportId }: { reportId: string }) {
                     ↩️ Reply
                   </button>
                 ) : null}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFlagTarget({ id: c.id, label: `@${handle}` })
+                  }
+                  className="inline-flex items-center gap-1 rounded-full bg-ink/5 px-2.5 py-1 text-[0.75rem] text-muted transition-colors hover:bg-danger-soft hover:text-danger"
+                  aria-label="Report this comment"
+                  title="Report"
+                >
+                  🚩
+                </button>
                 {(c.score ?? 0) !== 0 ? (
                   <span className="text-[0.7rem] text-faint">
                     score {(c.score ?? 0) > 0 ? "+" : ""}
@@ -318,7 +363,6 @@ export function CommentThread({ reportId }: { reportId: string }) {
                 ) : null}
               </div>
 
-              {/* Reply input */}
               {isReplying ? (
                 <div className="mt-3 rounded-xl border border-border bg-paper p-3">
                   <textarea
@@ -343,7 +387,7 @@ export function CommentThread({ reportId }: { reportId: string }) {
                       type="button"
                       onClick={() => submitReply(c.id)}
                       disabled={replyBusy || !replyBody.trim()}
-                      className="rounded-lg bg-warm px-3 py-1.5 text-[0.75rem] font-semibold text-white transition-all hover:bg-warm-deep disabled:opacity-50"
+                      className="rounded-lg bg-accent px-3 py-1.5 text-[0.75rem] font-semibold text-white transition-all hover:bg-accent-deep disabled:opacity-50"
                     >
                       {replyBusy ? "…" : "Reply"}
                     </button>
@@ -354,7 +398,6 @@ export function CommentThread({ reportId }: { reportId: string }) {
           </div>
         </article>
 
-        {/* Nested replies */}
         {replies.map((r) => renderComment(r, true))}
       </div>
     );
@@ -366,7 +409,6 @@ export function CommentThread({ reportId }: { reportId: string }) {
         Comments
       </h2>
 
-      {/* Composer */}
       <div className="mb-6 rounded-2xl border border-border bg-surface p-4 shadow-card">
         {audioPreviewUrl ? (
           <div className="mb-3 flex items-center gap-3 rounded-xl bg-accent-soft p-3">
@@ -418,7 +460,7 @@ export function CommentThread({ reportId }: { reportId: string }) {
             type="button"
             onClick={submit}
             disabled={busy || recording}
-            className="inline-flex items-center gap-2 rounded-xl bg-warm px-4 py-2 text-[0.875rem] font-medium text-white shadow-button transition-all hover:bg-warm-deep disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-[0.875rem] font-medium text-white shadow-button transition-all hover:bg-accent-deep disabled:opacity-60"
           >
             {busy ? "Dey send…" : "Send"}
           </button>
@@ -430,16 +472,25 @@ export function CommentThread({ reportId }: { reportId: string }) {
       </div>
 
       {topLevel.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border-strong bg-surface/50 p-8 text-center">
-          <p className="text-[0.9375rem] text-muted">
-            No comments yet. Be the first.
-          </p>
+        <div className="empty-state">
+          <div className="empty-state-icon">💬</div>
+          <p className="empty-state-title">No comments yet</p>
+          <p className="empty-state-text">Be the first to say something.</p>
         </div>
       ) : (
         <div className="space-y-4">
           {topLevel.map((c) => renderComment(c))}
         </div>
       )}
+
+      {flagTarget ? (
+        <FlagSheet
+          targetType="comment"
+          targetId={flagTarget.id}
+          targetLabel={flagTarget.label}
+          onClose={() => setFlagTarget(null)}
+        />
+      ) : null}
     </section>
   );
 }
