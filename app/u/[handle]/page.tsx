@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { unstable_cache } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -11,6 +11,53 @@ import { StartDMButton } from "@/components/StartDMButton";
 import { formatNaira } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
+
+type ResolvedHandle =
+  | { status: "ok"; handle: string; profile_id: string }
+  | { status: "redirect"; to: string }
+  | { status: "none" };
+
+/**
+ * Resolve a URL handle to a current handle.
+ *
+ * 1. Direct match on sessions.handle → OK
+ * 2. Match on sessions.previous_handles → redirect to current handle
+ * 3. No match → 404
+ *
+ * Cached for 5 minutes so repeat visits are instant.
+ */
+const resolveHandle = unstable_cache(
+  async (raw: string): Promise<ResolvedHandle> => {
+    const db = createServiceClient();
+    const cleaned = raw.trim().toLowerCase();
+
+    // 1. Direct match
+    const { data: direct } = await db
+      .from("sessions")
+      .select("id, handle")
+      .eq("handle", cleaned)
+      .maybeSingle();
+
+    if (direct?.handle) {
+      return { status: "ok", handle: direct.handle, profile_id: direct.id };
+    }
+
+    // 2. Previous handle
+    const { data: viaPrevious } = await db
+      .from("sessions")
+      .select("id, handle, previous_handles")
+      .contains("previous_handles", [cleaned])
+      .maybeSingle();
+
+    if (viaPrevious?.handle) {
+      return { status: "redirect", to: viaPrevious.handle };
+    }
+
+    return { status: "none" };
+  },
+  ["resolve-handle-v1"],
+  { revalidate: 300 }
+);
 
 const getProfileBundle = unstable_cache(
   async (handle: string) => {
@@ -50,7 +97,7 @@ const getProfileBundle = unstable_cache(
       }>
     };
   },
-  ["profile-bundle-v2"],
+  ["profile-bundle-v3"],
   { revalidate: 60 }
 );
 
@@ -90,7 +137,18 @@ export default async function ProfilePage({
 }: {
   params: { handle: string };
 }) {
-  const handle = decodeURIComponent(params.handle);
+  const requested = decodeURIComponent(params.handle).trim().toLowerCase();
+
+  const resolved = await resolveHandle(requested);
+
+  if (resolved.status === "none") return notFound();
+
+  if (resolved.status === "redirect") {
+    redirect(`/u/${encodeURIComponent(resolved.to)}`);
+  }
+
+  // resolved.status === "ok"
+  const handle = resolved.handle;
 
   const [bundle, mySessionId] = await Promise.all([
     getProfileBundle(handle),

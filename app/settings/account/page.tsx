@@ -40,29 +40,27 @@ export default async function AccountPage() {
         {/* Status line */}
         <StatusEditor sessionId={profile.id} />
 
+        {/* Handle — clickable row */}
+        <Link
+          href="/settings/handle"
+          className="flex items-center gap-3 rounded-2xl border border-border bg-surface p-5 transition-colors hover:border-accent/50"
+        >
+          <div className="min-w-0 flex-1">
+            <p className="font-mono text-[0.7rem] uppercase tracking-wider text-faint">
+              Your handle
+            </p>
+            <p className="mt-1 text-[1.1rem] font-semibold text-ink">
+              @{profile.handle}
+            </p>
+            <p className="mt-1 text-[0.8125rem] text-muted">
+              Tap to edit your username. One change per 30 days.
+            </p>
+          </div>
+          <span className="shrink-0 text-faint">›</span>
+        </Link>
+
         {/* Recovery code */}
         <RecoveryCodeCard />
-
-        {/* Handle */}
-        <div className="rounded-2xl border border-border bg-surface p-5">
-          <p className="font-mono text-[0.7rem] uppercase tracking-wider text-faint">
-            Your handle
-          </p>
-          <p className="mt-1 text-[1.1rem] font-semibold text-ink">
-            @{profile.handle}
-          </p>
-          <p className="mt-1 text-[0.8125rem] text-muted">
-            {profile.handle_kind === "named"
-              ? "Named account — your posts show this handle publicly."
-              : "Anonymous account — nobody can see who you are."}
-          </p>
-          <Link
-            href={`/u/${encodeURIComponent(profile.handle)}`}
-            className="mt-3 inline-block text-[0.8125rem] font-medium text-accent hover:underline"
-          >
-            View public profile →
-          </Link>
-        </div>
 
         {/* Email */}
         <div className="rounded-2xl border border-border bg-surface p-5">
@@ -93,14 +91,14 @@ export default async function AccountPage() {
       </div>
 
       <p className="mt-8 text-[0.75rem] leading-relaxed text-faint">
-        Need to change your email or handle? Contact{" "}
+        Need to change your email? Contact{" "}
         <a
           href="mailto:support@wetindey.app"
           className="underline hover:text-accent"
         >
           support@wetindey.app
         </a>
-        . Self-service editing is coming soon.
+        . Self-service email editing is coming soon.
       </p>
     </main>
   );
