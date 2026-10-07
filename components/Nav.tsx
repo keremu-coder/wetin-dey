@@ -171,6 +171,12 @@ export function Nav() {
           hint: "Who can start a conversation with you"
         },
         {
+          href: "/settings/presence",
+          icon: "👁️",
+          label: "Presence",
+          hint: "Hide your online status"
+        },
+        {
           href: "/settings/blocked",
           icon: "🚫",
           label: "Blocked users",

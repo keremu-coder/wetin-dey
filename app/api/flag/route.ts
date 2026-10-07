@@ -29,7 +29,6 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: "no session" }, { status: 401 });
     }
 
-    // Rate limit: 20 flags per hour per session.
     const limit = await checkRateLimit(sessionId, {
       key: "content_flag",
       limit: 20,
@@ -71,6 +70,46 @@ export async function POST(req: NextRequest) {
         : null;
 
     const db = createServiceClient();
+
+    // ─── Self-flag guard ───
+    // Don't let a session flag their own content. Waste of moderator time.
+    if (body.target_type === "message") {
+      const { data: msg } = await db
+        .from("community_messages")
+        .select("session_id")
+        .eq("id", body.target_id)
+        .maybeSingle();
+      if (msg?.session_id === sessionId) {
+        return Response.json(
+          { error: "You can't report your own message." },
+          { status: 400 }
+        );
+      }
+    } else if (body.target_type === "comment") {
+      const { data: comment } = await db
+        .from("comments")
+        .select("session_id")
+        .eq("id", body.target_id)
+        .maybeSingle();
+      if (comment?.session_id === sessionId) {
+        return Response.json(
+          { error: "You can't report your own comment." },
+          { status: 400 }
+        );
+      }
+    } else if (body.target_type === "community") {
+      const { data: community } = await db
+        .from("communities")
+        .select("owner_session_id")
+        .eq("id", body.target_id)
+        .maybeSingle();
+      if (community?.owner_session_id === sessionId) {
+        return Response.json(
+          { error: "You can't report your own space." },
+          { status: 400 }
+        );
+      }
+    }
 
     const { error } = await db.from("content_flags").upsert(
       {
