@@ -105,7 +105,6 @@ export function Nav() {
     } catch {
       /* ignore */
     }
-    // Hard redirect so all client state clears
     window.location.href = "/signin";
   }
 
@@ -159,6 +158,23 @@ export function Nav() {
           icon: "⚙️",
           label: "Settings",
           hint: "Account, privacy, sounds, font"
+        }
+      ]
+    },
+    {
+      title: "Privacy",
+      rows: [
+        {
+          href: "/settings/dm",
+          icon: "🛡️",
+          label: "Direct messages",
+          hint: "Who can start a conversation with you"
+        },
+        {
+          href: "/settings/blocked",
+          icon: "🚫",
+          label: "Blocked users",
+          hint: "People you no longer see"
         }
       ]
     },

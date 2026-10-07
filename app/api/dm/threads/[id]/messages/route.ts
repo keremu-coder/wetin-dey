@@ -8,12 +8,17 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { analyzeMessage, blockReason } from "@/lib/dm-filter";
 import { DM_BODY_MAX } from "@/lib/dm";
 import { notifyDMRecipient } from "@/lib/push-server";
+import { sameOrigin } from "@/lib/rate-limit";
 
 export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    if (!sameOrigin(req)) {
+      return Response.json({ error: "bad origin" }, { status: 403 });
+    }
+
     const sessionId = await getSessionId();
     if (!sessionId) {
       return Response.json({ error: "no session" }, { status: 401 });
@@ -38,6 +43,32 @@ export async function POST(
 
     if (thread.session_a !== sessionId && thread.session_b !== sessionId) {
       return Response.json({ error: "forbidden" }, { status: 403 });
+    }
+
+    const recipientId =
+      thread.session_a === sessionId ? thread.session_b : thread.session_a;
+
+    // Block check — if either side has blocked, reject the send.
+    const [blockedByMe, blockedByThem] = await Promise.all([
+      db
+        .from("blocked_users")
+        .select("id")
+        .eq("blocker_session_id", sessionId)
+        .eq("blocked_session_id", recipientId)
+        .maybeSingle(),
+      db
+        .from("blocked_users")
+        .select("id")
+        .eq("blocker_session_id", recipientId)
+        .eq("blocked_session_id", sessionId)
+        .maybeSingle()
+    ]);
+
+    if (blockedByMe.data || blockedByThem.data) {
+      return Response.json(
+        { error: "You can't send messages in this conversation." },
+        { status: 403 }
+      );
     }
 
     const body = (await req.json()) as { body?: unknown };
@@ -108,10 +139,6 @@ export async function POST(
       .from("dm_threads")
       .update({ last_message_at: new Date().toISOString() })
       .eq("id", thread.id);
-
-    // Push to recipient in the background. Non-blocking.
-    const recipientId =
-      thread.session_a === sessionId ? thread.session_b : thread.session_a;
 
     waitUntil(
       notifyDMRecipient({
