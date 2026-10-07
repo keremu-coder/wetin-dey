@@ -35,6 +35,9 @@ export default async function ExplorePage({
     (r) => new Date(r.created_at) >= startMonth
   ).length;
   const resolved = reports.filter((r) => r.status === "resolved").length;
+  const awaitingResponse = reports.filter(
+    (r) => r.status === "reported" || r.status === "forwarded"
+  ).length;
   const pct = total ? Math.round((resolved / total) * 100) : 0;
 
   const volMap = new Map<string, number>();
@@ -126,7 +129,7 @@ export default async function ExplorePage({
           <p className="font-serif text-3xl">{total}</p>
         </Link>
         <Link href="/" className="rounded-lg bg-surface p-4">
-          <p className="text-sm text-ink/60">Total ₦ demanded</p>
+          <p className="text-sm text-ink/60">Total demanded</p>
           <p className="font-serif text-3xl">
             {formatNaira(Math.round(naira * 100)) || "₦0"}
           </p>
@@ -135,10 +138,17 @@ export default async function ExplorePage({
           <p className="text-sm text-ink/60">This month</p>
           <p className="font-serif text-3xl">{thisMonth}</p>
         </Link>
-        <Link href="/?status=resolved" className="rounded-lg bg-surface p-4">
-          <p className="text-sm text-ink/60">% resolved</p>
-          <p className="font-serif text-3xl">{pct}%</p>
-        </Link>
+        {resolved > 0 ? (
+          <Link href="/?status=resolved" className="rounded-lg bg-surface p-4">
+            <p className="text-sm text-ink/60">% resolved</p>
+            <p className="font-serif text-3xl">{pct}%</p>
+          </Link>
+        ) : (
+          <Link href="/?status=reported" className="rounded-lg bg-surface p-4">
+            <p className="text-sm text-ink/60">Awaiting response</p>
+            <p className="font-serif text-3xl">{awaitingResponse}</p>
+          </Link>
+        )}
       </div>
 
       <div className="mt-8">

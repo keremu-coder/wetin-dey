@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { bucketCoord, isValidSignalId } from "@/lib/radar";
+import { checkRateLimit, sameOrigin } from "@/lib/rate-limit";
 
 type SignalRow = {
   id: string;
@@ -43,7 +44,6 @@ export async function GET(req: NextRequest) {
     const latBucket = bucketCoord(lat);
     const lngBucket = bucketCoord(lng);
 
-    // Search a 3x3 grid of buckets around the user (~3 km radius).
     const db = createServiceClient();
     const threeHoursAgo = new Date(
       Date.now() - 3 * 60 * 60 * 1000
@@ -78,9 +78,27 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    if (!sameOrigin(req)) {
+      return Response.json({ error: "bad origin" }, { status: 403 });
+    }
+
     const sessionId = await getSessionId();
     if (!sessionId) {
       return Response.json({ error: "no session" }, { status: 401 });
+    }
+
+    // Rate limit: 6 signals per 5 minutes per session
+    const limit = await checkRateLimit(sessionId, {
+      key: "radar_signal",
+      limit: 6,
+      windowMs: 5 * 60 * 1000
+    });
+    if (!limit.ok) {
+      const mins = Math.ceil(limit.retryAfterMs / 60000);
+      return Response.json(
+        { error: `Slow down — try again in ${mins} minute${mins === 1 ? "" : "s"}.` },
+        { status: 429 }
+      );
     }
 
     const body = (await req.json()) as {
@@ -114,22 +132,6 @@ export async function POST(req: NextRequest) {
         : null;
 
     const db = createServiceClient();
-
-    // Rate limit: max 1 signal per minute per session (light touch).
-    const oneMinuteAgo = new Date(Date.now() - 60 * 1000).toISOString();
-    const { data: recent } = await db
-      .from("radar_signals")
-      .select("id")
-      .eq("session_id", sessionId)
-      .gte("created_at", oneMinuteAgo)
-      .limit(1);
-
-    if (recent && recent.length > 0) {
-      return Response.json(
-        { error: "Slow down — one signal per minute." },
-        { status: 429 }
-      );
-    }
 
     const { data, error } = await db
       .from("radar_signals")
