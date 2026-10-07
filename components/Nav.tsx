@@ -28,7 +28,6 @@ export function Nav() {
     window.location.href = "/";
   }
 
-  // Hide the top nav on fullscreen flows (chat has its own header)
   const isChatPage = /^\/c\/[^/]+\/chat/.test(pathname);
 
   return (
@@ -43,7 +42,26 @@ export function Nav() {
               </span>
             </Link>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
+              <Link
+                href="/search"
+                className="flex h-10 w-10 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5"
+                aria-label="Search"
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="11" cy="11" r="7" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+              </Link>
               <Link
                 href="/submit"
                 className="rounded-full bg-accent px-3 py-1.5 text-[0.8125rem] font-semibold text-white transition-all hover:bg-accent-deep"
@@ -131,6 +149,46 @@ export function Nav() {
             )}
 
             <nav className="py-2">
+              <Link
+                href="/search"
+                className={`flex items-center gap-3 px-4 py-3 transition-colors ${
+                  pathname === "/search"
+                    ? "bg-ink/5 text-ink"
+                    : "text-ink hover:bg-ink/5"
+                }`}
+              >
+                <span className="text-[1.15rem]">🔎</span>
+                <span className="text-[0.9375rem] font-medium">Search</span>
+              </Link>
+
+              <Link
+                href="/communities"
+                className={`flex items-center gap-3 px-4 py-3 transition-colors ${
+                  pathname === "/communities"
+                    ? "bg-ink/5 text-ink"
+                    : "text-ink hover:bg-ink/5"
+                }`}
+              >
+                <span className="text-[1.15rem]">🧭</span>
+                <span className="text-[0.9375rem] font-medium">
+                  Browse spaces
+                </span>
+              </Link>
+
+              <Link
+                href="/explore"
+                className={`flex items-center gap-3 px-4 py-3 transition-colors ${
+                  pathname === "/explore"
+                    ? "bg-ink/5 text-ink"
+                    : "text-ink hover:bg-ink/5"
+                }`}
+              >
+                <span className="text-[1.15rem]">🌍</span>
+                <span className="text-[0.9375rem] font-medium">
+                  See the pattern
+                </span>
+              </Link>
+
               <Link
                 href="/me"
                 className={`flex items-center gap-3 px-4 py-3 transition-colors ${

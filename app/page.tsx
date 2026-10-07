@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { StatusBar } from "@/components/StatusBar";
+import { StatusStrip } from "@/components/StatusStrip";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 
@@ -88,23 +90,26 @@ export default async function HomePage() {
   const hasSpaces = spaces.length > 0;
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-6 pb-28">
-      <div className="mb-6 flex items-center justify-between gap-3">
-        <h1 className="font-serif text-[1.75rem] font-semibold leading-tight text-ink">
+    <main className="mx-auto max-w-2xl px-4 py-4 pb-28">
+      <StatusBar />
+      <StatusStrip />
+
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h1 className="font-serif text-[1.4rem] font-semibold leading-tight text-ink">
           Your spaces
         </h1>
         <div className="flex items-center gap-1">
           <Link
             href="/communities"
-            className="flex h-10 w-10 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5"
             aria-label="Explore public spaces"
             title="Explore public spaces"
           >
-            <span className="text-[1.2rem]">🧭</span>
+            <span className="text-[1.15rem]">🧭</span>
           </Link>
           <Link
             href="/communities/new"
-            className="flex h-10 items-center justify-center rounded-full bg-accent px-4 text-[0.8125rem] font-semibold text-white transition-colors hover:bg-accent-deep"
+            className="flex h-9 items-center justify-center rounded-full bg-accent px-3.5 text-[0.8125rem] font-semibold text-white transition-colors hover:bg-accent-deep"
           >
             + New
           </Link>

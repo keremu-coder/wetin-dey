@@ -201,8 +201,6 @@ export function ChatRoom({
     });
     setNotifPerm(notificationPermission());
 
-    // Mark that this user has been inside a chat. Used by the install
-    // prompt to sequence itself after the user has invested something.
     try {
       if (typeof window !== "undefined") {
         window.localStorage.setItem("wetindey:chat-visited:v1", "1");
@@ -224,11 +222,6 @@ export function ChatRoom({
       window.removeEventListener("touchstart", handler, true);
     };
   }, []);
-
-  // NOTE: We deliberately do NOT auto-request notification permission on
-  // mount. It's requested contextually on the user's first send, so we
-  // never stack a system permission dialog on top of onboarding / install
-  // prompts.
 
   useEffect(() => {
     fetch("/api/whoami")
@@ -465,7 +458,6 @@ export function ChatRoom({
     setDismissedBroadcastIds((prev) => new Set(prev).add(id));
   }
 
-  /** Request notification permission once, on first real user action. */
   async function maybeAskForNotifications() {
     if (askedForNotificationsRef.current) return;
     if (notificationPermission() === "granted") return;
@@ -989,7 +981,11 @@ export function ChatRoom({
                     } ${m._pending ? "opacity-70" : ""}`}
                   >
                     {isGroupStart ? (
-                      <div className="relative">
+                      <Link
+                        href={`/u/${encodeURIComponent(m.author_handle)}`}
+                        className="relative shrink-0"
+                        aria-label={`View @${m.author_handle}`}
+                      >
                         <div
                           className="chat-msg-avatar"
                           style={{ background: bg }}
@@ -999,7 +995,7 @@ export function ChatRoom({
                         <span className="absolute -bottom-0.5 -right-0.5">
                           <PresenceDot state={presence} />
                         </span>
-                      </div>
+                      </Link>
                     ) : (
                       <div className="chat-msg-avatar-spacer" />
                     )}
@@ -1008,14 +1004,19 @@ export function ChatRoom({
                       {isGroupStart ? (
                         <>
                           <div className="chat-msg-header">
-                            <span className="chat-msg-author">
+                            <Link
+                              href={`/u/${encodeURIComponent(
+                                m.author_handle
+                              )}`}
+                              className="chat-msg-author transition-colors hover:text-accent"
+                            >
                               {m.author_handle}
                               {isMe ? (
                                 <span className="ml-1.5 text-[0.7rem] font-normal text-accent">
                                   you
                                 </span>
                               ) : null}
-                            </span>
+                            </Link>
                             <span className="chat-msg-timestamp">
                               {m._pending
                                 ? "Sending…"
