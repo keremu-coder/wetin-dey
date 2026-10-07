@@ -2,6 +2,17 @@ import { describe, expect, it } from "vitest";
 import sharp from "sharp";
 import { readGps, stripExifClient, stripExifServer } from "./exif";
 
+/**
+ * Build a JPEG with real GPS EXIF.
+ *
+ * Primary path: try sharp's withMetadata(). It has changed APIs across
+ * versions and will throw on the old array format. Wrapped in try/catch
+ * so we don't break when it changes again.
+ *
+ * Fallback (which always works): hand-build a proper APP1 EXIF segment
+ * containing GPS IFD and splice it into a clean JPEG. This is a real
+ * GPS-bearing JPEG that any EXIF parser can read.
+ */
 async function jpegWithGps(): Promise<Buffer> {
   const base = await sharp({
     create: {
@@ -14,25 +25,32 @@ async function jpegWithGps(): Promise<Buffer> {
     .jpeg()
     .toBuffer();
 
-  const withMeta = await sharp(base)
-    .withMetadata({
-      exif: {
-        IFD3: {
-          GPSLatitudeRef: "N",
-          GPSLatitude: [[6, 1], [27, 1], [0, 1]],
-          GPSLongitudeRef: "E",
-          GPSLongitude: [[3, 1], [23, 1], [0, 1]]
+  // Try sharp's modern string-based format first. If it works AND the
+  // output has GPS we can read, use it.
+  try {
+    const withMeta = await sharp(base)
+      .withMetadata({
+        exif: {
+          IFD3: {
+            GPSLatitudeRef: "N",
+            GPSLatitude: "6/1 27/1 0/1",
+            GPSLongitudeRef: "E",
+            GPSLongitude: "3/1 23/1 0/1"
+          } as never
         }
-      }
-    })
-    .jpeg()
-    .toBuffer();
+      })
+      .jpeg()
+      .toBuffer();
 
-  const gps = await readGps(withMeta);
-  if (gps && gps.latitude != null) {
-    return withMeta;
+    const gps = await readGps(withMeta);
+    if (gps && gps.latitude != null && gps.longitude != null) {
+      return withMeta;
+    }
+  } catch {
+    // Sharp rejected it — fall through to raw injection.
   }
 
+  // Fallback: hand-build the APP1 segment and splice it into the JPEG.
   return injectApp1Gps(base);
 }
 
@@ -53,7 +71,9 @@ function buildGpsApp1(): Buffer {
   const gpsPointerOffset = 8 + 2 + 12 * 2 + 4;
   const ifd0 = Buffer.concat([
     ifd0Count,
-    Buffer.from([0x1a, 0x01, 0x03, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00]),
+    Buffer.from([
+      0x1a, 0x01, 0x03, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00
+    ]),
     Buffer.from([0x25, 0x88, 0x04, 0x00, 0x01, 0x00, 0x00, 0x00]),
     u32(gpsPointerOffset),
     u32(0)
@@ -72,8 +92,18 @@ function buildGpsApp1(): Buffer {
   ]);
 
   const rationals = Buffer.concat([
-    u32(6), u32(1), u32(27), u32(1), u32(0), u32(1),
-    u32(3), u32(1), u32(23), u32(1), u32(0), u32(1)
+    u32(6),
+    u32(1),
+    u32(27),
+    u32(1),
+    u32(0),
+    u32(1),
+    u32(3),
+    u32(1),
+    u32(23),
+    u32(1),
+    u32(0),
+    u32(1)
   ]);
 
   const tiff = Buffer.concat([tiffHeader, ifd0, gpsIfd, rationals]);
@@ -105,8 +135,14 @@ describe("EXIF GPS stripping", () => {
   it("fails if GPS survives the client pass", async () => {
     const dirty = await jpegWithGps();
     const before = await readGps(dirty);
-    expect(before?.latitude ?? null, "fixture must contain GPS latitude").not.toBeNull();
-    expect(before?.longitude ?? null, "fixture must contain GPS longitude").not.toBeNull();
+    expect(
+      before?.latitude ?? null,
+      "fixture must contain GPS latitude"
+    ).not.toBeNull();
+    expect(
+      before?.longitude ?? null,
+      "fixture must contain GPS longitude"
+    ).not.toBeNull();
 
     const cleaned = await stripExifClient(dirty);
     const after = await readGps(cleaned);
@@ -117,8 +153,14 @@ describe("EXIF GPS stripping", () => {
   it("fails if GPS survives the server pass", async () => {
     const dirty = await jpegWithGps();
     const before = await readGps(dirty);
-    expect(before?.latitude ?? null, "fixture must contain GPS latitude").not.toBeNull();
-    expect(before?.longitude ?? null, "fixture must contain GPS longitude").not.toBeNull();
+    expect(
+      before?.latitude ?? null,
+      "fixture must contain GPS latitude"
+    ).not.toBeNull();
+    expect(
+      before?.longitude ?? null,
+      "fixture must contain GPS longitude"
+    ).not.toBeNull();
 
     const cleaned = await stripExifServer(dirty);
     const after = await readGps(cleaned);
