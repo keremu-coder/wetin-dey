@@ -129,7 +129,50 @@ export default async function ProfilePage({
   });
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-8">
+    <main className="mx-auto max-w-3xl px-4 py-6 pb-28">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <Link
+          href="/"
+          className="flex h-10 w-10 items-center justify-center rounded-full text-accent transition-colors hover:bg-ink/5"
+          aria-label="Back"
+        >
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </Link>
+        <h2 className="truncate font-serif text-[1.05rem] font-semibold text-ink">
+          @{handle}
+        </h2>
+        <Link
+          href="/search"
+          className="flex h-10 w-10 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5"
+          aria-label="Search"
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="11" cy="11" r="7" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+        </Link>
+      </div>
+
       <section className="rounded-2xl border border-border bg-surface p-6 shadow-card">
         <div className="flex items-start gap-4">
           <div
