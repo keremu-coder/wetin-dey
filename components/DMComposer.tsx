@@ -1,8 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DM_BODY_MAX } from "@/lib/dm";
-import { unlockAudio, vibrate } from "@/lib/sounds";
+import {
+  unlockAudio,
+  vibrate,
+  playProfile
+} from "@/lib/sounds";
+import {
+  loadPrefs,
+  subscribePrefs,
+  type SoundPrefs
+} from "@/lib/sound-prefs";
+
+const DEFAULT_PREFS: SoundPrefs = {
+  profile: "bbm",
+  send: true,
+  receive: true,
+  mention: true,
+  notification: true,
+  vibrate: true,
+  browserNotifications: true
+};
 
 export function DMComposer({
   threadId,
@@ -23,6 +42,19 @@ export function DMComposer({
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [prefs, setPrefs] = useState<SoundPrefs>(DEFAULT_PREFS);
+  const prefsRef = useRef<SoundPrefs>(DEFAULT_PREFS);
+
+  useEffect(() => {
+    const initial = loadPrefs();
+    setPrefs(initial);
+    prefsRef.current = initial;
+    const unsub = subscribePrefs((p) => {
+      setPrefs(p);
+      prefsRef.current = p;
+    });
+    return unsub;
+  }, []);
 
   async function send(e: React.FormEvent) {
     e.preventDefault();
@@ -30,6 +62,12 @@ export function DMComposer({
     if (!text || busy) return;
 
     unlockAudio();
+
+    // Send sound + haptic fire BEFORE the network call so they feel instant.
+    const p = prefsRef.current;
+    if (p.send) playProfile(p.profile, "send");
+    if (p.vibrate) vibrate(20);
+
     setBusy(true);
     setError("");
 
@@ -53,7 +91,6 @@ export function DMComposer({
 
       onSent(json.message);
       setBody("");
-      vibrate(15);
     } catch {
       setError("Network error");
     } finally {

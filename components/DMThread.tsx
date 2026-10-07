@@ -4,6 +4,17 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { getBrowserClient } from "@/lib/supabase/client";
 import { timeAgoShort } from "@/lib/dm";
+import {
+  playProfile,
+  unlockAudio,
+  vibrate,
+  showBrowserNotification
+} from "@/lib/sounds";
+import {
+  loadPrefs,
+  subscribePrefs,
+  type SoundPrefs
+} from "@/lib/sound-prefs";
 import { FilterWarning } from "./FilterWarning";
 import { DMComposer } from "./DMComposer";
 
@@ -15,6 +26,16 @@ type Message = {
   filter_level: string;
   read_at: string | null;
   created_at: string;
+};
+
+const DEFAULT_PREFS: SoundPrefs = {
+  profile: "bbm",
+  send: true,
+  receive: true,
+  mention: true,
+  notification: true,
+  vibrate: true,
+  browserNotifications: true
 };
 
 function avatarColor(seed: string): string {
@@ -50,6 +71,29 @@ export function DMThread({
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const lastMarkRef = useRef<number>(0);
   const scrollDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prefsRef = useRef<SoundPrefs>(DEFAULT_PREFS);
+
+  // Load sound prefs and subscribe to changes
+  useEffect(() => {
+    const initial = loadPrefs();
+    prefsRef.current = initial;
+    const unsub = subscribePrefs((p) => {
+      prefsRef.current = p;
+    });
+    return unsub;
+  }, []);
+
+  // Audio unlock on first tap
+  useEffect(() => {
+    unlockAudio();
+    const handler = () => unlockAudio();
+    window.addEventListener("pointerdown", handler, true);
+    window.addEventListener("touchstart", handler, true);
+    return () => {
+      window.removeEventListener("pointerdown", handler, true);
+      window.removeEventListener("touchstart", handler, true);
+    };
+  }, []);
 
   async function refresh() {
     try {
@@ -111,6 +155,20 @@ export function DMThread({
             if (row.sender_id === mySessionId) return;
             if (row.held) return;
 
+            // ─── Sound + haptic for incoming DM ───
+            const p = prefsRef.current;
+            if (p.receive) playProfile(p.profile, "receive");
+            if (p.vibrate) vibrate(35);
+
+            // Browser notification (background tab only)
+            if (p.browserNotifications) {
+              showBrowserNotification(
+                `@${otherHandle} sent you a message`,
+                row.body.slice(0, 90),
+                `dm-${threadId}`
+              );
+            }
+
             setMessages((prev) => {
               if (prev.some((m) => m.id === row.id)) return prev;
               return [...prev, row as Message];
@@ -135,9 +193,9 @@ export function DMThread({
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [threadId, mySessionId]);
+  }, [threadId, mySessionId, otherHandle]);
 
-  // Background poll as a safety net (every 30s — realtime should handle it)
+  // Background poll as a safety net
   useEffect(() => {
     const t = setInterval(() => {
       void refresh();
@@ -164,7 +222,7 @@ export function DMThread({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [threadId]);
 
-  // Scroll to bottom on mount + when new messages arrive
+  // Scroll to bottom on new messages
   useEffect(() => {
     if (scrollDebounceRef.current) clearTimeout(scrollDebounceRef.current);
     scrollDebounceRef.current = setTimeout(() => {
