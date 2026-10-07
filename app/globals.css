@@ -2,6 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ═══ LAYOUT SAFE-AREA ═══
+   iOS notch/status-bar occupies the top ~44px when the PWA is installed
+   with viewport-fit=cover. Without this padding, page headers and back
+   arrows are hidden behind the notch. env() returns 0 on browsers that
+   don't support it. */
+html {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+body {
+  padding-bottom: 0;
+}
+
 /* ═══ LIGHT THEME ═══ */
 :root,
 :root[data-theme="light"] {
@@ -51,6 +63,7 @@
 
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
+html { padding-top: env(safe-area-inset-top, 0px); }
 
 body {
   background: var(--color-paper);
