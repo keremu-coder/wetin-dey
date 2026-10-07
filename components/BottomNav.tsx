@@ -24,7 +24,6 @@ export function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
   const [unread, setUnread] = useState(0);
-  const [tapped, setTapped] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -45,7 +44,7 @@ export function BottomNav() {
     };
   }, [pathname]);
 
-  // Prefetch all three tab routes on mount, so tapping is instant
+  // Prefetch all three tabs on mount so a cold first tap is instant.
   useEffect(() => {
     for (const tab of TABS) {
       router.prefetch(tab.href);
@@ -69,16 +68,17 @@ export function BottomNav() {
       <div className="mx-auto grid max-w-2xl grid-cols-3">
         {TABS.map((t) => {
           const active = isActive(t.href);
-          const wasTapped = tapped === t.href;
           return (
             <Link
               key={t.href}
               href={t.href}
               prefetch
-              onClick={() => setTapped(t.href)}
-              className={`relative flex flex-col items-center justify-center gap-0.5 py-2.5 transition-colors ${
-                active ? "text-accent" : "text-muted"
-              } ${wasTapped && !active ? "opacity-70" : ""}`}
+              onMouseEnter={() => router.prefetch(t.href)}
+              onTouchStart={() => router.prefetch(t.href)}
+              onFocus={() => router.prefetch(t.href)}
+              className={`flex flex-col items-center justify-center gap-0.5 py-2.5 transition-colors ${
+                active ? "text-accent" : "text-muted hover:text-ink"
+              }`}
             >
               <span className="text-[1.35rem] leading-none">{t.icon}</span>
               <span className="text-[0.7rem] font-medium leading-none">

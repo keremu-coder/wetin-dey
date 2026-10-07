@@ -5,6 +5,7 @@ import { Onboarding } from "@/components/Onboarding";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { PushRegistrar } from "@/components/PushRegistrar";
 import { BottomNav } from "@/components/BottomNav";
+import { RouteWarmup } from "@/components/RouteWarmup";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -60,10 +61,23 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseHost = supabaseUrl
+    ? (() => {
+        try {
+          return new URL(supabaseUrl).host;
+        } catch {
+          return null;
+        }
+      })()
+    : null;
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+
+        {/* Fonts — preconnect + async load for display fonts */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
           rel="preconnect"
@@ -75,16 +89,29 @@ export default function RootLayout({
           rel="preload"
           as="style"
           href={BBM_FONTS_HREF}
-          // @ts-expect-error - onLoad is valid on <link>, React types are strict
+          // @ts-expect-error - onLoad valid on <link>
           onLoad="this.onload=null;this.rel='stylesheet'"
         />
         <noscript>
           <link rel="stylesheet" href={BBM_FONTS_HREF} />
         </noscript>
+
+        {/* Supabase — preconnect so the first DB call skips the TLS handshake */}
+        {supabaseHost ? (
+          <>
+            <link
+              rel="preconnect"
+              href={`https://${supabaseHost}`}
+              crossOrigin="anonymous"
+            />
+            <link rel="dns-prefetch" href={`https://${supabaseHost}`} />
+          </>
+        ) : null}
       </head>
       <body className="min-h-screen font-sans">
         <PresencePing />
         <PushRegistrar />
+        <RouteWarmup />
         <Onboarding />
         <InstallPrompt />
         <Nav />
