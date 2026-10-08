@@ -2,6 +2,7 @@ import Link from "next/link";
 import { StatusBar } from "@/components/StatusBar";
 import { StatusStrip } from "@/components/StatusStrip";
 import { getSessionId } from "@/lib/session";
+import { getBlockedIds } from "@/lib/blocks";
 import { createServiceClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -65,6 +66,9 @@ export default async function HomePage() {
   const sessionId = await getSessionId();
   const db = createServiceClient();
 
+  const blockedIds = await getBlockedIds(sessionId);
+  const blockedList = Array.from(blockedIds);
+
   let spaces: Community[] = [];
   const lastMessages = new Map<string, LastMessage>();
 
@@ -87,12 +91,23 @@ export default async function HomePage() {
 
       spaces = (communities ?? []) as Community[];
 
-      const { data: messages } = await db
+      let messagesQ = db
         .from("community_messages")
         .select("community_id, session_id, body, audio_url, created_at")
+        .eq("hidden", false)
         .in("community_id", ids)
         .order("created_at", { ascending: false })
         .limit(ids.length * 8);
+
+      if (blockedList.length > 0) {
+        messagesQ = messagesQ.not(
+          "session_id",
+          "in",
+          `(${blockedList.join(",")})`
+        );
+      }
+
+      const { data: messages } = await messagesQ;
 
       const senderIds = Array.from(
         new Set((messages ?? []).map((m) => m.session_id))

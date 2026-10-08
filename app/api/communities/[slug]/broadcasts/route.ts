@@ -6,6 +6,8 @@ import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sendPushToSessions } from "@/lib/push-server";
 import { BROADCAST_MAX_MB, BROADCAST_TITLE_MAX } from "@/lib/broadcasts";
+import { assertCanWrite } from "@/lib/guards";
+import { getBlockedIds } from "@/lib/blocks";
 
 function extFromMime(mime: string): string {
   const m = (mime || "").toLowerCase();
@@ -32,16 +34,27 @@ export async function GET(
       return Response.json({ error: "not found" }, { status: 404 });
     }
 
+    const requesterId = await getSessionId();
+    const blockedIds = await getBlockedIds(requesterId);
+    const blockedList = Array.from(blockedIds);
+
     const nowIso = new Date().toISOString();
-    const { data: broadcasts } = await db
+    let q = db
       .from("broadcasts")
       .select(
         "id, session_id, audio_url, duration_seconds, title, created_at, expires_at"
       )
       .eq("community_id", community.id)
+      .eq("hidden", false)
       .gt("expires_at", nowIso)
       .order("created_at", { ascending: false })
       .limit(5);
+
+    if (blockedList.length > 0) {
+      q = q.not("session_id", "in", `(${blockedList.join(",")})`);
+    }
+
+    const { data: broadcasts } = await q;
 
     const ids = Array.from(
       new Set((broadcasts ?? []).map((b) => b.session_id))
@@ -80,6 +93,9 @@ export async function POST(
     if (!sessionId) {
       return Response.json({ error: "no session" }, { status: 401 });
     }
+
+    const denied = await assertCanWrite(sessionId);
+    if (denied) return denied;
 
     const profile = await getOrCreateSessionProfile(sessionId);
     if (!profile) {

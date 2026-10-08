@@ -3,12 +3,14 @@ import Link from "next/link";
 import { unstable_cache } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getSessionId } from "@/lib/session";
+import { getBlockedIds } from "@/lib/blocks";
 import { FollowButton } from "@/components/FollowButton";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ReviewedFlag } from "@/components/ReviewedFlag";
 import { StatusLine } from "@/components/StatusLine";
 import { StartDMButton } from "@/components/StartDMButton";
 import { ProfileActions } from "@/components/ProfileActions";
+import { UnblockButton } from "@/components/UnblockButton";
 import { formatNaira } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
@@ -233,6 +235,45 @@ export default async function ProfilePage({
   const profile = bundle.profile;
   if (!profile) return notFound();
 
+  // Block check — if I blocked them (or they blocked me), show a
+  // blocked state instead of the profile.
+  const blockedIds = await getBlockedIds(mySessionId);
+  const isBlockedRelationship = blockedIds.has(profile.id);
+  const isMe = mySessionId === profile.id;
+  const isSignedIn = mySessionId != null;
+
+  if (isBlockedRelationship && !isMe) {
+    return (
+      <main className="mx-auto max-w-2xl px-4 py-10 pb-28">
+        <div className="mb-6 flex items-center gap-3">
+          <Link
+            href="/"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5"
+            aria-label="Back"
+          >
+            ←
+          </Link>
+          <h1 className="truncate font-serif text-[1.15rem] font-semibold text-ink">
+            @{handle}
+          </h1>
+        </div>
+        <div className="rounded-2xl border border-border bg-surface p-8 text-center">
+          <div className="text-[2.5rem]">🚫</div>
+          <p className="mt-3 font-serif text-[1.15rem] font-semibold text-ink">
+            You blocked @{handle}
+          </p>
+          <p className="mx-auto mt-2 max-w-md text-[0.875rem] leading-relaxed text-muted">
+            You won&apos;t see their posts, comments, or messages. They can&apos;t
+            see yours. If you change your mind, you can unblock them below.
+          </p>
+          <div className="mt-6 flex justify-center">
+            <UnblockButton handle={handle} />
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   const posts = tab === "posts" ? bundle.posts : [];
 
   const people = await (tab === "followers"
@@ -241,7 +282,6 @@ export default async function ProfilePage({
       ? getFollowing(profile.id)
       : Promise.resolve([] as PersonRow[]));
 
-  // Determine who I already follow among the visible people
   let myFollowSet = new Set<string>();
   if (mySessionId && people.length > 0) {
     const db = createServiceClient();
@@ -257,22 +297,16 @@ export default async function ProfilePage({
   }
 
   let isFollowing = false;
-  let isMe = false;
-  let isSignedIn = false;
 
-  if (mySessionId) {
-    isSignedIn = true;
-    isMe = mySessionId === profile.id;
-    if (!isMe) {
-      const db = createServiceClient();
-      const { data: follow } = await db
-        .from("follows")
-        .select("id")
-        .eq("follower_session_id", mySessionId)
-        .eq("followed_session_id", profile.id)
-        .maybeSingle();
-      isFollowing = !!follow;
-    }
+  if (mySessionId && !isMe) {
+    const db = createServiceClient();
+    const { data: follow } = await db
+      .from("follows")
+      .select("id")
+      .eq("follower_session_id", mySessionId)
+      .eq("followed_session_id", profile.id)
+      .maybeSingle();
+    isFollowing = !!follow;
   }
 
   const avatarLetter = handle.charAt(0).toUpperCase();
@@ -353,7 +387,6 @@ export default async function ProfilePage({
         )}
       </div>
 
-      {/* Profile header */}
       <section className="rounded-2xl border border-border bg-surface p-6 shadow-card">
         <div className="flex items-start gap-4">
           <div
@@ -422,7 +455,6 @@ export default async function ProfilePage({
         </div>
       </section>
 
-      {/* Tabs */}
       <div className="mt-6 flex gap-1 border-b border-border">
         {tabs.map((t) => {
           const active = t.id === tab;
@@ -447,7 +479,6 @@ export default async function ProfilePage({
         })}
       </div>
 
-      {/* Tab content */}
       <div className="mt-4">
         {tab === "posts" ? (
           posts.length === 0 ? (

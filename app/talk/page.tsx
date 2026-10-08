@@ -5,6 +5,7 @@ import { TalkTabs } from "@/components/TalkTabs";
 import { PAGE_SIZE } from "@/lib/constants";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
+import { getBlockedIds } from "@/lib/blocks";
 import { stripSession, type Report } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -43,7 +44,6 @@ export default async function TalkAmPage({
 }) {
   const rawTab = (searchParams.tab ?? "civic").toLowerCase();
 
-  // Legacy: /talk?tab=live now lives at /radar
   if (rawTab === "live") {
     redirect("/radar");
   }
@@ -56,10 +56,12 @@ export default async function TalkAmPage({
     getReviewedCount()
   ]);
 
+  const blockedIds = await getBlockedIds(sessionId);
+  const blockedList = Array.from(blockedIds);
+
   const db = createServiceClient();
   const allowUnreviewed = reviewedCount < 5;
 
-  // Build both queries and run them in parallel.
   let civicQ = db
     .from("reports")
     .select("*")
@@ -76,6 +78,9 @@ export default async function TalkAmPage({
   if (searchParams.agency) civicQ = civicQ.eq("agency_canonical", searchParams.agency);
   if (searchParams.status) civicQ = civicQ.eq("status", searchParams.status);
   if (searchParams.state) civicQ = civicQ.eq("state", searchParams.state);
+  if (blockedList.length > 0) {
+    civicQ = civicQ.not("session_id", "in", `(${blockedList.join(",")})`);
+  }
 
   let communityQ = db
     .from("reports")
@@ -87,6 +92,9 @@ export default async function TalkAmPage({
     .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
 
   if (searchParams.state) communityQ = communityQ.eq("state", searchParams.state);
+  if (blockedList.length > 0) {
+    communityQ = communityQ.not("session_id", "in", `(${blockedList.join(",")})`);
+  }
 
   const [meResult, civicResult, communityResult] = await Promise.all([
     sessionId
