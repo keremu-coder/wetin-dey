@@ -1,5 +1,6 @@
 import "server-only";
 import webpush from "web-push";
+import crypto from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 
 function sb() {
@@ -23,6 +24,191 @@ function ensureVapid() {
   return true;
 }
 
+// ---------------------------------------------------------------------------
+// FCM v1 (native push: iOS via APNs relay, Android direct)
+// ---------------------------------------------------------------------------
+
+type ServiceAccount = {
+  project_id: string;
+  client_email: string;
+  private_key: string;
+};
+
+let fcmSaCache: ServiceAccount | null | undefined = undefined;
+let fcmTokenCache: { token: string; expiresAt: number } | null = null;
+
+function loadServiceAccount(): ServiceAccount | null {
+  if (fcmSaCache !== undefined) return fcmSaCache;
+  const raw = process.env.FCM_SERVICE_ACCOUNT_JSON;
+  if (!raw) {
+    fcmSaCache = null;
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(raw) as Partial<ServiceAccount>;
+    if (
+      !parsed.project_id ||
+      !parsed.client_email ||
+      !parsed.private_key
+    ) {
+      fcmSaCache = null;
+      return null;
+    }
+    fcmSaCache = parsed as ServiceAccount;
+    return fcmSaCache;
+  } catch {
+    fcmSaCache = null;
+    return null;
+  }
+}
+
+function b64url(input: Buffer | string): string {
+  const buf = typeof input === "string" ? Buffer.from(input, "utf8") : input;
+  return buf
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}
+
+function signJwtRS256(payload: Record<string, unknown>, privateKey: string) {
+  const header = { alg: "RS256", typ: "JWT" };
+  const encHeader = b64url(JSON.stringify(header));
+  const encPayload = b64url(JSON.stringify(payload));
+  const signingInput = `${encHeader}.${encPayload}`;
+  const signer = crypto.createSign("RSA-SHA256");
+  signer.update(signingInput);
+  signer.end();
+  const signature = signer.sign(privateKey);
+  return `${signingInput}.${b64url(signature)}`;
+}
+
+async function getFcmAccessToken(sa: ServiceAccount): Promise<string | null> {
+  const now = Date.now();
+  if (fcmTokenCache && fcmTokenCache.expiresAt > now + 60_000) {
+    return fcmTokenCache.token;
+  }
+
+  const iat = Math.floor(now / 1000);
+  const jwt = signJwtRS256(
+    {
+      iss: sa.client_email,
+      scope: "https://www.googleapis.com/auth/firebase.messaging",
+      aud: "https://oauth2.googleapis.com/token",
+      iat,
+      exp: iat + 3600
+    },
+    sa.private_key
+  );
+
+  try {
+    const res = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`
+    });
+    if (!res.ok) return null;
+    const json = (await res.json()) as {
+      access_token?: string;
+      expires_in?: number;
+    };
+    if (!json.access_token) return null;
+    fcmTokenCache = {
+      token: json.access_token,
+      expiresAt: now + (json.expires_in ?? 3600) * 1000
+    };
+    return json.access_token;
+  } catch {
+    return null;
+  }
+}
+
+type NativeTarget = {
+  id: string;
+  session_id: string;
+  platform: "ios" | "android";
+  token: string;
+};
+
+async function sendNativePush(
+  targets: NativeTarget[],
+  payload: { title: string; body: string; tag?: string; url?: string }
+): Promise<void> {
+  if (targets.length === 0) return;
+  const sa = loadServiceAccount();
+  if (!sa) return;
+
+  const accessToken = await getFcmAccessToken(sa);
+  if (!accessToken) return;
+
+  const url = `https://fcm.googleapis.com/v1/projects/${sa.project_id}/messages:send`;
+  const staleIds: string[] = [];
+
+  await Promise.all(
+    targets.map(async (t) => {
+      try {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${accessToken}`,
+            "content-type": "application/json"
+          },
+          body: JSON.stringify({
+            message: {
+              token: t.token,
+              notification: {
+                title: payload.title,
+                body: payload.body
+              },
+              data: {
+                url: payload.url ?? "/",
+                tag: payload.tag ?? "wetindey"
+              },
+              apns: {
+                payload: {
+                  aps: {
+                    sound: "default",
+                    "thread-id": payload.tag ?? "wetindey"
+                  }
+                }
+              },
+              android: {
+                notification: {
+                  tag: payload.tag ?? "wetindey",
+                  sound: "default"
+                }
+              }
+            }
+          })
+        });
+
+        if (res.status === 404 || res.status === 410) {
+          staleIds.push(t.id);
+          return;
+        }
+        if (!res.ok) {
+          // 400 = invalid argument (bad token shape). Treat as stale.
+          if (res.status === 400) staleIds.push(t.id);
+        }
+      } catch {
+        /* network — retry next time */
+      }
+    })
+  );
+
+  if (staleIds.length > 0) {
+    try {
+      await sb().from("native_push_tokens").delete().in("id", staleIds);
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
 type PushTarget = {
   session_id: string;
   endpoint: string;
@@ -30,11 +216,10 @@ type PushTarget = {
   auth: string;
 };
 
-export async function sendPushToSessions(
+async function sendWebPush(
   sessionIds: string[],
   payload: { title: string; body: string; tag?: string; url?: string }
 ): Promise<void> {
-  if (sessionIds.length === 0) return;
   if (!ensureVapid()) return;
 
   const { data, error } = await sb()
@@ -77,6 +262,32 @@ export async function sendPushToSessions(
       .delete()
       .in("endpoint", deadEndpoints);
   }
+}
+
+async function loadNativeTargets(
+  sessionIds: string[]
+): Promise<NativeTarget[]> {
+  const { data, error } = await sb()
+    .from("native_push_tokens")
+    .select("id, session_id, platform, token")
+    .in("session_id", sessionIds);
+
+  if (error || !data) return [];
+  return data as NativeTarget[];
+}
+
+export async function sendPushToSessions(
+  sessionIds: string[],
+  payload: { title: string; body: string; tag?: string; url?: string }
+): Promise<void> {
+  if (sessionIds.length === 0) return;
+
+  const nativeTargets = await loadNativeTargets(sessionIds);
+
+  await Promise.all([
+    sendWebPush(sessionIds, payload),
+    sendNativePush(nativeTargets, payload)
+  ]);
 }
 
 export async function notifyCommunityMembers(params: {
