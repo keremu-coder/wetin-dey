@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FlagSheet } from "./FlagSheet";
+import { tapFeedback, impactFeedback } from "@/lib/haptics";
+import { shareUrl } from "@/lib/share";
 
 type Props = {
   postId: string;
@@ -17,6 +19,23 @@ type Props = {
   evidenceLink?: string | null;
   postUrl: string;
 };
+
+type MaybeClipboard = {
+  clipboard?: { writeText?: (t: string) => Promise<void> };
+};
+
+async function writeClipboard(text: string): Promise<boolean> {
+  if (typeof window === "undefined") return false;
+  const nav = window.navigator as unknown as MaybeClipboard;
+  const w = nav.clipboard?.writeText;
+  if (typeof w !== "function") return false;
+  try {
+    await w.call(nav.clipboard, text);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export function PostActions({
   postId,
@@ -52,7 +71,14 @@ export function PostActions({
       .catch(() => {});
   }, [postId]);
 
+  function fullUrl(): string {
+    return typeof window !== "undefined"
+      ? window.location.origin + postUrl
+      : postUrl;
+  }
+
   async function vote(v: "up" | "down" | "me_too") {
+    void tapFeedback();
     const res = await fetch(`/api/posts/${postId}/vote`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -67,44 +93,22 @@ export function PostActions({
   }
 
   async function share() {
-    const fullUrl =
-      typeof window !== "undefined"
-        ? window.location.origin + postUrl
-        : postUrl;
-    if (typeof navigator !== "undefined" && "share" in navigator) {
-      try {
-        await (
-          navigator as Navigator & { share: (d: ShareData) => Promise<void> }
-        ).share({
-          title: "Wetin Dey",
-          text: "See this one for Wetin Dey:",
-          url: fullUrl
-        });
-        return;
-      } catch {
-        /* user cancelled */
-      }
-    }
-    try {
-      await navigator.clipboard.writeText(fullUrl);
+    void impactFeedback();
+    const result = await shareUrl({
+      url: fullUrl(),
+      title: "Wetin Dey",
+      text: "See this one for Wetin Dey:"
+    });
+    if (result.ok && result.method === "clipboard") {
       alert("Link copied. Paste am anywhere.");
-    } catch {
-      /* ignore */
     }
   }
 
   async function copyLink() {
-    const fullUrl =
-      typeof window !== "undefined"
-        ? window.location.origin + postUrl
-        : postUrl;
-    try {
-      await navigator.clipboard.writeText(fullUrl);
-      setMenuOpen(false);
-      alert("Link copied.");
-    } catch {
-      /* ignore */
-    }
+    void tapFeedback();
+    const ok = await writeClipboard(fullUrl());
+    setMenuOpen(false);
+    if (ok) alert("Link copied.");
   }
 
   async function blockUser() {
