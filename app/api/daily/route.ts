@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { todayPrompt } from "@/lib/daily-prompts";
+import { assertCanWrite } from "@/lib/guards";
 
 export async function GET() {
   try {
@@ -46,6 +47,9 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: "no session" }, { status: 401 });
     }
 
+    const denied = await assertCanWrite(sessionId);
+    if (denied) return denied;
+
     const body = (await req.json()) as { body?: unknown };
     if (typeof body.body !== "string") {
       return Response.json({ error: "body required" }, { status: 400 });
@@ -65,7 +69,6 @@ export async function POST(req: NextRequest) {
     const { id: promptId, date } = todayPrompt();
     const db = createServiceClient();
 
-    // Upsert — one answer per session per day. Editing replaces.
     const { data, error } = await db
       .from("daily_answers")
       .upsert(

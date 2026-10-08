@@ -5,6 +5,7 @@ import { nanoid } from "nanoid";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { checkRateLimit, sameOrigin } from "@/lib/rate-limit";
+import { assertCanWrite } from "@/lib/guards";
 
 const MIN_BODY = 50;
 const MAX_BODY = 2000;
@@ -32,7 +33,9 @@ export async function POST(
       return Response.json({ error: "no session" }, { status: 401 });
     }
 
-    // Rate limit: 3 replies per hour per session
+    const denied = await assertCanWrite(sessionId);
+    if (denied) return denied;
+
     const limit = await checkRateLimit(sessionId, {
       key: "report_reply",
       limit: 3,
@@ -91,8 +94,6 @@ export async function POST(
       return Response.json({ error: "Report not found." }, { status: 404 });
     }
 
-    // Don't accept duplicate pending replies on the same report from the
-    // same session.
     const { data: existing } = await db
       .from("report_replies")
       .select("id")

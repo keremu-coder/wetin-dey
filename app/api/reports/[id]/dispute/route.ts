@@ -1,7 +1,10 @@
+export const runtime = "nodejs";
+
 import { nanoid } from "nanoid";
 import { originAllowed, jsonError } from "@/lib/http";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
+import { assertCanWrite } from "@/lib/guards";
 
 export async function POST(
   req: Request,
@@ -10,6 +13,9 @@ export async function POST(
   if (!originAllowed(req)) return jsonError("origin blocked", 403);
   const sessionId = await getSessionId();
   if (!sessionId) return jsonError("no session", 401);
+
+  const denied = await assertCanWrite(sessionId);
+  if (denied) return denied;
 
   const payload = (await req.json()) as {
     claimant_name?: string;

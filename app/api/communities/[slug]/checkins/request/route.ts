@@ -5,6 +5,7 @@ import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sendPushToSessions } from "@/lib/push-server";
 import { CHECKIN_REASON_MAX } from "@/lib/checkin";
+import { assertCanWrite } from "@/lib/guards";
 
 export async function POST(
   req: NextRequest,
@@ -15,6 +16,9 @@ export async function POST(
     if (!sessionId) {
       return Response.json({ error: "no session" }, { status: 401 });
     }
+
+    const denied = await assertCanWrite(sessionId);
+    if (denied) return denied;
 
     const profile = await getOrCreateSessionProfile(sessionId);
     if (!profile) {
@@ -48,8 +52,6 @@ export async function POST(
         ? body.reason.trim().slice(0, CHECKIN_REASON_MAX)
         : null;
 
-    // Expire any existing active request for this community so the new
-    // one replaces it cleanly.
     await db
       .from("checkin_requests")
       .update({ expires_at: new Date().toISOString() })
@@ -70,7 +72,6 @@ export async function POST(
       return Response.json({ error: error.message }, { status: 500 });
     }
 
-    // Notify every other member
     void (async () => {
       try {
         const { data: members } = await db

@@ -5,6 +5,7 @@ import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { bucketCoord, isValidSignalId } from "@/lib/radar";
 import { checkRateLimit, sameOrigin } from "@/lib/rate-limit";
+import { assertCanWrite } from "@/lib/guards";
 
 type SignalRow = {
   id: string;
@@ -89,6 +90,9 @@ export async function POST(req: NextRequest) {
     if (!sessionId) {
       return Response.json({ error: "no session" }, { status: 401 });
     }
+
+    const denied = await assertCanWrite(sessionId);
+    if (denied) return denied;
 
     const limit = await checkRateLimit(sessionId, {
       key: "radar_signal",

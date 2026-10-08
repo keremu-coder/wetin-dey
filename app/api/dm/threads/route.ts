@@ -6,6 +6,11 @@ import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { orderParticipants } from "@/lib/dm";
 import { sameOrigin } from "@/lib/rate-limit";
+import { assertCanWrite } from "@/lib/guards";
+
+function escapeLike(s: string): string {
+  return s.replace(/[\\%_]/g, "\\$&");
+}
 
 export async function GET() {
   try {
@@ -110,6 +115,9 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: "no session" }, { status: 401 });
     }
 
+    const denied = await assertCanWrite(sessionId);
+    if (denied) return denied;
+
     const me = await getOrCreateSessionProfile(sessionId);
     if (!me) {
       return Response.json({ error: "no profile" }, { status: 500 });
@@ -137,14 +145,13 @@ export async function POST(req: NextRequest) {
     const { data: target } = await db
       .from("sessions")
       .select("id, handle, dm_policy")
-      .ilike("handle", targetHandle)
+      .ilike("handle", escapeLike(targetHandle))
       .maybeSingle();
 
     if (!target) {
       return Response.json({ error: "User not found." }, { status: 404 });
     }
 
-    // ─── 1. Block check (both directions) ───
     const [blockedByMe, blockedByThem] = await Promise.all([
       db
         .from("blocked_users")
@@ -167,8 +174,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ─── 2. Existing thread bypasses policy ───
-    // If a thread already exists, always allow (they've talked before).
     const [a, b] = orderParticipants(sessionId, target.id);
 
     const { data: existing } = await db
@@ -182,7 +187,6 @@ export async function POST(req: NextRequest) {
       return Response.json({ ok: true, thread_id: existing.id });
     }
 
-    // ─── 3. Policy check (only for NEW threads) ───
     const targetPolicy = target.dm_policy === "following" ? "following" : "everyone";
 
     if (targetPolicy === "following") {
@@ -204,7 +208,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ─── Create the thread ───
     const id = nanoid();
     const { error } = await db.from("dm_threads").insert({
       id,
