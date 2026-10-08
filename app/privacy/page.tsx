@@ -52,17 +52,35 @@ export default function PrivacyPage() {
             regardless.
           </p>
           <p className="mt-2">
-            <strong>Uploaded files:</strong> photos, videos, audio, and voice
-            notes. All EXIF metadata (GPS, camera model, timestamp) is stripped
+            <strong>Images and video:</strong> photos and videos attached to
+            reports and posts, plus avatars for your profile and any Spaces you
+            own. All EXIF metadata (GPS, camera model, timestamp) is stripped
             before storage.
+          </p>
+          <p className="mt-2">
+            <strong>Audio:</strong> voice notes attached to comments and chat
+            messages, and voice broadcasts posted inside Spaces.
+          </p>
+          <p className="mt-2">
+            <strong>Your handle:</strong> the @name you choose (or the random
+            one we assign). It is public and appears next to everything you
+            post under a named account.
+          </p>
+          <p className="mt-2">
+            <strong>Coarse location:</strong> when you submit a report or post
+            to Radar, we store the state or LGA you choose, and Radar signals
+            round your coordinates to roughly a 1 km grid. Nothing finer is
+            stored.
           </p>
           <p className="mt-2">
             <strong>Presence:</strong> a last-seen timestamp that powers the
             online indicator. You can hide it entirely in Settings → Presence.
           </p>
           <p className="mt-2">
-            <strong>Push notifications:</strong> if enabled, we store the push
-            subscription your browser issues. You can disable it anytime.
+            <strong>Push tokens:</strong> if you enable notifications, we store
+            the push subscription your browser issues. Inside the native app,
+            we also store a native push token issued by Apple or Google. You
+            can disable this anytime.
           </p>
         </section>
 
@@ -89,23 +107,71 @@ export default function PrivacyPage() {
           </h2>
           <ul className="ml-5 list-disc space-y-1">
             <li>
-              <strong>Supabase</strong> (database, storage, realtime) — EU
-              region
+              <strong>Supabase</strong> — database, file storage, realtime,
+              authentication. EU region.
             </li>
             <li>
-              <strong>Vercel</strong> (hosting) — global edge network
+              <strong>Vercel</strong> — hosting, edge network, and Blob storage
+              for large files. Global edge network.
             </li>
             <li>
-              <strong>Groq</strong> (AI formalization of report text only,
-              never files) — US
+              <strong>Groq</strong> — AI formalization of report text only.
+              Never sees your uploaded files. US.
             </li>
             <li>
-              <strong>Telegram</strong> (public mirror of reviewed reports only)
+              <strong>Resend</strong> — sends verification and password-reset
+              emails on our behalf via Supabase Auth. US.
+            </li>
+            <li>
+              <strong>Telegram</strong> — receives a public mirror of reviewed
+              reports only. No DMs, no user files.
             </li>
           </ul>
           <p className="mt-2">
             We do not sell your data. We do not run ads on the Talk Am civic
             feed.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="mb-2 font-serif text-[1.15rem] font-semibold text-ink">
+            Retention
+          </h2>
+          <p>
+            Reports and comments that comply with our content rules stay in
+            the public archive, attached to a permanent URL. Content that
+            violates the rules (threats, doxxing, hate, sexual content,
+            minors, illegal content, confirmed defamation) is removed from
+            public view within 24 hours and never shown publicly again.
+          </p>
+          <p className="mt-2">
+            Voice notes and chat messages stay until you or a moderator deletes
+            them. Broadcasts expire automatically after 24 hours.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="mb-2 font-serif text-[1.15rem] font-semibold text-ink">
+            Deleting your account
+          </h2>
+          <p>
+            When you delete your account we remove your email, phone number,
+            handle, auth record, avatars, broadcasts, followers, blocks, push
+            subscriptions, check-ins, votes, reactions, and Radar signals
+            immediately.
+          </p>
+          <p className="mt-2">
+            Your reports and comments stay visible in the archive but are
+            detached from your identity — we replace your session id and
+            handle with a placeholder.
+          </p>
+          <p className="mt-2">
+            <strong>
+              Direct messages you sent remain visible to the other participant
+            </strong>
+            , because removing them would erase their copy of the conversation
+            too. Their sender id points to a ghost profile with no email, no
+            login, and a generic handle — it cannot be logged into again.
           </p>
         </section>
 

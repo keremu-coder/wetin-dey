@@ -48,34 +48,51 @@ export default function DeleteAccountPublicPage() {
 
         <section>
           <h2 className="mb-2 font-serif text-[1.15rem] font-semibold text-ink">
-            What gets deleted
+            What gets deleted immediately
           </h2>
           <ul className="ml-5 list-disc space-y-1.5">
             <li>Your email address and phone number (if you added one)</li>
-            <li>Your handle is deactivated and freed for reuse</li>
-            <li>Your followers, following, and blocks are removed</li>
-            <li>Your push notification subscriptions are removed</li>
+            <li>Your Supabase sign-in record</li>
             <li>
-              If you tick <strong>Delete my content too</strong>, your comments
-              and community chat messages are deleted
+              Your handle is deactivated and freed for reuse
+            </li>
+            <li>
+              Your avatar and any Space avatars you uploaded as an owner
+            </li>
+            <li>Your voice broadcasts and their audio files</li>
+            <li>Your followers, following, and blocks</li>
+            <li>
+              Your push notification subscriptions (browser and native)
+            </li>
+            <li>
+              Your check-ins, daily answers, Radar signals, and profile status
+            </li>
+            <li>Your reaction history and votes</li>
+            <li>
+              If you tick <strong>Also delete my chat messages</strong>, your
+              community chat messages are deleted too
             </li>
           </ul>
         </section>
 
         <section>
           <h2 className="mb-2 font-serif text-[1.15rem] font-semibold text-ink">
-            What stays
+            What stays, but is detached from you
           </h2>
           <ul className="ml-5 list-disc space-y-1.5">
             <li>
-              Your civic reports stay in the archive, detached from your
-              handle. This is a deliberate policy — reports are permanent
-              records, and removing them would break the integrity of the
-              public archive.
+              <strong>Your reports and comments</strong> stay visible in the
+              archive, but we replace your session id and handle with a
+              placeholder. They can no longer be linked to you. This is a
+              deliberate policy — reports are permanent records and removing
+              them would break the integrity of the public archive.
             </li>
             <li>
-              Your direct messages stay visible to the other person. Deleting
-              them would remove the conversation from their account too.
+              <strong>Your direct messages</strong> stay visible to the other
+              participant, because deleting them would erase their copy of the
+              conversation too. Their sender id points to a ghost profile with
+              no email, no login, and a generic handle — it cannot be logged
+              into again.
             </li>
           </ul>
         </section>
@@ -122,7 +139,7 @@ export default function DeleteAccountPublicPage() {
             <Link href="/privacy" className="text-accent underline">
               Privacy Policy
             </Link>{" "}
-            for details on what we do and do not retain.
+            for full details on what we do and do not retain.
           </p>
         </section>
 
