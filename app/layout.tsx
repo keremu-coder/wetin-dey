@@ -4,6 +4,7 @@ import { Nav, SiteFooter } from "@/components/Nav";
 import { LiveStateProvider } from "@/components/LiveStateProvider";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { PushRegistrar } from "@/components/PushRegistrar";
+import { NativeNetworkMonitor } from "@/components/NativeNetworkMonitor";
 import { BottomNav } from "@/components/BottomNav";
 import { RouteWarmup } from "@/components/RouteWarmup";
 import { TermsGate } from "@/components/TermsGate";
@@ -100,6 +101,7 @@ export default function RootLayout({
       <body className={`min-h-screen font-sans ${FONT_VARIABLE_CLASSES}`}>
         <LiveStateProvider>
           <PushRegistrar />
+          <NativeNetworkMonitor />
           <RouteWarmup />
           <Onboarding />
           <InstallPrompt />
