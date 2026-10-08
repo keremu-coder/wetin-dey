@@ -5,6 +5,7 @@ import { nanoid } from "nanoid";
 import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { slugify, isValidSlug } from "@/lib/community";
+import { assertCanWrite } from "@/lib/guards";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -19,7 +20,8 @@ export async function GET(req: NextRequest) {
     .limit(50);
 
   if (q) {
-    query = query.or(`name.ilike.%${q}%,slug.ilike.%${q}%`);
+    const escaped = q.replace(/[\\%_]/g, "\\$&");
+    query = query.or(`name.ilike.%${escaped}%,slug.ilike.%${escaped}%`);
   }
 
   const { data, error } = await query;
@@ -30,6 +32,9 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const sessionId = await getSessionId();
   if (!sessionId) return Response.json({ error: "no session" }, { status: 401 });
+
+  const denied = await assertCanWrite(sessionId);
+  if (denied) return denied;
 
   const profile = await getOrCreateSessionProfile(sessionId);
   if (!profile) return Response.json({ error: "no profile" }, { status: 500 });
@@ -66,7 +71,6 @@ export async function POST(req: NextRequest) {
 
   const db = createServiceClient();
 
-  // Slug taken?
   const { data: existing } = await db
     .from("communities")
     .select("id")
@@ -95,7 +99,6 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: error.message }, { status: 500 });
   }
 
-  // Owner becomes first member
   await db.from("community_members").insert({
     id: nanoid(),
     community_id: id,

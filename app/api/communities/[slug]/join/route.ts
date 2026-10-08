@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 import { nanoid } from "nanoid";
 import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
+import { assertCanWrite } from "@/lib/guards";
 
 export async function POST(
   req: NextRequest,
@@ -11,6 +12,9 @@ export async function POST(
 ) {
   const sessionId = await getSessionId();
   if (!sessionId) return Response.json({ error: "no session" }, { status: 401 });
+
+  const denied = await assertCanWrite(sessionId);
+  if (denied) return denied;
 
   await getOrCreateSessionProfile(sessionId);
 
@@ -46,7 +50,6 @@ export async function POST(
     return Response.json({ ok: true, joined: false });
   }
 
-  // join
   const { data: existing } = await db
     .from("community_members")
     .select("id")

@@ -5,8 +5,9 @@ import { nanoid } from "nanoid";
 import sharp from "sharp";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
+import { assertCanWrite } from "@/lib/guards";
 
-const MAX_BYTES = 2 * 1024 * 1024; // 2MB
+const MAX_BYTES = 2 * 1024 * 1024;
 const ALLOWED_MIMES = ["image/jpeg", "image/png", "image/webp"];
 
 function extractPath(url: string): string | null {
@@ -45,6 +46,9 @@ export async function POST(
       return Response.json({ error: "no session" }, { status: 401 });
     }
 
+    const denied = await assertCanWrite(sessionId);
+    if (denied) return denied;
+
     const lookup = await loadOwnedCommunity(params.slug, sessionId);
     if ("error" in lookup) {
       return Response.json(
@@ -78,7 +82,6 @@ export async function POST(
       );
     }
 
-    // Re-encode with sharp: strips EXIF, resizes, normalizes.
     const buf = Buffer.from(await file.arrayBuffer());
     let processed: Buffer;
     try {
@@ -93,7 +96,6 @@ export async function POST(
 
     const db = createServiceClient();
 
-    // Remove previous avatar file if it exists
     if (community.avatar_url) {
       const oldPath = extractPath(community.avatar_url);
       if (oldPath) {
@@ -147,6 +149,9 @@ export async function DELETE(
     if (!sessionId) {
       return Response.json({ error: "no session" }, { status: 401 });
     }
+
+    const denied = await assertCanWrite(sessionId);
+    if (denied) return denied;
 
     const lookup = await loadOwnedCommunity(params.slug, sessionId);
     if ("error" in lookup) {

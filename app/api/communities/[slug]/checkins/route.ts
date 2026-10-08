@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { NextRequest } from "next/server";
 import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
+import { assertCanWrite } from "@/lib/guards";
 import {
   CHECKIN_MAX_NOTE,
   isValidCheckinStatus
@@ -27,7 +28,6 @@ export async function GET(
 
     const sessionId = await getSessionId();
 
-    // Members list
     const { data: memberRows } = await db
       .from("community_members")
       .select("session_id, role")
@@ -35,7 +35,6 @@ export async function GET(
 
     const memberSessionIds = (memberRows ?? []).map((m) => m.session_id);
 
-    // Handle lookup
     const handleMap = new Map<string, string>();
     if (memberSessionIds.length > 0) {
       const { data: profiles } = await db
@@ -47,7 +46,6 @@ export async function GET(
       }
     }
 
-    // Active request for this community
     const nowIso = new Date().toISOString();
     const { data: request } = await db
       .from("checkin_requests")
@@ -117,6 +115,9 @@ export async function POST(
     if (!sessionId) {
       return Response.json({ error: "no session" }, { status: 401 });
     }
+
+    const denied = await assertCanWrite(sessionId);
+    if (denied) return denied;
 
     const profile = await getOrCreateSessionProfile(sessionId);
     if (!profile) {
