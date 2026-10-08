@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
   const { data: target } = await db
     .from("sessions")
     .select("id, handle")
-    .ilike("handle", escapeLike(targetHandle))
+    .eq("handle_lower", targetHandle.toLowerCase())
     .maybeSingle();
 
   if (!target) return Response.json({ error: "profile not found" }, { status: 404 });

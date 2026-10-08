@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
     const { data: target, error: targetErr } = await db
       .from("sessions")
       .select("id, handle")
-      .ilike("handle", handle)
+      .eq("handle_lower", handle)
       .maybeSingle();
 
     if (targetErr) {

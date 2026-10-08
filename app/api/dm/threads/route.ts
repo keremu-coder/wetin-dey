@@ -145,7 +145,7 @@ export async function POST(req: NextRequest) {
     const { data: target } = await db
       .from("sessions")
       .select("id, handle, dm_policy")
-      .ilike("handle", escapeLike(targetHandle))
+      .eq("handle_lower", targetHandle)
       .maybeSingle();
 
     if (!target) {

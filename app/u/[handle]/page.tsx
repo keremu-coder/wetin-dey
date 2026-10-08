@@ -30,7 +30,7 @@ const resolveHandle = unstable_cache(
     const { data: direct } = await db
       .from("sessions")
       .select("id, handle")
-      .ilike("handle", cleaned)
+      .eq("handle_lower", cleaned)
       .maybeSingle();
 
     if (direct?.handle) {
