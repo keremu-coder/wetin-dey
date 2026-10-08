@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
+import nextDynamic from "next/dynamic";
 import { Nav, SiteFooter } from "@/components/Nav";
 import { LiveStateProvider } from "@/components/LiveStateProvider";
-import { Onboarding } from "@/components/Onboarding";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { PushRegistrar } from "@/components/PushRegistrar";
 import { BottomNav } from "@/components/BottomNav";
@@ -10,6 +10,12 @@ import { TermsGate } from "@/components/TermsGate";
 import { EmailVerificationHandler } from "@/components/EmailVerificationHandler";
 import { FONT_VARIABLE_CLASSES } from "@/lib/fonts";
 import "./globals.css";
+
+// Onboarding shows once for new users. Doesn't need to block first paint.
+const Onboarding = nextDynamic(
+  () => import("@/components/Onboarding").then((m) => m.Onboarding),
+  { ssr: false }
+);
 
 export const metadata: Metadata = {
   title: "Wetin Dey",

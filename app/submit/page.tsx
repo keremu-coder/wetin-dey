@@ -1,6 +1,13 @@
-import { ReportForm } from "@/components/ReportForm";
+import nextDynamic from "next/dynamic";
 
 export const dynamic = "force-dynamic";
+
+// ReportForm is 643 lines and only needed once the user starts typing.
+// Keep it out of the initial submit-page bundle.
+const ReportForm = nextDynamic(
+  () => import("@/components/ReportForm").then((m) => m.ReportForm),
+  { ssr: false }
+);
 
 export default function SubmitPage({
   searchParams
@@ -17,8 +24,8 @@ export default function SubmitPage({
           {communitySlug
             ? `Space: /c/${communitySlug}`
             : tab === "talk"
-            ? "Talk Am"
-            : "Community"}
+              ? "Talk Am"
+              : "Community"}
         </p>
         <h1 className="mt-2 font-serif text-[2rem] font-semibold leading-tight text-ink">
           {tab === "talk" ? "Wetin happen?" : "Post something"}
