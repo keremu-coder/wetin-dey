@@ -7,6 +7,7 @@ import {
   actualMime,
   extFromType
 } from "@/lib/voice-recorder";
+import { BlockButton } from "./BlockButton";
 
 type Comment = {
   id: string;
@@ -62,6 +63,7 @@ export function CommentThread({ reportId }: { reportId: string }) {
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [replyBody, setReplyBody] = useState("");
   const [replyBusy, setReplyBusy] = useState(false);
+  const [blockedHandles, setBlockedHandles] = useState<Set<string>>(new Set());
   const [flagTarget, setFlagTarget] = useState<{
     id: string;
     label: string;
@@ -91,6 +93,7 @@ export function CommentThread({ reportId }: { reportId: string }) {
     const top: Comment[] = [];
     const map = new Map<string, Comment[]>();
     for (const c of comments) {
+      if (c.author_handle && blockedHandles.has(c.author_handle)) continue;
       if (c.parent_id) {
         const list = map.get(c.parent_id) ?? [];
         list.push(c);
@@ -100,7 +103,7 @@ export function CommentThread({ reportId }: { reportId: string }) {
       }
     }
     return { topLevel: top, repliesByParent: map };
-  }, [comments]);
+  }, [comments, blockedHandles]);
 
   async function startRecording() {
     setError("");
@@ -355,6 +358,18 @@ export function CommentThread({ reportId }: { reportId: string }) {
                 >
                   🚩
                 </button>
+                <BlockButton
+                  handle={handle}
+                  className="inline-flex items-center gap-1 rounded-full bg-ink/5 px-2.5 py-1 text-[0.75rem] text-muted transition-colors hover:bg-danger-soft hover:text-danger"
+                  label="Block"
+                  onBlocked={(h) => {
+                    setBlockedHandles((prev) => {
+                      const next = new Set(prev);
+                      next.add(h);
+                      return next;
+                    });
+                  }}
+                />
                 {(c.score ?? 0) !== 0 ? (
                   <span className="text-[0.7rem] text-faint">
                     score {(c.score ?? 0) > 0 ? "+" : ""}
