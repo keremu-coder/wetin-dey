@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { isNativePlatform } from "@/lib/native";
 
 const DISMISSED_KEY = "wetindey:install-prompt-dismissed:v1";
 const CHAT_VISITED_KEY = "wetindey:chat-visited:v1";
@@ -28,13 +29,14 @@ function isStandalone(): boolean {
 
 /**
  * Sequencing rules for the install prompt:
+ *   0. Never show inside the native Capacitor shell — installing an app
+ *      that's already installed makes no sense.
  *   1. Only show if the user has been through onboarding.
- *   2. Only show if the user has actually visited a chat at least once
- *      (they've invested something before we ask them to install).
+ *   2. Only show if the user has actually visited a chat at least once.
  *   3. Only show if they haven't dismissed it before.
  *   4. Only show on mobile (iOS or Android).
- *   5. Show 8 seconds after landing on the page, so we never stack with
- *      onboarding or a notification permission prompt.
+ *   5. Show 8 seconds after landing, so we never stack with onboarding
+ *      or a notification permission prompt.
  */
 export function InstallPrompt() {
   const [show, setShow] = useState(false);
@@ -42,6 +44,7 @@ export function InstallPrompt() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (isNativePlatform()) return;
     if (isStandalone()) return;
 
     try {

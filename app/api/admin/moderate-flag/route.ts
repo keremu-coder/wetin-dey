@@ -8,11 +8,6 @@ import { sameOrigin } from "@/lib/rate-limit";
 type Action = "dismiss" | "remove" | "ban_user";
 const VALID_ACTIONS: Action[] = ["dismiss", "remove", "ban_user"];
 
-/**
- * Look up the author's session_id for a given flag target.
- * Returns null if we can't determine it (some target types have no
- * single author, e.g. dm_thread which has two participants).
- */
 async function resolveTargetAuthor(
   db: ReturnType<typeof createServiceClient>,
   targetType: string,
@@ -113,7 +108,54 @@ async function hideTarget(
       .eq("id", targetId);
     return !error;
   }
-  // user / dm_thread / community — no per-row hide
+  return false;
+}
+
+/**
+ * Mirror of hideTarget. Only called by the dismiss action, and only
+ * when no other "actioned" flag is still attached to the same target
+ * (otherwise we'd unhide content a moderator explicitly removed).
+ */
+async function unhideTarget(
+  db: ReturnType<typeof createServiceClient>,
+  targetType: string,
+  targetId: string
+): Promise<boolean> {
+  if (targetType === "message") {
+    const { error } = await db
+      .from("community_messages")
+      .update({ hidden: false })
+      .eq("id", targetId);
+    return !error;
+  }
+  if (targetType === "comment") {
+    const { error } = await db
+      .from("comments")
+      .update({ hidden: false })
+      .eq("id", targetId);
+    return !error;
+  }
+  if (targetType === "post" || targetType === "report") {
+    const { error } = await db
+      .from("reports")
+      .update({ held: false })
+      .eq("id", targetId);
+    return !error;
+  }
+  if (targetType === "dm_message") {
+    const { error } = await db
+      .from("dm_messages")
+      .update({ held: false })
+      .eq("id", targetId);
+    return !error;
+  }
+  if (targetType === "broadcast") {
+    const { error } = await db
+      .from("broadcasts")
+      .update({ hidden: false })
+      .eq("id", targetId);
+    return !error;
+  }
   return false;
 }
 
@@ -175,10 +217,30 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: "flag not found" }, { status: 404 });
     }
 
-    const newStatus =
-      action === "dismiss" ? "dismissed" : "actioned";
+    const newStatus = action === "dismiss" ? "dismissed" : "actioned";
 
     if (action === "dismiss") {
+      // Before we dismiss, check whether any OTHER flag on the same
+      // target is still "actioned". If yes, the content should stay
+      // hidden — a moderator explicitly removed it for another reason.
+      // Only if this is the last remaining flag do we restore visibility.
+      const { count: otherActioned } = await db
+        .from("content_flags")
+        .select("id", { count: "exact", head: true })
+        .eq("target_type", flag.target_type)
+        .eq("target_id", flag.target_id)
+        .eq("status", "actioned")
+        .neq("id", flag.id);
+
+      let restored = false;
+      if ((otherActioned ?? 0) === 0) {
+        restored = await unhideTarget(
+          db,
+          flag.target_type,
+          flag.target_id
+        );
+      }
+
       const { error } = await db
         .from("content_flags")
         .update({ status: newStatus })
@@ -186,7 +248,16 @@ export async function POST(req: NextRequest) {
       if (error) {
         return Response.json({ error: error.message }, { status: 500 });
       }
-    } else if (action === "remove") {
+
+      return Response.json({
+        ok: true,
+        action,
+        status: newStatus,
+        restored
+      });
+    }
+
+    if (action === "remove") {
       const hid = await hideTarget(db, flag.target_type, flag.target_id);
       const { error } = await db
         .from("content_flags")
@@ -196,13 +267,15 @@ export async function POST(req: NextRequest) {
         return Response.json({ error: error.message }, { status: 500 });
       }
       if (!hid) {
-        // No hide mechanism for this target type — log for audit but say so.
         console.warn(
           "[moderate-flag] no hide mechanism for",
           flag.target_type
         );
       }
-    } else if (action === "ban_user") {
+      return Response.json({ ok: true, action, status: newStatus, hidden: hid });
+    }
+
+    if (action === "ban_user") {
       const authorId = await resolveTargetAuthor(
         db,
         flag.target_type,
@@ -234,7 +307,6 @@ export async function POST(req: NextRequest) {
         return Response.json({ error: banErr.message }, { status: 500 });
       }
 
-      // Also hide the offending content.
       await hideTarget(db, flag.target_type, flag.target_id);
 
       const { error } = await db
@@ -244,9 +316,11 @@ export async function POST(req: NextRequest) {
       if (error) {
         return Response.json({ error: error.message }, { status: 500 });
       }
+
+      return Response.json({ ok: true, action, status: newStatus });
     }
 
-    return Response.json({ ok: true, action, status: newStatus });
+    return Response.json({ error: "unreachable" }, { status: 500 });
   } catch (e) {
     console.error("[moderate-flag]", e);
     return Response.json(
