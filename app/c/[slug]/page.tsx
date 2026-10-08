@@ -5,6 +5,7 @@ import { getSessionId } from "@/lib/session";
 import { isMember } from "@/lib/community";
 import { ReportCard } from "@/components/ReportCard";
 import { SpaceAvatarUploader } from "@/components/SpaceAvatarUploader";
+import { CommunityActions } from "@/components/CommunityActions";
 import { CommunityJoinButton } from "./join-button";
 import { InviteButton } from "./invite-button";
 
@@ -146,6 +147,12 @@ export default async function CommunityPage({
               </p>
             ) : null}
           </div>
+          {!isOwner ? (
+            <CommunityActions
+              communityId={community.id}
+              communityName={community.name}
+            />
+          ) : null}
         </div>
 
         {isOwner ? (

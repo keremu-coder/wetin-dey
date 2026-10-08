@@ -18,7 +18,9 @@ export type FlagTargetType =
   | "post"
   | "report"
   | "dm_thread"
-  | "dm_message";
+  | "dm_message"
+  | "user"
+  | "broadcast";
 
 export function FlagSheet({
   targetType,

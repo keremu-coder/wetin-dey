@@ -8,6 +8,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { ReviewedFlag } from "@/components/ReviewedFlag";
 import { StatusLine } from "@/components/StatusLine";
 import { StartDMButton } from "@/components/StartDMButton";
+import { ProfileActions } from "@/components/ProfileActions";
 import { formatNaira } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
@@ -234,24 +235,14 @@ export default async function ProfilePage({
 
   const posts = tab === "posts" ? bundle.posts : [];
 
-  const [people, myFollowing] = await Promise.all([
-    tab === "followers"
-      ? getFollowers(profile.id)
-      : tab === "following"
-        ? getFollowing(profile.id)
-        : Promise.resolve([] as PersonRow[]),
-    (async () => {
-      if (!mySessionId) return new Set<string>();
-      const ids: string[] = [];
-      if (tab === "followers" && bundle.profile) {
-        // will fill after we know people — placeholder
-      }
-      return new Set(ids);
-    })()
-  ]);
+  const people = await (tab === "followers"
+    ? getFollowers(profile.id)
+    : tab === "following"
+      ? getFollowing(profile.id)
+      : Promise.resolve([] as PersonRow[]));
 
   // Determine who I already follow among the visible people
-  let myFollowSet = myFollowing;
+  let myFollowSet = new Set<string>();
   if (mySessionId && people.length > 0) {
     const db = createServiceClient();
     const { data: mine } = await db
@@ -337,25 +328,29 @@ export default async function ProfilePage({
         <h2 className="truncate font-serif text-[1.05rem] font-semibold text-ink">
           @{handle}
         </h2>
-        <Link
-          href="/search"
-          className="flex h-10 w-10 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5"
-          aria-label="Search"
-        >
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+        {isSignedIn && !isMe ? (
+          <ProfileActions profileId={profile.id} handle={handle} />
+        ) : (
+          <Link
+            href="/search"
+            className="flex h-10 w-10 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5"
+            aria-label="Search"
           >
-            <circle cx="11" cy="11" r="7" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-        </Link>
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="11" cy="11" r="7" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </Link>
+        )}
       </div>
 
       {/* Profile header */}

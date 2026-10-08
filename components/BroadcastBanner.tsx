@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { broadcastAge, broadcastExpiresIn } from "@/lib/broadcasts";
+import { FlagSheet } from "./FlagSheet";
 
 export type Broadcast = {
   id: string;
@@ -23,6 +24,7 @@ export function BroadcastBanner({
 }) {
   const [current, setCurrent] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const [flagOpen, setFlagOpen] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -51,95 +53,116 @@ export function BroadcastBanner({
   }
 
   return (
-    <div className="border-b border-gold/30 bg-gold-soft/60 px-3 py-3">
-      <div className="flex items-start gap-3">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gold text-[1.3rem] text-ink">
-          📢
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex items-baseline justify-between gap-2">
-            <p className="font-mono text-[0.65rem] uppercase tracking-wider text-ink/70">
-              Broadcast · @{b.author_handle}
-            </p>
-            <span className="shrink-0 font-mono text-[0.65rem] text-ink/60">
-              {broadcastAge(b.created_at)}
-            </span>
+    <>
+      <div className="border-b border-gold/30 bg-gold-soft/60 px-3 py-3">
+        <div className="flex items-start gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gold text-[1.3rem] text-ink">
+            📢
           </div>
 
-          {b.title ? (
-            <p className="mt-1 text-[0.9375rem] font-semibold leading-snug text-ink">
-              {b.title}
-            </p>
-          ) : (
-            <p className="mt-1 text-[0.8125rem] italic text-ink/70">
-              Voice broadcast
-            </p>
-          )}
-
-          <div className="mt-2 flex items-center gap-2">
-            <button
-              type="button"
-              onClick={togglePlay}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-ink text-white transition-transform hover:opacity-90 active:scale-95"
-              aria-label={playing ? "Pause" : "Play broadcast"}
-            >
-              {playing ? (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                  <rect x="6" y="5" width="4" height="14" rx="1" />
-                  <rect x="14" y="5" width="4" height="14" rx="1" />
-                </svg>
-              ) : (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                  <polygon points="7,5 19,12 7,19" />
-                </svg>
-              )}
-            </button>
-
-            {b.duration_seconds ? (
-              <span className="font-mono text-[0.7rem] text-ink/60">
-                {Math.floor(b.duration_seconds / 60)}:
-                {String(b.duration_seconds % 60).padStart(2, "0")}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline justify-between gap-2">
+              <p className="font-mono text-[0.65rem] uppercase tracking-wider text-ink/70">
+                Broadcast · @{b.author_handle}
+              </p>
+              <span className="shrink-0 font-mono text-[0.65rem] text-ink/60">
+                {broadcastAge(b.created_at)}
               </span>
-            ) : null}
+            </div>
 
-            <span className="font-mono text-[0.7rem] text-ink/60">
-              · {broadcastExpiresIn(b.expires_at)}
-            </span>
+            {b.title ? (
+              <p className="mt-1 text-[0.9375rem] font-semibold leading-snug text-ink">
+                {b.title}
+              </p>
+            ) : (
+              <p className="mt-1 text-[0.8125rem] italic text-ink/70">
+                Voice broadcast
+              </p>
+            )}
 
-            {broadcasts.length > 1 ? (
+            <div className="mt-2 flex items-center gap-2">
               <button
                 type="button"
-                onClick={cycle}
-                className="ml-auto rounded-lg border border-ink/20 bg-paper/60 px-2 py-1 font-mono text-[0.65rem] font-medium text-ink transition-colors hover:bg-paper"
+                onClick={togglePlay}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-ink text-white transition-transform hover:opacity-90 active:scale-95"
+                aria-label={playing ? "Pause" : "Play broadcast"}
               >
-                {current + 1}/{broadcasts.length} →
+                {playing ? (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6" y="5" width="4" height="14" rx="1" />
+                    <rect x="14" y="5" width="4" height="14" rx="1" />
+                  </svg>
+                ) : (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="7,5 19,12 7,19" />
+                  </svg>
+                )}
+              </button>
+
+              {b.duration_seconds ? (
+                <span className="font-mono text-[0.7rem] text-ink/60">
+                  {Math.floor(b.duration_seconds / 60)}:
+                  {String(b.duration_seconds % 60).padStart(2, "0")}
+                </span>
+              ) : null}
+
+              <span className="font-mono text-[0.7rem] text-ink/60">
+                · {broadcastExpiresIn(b.expires_at)}
+              </span>
+
+              {broadcasts.length > 1 ? (
+                <button
+                  type="button"
+                  onClick={cycle}
+                  className="ml-auto rounded-lg border border-ink/20 bg-paper/60 px-2 py-1 font-mono text-[0.65rem] font-medium text-ink transition-colors hover:bg-paper"
+                >
+                  {current + 1}/{broadcasts.length} →
+                </button>
+              ) : null}
+            </div>
+
+            <audio
+              ref={audioRef}
+              src={b.audio_url}
+              onPlay={() => setPlaying(true)}
+              onPause={() => setPlaying(false)}
+              onEnded={() => setPlaying(false)}
+              preload="none"
+            />
+          </div>
+
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            <button
+              type="button"
+              onClick={() => setFlagOpen(true)}
+              className="text-[0.75rem] font-medium text-ink/60 transition-colors hover:text-danger"
+              aria-label="Report broadcast"
+            >
+              Report
+            </button>
+            {onDismiss ? (
+              <button
+                type="button"
+                onClick={() => onDismiss(b.id)}
+                className="text-[0.9rem] text-ink/40 transition-colors hover:text-ink"
+                aria-label="Hide for now"
+                title="Hide"
+              >
+                ✕
               </button>
             ) : null}
           </div>
-
-          <audio
-            ref={audioRef}
-            src={b.audio_url}
-            onPlay={() => setPlaying(true)}
-            onPause={() => setPlaying(false)}
-            onEnded={() => setPlaying(false)}
-            preload="none"
-          />
         </div>
-
-        {onDismiss ? (
-          <button
-            type="button"
-            onClick={() => onDismiss(b.id)}
-            className="shrink-0 text-[0.9rem] text-ink/40 transition-colors hover:text-ink"
-            aria-label="Hide for now"
-            title="Hide"
-          >
-            ✕
-          </button>
-        ) : null}
       </div>
-    </div>
+
+      {flagOpen ? (
+        <FlagSheet
+          targetType="broadcast"
+          targetId={b.id}
+          targetLabel={`broadcast from @${b.author_handle}`}
+          onClose={() => setFlagOpen(false)}
+        />
+      ) : null}
+    </>
   );
 }

@@ -12,7 +12,9 @@ const VALID_TARGETS = [
   "post",
   "report",
   "dm_thread",
-  "dm_message"
+  "dm_message",
+  "user",
+  "broadcast"
 ] as const;
 type Target = (typeof VALID_TARGETS)[number];
 
@@ -79,7 +81,7 @@ export async function POST(req: NextRequest) {
 
     const db = createServiceClient();
 
-    // Self-flag guard: reject if the caller owns the target.
+    // Self-flag guards: reject if the caller owns the target.
     if (body.target_type === "message") {
       const { data: msg } = await db
         .from("community_messages")
@@ -141,8 +143,6 @@ export async function POST(req: NextRequest) {
         );
       }
     } else if (body.target_type === "dm_thread") {
-      // A DM thread has two participants — flagging is fine if you're in it,
-      // but you can't flag a thread you're not a part of.
       const { data: thread } = await db
         .from("dm_threads")
         .select("session_a, session_b")
@@ -161,8 +161,6 @@ export async function POST(req: NextRequest) {
         );
       }
     } else if (body.target_type === "dm_message") {
-      // Look up the message + its thread; reject if the sender is you,
-      // and reject if you're not a participant.
       const { data: dm } = await db
         .from("dm_messages")
         .select("sender_id, thread_id")
@@ -189,6 +187,37 @@ export async function POST(req: NextRequest) {
         return Response.json(
           { error: "You can't report a message you're not part of." },
           { status: 403 }
+        );
+      }
+    } else if (body.target_type === "user") {
+      // target_id is the session_id of the user being reported.
+      const { data: user } = await db
+        .from("sessions")
+        .select("id")
+        .eq("id", body.target_id)
+        .maybeSingle();
+      if (!user) {
+        return Response.json({ error: "User not found" }, { status: 404 });
+      }
+      if (user.id === sessionId) {
+        return Response.json(
+          { error: "You can't report yourself." },
+          { status: 400 }
+        );
+      }
+    } else if (body.target_type === "broadcast") {
+      const { data: bcast } = await db
+        .from("broadcasts")
+        .select("session_id, expires_at")
+        .eq("id", body.target_id)
+        .maybeSingle();
+      if (!bcast) {
+        return Response.json({ error: "Broadcast not found" }, { status: 404 });
+      }
+      if (bcast.session_id === sessionId) {
+        return Response.json(
+          { error: "You can't report your own broadcast." },
+          { status: 400 }
         );
       }
     }
