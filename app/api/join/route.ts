@@ -3,13 +3,28 @@ export const runtime = "nodejs";
 import { NextRequest } from "next/server";
 import { getSessionId, getOrCreateSessionProfile, isValidHandleFormat } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
+import { sameOrigin, checkRateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
-  console.log("=== POST /api/join START ===");
+  if (!sameOrigin(req)) {
+    return Response.json({ error: "bad origin" }, { status: 403 });
+  }
 
   const sessionId = await getSessionId();
   if (!sessionId) {
     return Response.json({ error: "no session" }, { status: 401 });
+  }
+
+  const limit = await checkRateLimit(sessionId, {
+    key: "join",
+    limit: 5,
+    windowMs: 60 * 60 * 1000
+  });
+  if (!limit.ok) {
+    return Response.json(
+      { error: "Too many attempts. Try again later." },
+      { status: 429 }
+    );
   }
 
   let body: { email?: string; password?: string; handle?: string };
@@ -28,24 +43,25 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Email no correct." }, { status: 400 });
   }
   if (password.length < 8) {
-    return Response.json({ error: "Password must be at least 8 characters." }, { status: 400 });
+    return Response.json(
+      { error: "Password must be at least 8 characters." },
+      { status: 400 }
+    );
   }
   if (!isValidHandleFormat(handle)) {
     return Response.json(
-      { error: "Handle must be 3–20 characters. Letters, numbers, underscore only." },
+      { error: "Handle must be 3-20 characters. Letters, numbers, underscore only." },
       { status: 400 }
     );
   }
 
   const db = createServiceClient();
 
-  // Ensure profile row exists
   const profile = await getOrCreateSessionProfile(sessionId);
   if (!profile) {
     return Response.json({ error: "session profile failed" }, { status: 500 });
   }
 
-  // Check if handle is taken by someone else
   const { data: clash } = await db
     .from("sessions")
     .select("id")
@@ -54,10 +70,12 @@ export async function POST(req: NextRequest) {
     .maybeSingle();
 
   if (clash) {
-    return Response.json({ error: "That handle don already dey. Try another one." }, { status: 409 });
+    return Response.json(
+      { error: "That handle don already dey. Try another one." },
+      { status: 409 }
+    );
   }
 
-  // Check if email already used
   const { data: emailClash } = await db
     .from("sessions")
     .select("id")
@@ -72,7 +90,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Create Supabase Auth user (email confirmed = true, since we disable email verification)
   const { data: authData, error: authErr } = await db.auth.admin.createUser({
     email,
     password,
@@ -80,16 +97,13 @@ export async function POST(req: NextRequest) {
   });
 
   if (authErr || !authData?.user) {
-    console.error("[auth] createUser failed:", authErr);
+    console.error("[join] createUser failed:", authErr?.message ?? "unknown");
     return Response.json(
       { error: authErr?.message ?? "Could not create account." },
       { status: 500 }
     );
   }
 
-  console.log("[auth] created user:", authData.user.id);
-
-  // Upgrade the session row
   const { error: updErr } = await db
     .from("sessions")
     .update({
@@ -102,10 +116,12 @@ export async function POST(req: NextRequest) {
     .eq("id", sessionId);
 
   if (updErr) {
-    console.error("[db] session update failed:", updErr);
-    return Response.json({ error: "Account created but profile update failed." }, { status: 500 });
+    console.error("[join] session update failed:", updErr.message);
+    return Response.json(
+      { error: "Account created but profile update failed." },
+      { status: 500 }
+    );
   }
 
-  console.log("=== POST /api/join SUCCESS ===");
   return Response.json({ ok: true, handle });
 }

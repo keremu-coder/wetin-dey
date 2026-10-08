@@ -33,6 +33,7 @@ export function PostActions({
   const [meToo, setMeToo] = useState(initialMeToo);
   const [myVote, setMyVote] = useState<"up" | "down" | "me_too" | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     fetch(`/api/posts/${postId}/vote`)
@@ -103,14 +104,26 @@ export function PostActions({
   }
 
   async function blockUser() {
-    if (!authorHandle) return;
-    await fetch("/api/block", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ handle: authorHandle, action: "block" })
-    });
-    setMenuOpen(false);
-    window.location.reload();
+    if (!authorHandle || busy) return;
+    setBusy(true);
+    try {
+      const res = await fetch("/api/block", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ handle: authorHandle, action: "block" })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data.error ?? "Could not block. Try again.");
+        setBusy(false);
+        return;
+      }
+      setMenuOpen(false);
+      window.location.reload();
+    } catch {
+      alert("Could not block. Check your connection.");
+      setBusy(false);
+    }
   }
 
   async function deleteOwnPost() {
@@ -202,7 +215,6 @@ export function PostActions({
 
         {menuOpen ? (
           <>
-            {/* Invisible backdrop to close on outside click */}
             <div
               className="fixed inset-0 z-40"
               onClick={() => setMenuOpen(false)}
@@ -246,9 +258,10 @@ export function PostActions({
                 <button
                   type="button"
                   onClick={blockUser}
-                  className="block w-full rounded-lg px-3 py-2 text-left text-[0.8125rem] text-danger hover:bg-danger-soft"
+                  disabled={busy}
+                  className="block w-full rounded-lg px-3 py-2 text-left text-[0.8125rem] text-danger hover:bg-danger-soft disabled:opacity-60"
                 >
-                  Block @{authorHandle}
+                  {busy ? "Dey block…" : `Block @${authorHandle}`}
                 </button>
               ) : null}
               <Link
