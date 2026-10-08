@@ -1,12 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { FlagSheet } from "./FlagSheet";
 
-/**
- * The ●●● menu shown on a user's profile (when it's not your own).
- * Offers Report and Block.
- */
 export function ProfileActions({
   profileId,
   handle
@@ -14,6 +11,7 @@ export function ProfileActions({
   profileId: string;
   handle: string;
 }) {
+  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [flagOpen, setFlagOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -37,7 +35,7 @@ export function ProfileActions({
         return;
       }
       setMenuOpen(false);
-      window.location.reload();
+      router.refresh();
     } catch {
       alert("Could not block. Check your connection.");
       setBusy(false);

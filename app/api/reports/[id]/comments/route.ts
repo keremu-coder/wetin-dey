@@ -6,18 +6,13 @@ import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { analyzeModeration, moderationReason } from "@/lib/dm-filter";
 import { isBanned, BANNED_MESSAGE } from "@/lib/ban-guard";
+import { getBlockedIds } from "@/lib/blocks";
 import {
   hasAcceptedTerms,
   TERMS_NOT_ACCEPTED_CODE,
   TERMS_NOT_ACCEPTED_MESSAGE
 } from "@/lib/terms-guard";
 
-/**
- * Derive a safe file extension from an audio MIME type.
- * Safari/iOS MediaRecorder often emits "audio/mp4" — mislabeling that as
- * .webm causes playback failures because the browser refuses the container
- * based on the extension. Map explicitly; default to webm.
- */
 function extForAudioType(t: string | undefined): string {
   const lower = (t ?? "").toLowerCase();
   if (lower.includes("mp4") || lower.includes("m4a")) return "m4a";
@@ -33,8 +28,11 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    const sessionId = await getSessionId();
+    const blockedIds = await getBlockedIds(sessionId);
+
     const db = createServiceClient();
-    const { data, error } = await db
+    let q = db
       .from("comments")
       .select(
         "id, created_at, body, audio_url, transcript, session_id, upvotes, downvotes, parent_id"
@@ -43,6 +41,12 @@ export async function GET(
       .eq("hidden", false)
       .order("created_at", { ascending: true })
       .limit(500);
+
+    if (blockedIds.size > 0) {
+      q = q.not("session_id", "in", `(${Array.from(blockedIds).join(",")})`);
+    }
+
+    const { data, error } = await q;
 
     if (error) {
       return Response.json({ error: error.message }, { status: 500 });

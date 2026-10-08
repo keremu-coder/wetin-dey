@@ -8,6 +8,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { notifyCommunityMembers } from "@/lib/push-server";
 import { analyzeModeration, moderationReason } from "@/lib/dm-filter";
 import { isBanned, BANNED_MESSAGE } from "@/lib/ban-guard";
+import { getBlockedIds } from "@/lib/blocks";
 import {
   hasAcceptedTerms,
   TERMS_NOT_ACCEPTED_CODE,
@@ -32,6 +33,8 @@ export async function GET(
     }
 
     const requesterId = await getSessionId();
+    const blockedIds = await getBlockedIds(requesterId);
+
     let requesterHides = false;
     if (requesterId) {
       const { data: me } = await db
@@ -42,13 +45,19 @@ export async function GET(
       requesterHides = me?.hide_presence === true;
     }
 
-    const { data: messages, error } = await db
+    let q = db
       .from("community_messages")
       .select("id, session_id, body, audio_url, created_at")
       .eq("community_id", community.id)
       .eq("hidden", false)
       .order("created_at", { ascending: false })
       .limit(100);
+
+    if (blockedIds.size > 0) {
+      q = q.not("session_id", "in", `(${Array.from(blockedIds).join(",")})`);
+    }
+
+    const { data: messages, error } = await q;
 
     if (error) {
       return Response.json({ error: error.message }, { status: 500 });

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { FlagSheet } from "./FlagSheet";
 
 type Props = {
@@ -29,6 +30,7 @@ export function PostActions({
   evidenceLink,
   postUrl
 }: Props) {
+  const router = useRouter();
   const [upvotes, setUpvotes] = useState(initialUpvotes);
   const [downvotes, setDownvotes] = useState(initialDownvotes);
   const [meToo, setMeToo] = useState(initialMeToo);
@@ -121,7 +123,7 @@ export function PostActions({
         return;
       }
       setMenuOpen(false);
-      window.location.reload();
+      router.refresh();
     } catch {
       alert("Could not block. Check your connection.");
       setBusy(false);
@@ -132,7 +134,7 @@ export function PostActions({
     if (!confirm("Delete this post? This cannot be undone.")) return;
     const res = await fetch(`/api/posts/${postId}`, { method: "DELETE" });
     if (res.ok) {
-      window.location.href = "/";
+      router.push("/");
     }
   }
 
