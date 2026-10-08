@@ -3,13 +3,16 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
+const ACCEPTED_KEY = "wetindey:terms-accepted:v1";
+
 /**
  * One-time consent gate shown to sessions that haven't accepted the
  * Terms of Use and Community Guidelines yet.
  *
- * Runs on mount: asks /api/accept-terms (GET) whether the current
- * session has accepted. If not, shows a full-screen modal that blocks
- * the app until they accept or leave.
+ * On mount: checks sessionStorage first. If the flag is already there,
+ * we skip the network call entirely — this is the common case (user
+ * accepted once, then navigates around the app). Otherwise we ask
+ * /api/accept-terms (GET) and show the modal if needed.
  *
  * Fail-open: if the check errors, we do NOT block (the app is more
  * important than the modal).
@@ -21,6 +24,16 @@ export function TermsGate() {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    // Fast path: already accepted this browser session.
+    try {
+      if (window.sessionStorage.getItem(ACCEPTED_KEY) === "1") {
+        setChecking(false);
+        return;
+      }
+    } catch {
+      /* sessionStorage unavailable, fall through */
+    }
+
     let cancelled = false;
 
     fetch("/api/accept-terms", { cache: "no-store" })
@@ -28,16 +41,25 @@ export function TermsGate() {
       .then((d) => {
         if (cancelled) return;
         if (!d) {
-          // Fail open
           setChecking(false);
           return;
         }
+
+        const accepted =
+          d.has_session === true && d.accepted === true;
+        if (accepted) {
+          try {
+            window.sessionStorage.setItem(ACCEPTED_KEY, "1");
+          } catch {
+            /* ignore */
+          }
+        }
+
         setNeedsConsent(d.has_session === true && d.accepted === false);
         setChecking(false);
       })
       .catch(() => {
         if (cancelled) return;
-        // Fail open
         setChecking(false);
       });
 
@@ -61,6 +83,13 @@ export function TermsGate() {
         setBusy(false);
         return;
       }
+
+      try {
+        window.sessionStorage.setItem(ACCEPTED_KEY, "1");
+      } catch {
+        /* ignore */
+      }
+
       setNeedsConsent(false);
       if (navigator.vibrate) {
         try {
