@@ -17,6 +17,7 @@ import {
 } from "@/lib/sound-prefs";
 import { FilterWarning } from "./FilterWarning";
 import { DMComposer } from "./DMComposer";
+import { FlagSheet } from "./FlagSheet";
 
 type Message = {
   id: string;
@@ -68,6 +69,9 @@ export function DMThread({
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [error, setError] = useState("");
   const [blockReason, setBlockReason] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [flagOpen, setFlagOpen] = useState(false);
+  const [blocking, setBlocking] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const lastMarkRef = useRef<number>(0);
   const scrollDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -119,6 +123,29 @@ export function DMThread({
     }
   }
 
+  async function blockUser() {
+    if (blocking) return;
+    setBlocking(true);
+    try {
+      const res = await fetch("/api/block", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ handle: otherHandle, action: "block" })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data.error ?? "Could not block. Try again.");
+        setBlocking(false);
+        return;
+      }
+      setMenuOpen(false);
+      window.location.href = "/inbox";
+    } catch {
+      alert("Could not block. Check your connection.");
+      setBlocking(false);
+    }
+  }
+
   // Realtime subscription on this thread's messages.
   useEffect(() => {
     if (!mySessionId) return;
@@ -155,12 +182,10 @@ export function DMThread({
             if (row.sender_id === mySessionId) return;
             if (row.held) return;
 
-            // ─── Sound + haptic for incoming DM ───
             const p = prefsRef.current;
             if (p.receive) playProfile(p.profile, "receive");
             if (p.vibrate) vibrate(35);
 
-            // Browser notification (background tab only)
             if (p.browserNotifications) {
               showBrowserNotification(
                 `@${otherHandle} sent you a message`,
@@ -284,6 +309,53 @@ export function DMThread({
             </p>
           </div>
         </Link>
+
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setMenuOpen((v) => !v)}
+            className="flex h-10 w-10 items-center justify-center rounded-full text-faint transition-colors hover:bg-ink/5 hover:text-ink"
+            aria-label="More options"
+          >
+            •••
+          </button>
+
+          {menuOpen ? (
+            <>
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setMenuOpen(false)}
+              />
+              <div className="absolute right-0 top-full z-50 mt-1 w-56 rounded-xl border border-border bg-surface p-1 shadow-card-hover">
+                <Link
+                  href={`/u/${encodeURIComponent(otherHandle)}`}
+                  onClick={() => setMenuOpen(false)}
+                  className="block rounded-lg px-3 py-2 text-left text-[0.8125rem] text-ink hover:bg-ink/5"
+                >
+                  View @{otherHandle}
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setFlagOpen(true);
+                  }}
+                  className="block w-full rounded-lg px-3 py-2 text-left text-[0.8125rem] text-ink hover:bg-ink/5"
+                >
+                  Report conversation
+                </button>
+                <button
+                  type="button"
+                  onClick={blockUser}
+                  disabled={blocking}
+                  className="block w-full rounded-lg px-3 py-2 text-left text-[0.8125rem] text-danger hover:bg-danger-soft disabled:opacity-60"
+                >
+                  {blocking ? "Dey block…" : `Block @${otherHandle}`}
+                </button>
+              </div>
+            </>
+          ) : null}
+        </div>
       </header>
 
       <div
@@ -366,6 +438,15 @@ export function DMThread({
         <FilterWarning
           reason={blockReason}
           onClose={() => setBlockReason(null)}
+        />
+      ) : null}
+
+      {flagOpen ? (
+        <FlagSheet
+          targetType="dm_thread"
+          targetId={threadId}
+          targetLabel={`conversation with @${otherHandle}`}
+          onClose={() => setFlagOpen(false)}
         />
       ) : null}
     </div>

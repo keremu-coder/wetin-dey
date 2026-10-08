@@ -11,13 +11,22 @@ const REASONS: { id: string; label: string; hint: string }[] = [
   { id: "other", label: "Something else", hint: "Tell us more" }
 ];
 
+export type FlagTargetType =
+  | "message"
+  | "community"
+  | "comment"
+  | "post"
+  | "report"
+  | "dm_thread"
+  | "dm_message";
+
 export function FlagSheet({
   targetType,
   targetId,
   targetLabel,
   onClose
 }: {
-  targetType: "message" | "community" | "comment";
+  targetType: FlagTargetType;
   targetId: string;
   targetLabel: string;
   onClose: () => void;

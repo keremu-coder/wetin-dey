@@ -5,7 +5,15 @@ import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { checkRateLimit, sameOrigin } from "@/lib/rate-limit";
 
-const VALID_TARGETS = ["message", "community", "comment"] as const;
+const VALID_TARGETS = [
+  "message",
+  "community",
+  "comment",
+  "post",
+  "report",
+  "dm_thread",
+  "dm_message"
+] as const;
 type Target = (typeof VALID_TARGETS)[number];
 
 const VALID_REASONS = [
@@ -71,8 +79,7 @@ export async function POST(req: NextRequest) {
 
     const db = createServiceClient();
 
-    // ─── Self-flag guard ───
-    // Don't let a session flag their own content. Waste of moderator time.
+    // Self-flag guard: reject if the caller owns the target.
     if (body.target_type === "message") {
       const { data: msg } = await db
         .from("community_messages")
@@ -109,6 +116,81 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         );
       }
+    } else if (body.target_type === "post") {
+      const { data: post } = await db
+        .from("reports")
+        .select("session_id")
+        .eq("id", body.target_id)
+        .maybeSingle();
+      if (post?.session_id === sessionId) {
+        return Response.json(
+          { error: "You can't report your own post." },
+          { status: 400 }
+        );
+      }
+    } else if (body.target_type === "report") {
+      const { data: report } = await db
+        .from("reports")
+        .select("session_id")
+        .eq("id", body.target_id)
+        .maybeSingle();
+      if (report?.session_id === sessionId) {
+        return Response.json(
+          { error: "You can't report your own report." },
+          { status: 400 }
+        );
+      }
+    } else if (body.target_type === "dm_thread") {
+      // A DM thread has two participants — flagging is fine if you're in it,
+      // but you can't flag a thread you're not a part of.
+      const { data: thread } = await db
+        .from("dm_threads")
+        .select("session_a, session_b")
+        .eq("id", body.target_id)
+        .maybeSingle();
+      if (!thread) {
+        return Response.json({ error: "Thread not found" }, { status: 404 });
+      }
+      if (
+        thread.session_a !== sessionId &&
+        thread.session_b !== sessionId
+      ) {
+        return Response.json(
+          { error: "You can't report a conversation you're not in." },
+          { status: 403 }
+        );
+      }
+    } else if (body.target_type === "dm_message") {
+      // Look up the message + its thread; reject if the sender is you,
+      // and reject if you're not a participant.
+      const { data: dm } = await db
+        .from("dm_messages")
+        .select("sender_id, thread_id")
+        .eq("id", body.target_id)
+        .maybeSingle();
+      if (!dm) {
+        return Response.json({ error: "Message not found" }, { status: 404 });
+      }
+      if (dm.sender_id === sessionId) {
+        return Response.json(
+          { error: "You can't report your own message." },
+          { status: 400 }
+        );
+      }
+      const { data: thread } = await db
+        .from("dm_threads")
+        .select("session_a, session_b")
+        .eq("id", dm.thread_id)
+        .maybeSingle();
+      if (
+        !thread ||
+        (thread.session_a !== sessionId && thread.session_b !== sessionId)
+      ) {
+        return Response.json(
+          { error: "You can't report a message you're not part of." },
+          { status: 403 }
+        );
+      }
     }
 
     const { error } = await db.from("content_flags").upsert(
@@ -128,6 +210,7 @@ export async function POST(req: NextRequest) {
 
     return Response.json({ ok: true });
   } catch (e) {
+    console.error("[flag]", e);
     return Response.json(
       { error: "Server error: " + (e as Error).message },
       { status: 500 }
