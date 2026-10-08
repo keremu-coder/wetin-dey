@@ -20,6 +20,15 @@ export default function GuidelinesPage() {
         </h1>
       </div>
 
+      <div className="mb-6 rounded-2xl border border-danger/30 bg-danger-soft/40 p-4">
+        <p className="text-[0.875rem] leading-relaxed text-ink">
+          <strong className="font-semibold">Zero tolerance for abuse.</strong>{" "}
+          Content that violates these guidelines is removed from public view
+          within 24 hours. Abusive users are ejected. Repeated violations
+          result in a permanent ban.
+        </p>
+      </div>
+
       <article className="space-y-6 text-[0.9375rem] leading-relaxed text-ink/90">
         <p>
           Wetin Dey is a place for Nigerians to report civic problems and talk
@@ -93,8 +102,18 @@ export default function GuidelinesPage() {
           </h2>
           <ul className="ml-5 list-disc space-y-1.5">
             <li>
-              <strong>Reports are never deleted.</strong> If a report is
-              contested or false, it gets labelled{" "}
+              <strong>Content that violates these rules is removed within 24
+              hours.</strong> This includes threats, doxxing, hate speech,
+              sexual content, content naming minors, illegal content, and
+              confirmed defamation.
+            </li>
+            <li>
+              <strong>Abusive users are ejected.</strong> Repeated violations
+              result in a permanent ban from posting.
+            </li>
+            <li>
+              <strong>Reports that do not violate the rules are not deleted.</strong>{" "}
+              If a report is contested or false, it gets labelled{" "}
               <strong>Disputed</strong> — visible to every reader.
             </li>
             <li>
@@ -105,10 +124,6 @@ export default function GuidelinesPage() {
               <strong>Verified rebuttals are published.</strong> If you&apos;re
               named in a report and respond with evidence, your reply appears
               attached to the report.
-            </li>
-            <li>
-              <strong>We remove</strong> threats, doxxing, content naming a
-              minor, or content that is illegal under Nigerian law.
             </li>
           </ul>
         </section>

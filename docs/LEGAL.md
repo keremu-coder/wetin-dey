@@ -81,14 +81,45 @@ are never deleted (see section 3), deleting your account removes your
 identifying information from our system but does not remove the
 anonymized report content itself.
 
-## 3. Report retention
+## 3. Report retention and content removal
 
-**Reports are never deleted.** If a report is found to be false or
-disputed, it is labeled **Disputed** and the label is visible to every
-reader. The original text and any attached evidence remain publicly
-accessible at the same permanent URL forever. This is a deliberate
-policy: it protects the integrity of the archive and provides a legal
-safe harbor for reporting on matters of public interest.
+Wetin Dey operates a permanent archive. Reports are **never deleted**.
+They are published at a permanent, timestamped URL and remain accessible
+unless they violate our content rules (see section 6).
+
+### Content that IS removed from public view
+
+The following content is removed from public view **within 24 hours** of
+being reported or detected:
+
+- Threats of violence against any person or group
+- Doxxing (someone's private contact info, home address, or financial details)
+- Any content naming a person under 18 years old
+- Sexual content involving minors
+- Content promoting hatred of any ethnic, religious, or political group
+- Content that is illegal under Nigerian law
+- Confirmed defamation (see section 4)
+
+"Removed from public view" means the content is no longer shown to any
+user on the platform, in feeds, in search, or via the public JSON feed.
+The underlying record is preserved in our internal records solely for
+legal defense and audit purposes, and is never shown to the public again.
+It is not exposed via any API or cached in any public surface.
+
+### Content that is NOT removed
+
+Reports that do not violate our rules are never deleted, even if their
+subject disputes them. If a report is contested, we label it
+**Disputed** and publish any verified rebuttal alongside it. The original
+report and any attached evidence remain publicly accessible at the same
+permanent URL.
+
+### Why this policy
+
+This protects the integrity of the public archive, provides a legal safe
+harbor for reporting on matters of public interest, and satisfies the
+Apple App Store and Google Play requirements that objectionable content
+is removed from user view within 24 hours.
 
 ## 4. Takedown and dispute process
 
@@ -106,9 +137,10 @@ defamatory:
 
 You may also request a formal takedown by emailing
 support@wetindey.app with the report URL and the specific grounds for
-removal. Wetin Dey will not remove a report merely because its subject
-disputes it; we will label it **Disputed** and add your verified
-response.
+removal. If the report violates our content rules (section 6), it is
+removed from public view within 24 hours. If the report does not violate
+our content rules, we will not remove it; we will label it **Disputed**
+and add your verified response.
 
 ## 5. Terms of Use
 
@@ -124,13 +156,16 @@ By using Wetin Dey you agree:
 - You will not use the platform to impersonate another person, a
   government official, or a public agency.
 - You accept that reports you submit become part of a permanent public
-  archive and cannot be deleted by you or by Wetin Dey.
+  archive, except where they violate our content rules, in which case
+  they are removed from public view within 24 hours as described in
+  section 3.
 
 Wetin Dey may label any content **Disputed**, publish a verified
-rebuttal alongside it, or (in cases of threats, doxxing, or content
-naming a minor) remove it from the platform entirely. Wetin Dey will
-not remove content merely because it criticizes a public agency or a
-public official acting in their official capacity.
+rebuttal alongside it, or (in cases of threats, doxxing, content naming
+a minor, hate speech, or illegal content) remove it from public view
+within 24 hours. Wetin Dey will not remove content merely because it
+criticizes a public agency or a public official acting in their official
+capacity.
 
 ## 6. Content that is not allowed
 
@@ -142,6 +177,10 @@ public official acting in their official capacity.
 - Impersonation of a government agency, official, or another user
 - Spam, scams, or fraudulent offers
 - Deliberate misinformation known to be false at time of posting
+
+Content that violates this section is removed from public view within 24
+hours. Abusive users are ejected. Repeated violations result in a
+permanent ban.
 
 ## 7. Religion and politics
 

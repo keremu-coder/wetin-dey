@@ -145,10 +145,19 @@ export default function TakedownPage() {
             What happens next
           </h2>
           <ol className="ml-5 list-decimal space-y-1.5">
-            <li>We review your dispute within 24 hours.</li>
             <li>
-              If the report is unsubstantiated, we label it{" "}
-              <strong>Disputed</strong> — visible to every reader.
+              We review your dispute within 24 hours.
+            </li>
+            <li>
+              <strong>If the report violates our content rules</strong> —
+              threats, doxxing, hate speech, sexual content, content naming a
+              minor, illegal content, or confirmed defamation — we remove it
+              from public view within 24 hours.
+            </li>
+            <li>
+              <strong>If the report does not violate our content rules</strong>{" "}
+              — we label it <strong>Disputed</strong>, visible to every reader,
+              and add your response.
             </li>
             <li>
               If you provide evidence, we publish your verified response
@@ -167,21 +176,27 @@ export default function TakedownPage() {
           <p>Wetin Dey will:</p>
           <ul className="ml-5 mt-2 list-disc space-y-1.5">
             <li>
+              <strong>Remove from public view within 24 hours</strong> any
+              content that is a threat, is doxxing, is hate speech, names a
+              minor, is illegal under Nigerian law, or is confirmed defamation.
+            </li>
+            <li>
               Label a report <strong>Disputed</strong> if the claim is
-              contested.
+              contested but does not violate our content rules.
             </li>
             <li>Publish your verified rebuttal alongside the report.</li>
             <li>
-              Remove content that names a minor, constitutes a threat, is
-              doxxing, or is illegal under Nigerian law.
+              Permanently ban a session from posting after repeated violations.
             </li>
           </ul>
           <p className="mt-2">Wetin Dey will not:</p>
           <ul className="ml-5 mt-2 list-disc space-y-1.5">
             <li>
-              Delete a report solely because its subject disputes it. Reports
-              are never deleted. This is a deliberate policy that protects the
-              integrity of the public archive.
+              Delete a report solely because its subject disputes it, as long
+              as it does not violate our content rules. Reports are preserved
+              in our records for archive and legal-defense purposes. This is a
+              deliberate policy that protects the integrity of the public
+              archive.
             </li>
             <li>
               Remove criticism of a public agency or of a public official

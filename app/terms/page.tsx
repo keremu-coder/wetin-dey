@@ -53,7 +53,9 @@ export default function TermsPage() {
             </li>
             <li>
               You accept that reports you submit become part of a permanent
-              public archive and cannot be deleted by you or by Wetin Dey.
+              public archive, except where they violate our content rules (see
+              below), in which case they are removed from public view within 24
+              hours.
             </li>
           </ul>
         </section>
@@ -62,6 +64,11 @@ export default function TermsPage() {
           <h2 className="mb-2 font-serif text-[1.15rem] font-semibold text-ink">
             Content that is not allowed
           </h2>
+          <p className="mb-2 text-[0.875rem] text-muted">
+            Content that violates this list is removed from public view within
+            24 hours. Abusive users are ejected. Repeated violations result in
+            a permanent ban.
+          </p>
           <ul className="ml-5 list-disc space-y-1.5">
             <li>Threats of violence against any person or group</li>
             <li>
@@ -106,10 +113,17 @@ export default function TermsPage() {
           </h2>
           <p>Wetin Dey may:</p>
           <ul className="ml-5 mt-2 list-disc space-y-1.5">
-            <li>Label any content <strong>Disputed</strong>.</li>
+            <li>
+              Label any content <strong>Disputed</strong>.
+            </li>
             <li>Publish a verified rebuttal alongside a report.</li>
             <li>
-              Remove content that names a minor, is a threat, or is doxxing.
+              Remove content from public view (within 24 hours) that names a
+              minor, is a threat, is doxxing, is hate speech, or is illegal
+              under Nigerian law.
+            </li>
+            <li>
+              Permanently ban a session from posting after repeated violations.
             </li>
           </ul>
           <p className="mt-2">
@@ -124,11 +138,12 @@ export default function TermsPage() {
             Report retention
           </h2>
           <p>
-            Reports are never deleted. If a report is found to be false or
-            disputed, it is labeled{" "}
-            <strong>Disputed</strong> — visible to every reader. The original
-            text and evidence stay publicly accessible at the same permanent
-            URL forever.
+            Reports are not deleted. They are published at a permanent,
+            timestamped URL and remain publicly accessible at that URL forever
+            — <strong>unless they violate the content rules above</strong>. In
+            that case, they are removed from public view within 24 hours and
+            never shown to the public again. The underlying record is
+            preserved in our internal records for legal and audit purposes.
           </p>
         </section>
 
