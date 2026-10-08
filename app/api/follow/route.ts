@@ -1,13 +1,21 @@
 export const runtime = "nodejs";
 
 import { NextRequest } from "next/server";
+import { nanoid } from "nanoid";
 import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
-import { nanoid } from "nanoid";
+import { assertCanWrite } from "@/lib/guards";
+
+function escapeLike(s: string): string {
+  return s.replace(/[\\%_]/g, "\\$&");
+}
 
 export async function POST(req: NextRequest) {
   const sessionId = await getSessionId();
   if (!sessionId) return Response.json({ error: "no session" }, { status: 401 });
+
+  const denied = await assertCanWrite(sessionId);
+  if (denied) return denied;
 
   const me = await getOrCreateSessionProfile(sessionId);
   if (!me) return Response.json({ error: "no profile" }, { status: 500 });
@@ -23,7 +31,7 @@ export async function POST(req: NextRequest) {
   const action = body.action ?? "follow";
 
   if (!targetHandle) return Response.json({ error: "handle required" }, { status: 400 });
-  if (targetHandle === me.handle) {
+  if (targetHandle.toLowerCase() === me.handle.toLowerCase()) {
     return Response.json({ error: "you cannot follow yourself" }, { status: 400 });
   }
 
@@ -32,7 +40,7 @@ export async function POST(req: NextRequest) {
   const { data: target } = await db
     .from("sessions")
     .select("id, handle")
-    .eq("handle", targetHandle)
+    .ilike("handle", escapeLike(targetHandle))
     .maybeSingle();
 
   if (!target) return Response.json({ error: "profile not found" }, { status: 404 });
@@ -45,7 +53,6 @@ export async function POST(req: NextRequest) {
         follower_session_id: sessionId,
         followed_session_id: target.id
       });
-    // Ignore duplicate errors (already following)
     if (error && !String(error.message).toLowerCase().includes("duplicate")) {
       return Response.json({ error: error.message }, { status: 500 });
     }
@@ -58,7 +65,6 @@ export async function POST(req: NextRequest) {
     if (error) return Response.json({ error: error.message }, { status: 500 });
   }
 
-  // Resync counts from truth (works with or without the trigger)
   const { count: followerCount } = await db
     .from("follows")
     .select("*", { count: "exact", head: true })

@@ -1,20 +1,24 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+export const runtime = "nodejs";
+
+import { NextRequest, NextResponse } from "next/server";
+import { getSessionId } from "@/lib/session";
+import { createServiceClient } from "@/lib/supabase/server";
+import { sameOrigin } from "@/lib/rate-limit";
+import { assertCanWrite } from "@/lib/guards";
 import { isValidStatus, normalizeStatus } from "@/lib/status";
 import { isValidAvailability } from "@/lib/presence";
 
-export const runtime = "nodejs";
+/**
+ * GET: Public read of a session's status line by query param.
+ *      (Anyone can view anyone's status. It's public profile data.)
+ *
+ * POST: Only the owning session can change their own status.
+ *       This used to accept session_id from the request body, which
+ *       meant any caller could change any user's status. Now it uses
+ *       the signed session cookie.
+ */
 
-function sb() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) throw new Error("Supabase env missing");
-  return createClient(url, key, { auth: { persistSession: false } });
-}
-
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url);
     const sessionId = url.searchParams.get("session_id");
@@ -24,7 +28,9 @@ export async function GET(req: Request) {
         { status: 400 }
       );
     }
-    const { data, error } = await sb()
+
+    const db = createServiceClient();
+    const { data, error } = await db
       .from("sessions")
       .select("status_line, status_line_updated_at, availability")
       .eq("id", sessionId)
@@ -46,28 +52,29 @@ export async function GET(req: Request) {
   }
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
+    if (!sameOrigin(req)) {
+      return NextResponse.json({ error: "bad origin" }, { status: 403 });
+    }
+
+    const sessionId = await getSessionId();
+    if (!sessionId) {
+      return NextResponse.json({ error: "no session" }, { status: 401 });
+    }
+
+    const denied = await assertCanWrite(sessionId);
+    if (denied) return denied;
+
     const body = (await req.json()) as {
-      session_id?: unknown;
       status_line?: unknown;
       availability?: unknown;
     };
-    const sessionId = body?.session_id;
     const rawStatus = body?.status_line;
     const rawAvailability = body?.availability;
 
-    if (typeof sessionId !== "string" || !sessionId) {
-      return NextResponse.json(
-        { error: "session_id required" },
-        { status: 400 }
-      );
-    }
-
     const update: Record<string, unknown> = {};
 
-    // Status line is optional in this call — only touch it if the caller
-    // sent the field.
     if (rawStatus !== undefined) {
       const isClearing =
         rawStatus === null ||
@@ -105,7 +112,8 @@ export async function POST(req: Request) {
       );
     }
 
-    const { error } = await sb()
+    const db = createServiceClient();
+    const { error } = await db
       .from("sessions")
       .update(update)
       .eq("id", sessionId);

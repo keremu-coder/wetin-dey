@@ -1,17 +1,19 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+export const runtime = "nodejs";
+
+import { NextRequest, NextResponse } from "next/server";
+import { getSessionId } from "@/lib/session";
+import { createServiceClient } from "@/lib/supabase/server";
+import { sameOrigin } from "@/lib/rate-limit";
+import { assertCanWrite } from "@/lib/guards";
 import { isValidFontId, DEFAULT_FONT_ID } from "@/lib/bbm-fonts";
 
-function sb() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) throw new Error("Supabase env missing");
-  return createClient(url, key, { auth: { persistSession: false } });
-}
+/**
+ * GET: Public read of a session's font preference by query param.
+ * POST: Only the owning session can change their font.
+ *       This used to accept session_id from the request body.
+ */
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url);
     const sessionId = url.searchParams.get("session_id");
@@ -22,7 +24,8 @@ export async function GET(req: Request) {
       );
     }
 
-    const { data, error } = await sb()
+    const db = createServiceClient();
+    const { data, error } = await db
       .from("sessions")
       .select("font_preference")
       .eq("id", sessionId)
@@ -45,27 +48,29 @@ export async function GET(req: Request) {
   }
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const body = (await req.json()) as {
-      session_id?: unknown;
-      font?: unknown;
-    };
+    if (!sameOrigin(req)) {
+      return NextResponse.json({ error: "bad origin" }, { status: 403 });
+    }
 
-    const sessionId = body?.session_id;
+    const sessionId = await getSessionId();
+    if (!sessionId) {
+      return NextResponse.json({ error: "no session" }, { status: 401 });
+    }
+
+    const denied = await assertCanWrite(sessionId);
+    if (denied) return denied;
+
+    const body = (await req.json()) as { font?: unknown };
     const font = body?.font;
 
-    if (typeof sessionId !== "string" || !sessionId) {
-      return NextResponse.json(
-        { error: "session_id required" },
-        { status: 400 }
-      );
-    }
     if (!isValidFontId(font)) {
       return NextResponse.json({ error: "Unknown font" }, { status: 400 });
     }
 
-    const { error } = await sb()
+    const db = createServiceClient();
+    const { error } = await db
       .from("sessions")
       .update({ font_preference: font })
       .eq("id", sessionId);
