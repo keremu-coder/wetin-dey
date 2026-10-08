@@ -8,18 +8,136 @@ import {
 } from "@/lib/push-client";
 import { isNativePlatform } from "@/lib/native";
 
+type NativePlatform = "ios" | "android";
+
+function getNativePlatform(): NativePlatform | null {
+  if (typeof window === "undefined") return null;
+  const cap = (window as unknown as {
+    Capacitor?: {
+      getPlatform?: () => string;
+      isNativePlatform?: () => boolean;
+    };
+  }).Capacitor;
+  if (!cap) return null;
+  if (
+    typeof cap.isNativePlatform === "function" &&
+    !cap.isNativePlatform()
+  ) {
+    return null;
+  }
+  const p = typeof cap.getPlatform === "function" ? cap.getPlatform() : "";
+  if (p === "ios" || p === "android") return p;
+  return null;
+}
+
 /**
- * Web push registration for the browser.
+ * Push registration.
  *
- * Runs only in the browser, NOT in the Capacitor native shell — service
- * workers and web-push don't work inside the iOS WKWebView. Native push
- * is handled separately (see item 6 in the follow-up task).
+ * Browser:
+ *   registers public/sw.js + VAPID web-push subscription.
+ *
+ * Native (Capacitor):
+ *   registers with APNs (iOS) or FCM (Android) via
+ *   @capacitor/push-notifications, sends the resulting device token to
+ *   /api/push/native-subscribe, and wires notification tap to open the
+ *   deep link in the payload.
+ *
+ * The web-push path is entirely skipped inside the native shell because
+ * service workers and web-push don't work inside the iOS WKWebView.
  */
 export function PushRegistrar() {
   useEffect(() => {
-    // Native shell: skip service worker + web-push entirely.
-    // The native push flow is wired in a separate component.
-    if (isNativePlatform()) return;
+    const nativePlatform = getNativePlatform();
+
+    if (nativePlatform) {
+      let cancelled = false;
+      const cleanups: Array<() => void | Promise<void>> = [];
+
+      (async () => {
+        try {
+          const mod = await import("@capacitor/push-notifications");
+          if (cancelled) return;
+
+          const perm = await mod.PushNotifications.requestPermissions();
+          if (perm.receive !== "granted") return;
+          if (cancelled) return;
+
+          const regHandle = await mod.PushNotifications.addListener(
+            "registration",
+            async (token) => {
+              try {
+                await fetch("/api/push/native-subscribe", {
+                  method: "POST",
+                  headers: { "content-type": "application/json" },
+                  body: JSON.stringify({
+                    platform: nativePlatform,
+                    token: token.value
+                  })
+                });
+              } catch {
+                /* non-fatal — retried on next app open */
+              }
+            }
+          );
+
+          const errHandle = await mod.PushNotifications.addListener(
+            "registrationError",
+            (err) => {
+              console.warn("[native push] registration error:", err.error);
+            }
+          );
+
+          const recvHandle = await mod.PushNotifications.addListener(
+            "pushNotificationReceived",
+            () => {
+              /* capacitor.config.ts presentationOptions handles the banner */
+            }
+          );
+
+          const actHandle = await mod.PushNotifications.addListener(
+            "pushNotificationActionPerformed",
+            (action) => {
+              const data = action.notification.data as
+                | { url?: unknown }
+                | undefined;
+              const url =
+                data && typeof data.url === "string" ? data.url : "/";
+              try {
+                window.location.href = url;
+              } catch {
+                /* ignore */
+              }
+            }
+          );
+
+          cleanups.push(
+            () => regHandle.remove(),
+            () => errHandle.remove(),
+            () => recvHandle.remove(),
+            () => actHandle.remove()
+          );
+
+          await mod.PushNotifications.register();
+        } catch (err) {
+          console.warn("[native push] setup failed:", err);
+        }
+      })();
+
+      return () => {
+        cancelled = true;
+        for (const fn of cleanups) {
+          try {
+            void fn();
+          } catch {
+            /* ignore */
+          }
+        }
+      };
+    }
+
+    // Browser: web push via service worker.
+    if (typeof window === "undefined") return;
+    if (typeof Notification === "undefined") return;
     if (!pushSupported()) return;
 
     let cancelled = false;
