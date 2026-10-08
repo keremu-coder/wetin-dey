@@ -11,6 +11,11 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { stripSession, type Report } from "@/lib/types";
 import { scoreDefamation } from "@/lib/defamation";
 import { isBanned, BANNED_MESSAGE } from "@/lib/ban-guard";
+import {
+  hasAcceptedTerms,
+  TERMS_NOT_ACCEPTED_CODE,
+  TERMS_NOT_ACCEPTED_MESSAGE
+} from "@/lib/terms-guard";
 
 const ALLOWED_TYPES = [
   "talk_am",
@@ -82,6 +87,13 @@ export async function POST(req: NextRequest) {
 
   if (await isBanned(sessionId)) {
     return jsonError(BANNED_MESSAGE, 403);
+  }
+
+  if (!(await hasAcceptedTerms(sessionId))) {
+    return Response.json(
+      { error: TERMS_NOT_ACCEPTED_MESSAGE, code: TERMS_NOT_ACCEPTED_CODE },
+      { status: 403 }
+    );
   }
 
   const profile = await getOrCreateSessionProfile(sessionId);
@@ -177,7 +189,6 @@ export async function POST(req: NextRequest) {
   const db = createServiceClient();
   const id = nanoid();
 
-  // Resolve community if posting into a space
   let communityId: string | null = null;
   if (communitySlug) {
     const { data: c } = await db
@@ -204,7 +215,6 @@ export async function POST(req: NextRequest) {
     communityId = c.id;
   }
 
-  // ─── Evidence verification (existing heuristic) ───
   const { scoreEvidence } = await import("@/lib/verification");
 
   const { count: sessionPostCount } = await db
@@ -220,7 +230,6 @@ export async function POST(req: NextRequest) {
     sessionPostCount: sessionPostCount ?? 0
   });
 
-  // ─── Defamation heuristic ───
   const defamation = scoreDefamation({
     body,
     agency_raw,
@@ -235,7 +244,6 @@ export async function POST(req: NextRequest) {
     verification.requiresManualReview ||
     defamation.held;
 
-  // Upload evidence
   if (file instanceof File && file.size > 0) {
     try {
       if (file.size > 25 * 1024 * 1024) {

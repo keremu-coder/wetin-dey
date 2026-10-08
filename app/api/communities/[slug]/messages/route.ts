@@ -8,6 +8,11 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { notifyCommunityMembers } from "@/lib/push-server";
 import { analyzeModeration, moderationReason } from "@/lib/dm-filter";
 import { isBanned, BANNED_MESSAGE } from "@/lib/ban-guard";
+import {
+  hasAcceptedTerms,
+  TERMS_NOT_ACCEPTED_CODE,
+  TERMS_NOT_ACCEPTED_MESSAGE
+} from "@/lib/terms-guard";
 
 export async function GET(
   _req: NextRequest,
@@ -128,6 +133,13 @@ export async function POST(
 
     if (await isBanned(sessionId)) {
       return Response.json({ error: BANNED_MESSAGE }, { status: 403 });
+    }
+
+    if (!(await hasAcceptedTerms(sessionId))) {
+      return Response.json(
+        { error: TERMS_NOT_ACCEPTED_MESSAGE, code: TERMS_NOT_ACCEPTED_CODE },
+        { status: 403 }
+      );
     }
 
     const profile = await getOrCreateSessionProfile(sessionId);

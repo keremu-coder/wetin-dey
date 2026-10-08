@@ -10,6 +10,11 @@ import { DM_BODY_MAX } from "@/lib/dm";
 import { notifyDMRecipient } from "@/lib/push-server";
 import { sameOrigin } from "@/lib/rate-limit";
 import { isBanned, BANNED_MESSAGE } from "@/lib/ban-guard";
+import {
+  hasAcceptedTerms,
+  TERMS_NOT_ACCEPTED_CODE,
+  TERMS_NOT_ACCEPTED_MESSAGE
+} from "@/lib/terms-guard";
 
 export async function POST(
   req: NextRequest,
@@ -27,6 +32,13 @@ export async function POST(
 
     if (await isBanned(sessionId)) {
       return Response.json({ error: BANNED_MESSAGE }, { status: 403 });
+    }
+
+    if (!(await hasAcceptedTerms(sessionId))) {
+      return Response.json(
+        { error: TERMS_NOT_ACCEPTED_MESSAGE, code: TERMS_NOT_ACCEPTED_CODE },
+        { status: 403 }
+      );
     }
 
     const me = await getOrCreateSessionProfile(sessionId);
