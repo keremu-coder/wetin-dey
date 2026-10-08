@@ -6,6 +6,9 @@ import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { isBanned, BANNED_MESSAGE } from "@/lib/ban-guard";
 
+// Real emojis — must match QUICK_EMOJI in ChatRoom.tsx exactly.
+// These were previously stored as mojibake (ðŸ˜‚ etc.), which broke
+// reactions whenever the client sent the correct character.
 const ALLOWED = ["😂", "😢", "😮", "❤️", "🔥", "👍", "👏", "🙏"];
 
 export async function POST(
@@ -36,6 +39,35 @@ export async function POST(
 
     const db = createServiceClient();
     const messageId = params.id;
+
+    // Look up the message's community and verify the caller is a member.
+    // Prevents reacting to messages in spaces you haven't joined.
+    const { data: msg } = await db
+      .from("community_messages")
+      .select("community_id, hidden")
+      .eq("id", messageId)
+      .maybeSingle();
+
+    if (!msg) {
+      return Response.json({ error: "message not found" }, { status: 404 });
+    }
+    if (msg.hidden) {
+      return Response.json({ error: "message not found" }, { status: 404 });
+    }
+
+    const { data: membership } = await db
+      .from("community_members")
+      .select("id")
+      .eq("community_id", msg.community_id)
+      .eq("session_id", sessionId)
+      .maybeSingle();
+
+    if (!membership) {
+      return Response.json(
+        { error: "Join the space first." },
+        { status: 403 }
+      );
+    }
 
     const { data: existing } = await db
       .from("message_reactions")
