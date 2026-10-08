@@ -27,7 +27,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let body: { email?: string; password?: string; handle?: string };
+  let body: {
+    email?: string;
+    password?: string;
+    handle?: string;
+    terms_accepted?: boolean;
+  };
   try {
     body = await req.json();
   } catch {
@@ -37,8 +42,18 @@ export async function POST(req: NextRequest) {
   const email = String(body.email ?? "").trim().toLowerCase();
   const password = String(body.password ?? "");
   const handle = String(body.handle ?? "").trim();
+  const termsAccepted = body.terms_accepted === true;
 
-  // Validation
+  if (!termsAccepted) {
+    return Response.json(
+      {
+        error:
+          "You must agree to the Terms of Use and Community Guidelines before creating an account."
+      },
+      { status: 400 }
+    );
+  }
+
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return Response.json({ error: "Email no correct." }, { status: 400 });
   }
@@ -111,7 +126,8 @@ export async function POST(req: NextRequest) {
       handle_kind: "named",
       display_name: handle,
       email,
-      auth_provider: "email"
+      auth_provider: "email",
+      accepted_terms_at: new Date().toISOString()
     })
     .eq("id", sessionId);
 
