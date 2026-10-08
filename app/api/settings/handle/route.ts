@@ -5,6 +5,7 @@ import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sameOrigin, checkRateLimit } from "@/lib/rate-limit";
 import { validateHandle, cooldownDaysLeft } from "@/lib/handle-rules";
+import { assertCanWrite } from "@/lib/guards";
 
 export async function GET() {
   try {
@@ -51,7 +52,9 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: "no session" }, { status: 401 });
     }
 
-    // Rate limit: 5 attempts per hour (catches squatters trying the system)
+    const denied = await assertCanWrite(sessionId);
+    if (denied) return denied;
+
     const limit = await checkRateLimit(sessionId, {
       key: "handle_change",
       limit: 5,
@@ -90,7 +93,6 @@ export async function POST(req: NextRequest) {
       return Response.json({ ok: true, handle: me.handle, noop: true });
     }
 
-    // Cooldown enforcement
     const daysLeft = cooldownDaysLeft(me.handle_changed_at);
     if (daysLeft > 0) {
       return Response.json(
@@ -103,7 +105,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Uniqueness: must not match any current handle
     const { data: takenCurrent } = await db
       .from("sessions")
       .select("id")
@@ -117,7 +118,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Uniqueness: must not be in anyone else's previous_handles
     const { data: takenPrevious } = await db
       .from("sessions")
       .select("id")
@@ -131,7 +131,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Update: new handle, append old to previous_handles, bump timestamp
     const prevList: string[] = Array.isArray(me.previous_handles)
       ? me.previous_handles
       : [];
