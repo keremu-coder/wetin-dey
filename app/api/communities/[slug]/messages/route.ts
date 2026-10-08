@@ -7,6 +7,7 @@ import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { notifyCommunityMembers } from "@/lib/push-server";
 import { analyzeModeration, moderationReason } from "@/lib/dm-filter";
+import { isBanned, BANNED_MESSAGE } from "@/lib/ban-guard";
 
 export async function GET(
   _req: NextRequest,
@@ -125,6 +126,10 @@ export async function POST(
       return Response.json({ error: "no session" }, { status: 401 });
     }
 
+    if (await isBanned(sessionId)) {
+      return Response.json({ error: BANNED_MESSAGE }, { status: 403 });
+    }
+
     const profile = await getOrCreateSessionProfile(sessionId);
     if (!profile) {
       return Response.json({ error: "no profile" }, { status: 500 });
@@ -209,7 +214,6 @@ export async function POST(
       );
     }
 
-    // Moderation filter on the text portion (voice notes are not scanned yet).
     let hidden = false;
     if (body) {
       const mod = analyzeModeration(body);
@@ -242,7 +246,6 @@ export async function POST(
       return Response.json({ error: error.message }, { status: 500 });
     }
 
-    // Do not notify on hidden messages — moderators will see it via the queue.
     if (!hidden) {
       waitUntil(
         notifyCommunityMembers({

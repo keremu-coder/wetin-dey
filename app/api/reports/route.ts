@@ -10,6 +10,7 @@ import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { stripSession, type Report } from "@/lib/types";
 import { scoreDefamation } from "@/lib/defamation";
+import { isBanned, BANNED_MESSAGE } from "@/lib/ban-guard";
 
 const ALLOWED_TYPES = [
   "talk_am",
@@ -78,6 +79,10 @@ export async function POST(req: NextRequest) {
     return jsonError("session error", 500);
   }
   if (!sessionId) return jsonError("no session", 401);
+
+  if (await isBanned(sessionId)) {
+    return jsonError(BANNED_MESSAGE, 403);
+  }
 
   const profile = await getOrCreateSessionProfile(sessionId);
   if (!profile) return jsonError("profile failed", 500);
@@ -215,7 +220,7 @@ export async function POST(req: NextRequest) {
     sessionPostCount: sessionPostCount ?? 0
   });
 
-  // ─── Defamation heuristic (new) ───
+  // ─── Defamation heuristic ───
   const defamation = scoreDefamation({
     body,
     agency_raw,
@@ -225,11 +230,6 @@ export async function POST(req: NextRequest) {
     public_link: evidenceLink
   });
 
-  // ─── Decide held ───
-  // A report is held (not published to the public feed) if ANY of:
-  //   1. The user explicitly said it targets a private individual
-  //   2. The existing verification heuristic says it requires manual review
-  //   3. The defamation heuristic flags it as high risk
   const held =
     targetType === "private" ||
     verification.requiresManualReview ||
@@ -354,7 +354,6 @@ export async function POST(req: NextRequest) {
       })
         .then(async (output) => {
           if (output && output.confidence >= 0.5) {
-            // Combine AI defamation risk with heuristic risk. Take the max.
             const aiRisk =
               typeof output.defamation_risk === "number"
                 ? output.defamation_risk
@@ -380,9 +379,7 @@ export async function POST(req: NextRequest) {
                 agency_canonical: output.agency_canonical,
                 incident_date: output.incident_date,
                 formalization_confidence: output.confidence,
-                // Never mark reviewed=true if held
-                reviewed:
-                  !stillHeld && output.confidence >= 0.7,
+                reviewed: !stillHeld && output.confidence >= 0.7,
                 defamation_risk: combinedRisk,
                 defamation_reasons: combinedReasons,
                 held: stillHeld

@@ -9,6 +9,7 @@ import { analyzeMessage, blockReason } from "@/lib/dm-filter";
 import { DM_BODY_MAX } from "@/lib/dm";
 import { notifyDMRecipient } from "@/lib/push-server";
 import { sameOrigin } from "@/lib/rate-limit";
+import { isBanned, BANNED_MESSAGE } from "@/lib/ban-guard";
 
 export async function POST(
   req: NextRequest,
@@ -22,6 +23,10 @@ export async function POST(
     const sessionId = await getSessionId();
     if (!sessionId) {
       return Response.json({ error: "no session" }, { status: 401 });
+    }
+
+    if (await isBanned(sessionId)) {
+      return Response.json({ error: BANNED_MESSAGE }, { status: 403 });
     }
 
     const me = await getOrCreateSessionProfile(sessionId);
@@ -48,7 +53,6 @@ export async function POST(
     const recipientId =
       thread.session_a === sessionId ? thread.session_b : thread.session_a;
 
-    // Block check — if either side has blocked, reject the send.
     const [blockedByMe, blockedByThem] = await Promise.all([
       db
         .from("blocked_users")

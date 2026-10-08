@@ -5,6 +5,7 @@ import { nanoid } from "nanoid";
 import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { analyzeModeration, moderationReason } from "@/lib/dm-filter";
+import { isBanned, BANNED_MESSAGE } from "@/lib/ban-guard";
 
 /**
  * Derive a safe file extension from an audio MIME type.
@@ -86,6 +87,10 @@ export async function POST(
     const sessionId = await getSessionId();
     if (!sessionId) {
       return Response.json({ error: "no session" }, { status: 401 });
+    }
+
+    if (await isBanned(sessionId)) {
+      return Response.json({ error: BANNED_MESSAGE }, { status: 403 });
     }
 
     const profile = await getOrCreateSessionProfile(sessionId);
@@ -172,7 +177,6 @@ export async function POST(
       }
     }
 
-    // Moderation filter on the text portion (voice notes are not scanned yet).
     let hidden = false;
     if (body) {
       const mod = analyzeModeration(body);
