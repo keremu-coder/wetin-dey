@@ -72,15 +72,34 @@ export default function DeleteAccountPage() {
         <p className="text-[0.9375rem] font-semibold text-danger">
           This cannot be undone.
         </p>
-        <ul className="mt-3 space-y-1.5 text-[0.875rem] leading-relaxed text-ink/85">
-          <li>• Your email and phone will be permanently removed</li>
-          <li>• Your handle will be deactivated</li>
-          <li>• Your followers, following, and blocks will be removed</li>
+
+        <p className="mt-3 text-[0.875rem] font-semibold text-ink">
+          What we delete right away:
+        </p>
+        <ul className="mt-1.5 space-y-1 text-[0.875rem] leading-relaxed text-ink/85">
+          <li>• Your email and phone number</li>
+          <li>• Your Supabase sign-in record</li>
+          <li>• Your avatar and any space avatars you uploaded</li>
+          <li>• Your voice broadcasts and their audio</li>
+          <li>• Your followers, following, and blocks</li>
+          <li>• Your push notification subscriptions</li>
+          <li>• Your check-ins, daily answers, radar signals, and profile status</li>
+          <li>• Your reaction history and votes</li>
+        </ul>
+
+        <p className="mt-3 text-[0.875rem] font-semibold text-ink">
+          What stays, but is detached from you:
+        </p>
+        <ul className="mt-1.5 space-y-1 text-[0.875rem] leading-relaxed text-ink/85">
           <li>
-            • Your reports will stay (archive integrity), but they will no
-            longer be linked to your handle
+            • Your reports and comments stay visible, but they no longer carry
+            your session id or handle. We replace both with a placeholder.
           </li>
-          <li>• Your comments and chat messages will stay unless you tick the box below</li>
+          <li>
+            • Your direct messages stay, so the other person doesn&apos;t lose
+            the conversation. Their sender id points to a ghost profile with
+            no email, no login, and a generic handle.
+          </li>
         </ul>
       </div>
 
@@ -115,10 +134,14 @@ export default function DeleteAccountPage() {
             className="mt-0.5 h-4 w-4 shrink-0"
           />
           <span className="text-[0.875rem] leading-relaxed text-ink">
-            <span className="font-medium">Delete my content too</span>
+            <span className="font-medium">
+              Also delete my chat messages
+            </span>
             <span className="mt-1 block text-muted">
-              Deletes your comments and community chat messages. Your reports
-              will still stay (archive integrity), but detach from your handle.
+              Deletes the messages you sent in community spaces. Reports and
+              comments still stay (detached), because removing them would
+              break the archive. Direct messages stay so the other person
+              doesn&apos;t lose the conversation.
             </span>
           </span>
         </label>

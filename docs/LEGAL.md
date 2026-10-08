@@ -36,7 +36,8 @@ email address. No IP address logged for anonymous activity.
 **Optional account recovery:** you may voluntarily attach an email
 address or phone number to your session for account recovery. This is
 optional and can be removed at any time. Reports you post remain
-anonymous regardless.
+anonymous regardless. Emails are **not verified** in this version of the
+app; see "Email verification" below.
 
 **Files you upload:** photos, videos, audio, and voice notes. All EXIF
 metadata (including GPS coordinates, camera model, and timestamp) is
@@ -58,10 +59,20 @@ any time.
 - IP addresses for anonymous reports
 - Tracking pixels, fingerprinting scripts, or third-party analytics
 
+### Email verification
+
+Email addresses on Wetin Dey are **optional and recovery-only**. They
+are not verified, and we do not use them to identify you or to send you
+marketing. Do not use an email address that does not belong to you.
+
+Because emails are not verified, **password reset is disabled** for
+accounts whose email has not been confirmed. If you lose access to your
+session, use the recovery code you were shown when you first signed up.
+
 ### Who processes your data
 
 - **Supabase** (database, file storage, realtime) — EU region
-- **Vercel** (hosting, edge network) — global
+- **Vercel** (hosting, edge network, blob storage) — global
 - **Groq** (AI formalization of report text only, never files) — US
 - **Telegram** (public mirror of reviewed reports only) — global
 
@@ -113,6 +124,23 @@ subject disputes them. If a report is contested, we label it
 **Disputed** and publish any verified rebuttal alongside it. The original
 report and any attached evidence remain publicly accessible at the same
 permanent URL.
+
+### Account deletion
+
+When you delete your account:
+
+- **Removed immediately:** your email and phone number, your Supabase
+  sign-in record, your avatar and any space avatars you uploaded, your
+  voice broadcasts and their audio, your followers, following, and
+  blocks, your push notification subscriptions, your check-ins, daily
+  answers, radar signals, reactions, votes, and profile status.
+- **Detached from you:** your reports and comments stay visible in the
+  archive, but their session id and handle are replaced with a placeholder
+  so they can no longer be linked to you.
+- **Left in place:** your direct messages stay visible to the other
+  participant, because removing them would erase their copy of the
+  conversation. Their sender id points to a ghost profile with no email,
+  no login, and a generic handle — it cannot be logged into again.
 
 ### Why this policy
 

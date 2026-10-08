@@ -77,10 +77,11 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "session profile failed" }, { status: 500 });
   }
 
+  const handleLower = handle.toLowerCase();
   const { data: clash } = await db
     .from("sessions")
     .select("id")
-    .eq("handle", handle)
+    .eq("handle_lower", handleLower)
     .neq("id", sessionId)
     .maybeSingle();
 
@@ -127,6 +128,7 @@ export async function POST(req: NextRequest) {
       display_name: handle,
       email,
       auth_provider: "email",
+      auth_user_id: authData.user.id,
       accepted_terms_at: new Date().toISOString()
     })
     .eq("id", sessionId);
