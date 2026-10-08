@@ -1,22 +1,24 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+export const runtime = "nodejs";
+
+import { NextRequest, NextResponse } from "next/server";
 import { getSessionId } from "@/lib/session";
+import { createServiceClient } from "@/lib/supabase/server";
+import { sameOrigin } from "@/lib/rate-limit";
+import { assertNotBanned } from "@/lib/guards";
 
-function sb() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) throw new Error("Supabase env missing");
-  return createClient(url, key, { auth: { persistSession: false } });
-}
-
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
+    if (!sameOrigin(req)) {
+      return NextResponse.json({ error: "bad origin" }, { status: 403 });
+    }
+
     const sessionId = await getSessionId();
     if (!sessionId) {
       return NextResponse.json({ error: "no session" }, { status: 401 });
     }
+
+    const denied = await assertNotBanned(sessionId);
+    if (denied) return denied;
 
     const body = (await req.json()) as {
       endpoint?: unknown;
@@ -36,7 +38,8 @@ export async function POST(req: Request) {
       );
     }
 
-    const { error } = await sb()
+    const db = createServiceClient();
+    const { error } = await db
       .from("push_subscriptions")
       .upsert(
         {
@@ -63,16 +66,33 @@ export async function POST(req: Request) {
   }
 }
 
-export async function DELETE(req: Request) {
+export async function DELETE(req: NextRequest) {
   try {
+    if (!sameOrigin(req)) {
+      return NextResponse.json({ error: "bad origin" }, { status: 403 });
+    }
+
+    const sessionId = await getSessionId();
+    if (!sessionId) {
+      return NextResponse.json({ error: "no session" }, { status: 401 });
+    }
+
     const body = (await req.json()) as { endpoint?: unknown };
     if (typeof body.endpoint !== "string") {
       return NextResponse.json({ error: "endpoint required" }, { status: 400 });
     }
-    const { error } = await sb()
+
+    const db = createServiceClient();
+
+    // Only delete the caller's own subscription. Filtering on session_id
+    // prevents someone with a leaked endpoint URL from silencing another
+    // user's notifications.
+    const { error } = await db
       .from("push_subscriptions")
       .delete()
-      .eq("endpoint", body.endpoint);
+      .eq("endpoint", body.endpoint)
+      .eq("session_id", sessionId);
+
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
