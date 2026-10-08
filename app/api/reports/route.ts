@@ -11,6 +11,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { stripSession, type Report } from "@/lib/types";
 import { scoreDefamation } from "@/lib/defamation";
 import { isBanned, BANNED_MESSAGE } from "@/lib/ban-guard";
+import { getBlockedIds } from "@/lib/blocks";
 import {
   hasAcceptedTerms,
   TERMS_NOT_ACCEPTED_CODE,
@@ -40,11 +41,14 @@ export async function GET(req: NextRequest) {
   const status = searchParams.get("status");
   const tab = searchParams.get("tab") ?? "talk";
 
+  const sessionId = await getSessionId();
+  const blockedIds = await getBlockedIds(sessionId);
+
   const db = createServiceClient();
   let q = db
     .from("reports")
     .select(
-      "id, created_at, category, agency_raw, agency_canonical, state, lga, body, amount_kobo, evidence_url, evidence_type, evidence_link, evidence_label, summary_pidgin, summary_english, incident_date, status, reviewed, reviewer_note, formalization_confidence, dedupe_hash, author_handle, post_type, upvotes, downvotes, me_too_count, comment_count, evidence_tier, target_type, community_id"
+      "id, created_at, category, agency_raw, agency_canonical, state, lga, body, amount_kobo, evidence_url, evidence_type, evidence_link, evidence_label, summary_pidgin, summary_english, incident_date, status, reviewed, reviewer_note, formalization_confidence, dedupe_hash, author_handle, post_type, upvotes, downvotes, me_too_count, comment_count, evidence_tier, target_type, community_id, session_id"
     )
     .order("created_at", { ascending: false })
     .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
@@ -68,9 +72,23 @@ export async function GET(req: NextRequest) {
   if (from) q = q.gte("created_at", from);
   if (to) q = q.lte("created_at", to);
 
+  if (blockedIds.size > 0) {
+    q = q.not("session_id", "in", `(${Array.from(blockedIds).join(",")})`);
+  }
+
   const { data, error } = await q;
   if (error) return jsonError("feed no load", 500);
-  return Response.json({ reports: data ?? [] });
+
+  // Strip session_id before returning to the client. The query needed
+  // it for filtering; the client never sees it.
+  const cleaned = (data ?? []).map((r) => {
+    const { session_id: _ignored, ...rest } = r as Record<string, unknown> & {
+      session_id?: string;
+    };
+    return rest;
+  });
+
+  return Response.json({ reports: cleaned });
 }
 
 export async function POST(req: NextRequest) {
