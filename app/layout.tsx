@@ -79,6 +79,13 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
 
+        {/*
+          Next.js emits the apple-* PWA meta tag from metadata.appleWebApp.
+          Apple now asks for the unprefixed version too for forward compat.
+          Not emitted automatically, so we add it manually.
+        */}
+        <meta name="mobile-web-app-capable" content="yes" />
+
         {supabaseHost ? (
           <>
             <link
