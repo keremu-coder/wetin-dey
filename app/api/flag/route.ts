@@ -4,7 +4,10 @@ import { NextRequest } from "next/server";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { checkRateLimit, sameOrigin } from "@/lib/rate-limit";
-import { AUTO_HIDE_FLAG_THRESHOLD } from "@/lib/constants";
+import {
+  AUTO_HIDE_FLAG_THRESHOLD,
+  AUTO_HIDE_MIN_ACCOUNT_AGE_HOURS
+} from "@/lib/constants";
 import { assertNotBanned } from "@/lib/guards";
 
 const VALID_TARGETS = [
@@ -76,6 +79,62 @@ async function applyAutoHide(
     return !error;
   }
   return false;
+}
+
+/**
+ * Counts distinct reporters whose flag should count toward the
+ * auto-hide threshold. A reporter counts if EITHER:
+ *
+ *   - their session has a verified email (email_verified_at is set), OR
+ *   - their session is at least AUTO_HIDE_MIN_ACCOUNT_AGE_HOURS old
+ *
+ * This prevents a single bad actor from spinning up fresh anonymous
+ * sessions to hide content they don't like.
+ */
+async function countTrustedReporters(
+  db: ReturnType<typeof createServiceClient>,
+  targetType: string,
+  targetId: string
+): Promise<number> {
+  const { data: flags, error: flagErr } = await db
+    .from("content_flags")
+    .select("session_id")
+    .eq("target_type", targetType)
+    .eq("target_id", targetId)
+    .eq("status", "open");
+
+  if (flagErr) {
+    console.error("[flag] trusted count flag query:", flagErr.message);
+    return 0;
+  }
+
+  const sessionIds = Array.from(
+    new Set((flags ?? []).map((f) => f.session_id).filter(Boolean))
+  );
+  if (sessionIds.length === 0) return 0;
+
+  const { data: sessions, error: sessErr } = await db
+    .from("sessions")
+    .select("id, email_verified_at, created_at")
+    .in("id", sessionIds);
+
+  if (sessErr) {
+    console.error("[flag] trusted count session query:", sessErr.message);
+    return 0;
+  }
+
+  const cutoff = new Date(
+    Date.now() - AUTO_HIDE_MIN_ACCOUNT_AGE_HOURS * 60 * 60 * 1000
+  );
+
+  let count = 0;
+  for (const s of sessions ?? []) {
+    const hasVerifiedEmail = s.email_verified_at != null;
+    const isOldEnough =
+      s.created_at && new Date(s.created_at) <= cutoff;
+    if (hasVerifiedEmail || isOldEnough) count += 1;
+  }
+  return count;
 }
 
 export async function POST(req: NextRequest) {
@@ -289,22 +348,55 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: error.message }, { status: 500 });
     }
 
-    // ── Auto-hide check ──
-    // Count distinct reporters (unique constraint makes row count =
-    // distinct). Threshold logic lives in AUTO_HIDE_FLAG_THRESHOLD.
-    const { count } = await db
-      .from("content_flags")
-      .select("id", { count: "exact", head: true })
-      .eq("target_type", body.target_type)
-      .eq("target_id", body.target_id)
-      .eq("status", "open");
-
-    let autoHidden = false;
-    if ((count ?? 0) >= AUTO_HIDE_FLAG_THRESHOLD) {
-      autoHidden = await applyAutoHide(db, body.target_type, body.target_id);
+    // ── Determine whether this is a civic report ──
+    // Civic reports (post_type 'report_am') are anti-brigading
+    // protected: anonymous flagging cannot auto-hide them. Instead,
+    // every flag on them is marked high-priority for moderator review.
+    let civicReport = false;
+    if (body.target_type === "post" || body.target_type === "report") {
+      const { data: r } = await db
+        .from("reports")
+        .select("post_type")
+        .eq("id", body.target_id)
+        .maybeSingle();
+      if (r?.post_type === "report_am") {
+        civicReport = true;
+      }
     }
 
-    return Response.json({ ok: true, auto_hidden: autoHidden });
+    if (civicReport) {
+      await db
+        .from("content_flags")
+        .update({ priority: "high" })
+        .eq("session_id", sessionId)
+        .eq("target_type", body.target_type)
+        .eq("target_id", body.target_id);
+    }
+
+    // ── Auto-hide check ──
+    // Only counts trusted reporters (verified email OR session ≥ N hours
+    // old), and never runs against civic reports.
+    let autoHidden = false;
+    if (!civicReport) {
+      const trustedCount = await countTrustedReporters(
+        db,
+        body.target_type,
+        body.target_id
+      );
+      if (trustedCount >= AUTO_HIDE_FLAG_THRESHOLD) {
+        autoHidden = await applyAutoHide(
+          db,
+          body.target_type,
+          body.target_id
+        );
+      }
+    }
+
+    return Response.json({
+      ok: true,
+      auto_hidden: autoHidden,
+      civic_report_protected: civicReport
+    });
   } catch (e) {
     console.error("[flag]", e);
     return Response.json(
