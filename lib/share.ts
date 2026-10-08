@@ -7,6 +7,12 @@
  *
  * Every share returns a result so callers can decide whether to show
  * "Link copied" feedback or not.
+ *
+ * Note on typing: we always access `window.navigator` (never the global
+ * `navigator` variable directly) and cast it once to a type that has
+ * optional `share` and `clipboard` fields. This avoids TypeScript's
+ * `in`-operator narrowing misbehaving on the DOM `Navigator` type
+ * under strict mode.
  */
 
 export type ShareResult =
@@ -36,6 +42,11 @@ function isNative(): boolean {
   return typeof cap?.isNativePlatform === "function" && cap.isNativePlatform();
 }
 
+type ShareableNavigator = Navigator & {
+  share?: (data: ShareData) => Promise<void>;
+  clipboard?: { writeText: (text: string) => Promise<void> };
+};
+
 export async function shareUrl(params: {
   url: string;
   title?: string;
@@ -43,6 +54,7 @@ export async function shareUrl(params: {
 }): Promise<ShareResult> {
   const { url, title = "Wetin Dey", text } = params;
 
+  // 1. Native shell first — real OS share sheet.
   if (isNative()) {
     const mod = await loadNative();
     if (mod) {
@@ -60,21 +72,29 @@ export async function shareUrl(params: {
     }
   }
 
-  if (typeof navigator !== "undefined" && "share" in navigator) {
-    try {
-      await (
-        navigator as Navigator & { share: (d: ShareData) => Promise<void> }
-      ).share({ title, text: text ?? "", url });
-      return { ok: true, method: "web" };
-    } catch {
-      return { ok: false, reason: "cancelled" };
+  // 2. Web Share API — works on modern iOS Safari and Android Chrome.
+  if (typeof window !== "undefined") {
+    const nav = window.navigator as ShareableNavigator;
+
+    if (typeof nav.share === "function") {
+      try {
+        await nav.share({ title, text: text ?? "", url });
+        return { ok: true, method: "web" };
+      } catch {
+        return { ok: false, reason: "cancelled" };
+      }
+    }
+
+    // 3. Clipboard fallback.
+    if (nav.clipboard && typeof nav.clipboard.writeText === "function") {
+      try {
+        await nav.clipboard.writeText(url);
+        return { ok: true, method: "clipboard" };
+      } catch {
+        return { ok: false, reason: "error" };
+      }
     }
   }
 
-  try {
-    await navigator.clipboard.writeText(url);
-    return { ok: true, method: "clipboard" };
-  } catch {
-    return { ok: false, reason: "error" };
-  }
+  return { ok: false, reason: "error" };
 }

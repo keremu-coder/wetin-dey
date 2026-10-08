@@ -9,6 +9,11 @@
  * All calls are fire-and-forget — no caller needs to await them, and
  * failures (unsupported device, permission denied, plugin missing) are
  * silently ignored.
+ *
+ * Note on typing: we always access `window.navigator` (never the global
+ * `navigator` variable directly) and cast it once to a type that has an
+ * optional `vibrate` field. This avoids TypeScript's `in`-operator
+ * narrowing misbehaving on the DOM `Navigator` type under strict mode.
  */
 
 let nativeModule: typeof import("@capacitor/haptics") | null = null;
@@ -34,10 +39,16 @@ function isNative(): boolean {
   return typeof cap?.isNativePlatform === "function" && cap.isNativePlatform();
 }
 
+type VibratingNavigator = Navigator & {
+  vibrate?: (pattern: number | number[]) => boolean;
+};
+
 function webVibrate(ms: number) {
-  if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+  if (typeof window === "undefined") return;
+  const nav = window.navigator as VibratingNavigator;
+  if (typeof nav.vibrate === "function") {
     try {
-      navigator.vibrate(ms);
+      nav.vibrate(ms);
     } catch {
       /* ignore */
     }
@@ -45,7 +56,7 @@ function webVibrate(ms: number) {
 }
 
 /**
- * Light tap — buttons, toggles, reaction taps. ~20ms.
+ * Light tap — buttons, toggles, reaction taps.
  */
 export async function tapFeedback(): Promise<void> {
   if (isNative()) {
@@ -55,7 +66,7 @@ export async function tapFeedback(): Promise<void> {
         await mod.Haptics.impact({ style: mod.ImpactStyle.Light });
         return;
       } catch {
-        /* fall through to web */
+        /* fall through */
       }
     }
   }
@@ -81,7 +92,7 @@ export async function impactFeedback(): Promise<void> {
 }
 
 /**
- * Notification-style — an incoming message or DM. Distinct rhythm.
+ * Notification-style — an incoming message or DM.
  */
 export async function notifyFeedback(): Promise<void> {
   if (isNative()) {
@@ -101,8 +112,7 @@ export async function notifyFeedback(): Promise<void> {
 }
 
 /**
- * Mention — a message that names you. Slightly different rhythm so it
- * reads as more urgent than a regular notification.
+ * Mention — a message that names you.
  */
 export async function mentionFeedback(): Promise<void> {
   if (isNative()) {
