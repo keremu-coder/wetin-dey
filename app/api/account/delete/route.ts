@@ -214,6 +214,7 @@ export async function POST(req: NextRequest) {
       .delete()
       .eq("blocked_session_id", sessionId);
     await db.from("push_subscriptions").delete().eq("session_id", sessionId);
+    await db.from("native_push_tokens").delete().eq("session_id", sessionId);
     await db.from("rate_events").delete().eq("session_id", sessionId);
     await db.from("dm_violations").delete().eq("session_id", sessionId);
     await db.from("report_replies").delete().eq("session_id", sessionId);
