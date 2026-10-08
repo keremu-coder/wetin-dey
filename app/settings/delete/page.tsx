@@ -7,6 +7,7 @@ import Link from "next/link";
 export default function DeleteAccountPage() {
   const router = useRouter();
   const [confirm, setConfirm] = useState("");
+  const [deleteContent, setDeleteContent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -15,25 +16,42 @@ export default function DeleteAccountPage() {
     setError("");
 
     if (confirm !== "DELETE") {
-      setError('Type DELETE exactly — capital letters — to confirm.');
+      setError("Type DELETE exactly — capital letters — to confirm.");
       return;
     }
 
     setBusy(true);
-    const res = await fetch("/api/account/delete", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ confirm: "DELETE" })
-    });
-    const json = await res.json();
 
-    if (!res.ok) {
-      setError(json.error ?? "Something went wrong. Try again.");
+    try {
+      const res = await fetch("/api/account/delete", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          confirm: "DELETE",
+          delete_content: deleteContent
+        })
+      });
+
+      let json: { ok?: boolean; error?: string } = {};
+      try {
+        json = await res.json();
+      } catch {
+        setError("Server returned an unexpected response. Try again.");
+        setBusy(false);
+        return;
+      }
+
+      if (!res.ok) {
+        setError(json.error ?? "Something went wrong. Try again.");
+        setBusy(false);
+        return;
+      }
+
+      router.push("/?deleted=1");
+    } catch {
+      setError("Could not reach the server. Check your connection.");
       setBusy(false);
-      return;
     }
-
-    router.push("/?deleted=1");
   }
 
   return (
@@ -58,7 +76,11 @@ export default function DeleteAccountPage() {
           <li>• Your email and phone will be permanently removed</li>
           <li>• Your handle will be deactivated</li>
           <li>• Your followers, following, and blocks will be removed</li>
-          <li>• Your posts will stay, but they will no longer show your handle</li>
+          <li>
+            • Your reports will stay (archive integrity), but they will no
+            longer be linked to your handle
+          </li>
+          <li>• Your comments and chat messages will stay unless you tick the box below</li>
         </ul>
       </div>
 
@@ -84,6 +106,22 @@ export default function DeleteAccountPage() {
             autoComplete="off"
           />
         </div>
+
+        <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-border bg-surface p-4">
+          <input
+            type="checkbox"
+            checked={deleteContent}
+            onChange={(e) => setDeleteContent(e.target.checked)}
+            className="mt-0.5 h-4 w-4 shrink-0"
+          />
+          <span className="text-[0.875rem] leading-relaxed text-ink">
+            <span className="font-medium">Delete my content too</span>
+            <span className="mt-1 block text-muted">
+              Deletes your comments and community chat messages. Your reports
+              will still stay (archive integrity), but detach from your handle.
+            </span>
+          </span>
+        </label>
 
         {error ? (
           <div className="rounded-xl border border-danger/30 bg-danger-soft px-4 py-3">
