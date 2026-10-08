@@ -5,6 +5,7 @@ import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { checkRateLimit, sameOrigin } from "@/lib/rate-limit";
 import { AUTO_HIDE_FLAG_THRESHOLD } from "@/lib/constants";
+import { assertNotBanned } from "@/lib/guards";
 
 const VALID_TARGETS = [
   "message",
@@ -29,11 +30,6 @@ const VALID_REASONS = [
 ] as const;
 type Reason = (typeof VALID_REASONS)[number];
 
-/**
- * Hide the target if it supports it. Tables that don't have a hide
- * mechanism (dm_thread, user, community) are silently skipped — those
- * still get logged in content_flags for a moderator to action manually.
- */
 async function applyAutoHide(
   db: ReturnType<typeof createServiceClient>,
   targetType: string,
@@ -79,7 +75,6 @@ async function applyAutoHide(
       .eq("hidden", false);
     return !error;
   }
-  // dm_thread, user, community: no auto-hide yet.
   return false;
 }
 
@@ -93,6 +88,9 @@ export async function POST(req: NextRequest) {
     if (!sessionId) {
       return Response.json({ error: "no session" }, { status: 401 });
     }
+
+    const denied = await assertNotBanned(sessionId);
+    if (denied) return denied;
 
     const limit = await checkRateLimit(sessionId, {
       key: "content_flag",
@@ -292,7 +290,8 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Auto-hide check ──
-    // Count distinct reporters (unique constraint makes row count = distinct).
+    // Count distinct reporters (unique constraint makes row count =
+    // distinct). Threshold logic lives in AUTO_HIDE_FLAG_THRESHOLD.
     const { count } = await db
       .from("content_flags")
       .select("id", { count: "exact", head: true })

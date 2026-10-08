@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getSessionId } from "@/lib/session";
+import { getBlockedIds } from "@/lib/blocks";
 import { CommentThread } from "@/components/CommentThread";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ReviewedFlag } from "@/components/ReviewedFlag";
@@ -115,8 +116,9 @@ export default async function ReportPage({
 
   if (!report) return notFound();
 
-  // Current user
   const sessionId = await getSessionId();
+  const blockedIds = await getBlockedIds(sessionId);
+
   let currentHandle: string | null = null;
   if (sessionId) {
     const { data: me } = await db
@@ -133,12 +135,49 @@ export default async function ReportPage({
   const isOwnPost = !!authorHandle && currentHandle === authorHandle;
   const postUrl = `/r/${report.id}`;
 
+  const reportSessionId = (report as { session_id?: string | null })
+    .session_id;
+
   const held =
     (report as { held?: boolean | null }).held === true;
   const isPublic = report.reviewed === true && !held;
 
-  // Held + not mine + not yet reviewed → show only a "under review" placeholder.
-  // Prevents a private-individual report being visible to anyone who guesses the URL.
+  // If the viewing session has blocked the report's author, show a
+  // placeholder instead of the report.
+  if (
+    !isOwnPost &&
+    reportSessionId &&
+    blockedIds.has(reportSessionId)
+  ) {
+    return (
+      <main className="mx-auto max-w-2xl px-4 py-6 pb-24">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1 font-mono text-[0.7rem] uppercase tracking-widest text-faint transition-colors hover:text-accent"
+        >
+          ← Back to feed
+        </Link>
+        <div className="mt-6 rounded-2xl border border-border bg-surface p-8 text-center">
+          <div className="text-[2.5rem]">🚫</div>
+          <p className="mt-3 font-serif text-[1.15rem] font-semibold text-ink">
+            You blocked this author
+          </p>
+          <p className="mt-2 text-[0.875rem] leading-relaxed text-muted">
+            You won&apos;t see their posts or comments. Manage your blocked
+            list in{" "}
+            <Link href="/settings/blocked" className="text-accent underline">
+              Settings → Blocked users
+            </Link>
+            .
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  // Held + not mine + not yet reviewed → show only an "under review"
+  // placeholder. Prevents a private-individual report being visible to
+  // anyone who guesses the URL.
   if (held && !isOwnPost) {
     return (
       <main className="mx-auto max-w-2xl px-4 py-6 pb-24">
@@ -163,21 +202,25 @@ export default async function ReportPage({
     );
   }
 
-  // Load approved right-of-reply responses
+  // Load approved right-of-reply responses, then filter out any whose
+  // submitting session is blocked.
   const { data: repliesRaw } = await db
     .from("report_replies")
-    .select("id, submitter_name, body, approved_at, created_at")
+    .select("id, session_id, submitter_name, body, approved_at, created_at")
     .eq("report_id", report.id)
     .eq("status", "approved")
     .order("created_at", { ascending: true });
 
-  const replies = (repliesRaw ?? []) as Array<{
+  const replies = ((repliesRaw ?? []) as Array<{
     id: string;
+    session_id: string | null;
     submitter_name: string;
     body: string;
     approved_at: string | null;
     created_at: string;
-  }>;
+  }>).filter(
+    (r) => !r.session_id || !blockedIds.has(r.session_id)
+  );
 
   const upvotes = (report as { upvotes?: number }).upvotes ?? 0;
   const downvotes = (report as { downvotes?: number }).downvotes ?? 0;
@@ -193,7 +236,6 @@ export default async function ReportPage({
         ← Back to feed
       </Link>
 
-      {/* Held banner (visible to the author) */}
       {held && isOwnPost ? (
         <div className="mt-4 rounded-2xl border-2 border-gold/50 bg-gold-soft/50 p-4">
           <p className="text-[0.875rem] font-semibold text-ink">
@@ -207,7 +249,6 @@ export default async function ReportPage({
         </div>
       ) : null}
 
-      {/* Header */}
       <div className="mt-4 mb-5">
         <div className="flex items-start justify-between gap-3">
           <h1 className="font-serif text-[1.85rem] font-semibold leading-tight text-ink">
@@ -221,7 +262,6 @@ export default async function ReportPage({
         </p>
       </div>
 
-      {/* Evidence */}
       <EvidenceBlock
         evidence_type={report.evidence_type}
         evidence_url={report.evidence_url}
@@ -232,7 +272,6 @@ export default async function ReportPage({
         }
       />
 
-      {/* AI summary */}
       {report.summary_pidgin ? (
         <div className="mb-5 rounded-2xl border border-border bg-surface p-5">
           <p className="mb-2 font-mono text-[0.65rem] uppercase tracking-wider text-faint">
@@ -249,7 +288,6 @@ export default async function ReportPage({
         </div>
       ) : null}
 
-      {/* Original report text */}
       <article className="mb-5 rounded-2xl border border-border bg-surface p-5">
         <p className="mb-2 font-mono text-[0.65rem] uppercase tracking-wider text-faint">
           Original report
@@ -259,7 +297,6 @@ export default async function ReportPage({
         </p>
       </article>
 
-      {/* Meta row */}
       <div className="mb-5 flex flex-wrap items-center gap-2">
         <StatusBadge status={report.status} />
         {report.amount_kobo != null ? (
@@ -276,7 +313,6 @@ export default async function ReportPage({
         </span>
       </div>
 
-      {/* Voting + actions row */}
       <div className="mb-5 rounded-2xl border border-border bg-surface p-3">
         <PostActions
           postId={report.id}
@@ -292,10 +328,8 @@ export default async function ReportPage({
         />
       </div>
 
-      {/* Right of reply — published responses */}
       <PublishedReplies replies={replies} />
 
-      {/* Trust disclaimer + reply trigger */}
       <div className="mb-6 rounded-2xl border border-border bg-surface/50 p-4">
         <p className="mb-3 text-[0.75rem] leading-relaxed text-faint">
           This report was submitted by a citizen with attached evidence. Wetin
@@ -312,7 +346,6 @@ export default async function ReportPage({
         <ReplyTrigger reportId={report.id} />
       </div>
 
-      {/* Comments */}
       {isPublic || isOwnPost ? <CommentThread reportId={report.id} /> : null}
     </main>
   );

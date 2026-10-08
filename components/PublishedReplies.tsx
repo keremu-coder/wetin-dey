@@ -1,8 +1,13 @@
 // Display approved right-of-reply responses attached to a report.
 // Server-rendered. No client fetch.
+//
+// The caller (app/r/[id]/page.tsx) is responsible for filtering out
+// replies from blocked users before passing them in — this component
+// just renders whatever list it receives.
 
 export type PublishedReply = {
   id: string;
+  session_id?: string | null;
   submitter_name: string;
   body: string;
   approved_at: string | null;
