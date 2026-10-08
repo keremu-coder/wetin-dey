@@ -18,7 +18,6 @@ const config: Config = {
           soft: "var(--color-accent-soft)",
           deep: "var(--color-accent-deep)"
         },
-        // "warm" kept as alias to accent so existing components don't break.
         warm: {
           DEFAULT: "var(--color-accent)",
           soft: "var(--color-accent-soft)",
@@ -39,10 +38,28 @@ const config: Config = {
       },
       fontFamily: {
         // "serif" aliased to Space Grotesk so existing class names work.
-        serif: ["Space Grotesk", "system-ui", "sans-serif"],
-        display: ["Space Grotesk", "system-ui", "sans-serif"],
-        sans: ["Inter", "system-ui", "-apple-system", "sans-serif"],
-        mono: ["JetBrains Mono", "Menlo", "monospace"]
+        // Variables are declared on <body> by lib/fonts.ts via next/font.
+        serif: [
+          "var(--font-space-grotesk)",
+          "system-ui",
+          "sans-serif"
+        ],
+        display: [
+          "var(--font-space-grotesk)",
+          "system-ui",
+          "sans-serif"
+        ],
+        sans: [
+          "var(--font-inter)",
+          "system-ui",
+          "-apple-system",
+          "sans-serif"
+        ],
+        mono: [
+          "var(--font-jetbrains-mono)",
+          "Menlo",
+          "monospace"
+        ]
       },
       borderRadius: {
         xl: "8px",

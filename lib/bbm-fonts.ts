@@ -1,6 +1,10 @@
 // lib/bbm-fonts.ts
 // BBM-style font registry. Every user picks one font.
 // Their messages render in that font for everyone who reads them.
+//
+// Each font's `family` value references a CSS variable declared by
+// lib/fonts.ts (via next/font). The fallback chain still works if the
+// variable somehow isn't defined.
 
 export type BbmFont = {
   id: string;
@@ -17,25 +21,25 @@ export const BBM_FONTS: BbmFont[] = [
   {
     id: "inter",
     label: "Inter",
-    family: "'Inter', system-ui, -apple-system, sans-serif",
+    family: "var(--font-inter), system-ui, -apple-system, sans-serif",
     sample: "Wetin dey happen?"
   },
   {
     id: "space-grotesk",
     label: "Space Grotesk",
-    family: "'Space Grotesk', system-ui, sans-serif",
+    family: "var(--font-space-grotesk), system-ui, sans-serif",
     sample: "Wetin dey happen?"
   },
   {
     id: "jetbrains-mono",
     label: "JetBrains Mono",
-    family: "'JetBrains Mono', Menlo, monospace",
+    family: "var(--font-jetbrains-mono), Menlo, monospace",
     sample: "Wetin dey happen?"
   },
   {
     id: "caveat",
     label: "Caveat",
-    family: "'Caveat', 'Comic Sans MS', cursive",
+    family: "var(--font-caveat), 'Comic Sans MS', cursive",
     sample: "Wetin dey happen?",
     sizeAdjust: 1.35,
     isCursive: true
@@ -43,7 +47,7 @@ export const BBM_FONTS: BbmFont[] = [
   {
     id: "pacifico",
     label: "Pacifico",
-    family: "'Pacifico', cursive",
+    family: "var(--font-pacifico), cursive",
     sample: "Wetin dey happen?",
     sizeAdjust: 1.15,
     isCursive: true
@@ -51,7 +55,7 @@ export const BBM_FONTS: BbmFont[] = [
   {
     id: "permanent-marker",
     label: "Permanent Marker",
-    family: "'Permanent Marker', cursive",
+    family: "var(--font-permanent-marker), cursive",
     sample: "Wetin dey happen?",
     sizeAdjust: 1.1,
     isCursive: true
@@ -59,14 +63,14 @@ export const BBM_FONTS: BbmFont[] = [
   {
     id: "bebas-neue",
     label: "Bebas Neue",
-    family: "'Bebas Neue', Impact, sans-serif",
+    family: "var(--font-bebas-neue), Impact, sans-serif",
     sample: "WETIN DEY HAPPEN?",
     sizeAdjust: 1.2
   },
   {
     id: "playfair-display",
     label: "Playfair Display",
-    family: "'Playfair Display', Georgia, serif",
+    family: "var(--font-playfair-display), Georgia, serif",
     sample: "Wetin dey happen?"
   }
 ];

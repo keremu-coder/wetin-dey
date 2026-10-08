@@ -8,6 +8,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { RouteWarmup } from "@/components/RouteWarmup";
 import { TermsGate } from "@/components/TermsGate";
 import { EmailVerificationHandler } from "@/components/EmailVerificationHandler";
+import { FONT_VARIABLE_CLASSES } from "@/lib/fonts";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -51,12 +52,6 @@ const themeScript = `
 })();
 `;
 
-const CORE_FONTS_HREF =
-  "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap";
-
-const BBM_FONTS_HREF =
-  "https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&family=Pacifico&family=Permanent+Marker&family=Bebas+Neue&family=Playfair+Display:wght@400;700&display=swap";
-
 export default function RootLayout({
   children
 }: {
@@ -78,24 +73,6 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
 
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
-        <link rel="stylesheet" href={CORE_FONTS_HREF} />
-        <link
-          rel="preload"
-          as="style"
-          href={BBM_FONTS_HREF}
-          // @ts-expect-error - onLoad valid on <link>
-          onLoad="this.onload=null;this.rel='stylesheet'"
-        />
-        <noscript>
-          <link rel="stylesheet" href={BBM_FONTS_HREF} />
-        </noscript>
-
         {supabaseHost ? (
           <>
             <link
@@ -107,7 +84,7 @@ export default function RootLayout({
           </>
         ) : null}
       </head>
-      <body className="min-h-screen font-sans">
+      <body className={`min-h-screen font-sans ${FONT_VARIABLE_CLASSES}`}>
         <LiveStateProvider>
           <PushRegistrar />
           <RouteWarmup />
