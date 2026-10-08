@@ -4,10 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import nextDynamic from "next/dynamic";
 import Link from "next/link";
 import { getBrowserClient } from "@/lib/supabase/client";
+import { tapFeedback, impactFeedback, notifyFeedback, mentionFeedback } from "@/lib/haptics";
 import {
   playProfile,
-  vibrate,
-  vibrateMention,
   unlockAudio,
   showBrowserNotification,
   requestNotificationPermission,
@@ -362,8 +361,8 @@ export function ChatRoom({
             }
 
             if (p.vibrate) {
-              if (mentionedMe) vibrateMention();
-              else vibrate(35);
+              if (mentionedMe) void mentionFeedback();
+              else void notifyFeedback();
             }
 
             if (p.browserNotifications) {
@@ -513,7 +512,7 @@ export function ChatRoom({
     const cid = makeCid();
 
     if (p.send) playProfile(p.profile, "send");
-    if (p.vibrate) vibrate(20);
+    if (p.vibrate) void impactFeedback();
 
     const optimistic: Message = {
       id: cid,
@@ -626,7 +625,7 @@ export function ChatRoom({
       mr.start();
       setRecording(true);
       setRecordSeconds(0);
-      if (prefsRef.current.vibrate) vibrate(20);
+      if (prefsRef.current.vibrate) void impactFeedback();
       timerRef.current = setInterval(() => {
         setRecordSeconds((s) => {
           if (s >= 30) {
@@ -763,7 +762,7 @@ export function ChatRoom({
           m.id === messageId ? { ...m, reactions: json.reactions ?? [] } : m
         )
       );
-      if (prefsRef.current.vibrate) vibrate(15);
+      if (prefsRef.current.vibrate) void tapFeedback();
     } catch {
       /* ignore */
     }
