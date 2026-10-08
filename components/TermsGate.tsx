@@ -1,0 +1,160 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+
+/**
+ * One-time consent gate shown to sessions that haven't accepted the
+ * Terms of Use and Community Guidelines yet.
+ *
+ * Runs on mount: asks /api/accept-terms (GET) whether the current
+ * session has accepted. If not, shows a full-screen modal that blocks
+ * the app until they accept or leave.
+ *
+ * Fail-open: if the check errors, we do NOT block (the app is more
+ * important than the modal).
+ */
+export function TermsGate() {
+  const [checking, setChecking] = useState(true);
+  const [needsConsent, setNeedsConsent] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch("/api/accept-terms", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (cancelled) return;
+        if (!d) {
+          // Fail open
+          setChecking(false);
+          return;
+        }
+        setNeedsConsent(d.has_session === true && d.accepted === false);
+        setChecking(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        // Fail open
+        setChecking(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function accept() {
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch("/api/accept-terms", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ accepted: true })
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(json?.error ?? "Could not save. Try again.");
+        setBusy(false);
+        return;
+      }
+      setNeedsConsent(false);
+      if (navigator.vibrate) {
+        try {
+          navigator.vibrate(20);
+        } catch {
+          /* ignore */
+        }
+      }
+    } catch {
+      setError("Network error. Check your connection.");
+      setBusy(false);
+    }
+  }
+
+  if (checking || !needsConsent) return null;
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="terms-gate-title"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-ink/60 px-4 py-6 backdrop-blur-sm"
+    >
+      <div className="w-full max-w-md rounded-3xl border border-border bg-surface p-6 shadow-card-hover">
+        <h2
+          id="terms-gate-title"
+          className="font-serif text-[1.35rem] font-semibold leading-tight text-ink"
+        >
+          Before you continue
+        </h2>
+
+        <p className="mt-2 text-[0.9375rem] leading-relaxed text-muted">
+          Wetin Dey has rules to keep the space safe. Please read and agree
+          before you post.
+        </p>
+
+        <ul className="mt-4 space-y-2 text-[0.875rem] leading-relaxed text-ink/90">
+          <li className="flex items-start gap-2">
+            <span className="mt-1 text-accent">·</span>
+            <span>
+              <strong>No threats, doxxing, or hate.</strong> Content that
+              breaks these rules is removed within 24 hours.
+            </span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="mt-1 text-accent">·</span>
+            <span>
+              <strong>No attacks on religion, ethnicity, or politics.</strong>{" "}
+              Criticism of officials acting in their official capacity is
+              allowed.
+            </span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="mt-1 text-accent">·</span>
+            <span>
+              <strong>Abusive users are ejected.</strong> Reports of abuse go
+              to a moderator, not the other person.
+            </span>
+          </li>
+        </ul>
+
+        <div className="mt-5 space-y-2 text-[0.8125rem]">
+          <p>
+            Read the full{" "}
+            <Link href="/terms" className="text-accent underline">
+              Terms of Use
+            </Link>{" "}
+            and{" "}
+            <Link href="/guidelines" className="text-accent underline">
+              Community Guidelines
+            </Link>
+            .
+          </p>
+        </div>
+
+        {error ? (
+          <p className="mt-3 rounded-xl bg-danger-soft px-3 py-2 text-[0.8125rem] text-danger">
+            {error}
+          </p>
+        ) : null}
+
+        <button
+          type="button"
+          onClick={accept}
+          disabled={busy}
+          className="mt-5 w-full rounded-2xl bg-accent py-3.5 font-serif text-[1rem] font-semibold text-white shadow-button transition-all hover:bg-accent-deep disabled:opacity-60"
+        >
+          {busy ? "Saving…" : "I agree"}
+        </button>
+
+        <p className="mt-3 text-center text-[0.7rem] text-faint">
+          You can change your mind later by leaving Wetin Dey.
+        </p>
+      </div>
+    </div>
+  );
+}

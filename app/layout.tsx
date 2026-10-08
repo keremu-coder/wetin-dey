@@ -6,6 +6,7 @@ import { InstallPrompt } from "@/components/InstallPrompt";
 import { PushRegistrar } from "@/components/PushRegistrar";
 import { BottomNav } from "@/components/BottomNav";
 import { RouteWarmup } from "@/components/RouteWarmup";
+import { TermsGate } from "@/components/TermsGate";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -114,6 +115,7 @@ export default function RootLayout({
         <RouteWarmup />
         <Onboarding />
         <InstallPrompt />
+        <TermsGate />
         <Nav />
         {children}
         <SiteFooter />
