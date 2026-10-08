@@ -123,6 +123,12 @@ export const REPORTS_PER_HOUR = 10;
 export const COMMENTS_PER_HOUR = 20;
 export const PUBLIC_FEED_PER_MIN = 60;
 
+/**
+ * Number of DISTINCT reporters required before content is auto-hidden
+ * pending moderator review. Below this, flags are just logged.
+ */
+export const AUTO_HIDE_FLAG_THRESHOLD = 3;
+
 export function nearestState(lat: number, lng: number): NigeriaState {
   let best: NigeriaState = "FCT";
   let bestDist = Number.POSITIVE_INFINITY;

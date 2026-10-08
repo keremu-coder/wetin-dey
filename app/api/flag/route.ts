@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { checkRateLimit, sameOrigin } from "@/lib/rate-limit";
+import { AUTO_HIDE_FLAG_THRESHOLD } from "@/lib/constants";
 
 const VALID_TARGETS = [
   "message",
@@ -27,6 +28,60 @@ const VALID_REASONS = [
   "other"
 ] as const;
 type Reason = (typeof VALID_REASONS)[number];
+
+/**
+ * Hide the target if it supports it. Tables that don't have a hide
+ * mechanism (dm_thread, user, community) are silently skipped — those
+ * still get logged in content_flags for a moderator to action manually.
+ */
+async function applyAutoHide(
+  db: ReturnType<typeof createServiceClient>,
+  targetType: string,
+  targetId: string
+): Promise<boolean> {
+  if (targetType === "message") {
+    const { error } = await db
+      .from("community_messages")
+      .update({ hidden: true })
+      .eq("id", targetId)
+      .eq("hidden", false);
+    return !error;
+  }
+  if (targetType === "comment") {
+    const { error } = await db
+      .from("comments")
+      .update({ hidden: true })
+      .eq("id", targetId)
+      .eq("hidden", false);
+    return !error;
+  }
+  if (targetType === "post" || targetType === "report") {
+    const { error } = await db
+      .from("reports")
+      .update({ held: true })
+      .eq("id", targetId)
+      .eq("held", false);
+    return !error;
+  }
+  if (targetType === "dm_message") {
+    const { error } = await db
+      .from("dm_messages")
+      .update({ held: true })
+      .eq("id", targetId)
+      .eq("held", false);
+    return !error;
+  }
+  if (targetType === "broadcast") {
+    const { error } = await db
+      .from("broadcasts")
+      .update({ hidden: true })
+      .eq("id", targetId)
+      .eq("hidden", false);
+    return !error;
+  }
+  // dm_thread, user, community: no auto-hide yet.
+  return false;
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -190,7 +245,6 @@ export async function POST(req: NextRequest) {
         );
       }
     } else if (body.target_type === "user") {
-      // target_id is the session_id of the user being reported.
       const { data: user } = await db
         .from("sessions")
         .select("id")
@@ -208,7 +262,7 @@ export async function POST(req: NextRequest) {
     } else if (body.target_type === "broadcast") {
       const { data: bcast } = await db
         .from("broadcasts")
-        .select("session_id, expires_at")
+        .select("session_id")
         .eq("id", body.target_id)
         .maybeSingle();
       if (!bcast) {
@@ -237,7 +291,21 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: error.message }, { status: 500 });
     }
 
-    return Response.json({ ok: true });
+    // ── Auto-hide check ──
+    // Count distinct reporters (unique constraint makes row count = distinct).
+    const { count } = await db
+      .from("content_flags")
+      .select("id", { count: "exact", head: true })
+      .eq("target_type", body.target_type)
+      .eq("target_id", body.target_id)
+      .eq("status", "open");
+
+    let autoHidden = false;
+    if ((count ?? 0) >= AUTO_HIDE_FLAG_THRESHOLD) {
+      autoHidden = await applyAutoHide(db, body.target_type, body.target_id);
+    }
+
+    return Response.json({ ok: true, auto_hidden: autoHidden });
   } catch (e) {
     console.error("[flag]", e);
     return Response.json(
