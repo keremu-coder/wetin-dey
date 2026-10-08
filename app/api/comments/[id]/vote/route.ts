@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 import { nanoid } from "nanoid";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
+import { isBanned, BANNED_MESSAGE } from "@/lib/ban-guard";
 
 export async function POST(
   req: NextRequest,
@@ -13,6 +14,10 @@ export async function POST(
     const sessionId = await getSessionId();
     if (!sessionId) {
       return Response.json({ error: "no session" }, { status: 401 });
+    }
+
+    if (await isBanned(sessionId)) {
+      return Response.json({ error: BANNED_MESSAGE }, { status: 403 });
     }
 
     let body: { vote?: "up" | "down" };
@@ -30,7 +35,6 @@ export async function POST(
     const db = createServiceClient();
     const commentId = params.id;
 
-    // Check existing vote by this session
     const { data: existing } = await db
       .from("comment_votes")
       .select("id, vote")
@@ -38,7 +42,6 @@ export async function POST(
       .eq("session_id", sessionId)
       .maybeSingle();
 
-    // Same vote → toggle off
     if (existing && existing.vote === vote) {
       await db.from("comment_votes").delete().eq("id", existing.id);
     } else {
@@ -53,7 +56,6 @@ export async function POST(
       });
     }
 
-    // Recount
     const { data: allVotes } = await db
       .from("comment_votes")
       .select("vote")
@@ -67,7 +69,6 @@ export async function POST(
       .update({ upvotes, downvotes })
       .eq("id", commentId);
 
-    // What's this session's current vote?
     const { data: refreshed } = await db
       .from("comment_votes")
       .select("vote")

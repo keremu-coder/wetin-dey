@@ -4,8 +4,9 @@ import { NextRequest } from "next/server";
 import { nanoid } from "nanoid";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
+import { isBanned, BANNED_MESSAGE } from "@/lib/ban-guard";
 
-const ALLOWED = ["😂", "😢", "😮", "❤️", "🔥", "👏", "👍", "🙏"];
+const ALLOWED = ["😂", "😢", "😮", "❤️", "🔥", "👍", "👏", "🙏"];
 
 export async function POST(
   req: NextRequest,
@@ -15,6 +16,10 @@ export async function POST(
     const sessionId = await getSessionId();
     if (!sessionId) {
       return Response.json({ error: "no session" }, { status: 401 });
+    }
+
+    if (await isBanned(sessionId)) {
+      return Response.json({ error: BANNED_MESSAGE }, { status: 403 });
     }
 
     let body: { emoji?: string };
@@ -32,7 +37,6 @@ export async function POST(
     const db = createServiceClient();
     const messageId = params.id;
 
-    // Existing?
     const { data: existing } = await db
       .from("message_reactions")
       .select("id")
@@ -52,7 +56,6 @@ export async function POST(
       });
     }
 
-    // Recount
     const { data: all } = await db
       .from("message_reactions")
       .select("emoji")
