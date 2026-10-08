@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import nextDynamic from "next/dynamic";
 import Link from "next/link";
 import { getBrowserClient } from "@/lib/supabase/client";
-import { tapFeedback, impactFeedback, notifyFeedback, mentionFeedback } from "@/lib/haptics";
 import {
   playProfile,
   unlockAudio,
@@ -12,6 +11,12 @@ import {
   requestNotificationPermission,
   notificationPermission
 } from "@/lib/sounds";
+import {
+  tapFeedback,
+  impactFeedback,
+  notifyFeedback,
+  mentionFeedback
+} from "@/lib/haptics";
 import { loadPrefs, subscribePrefs, type SoundPrefs } from "@/lib/sound-prefs";
 import { autocorrect, suggestCorrection } from "@/lib/autocorrect";
 import {
@@ -19,6 +24,15 @@ import {
   actualMime,
   extFromType
 } from "@/lib/voice-recorder";
+import {
+  avatarColor,
+  containsMentionOf,
+  dayLabel,
+  makeCid,
+  timeWithDate,
+  type Member,
+  type Message
+} from "@/lib/chat";
 import { MessageBody } from "@/components/MessageBody";
 import { PresenceDot, presenceFromLastSeen } from "@/components/PresenceDot";
 import { StatusLine } from "@/components/StatusLine";
@@ -26,127 +40,35 @@ import { DEFAULT_FONT_ID } from "@/lib/bbm-fonts";
 import {
   BroadcastBanner,
   type Broadcast
-} from "@/components/BroadcastBanner";
-
-// Lazy-loaded children â€” off the initial chat bundle, fetched on first
-// use. Same components, same props, same behavior as before.
-//
-// ssr:false for modals/recorder (only appear on user action).
-// VoiceNotePlayer keeps default SSR because voice notes can be
-// visible on first paint.
-const VoiceNotePlayer = nextDynamic(() =>
-  import("@/components/VoiceNotePlayer").then((m) => m.VoiceNotePlayer)
-);
-
-const InviteSheet = nextDynamic(
-  () => import("@/components/InviteSheet").then((m) => m.InviteSheet),
-  { ssr: false }
-);
-
-const FlagSheet = nextDynamic(
-  () => import("@/components/FlagSheet").then((m) => m.FlagSheet),
-  { ssr: false }
-);
-
-const BroadcastRecorder = nextDynamic(
-  () =>
-    import("@/components/BroadcastRecorder").then(
-      (m) => m.BroadcastRecorder
-    ),
-  { ssr: false }
-);
+} from "@/components/BroadcastBanner";
 import { BlockButton } from "@/components/BlockButton";
-import { useRouter } from "next/navigation";
+import { ChatRoomMembers } from "@/components/ChatRoomMembers";
 
-type Reaction = { emoji: string; count: number };
+// Lazy-loaded children — off the initial chat bundle, fetched on first
+// use. Same components, same props, same behavior as before.
+const VoiceNotePlayer = nextDynamic(() =>
+  import("@/components/VoiceNotePlayer").then((m) => m.VoiceNotePlayer)
+);
 
-type Message = {
-  id: string;
-  body: string | null;
-  audio_url: string | null;
-  created_at: string;
-  author_handle: string;
-  author_last_seen: string | null;
-  reactions: Reaction[];
-  _cid?: string;
-  _pending?: boolean;
-  _failed?: boolean;
-};
+const InviteSheet = nextDynamic(
+  () => import("@/components/InviteSheet").then((m) => m.InviteSheet),
+  { ssr: false }
+);
 
-type Member = {
-  session_id: string;
-  handle: string;
-  last_seen_at: string | null;
-  role: string;
-};
+const FlagSheet = nextDynamic(
+  () => import("@/components/FlagSheet").then((m) => m.FlagSheet),
+  { ssr: false }
+);
+
+const BroadcastRecorder = nextDynamic(
+  () =>
+    import("@/components/BroadcastRecorder").then(
+      (m) => m.BroadcastRecorder
+    ),
+  { ssr: false }
+);
 
 const QUICK_EMOJI = ["😂", "😢", "😮", "❤️", "🔥", "👍", "👏", "🙏"];
-
-function timeShort(date: string): string {
-  return new Date(date).toLocaleTimeString("en-NG", {
-    hour: "numeric",
-    minute: "2-digit"
-  });
-}
-
-function timeWithDate(date: string): string {
-  const d = new Date(date);
-  const today = new Date();
-  if (d.toDateString() === today.toDateString())
-    return `Today at ${timeShort(date)}`;
-  const yesterday = new Date();
-  yesterday.setDate(today.getDate() - 1);
-  if (d.toDateString() === yesterday.toDateString())
-    return `Yesterday at ${timeShort(date)}`;
-  return (
-    d.toLocaleDateString("en-NG", { month: "short", day: "numeric" }) +
-    " at " +
-    timeShort(date)
-  );
-}
-
-function dayLabel(date: string): string {
-  const d = new Date(date);
-  const today = new Date();
-  const yesterday = new Date();
-  yesterday.setDate(today.getDate() - 1);
-  if (d.toDateString() === today.toDateString()) return "Today";
-  if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
-  return d.toLocaleDateString("en-NG", {
-    weekday: "long",
-    month: "long",
-    day: "numeric"
-  });
-}
-
-function avatarColor(seed: string): string {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
-  const colors = [
-    "#C0392B",
-    "#D97706",
-    "#1F7A4D",
-    "#7C3AED",
-    "#0E7490",
-    "#BE185D",
-    "#4D7C0F",
-    "#A16207"
-  ];
-  return colors[Math.abs(h) % colors.length];
-}
-
-function containsMentionOf(text: string, handle: string): boolean {
-  if (!text || !handle) return false;
-  const pattern = new RegExp(
-    `@${handle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`,
-    "i"
-  );
-  return pattern.test(text);
-}
-
-function makeCid(): string {
-  return `c_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-}
 
 export function ChatRoom({
   slug,
@@ -220,7 +142,6 @@ export function ChatRoom({
     NotificationPermission | "unsupported"
   >("default");
   const [showEnableBanner, setShowEnableBanner] = useState(false);
-  const router = useRouter();
   const [blockedHandles, setBlockedHandles] = useState<Set<string>>(new Set());
   const [openBlockFor, setOpenBlockFor] = useState<string | null>(null);
 
@@ -419,8 +340,6 @@ export function ChatRoom({
   }, [body, autocorrectOn]);
 
   // Only fetch profiles for handles NOT already server-provided.
-  // Runs when a new message arrives from someone whose profile we don't
-  // have cached yet.
   useEffect(() => {
     const handles = Array.from(
       new Set(messages.map((m) => m.author_handle).filter(Boolean))
@@ -973,241 +892,241 @@ export function ChatRoom({
             {messages
               .filter((m) => !blockedHandles.has(m.author_handle))
               .map((m, idx, arr) => {
-              const key = m._cid ?? m.id;
-              const prev = idx > 0 ? arr[idx - 1] : null;
-              const isSameAuthor =
-                prev && prev.author_handle === m.author_handle;
-              const withinWindow =
-                prev &&
-                new Date(m.created_at).getTime() -
-                  new Date(prev.created_at).getTime() <
-                  5 * 60 * 1000;
-              const isGroupStart = !isSameAuthor || !withinWindow;
+                const key = m._cid ?? m.id;
+                const prev = idx > 0 ? arr[idx - 1] : null;
+                const isSameAuthor =
+                  prev && prev.author_handle === m.author_handle;
+                const withinWindow =
+                  prev &&
+                  new Date(m.created_at).getTime() -
+                    new Date(prev.created_at).getTime() <
+                    5 * 60 * 1000;
+                const isGroupStart = !isSameAuthor || !withinWindow;
 
-              const sameDayAsPrev =
-                prev &&
-                new Date(prev.created_at).toDateString() ===
-                  new Date(m.created_at).toDateString();
+                const sameDayAsPrev =
+                  prev &&
+                  new Date(prev.created_at).toDateString() ===
+                    new Date(m.created_at).toDateString();
 
-              const isMe = me === m.author_handle || !!m._cid;
-              const bg = avatarColor(m.author_handle);
-              const letter = m.author_handle.charAt(0).toUpperCase();
-              const presence = presenceFromLastSeen(m.author_last_seen);
-              const mentionsMe =
-                me && m.body ? containsMentionOf(m.body, me) : false;
-              const fontId = fontByHandle[m.author_handle] || DEFAULT_FONT_ID;
-              const status = statusByHandle[m.author_handle];
+                const isMe = me === m.author_handle || !!m._cid;
+                const bg = avatarColor(m.author_handle);
+                const letter = m.author_handle.charAt(0).toUpperCase();
+                const presence = presenceFromLastSeen(m.author_last_seen);
+                const mentionsMe =
+                  me && m.body ? containsMentionOf(m.body, me) : false;
+                const fontId = fontByHandle[m.author_handle] || DEFAULT_FONT_ID;
+                const status = statusByHandle[m.author_handle];
 
-              return (
-                <div key={key}>
-                  {!sameDayAsPrev ? (
-                    <div className="chat-day-divider">
-                      {dayLabel(m.created_at)}
-                    </div>
-                  ) : null}
-
-                  <div
-                    className={`chat-msg message-in ${
-                      isGroupStart ? "chat-msg-group-start" : ""
-                    } ${m._pending ? "opacity-70" : ""}`}
-                  >
-                    {isGroupStart ? (
-                      <Link
-                        href={`/u/${encodeURIComponent(m.author_handle)}`}
-                        className="relative shrink-0"
-                        aria-label={`View @${m.author_handle}`}
-                      >
-                        <div
-                          className="chat-msg-avatar"
-                          style={{ background: bg }}
-                        >
-                          {letter}
-                        </div>
-                        <span className="absolute -bottom-0.5 -right-0.5">
-                          <PresenceDot state={presence} />
-                        </span>
-                      </Link>
-                    ) : (
-                      <div className="chat-msg-avatar-spacer" />
-                    )}
-
-                    <div className="chat-msg-body">
-                      {isGroupStart ? (
-                        <>
-                          <div className="chat-msg-header">
-                            <Link
-                              href={`/u/${encodeURIComponent(
-                                m.author_handle
-                              )}`}
-                              className="chat-msg-author transition-colors hover:text-accent"
-                            >
-                              {m.author_handle}
-                              {isMe ? (
-                                <span className="ml-1.5 text-[0.7rem] font-normal text-accent">
-                                  you
-                                </span>
-                              ) : null}
-                            </Link>
-                            <span className="chat-msg-timestamp">
-                              {m._pending
-                                ? "Sending…"
-                                : m._failed
-                                  ? "Failed"
-                                  : timeWithDate(m.created_at)}
-                            </span>
-                          </div>
-                          {status ? (
-                            <StatusLine
-                              status={status}
-                              className="mb-1 !text-[0.75rem]"
-                            />
-                          ) : null}
-                        </>
-                      ) : null}
-
-                      {m.audio_url ? (
-                        <VoiceNotePlayer src={m.audio_url} />
-                      ) : null}
-
-                      {m.body ? (
-                        <MessageBody
-                          body={m.body}
-                          isOwn={isMe}
-                          mentionsMe={mentionsMe}
-                          fontId={fontId}
-                        />
-                      ) : null}
-
-                      {m._failed ? (
-                        <div className="mt-2 flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => retryFailed(m._cid!)}
-                            className="rounded-lg bg-danger px-3 py-1 text-[0.7rem] font-semibold text-white"
-                          >
-                            Retry
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => dismissFailed(m._cid!)}
-                            className="text-[0.7rem] text-faint hover:text-ink"
-                          >
-                            Discard
-                          </button>
-                        </div>
-                      ) : null}
-
-                      {m.reactions.length > 0 ? (
-                        <div className="mt-1.5 flex flex-wrap gap-1">
-                          {m.reactions.map((r) => (
-                            <button
-                              key={r.emoji}
-                              type="button"
-                              onClick={() => react(m.id, r.emoji)}
-                              className="rounded-full border border-border bg-surface px-2 py-0.5 text-[0.7rem] text-ink transition-colors hover:border-accent"
-                            >
-                              {r.emoji} {r.count}
-                            </button>
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
-
-                    {!m._pending && !m._failed ? (
-                      <div className="chat-msg-actions">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setOpenReactionsFor(
-                              openReactionsFor === m.id ? null : m.id
-                            )
-                          }
-                          aria-label="React"
-                          title="React"
-                        >
-                          <span className="text-[0.9rem]">😊</span>
-                        </button>
-                        {!isMe ? (
-                          <>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setFlagTarget({
-                                id: m.id,
-                                label: `@${m.author_handle}`
-                              })
-                            }
-                            aria-label="Report"
-                            title="Report"
-                          >
-                            <span className="text-[0.9rem]">🚨</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setOpenBlockFor(
-                                openBlockFor === m.author_handle
-                                  ? null
-                                  : m.author_handle
-                              )
-                            }
-                            aria-label="Block"
-                            title={`Block @${m.author_handle}`}
-                          >
-                            <span className="text-[0.9rem]">🚫</span>
-                          </button>
-                          </>
-                        ) : null}
-
-                        {!isMe && openBlockFor === m.author_handle ? (
-                          <>
-                            <div
-                              className="fixed inset-0 z-30"
-                              onClick={() => setOpenBlockFor(null)}
-                            />
-                            <div className="absolute right-3 top-full z-40 mt-1 w-56 rounded-xl border border-border bg-surface p-2 shadow-card-hover">
-                              <BlockButton
-                                handle={m.author_handle}
-                                className="block w-full rounded-lg px-3 py-2 text-left text-[0.8125rem] text-danger hover:bg-danger-soft"
-                                onBlocked={(h) => {
-                                  setOpenBlockFor(null);
-                                  setBlockedHandles((prev) => {
-                                    const next = new Set(prev);
-                                    next.add(h);
-                                    return next;
-                                  });
-                                }}
-                              />
-                            </div>
-                          </>
-                        ) : null}
+                return (
+                  <div key={key}>
+                    {!sameDayAsPrev ? (
+                      <div className="chat-day-divider">
+                        {dayLabel(m.created_at)}
                       </div>
                     ) : null}
 
-                    {openReactionsFor === m.id ? (
-                      <>
-                        <div
-                          className="fixed inset-0 z-30"
-                          onClick={() => setOpenReactionsFor(null)}
-                        />
-                        <div className="absolute right-3 top-full z-40 mt-1 flex gap-1 rounded-full border border-border bg-surface p-1.5 shadow-card-hover">
-                          {QUICK_EMOJI.map((e) => (
+                    <div
+                      className={`chat-msg message-in ${
+                        isGroupStart ? "chat-msg-group-start" : ""
+                      } ${m._pending ? "opacity-70" : ""}`}
+                    >
+                      {isGroupStart ? (
+                        <Link
+                          href={`/u/${encodeURIComponent(m.author_handle)}`}
+                          className="relative shrink-0"
+                          aria-label={`View @${m.author_handle}`}
+                        >
+                          <div
+                            className="chat-msg-avatar"
+                            style={{ background: bg }}
+                          >
+                            {letter}
+                          </div>
+                          <span className="absolute -bottom-0.5 -right-0.5">
+                            <PresenceDot state={presence} />
+                          </span>
+                        </Link>
+                      ) : (
+                        <div className="chat-msg-avatar-spacer" />
+                      )}
+
+                      <div className="chat-msg-body">
+                        {isGroupStart ? (
+                          <>
+                            <div className="chat-msg-header">
+                              <Link
+                                href={`/u/${encodeURIComponent(
+                                  m.author_handle
+                                )}`}
+                                className="chat-msg-author transition-colors hover:text-accent"
+                              >
+                                {m.author_handle}
+                                {isMe ? (
+                                  <span className="ml-1.5 text-[0.7rem] font-normal text-accent">
+                                    you
+                                  </span>
+                                ) : null}
+                              </Link>
+                              <span className="chat-msg-timestamp">
+                                {m._pending
+                                  ? "Sending…"
+                                  : m._failed
+                                    ? "Failed"
+                                    : timeWithDate(m.created_at)}
+                              </span>
+                            </div>
+                            {status ? (
+                              <StatusLine
+                                status={status}
+                                className="mb-1 !text-[0.75rem]"
+                              />
+                            ) : null}
+                          </>
+                        ) : null}
+
+                        {m.audio_url ? (
+                          <VoiceNotePlayer src={m.audio_url} />
+                        ) : null}
+
+                        {m.body ? (
+                          <MessageBody
+                            body={m.body}
+                            isOwn={isMe}
+                            mentionsMe={mentionsMe}
+                            fontId={fontId}
+                          />
+                        ) : null}
+
+                        {m._failed ? (
+                          <div className="mt-2 flex items-center gap-2">
                             <button
-                              key={e}
                               type="button"
-                              onClick={() => react(m.id, e)}
-                              className="flex h-7 w-7 items-center justify-center rounded-full text-[1rem] transition-colors hover:bg-ink/10"
+                              onClick={() => retryFailed(m._cid!)}
+                              className="rounded-lg bg-danger px-3 py-1 text-[0.7rem] font-semibold text-white"
                             >
-                              {e}
+                              Retry
                             </button>
-                          ))}
+                            <button
+                              type="button"
+                              onClick={() => dismissFailed(m._cid!)}
+                              className="text-[0.7rem] text-faint hover:text-ink"
+                            >
+                              Discard
+                            </button>
+                          </div>
+                        ) : null}
+
+                        {m.reactions.length > 0 ? (
+                          <div className="mt-1.5 flex flex-wrap gap-1">
+                            {m.reactions.map((r) => (
+                              <button
+                                key={r.emoji}
+                                type="button"
+                                onClick={() => react(m.id, r.emoji)}
+                                className="rounded-full border border-border bg-surface px-2 py-0.5 text-[0.7rem] text-ink transition-colors hover:border-accent"
+                              >
+                                {r.emoji} {r.count}
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+
+                      {!m._pending && !m._failed ? (
+                        <div className="chat-msg-actions">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setOpenReactionsFor(
+                                openReactionsFor === m.id ? null : m.id
+                              )
+                            }
+                            aria-label="React"
+                            title="React"
+                          >
+                            <span className="text-[0.9rem]">😊</span>
+                          </button>
+                          {!isMe ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setFlagTarget({
+                                    id: m.id,
+                                    label: `@${m.author_handle}`
+                                  })
+                                }
+                                aria-label="Report"
+                                title="Report"
+                              >
+                                <span className="text-[0.9rem]">🚨</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setOpenBlockFor(
+                                    openBlockFor === m.author_handle
+                                      ? null
+                                      : m.author_handle
+                                  )
+                                }
+                                aria-label="Block"
+                                title={`Block @${m.author_handle}`}
+                              >
+                                <span className="text-[0.9rem]">🚫</span>
+                              </button>
+                            </>
+                          ) : null}
+
+                          {!isMe && openBlockFor === m.author_handle ? (
+                            <>
+                              <div
+                                className="fixed inset-0 z-30"
+                                onClick={() => setOpenBlockFor(null)}
+                              />
+                              <div className="absolute right-3 top-full z-40 mt-1 w-56 rounded-xl border border-border bg-surface p-2 shadow-card-hover">
+                                <BlockButton
+                                  handle={m.author_handle}
+                                  className="block w-full rounded-lg px-3 py-2 text-left text-[0.8125rem] text-danger hover:bg-danger-soft"
+                                  onBlocked={(h) => {
+                                    setOpenBlockFor(null);
+                                    setBlockedHandles((prev) => {
+                                      const next = new Set(prev);
+                                      next.add(h);
+                                      return next;
+                                    });
+                                  }}
+                                />
+                              </div>
+                            </>
+                          ) : null}
                         </div>
-                      </>
-                    ) : null}
+                      ) : null}
+
+                      {openReactionsFor === m.id ? (
+                        <>
+                          <div
+                            className="fixed inset-0 z-30"
+                            onClick={() => setOpenReactionsFor(null)}
+                          />
+                          <div className="absolute right-3 top-full z-40 mt-1 flex gap-1 rounded-full border border-border bg-surface p-1.5 shadow-card-hover">
+                            {QUICK_EMOJI.map((e) => (
+                              <button
+                                key={e}
+                                type="button"
+                                onClick={() => react(m.id, e)}
+                                className="flex h-7 w-7 items-center justify-center rounded-full text-[1rem] transition-colors hover:bg-ink/10"
+                              >
+                                {e}
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      ) : null}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
           </div>
         )}
       </div>
@@ -1469,225 +1388,27 @@ export function ChatRoom({
         />
       ) : null}
 
-      {membersOpen ? (
-        <>
-          <div
-            className="fixed inset-0 z-50 bg-black/50 fade-in"
-            onClick={() => setMembersOpen(false)}
-          />
-          <aside className="fixed right-0 top-0 z-[60] h-full w-[85%] max-w-sm overflow-y-auto border-l border-border bg-paper slide-in-right">
-            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-paper/95 px-4 py-3 backdrop-blur-xl">
-              <div>
-                <p className="font-serif text-[1.05rem] font-semibold text-ink">
-                  Members
-                </p>
-                <p className="font-mono text-[0.65rem] text-faint">
-                  {onlineHandles.length} online · {members.length} total
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setMembersOpen(false)}
-                className="flex h-8 w-8 items-center justify-center rounded-full text-muted transition-colors hover:bg-ink/5 hover:text-ink"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="border-b border-border px-4 py-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setMembersOpen(false);
-                  setInviteOpen(true);
-                }}
-                className="mb-2 flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-3 py-2.5 text-[0.8125rem] font-semibold text-white transition-colors hover:bg-accent-deep"
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                  <circle cx="9" cy="7" r="4" />
-                  <line x1="19" y1="8" x2="19" y2="14" />
-                  <line x1="22" y1="11" x2="16" y2="11" />
-                </svg>
-                Invite people
-              </button>
-
-              {isOwner ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMembersOpen(false);
-                    setBroadcastRecorderOpen(true);
-                  }}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-border-strong bg-paper px-3 py-2.5 text-[0.8125rem] font-semibold text-ink transition-colors hover:bg-ink/5"
-                >
-                  <span className="text-[1rem]">📢</span>
-                  Send a broadcast
-                </button>
-              ) : null}
-            </div>
-
-            <Link
-              href="/settings/sounds"
-              className="flex items-center gap-3 border-b border-border px-4 py-3 transition-colors hover:bg-ink/5"
-            >
-              <span className="text-[1.1rem]">🔊</span>
-              <div className="min-w-0 flex-1">
-                <p className="text-[0.875rem] font-medium text-ink">
-                  Sound settings
-                </p>
-                <p className="text-[0.7rem] text-muted">
-                  Profile: {prefs.profile} ·{" "}
-                  {prefs.send ? "send on" : "send off"} ·{" "}
-                  {prefs.receive ? "receive on" : "receive off"}
-                </p>
-              </div>
-              <span className="text-faint">›</span>
-            </Link>
-
-            {notifPerm === "granted" ? null : notifPerm === "default" ? (
-              <button
-                type="button"
-                onClick={async () => {
-                  await requestNotificationPermission();
-                  setNotifPerm(notificationPermission());
-                }}
-                className="flex w-full items-center gap-3 border-b border-border px-4 py-3 text-left transition-colors hover:bg-ink/5"
-              >
-                <span className="text-[1.1rem]">🔔</span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[0.875rem] font-medium text-ink">
-                    Enable notifications
-                  </p>
-                  <p className="text-[0.7rem] text-muted">
-                    Get notified when a message arrives
-                  </p>
-                </div>
-                <span className="text-faint">›</span>
-              </button>
-            ) : null}
-
-            <div className="border-b border-border px-4 py-3">
-              <p className="mb-2 font-mono text-[0.65rem] uppercase tracking-wider text-faint">
-                Chat settings
-              </p>
-              <div className="flex items-center justify-between py-2">
-                <span className="text-[0.875rem] text-ink">Autocorrect</span>
-                <button
-                  type="button"
-                  onClick={() => setAutocorrectOn((v) => !v)}
-                  className={`relative h-6 w-11 rounded-full transition-colors ${
-                    autocorrectOn ? "bg-accent" : "bg-ink/10"
-                  }`}
-                >
-                  <span
-                    className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                      autocorrectOn ? "translate-x-5" : "translate-x-0.5"
-                    }`}
-                  />
-                </button>
-              </div>
-            </div>
-
-            <MemberGroup
-              label="Online"
-              members={members.filter(
-                (m) => presenceFromLastSeen(m.last_seen_at) === "online"
-              )}
-              emptyText="Nobody here right now"
-              statusByHandle={statusByHandle}
-            />
-            <MemberGroup
-              label="Away"
-              members={members.filter(
-                (m) => presenceFromLastSeen(m.last_seen_at) === "away"
-              )}
-              statusByHandle={statusByHandle}
-            />
-            <MemberGroup
-              label="Offline"
-              members={members.filter(
-                (m) => presenceFromLastSeen(m.last_seen_at) === "offline"
-              )}
-              statusByHandle={statusByHandle}
-            />
-          </aside>
-        </>
-      ) : null}
+      <ChatRoomMembers
+        open={membersOpen}
+        onClose={() => setMembersOpen(false)}
+        members={members}
+        onlineCount={onlineHandles.length}
+        isOwner={isOwner}
+        prefs={prefs}
+        notifPerm={notifPerm}
+        onNotifPermChange={setNotifPerm}
+        autocorrectOn={autocorrectOn}
+        onAutocorrectChange={setAutocorrectOn}
+        onOpenInvite={() => {
+          unlockAudio();
+          setInviteOpen(true);
+        }}
+        onOpenBroadcast={() => {
+          unlockAudio();
+          setBroadcastRecorderOpen(true);
+        }}
+        statusByHandle={statusByHandle}
+      />
     </div>
-  );
-}
-
-function MemberGroup({
-  label,
-  members,
-  emptyText,
-  statusByHandle
-}: {
-  label: string;
-  members: Member[];
-  emptyText?: string;
-  statusByHandle: Record<string, string>;
-}) {
-  if (members.length === 0 && !emptyText) return null;
-
-  return (
-    <section className="py-2">
-      <p className="px-4 py-2 font-mono text-[0.65rem] uppercase tracking-wider text-faint">
-        {label} — {members.length}
-      </p>
-      {members.length === 0 ? (
-        <p className="px-4 py-2 text-[0.8125rem] text-muted">{emptyText}</p>
-      ) : (
-        members.map((m) => {
-          const presence = presenceFromLastSeen(m.last_seen_at);
-          const bg = avatarColor(m.handle);
-          const status = statusByHandle[m.handle];
-          return (
-            <Link
-              key={m.session_id}
-              href={`/u/${encodeURIComponent(m.handle)}`}
-              className="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-ink/5"
-            >
-              <div className="relative shrink-0">
-                <div
-                  className="flex h-9 w-9 items-center justify-center rounded-full text-[0.85rem] font-semibold text-white"
-                  style={{ background: bg }}
-                >
-                  {m.handle.charAt(0).toUpperCase()}
-                </div>
-                <span className="absolute -bottom-0.5 -right-0.5">
-                  <PresenceDot state={presence} size="md" />
-                </span>
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[0.9375rem] font-medium text-ink">
-                  @{m.handle}
-                </p>
-                {status ? (
-                  <StatusLine
-                    status={status}
-                    className="mt-0.5 !text-[0.75rem]"
-                  />
-                ) : (
-                  <p className="text-[0.7rem] capitalize text-muted">
-                    {m.role}
-                  </p>
-                )}
-              </div>
-            </Link>
-          );
-        })
-      )}
-    </section>
   );
 }
