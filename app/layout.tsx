@@ -7,6 +7,7 @@ import { PushRegistrar } from "@/components/PushRegistrar";
 import { BottomNav } from "@/components/BottomNav";
 import { RouteWarmup } from "@/components/RouteWarmup";
 import { TermsGate } from "@/components/TermsGate";
+import { EmailVerificationHandler } from "@/components/EmailVerificationHandler";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -78,7 +79,6 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
 
-        {/* Fonts — preconnect + async load for display fonts */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
           rel="preconnect"
@@ -97,7 +97,6 @@ export default function RootLayout({
           <link rel="stylesheet" href={BBM_FONTS_HREF} />
         </noscript>
 
-        {/* Supabase — preconnect so the first DB call skips the TLS handshake */}
         {supabaseHost ? (
           <>
             <link
@@ -116,6 +115,7 @@ export default function RootLayout({
         <Onboarding />
         <InstallPrompt />
         <TermsGate />
+        <EmailVerificationHandler />
         <Nav />
         {children}
         <SiteFooter />

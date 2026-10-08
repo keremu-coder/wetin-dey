@@ -18,6 +18,19 @@ export async function POST(req: NextRequest) {
 
   const db = createServiceClient();
 
+  // If a session exists with this email but the email hasn't been
+  // verified, do NOT send a reset link. We still return ok to avoid
+  // leaking verification state to an attacker who can guess emails.
+  const { data: session } = await db
+    .from("sessions")
+    .select("email_verified_at")
+    .eq("email", email)
+    .maybeSingle();
+
+  if (session && !session.email_verified_at) {
+    return Response.json({ ok: true });
+  }
+
   await db.auth.resetPasswordForEmail(email, {
     redirectTo: "https://9jawatindey.vercel.app/reset-password"
   });

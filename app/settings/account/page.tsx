@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/session";
+import { createServiceClient } from "@/lib/supabase/server";
 import { StatusEditor } from "@/components/StatusEditor";
 import { RecoveryCodeCard } from "@/components/RecoveryCodeCard";
 import { UserAvatarUploader } from "@/components/UserAvatarUploader";
@@ -10,6 +11,16 @@ export const dynamic = "force-dynamic";
 export default async function AccountPage() {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/signin");
+
+  const db = createServiceClient();
+  const { data: sessionRow } = await db
+    .from("sessions")
+    .select("email_verified_at")
+    .eq("id", profile.id)
+    .maybeSingle();
+
+  const emailVerified = sessionRow?.email_verified_at != null;
+  const hasEmail = !!profile.email;
 
   const avatarUrl =
     typeof (profile as { avatar_url?: string | null }).avatar_url === "string"
@@ -31,16 +42,26 @@ export default async function AccountPage() {
         </h1>
       </div>
 
+      {hasEmail && !emailVerified ? (
+        <div className="mb-4 rounded-2xl border border-gold/40 bg-gold-soft/50 p-4">
+          <p className="text-[0.9375rem] font-semibold text-ink">
+            Verify your email
+          </p>
+          <p className="mt-1 text-[0.8125rem] leading-relaxed text-ink/85">
+            We sent a verification link to {profile.email}. Click it to enable
+            password reset. Until then, use your recovery code if you lose
+            access.
+          </p>
+        </div>
+      ) : null}
+
       <div className="space-y-4">
-        {/* Your picture */}
         <div className="rounded-2xl border border-border bg-surface p-5">
           <UserAvatarUploader currentAvatarUrl={avatarUrl} />
         </div>
 
-        {/* Status line */}
         <StatusEditor sessionId={profile.id} />
 
-        {/* Handle — clickable row */}
         <Link
           href="/settings/handle"
           className="flex items-center gap-3 rounded-2xl border border-border bg-surface p-5 transition-colors hover:border-accent/50"
@@ -59,10 +80,8 @@ export default async function AccountPage() {
           <span className="shrink-0 text-faint">›</span>
         </Link>
 
-        {/* Recovery code */}
         <RecoveryCodeCard />
 
-        {/* Email */}
         <div className="rounded-2xl border border-border bg-surface p-5">
           <p className="font-mono text-[0.7rem] uppercase tracking-wider text-faint">
             Email
@@ -70,13 +89,23 @@ export default async function AccountPage() {
           <p className="mt-1 text-[1rem] font-medium text-ink">
             {profile.email || "No email attached"}
           </p>
-          <p className="mt-1 text-[0.8125rem] text-muted">
-            Used only for account recovery and important notifications. Never
-            shown publicly.
-          </p>
+          {hasEmail ? (
+            <p className="mt-1 text-[0.8125rem] text-muted">
+              {emailVerified ? (
+                <span className="text-accent-deep">✓ Verified</span>
+              ) : (
+                <span className="text-danger">
+                  Not verified — check your inbox for the link
+                </span>
+              )}
+            </p>
+          ) : (
+            <p className="mt-1 text-[0.8125rem] text-muted">
+              Optional. Used only for account recovery. Never shown publicly.
+            </p>
+          )}
         </div>
 
-        {/* Account type */}
         <div className="rounded-2xl border border-border bg-surface p-5">
           <p className="font-mono text-[0.7rem] uppercase tracking-wider text-faint">
             Account type
@@ -98,7 +127,7 @@ export default async function AccountPage() {
         >
           support@wetindey.app
         </a>
-        . Self-service email editing is coming soon.
+        .
       </p>
     </main>
   );

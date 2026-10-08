@@ -106,10 +106,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Create the Auth user WITHOUT confirming the email. We then ask
+  // Supabase to send the signup confirmation email via the SMTP provider
+  // configured in the dashboard (currently Resend).
   const { data: authData, error: authErr } = await db.auth.admin.createUser({
     email,
     password,
-    email_confirm: true
+    email_confirm: false
   });
 
   if (authErr || !authData?.user) {
@@ -117,6 +120,28 @@ export async function POST(req: NextRequest) {
     return Response.json(
       { error: authErr?.message ?? "Could not create account." },
       { status: 500 }
+    );
+  }
+
+  // Ask Supabase to send the confirmation email. Uses the SMTP config
+  // in the dashboard. Failure here is logged but does not fail signup —
+  // the account exists and is usable, and the user can request a
+  // resend from Settings → Account.
+  let verificationEmailSent = false;
+  try {
+    const { error: resendErr } = await db.auth.resend({
+      type: "signup",
+      email
+    });
+    if (resendErr) {
+      console.warn("[join] resend confirmation failed:", resendErr.message);
+    } else {
+      verificationEmailSent = true;
+    }
+  } catch (e) {
+    console.warn(
+      "[join] resend confirmation threw:",
+      (e as Error).message
     );
   }
 
@@ -141,5 +166,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  return Response.json({ ok: true, handle });
+  return Response.json({
+    ok: true,
+    handle,
+    verification_email_sent: verificationEmailSent
+  });
 }

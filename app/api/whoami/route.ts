@@ -1,6 +1,7 @@
 export const runtime = "nodejs";
 
 import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
+import { createServiceClient } from "@/lib/supabase/server";
 
 export async function GET() {
   const sessionId = await getSessionId();
@@ -13,9 +14,17 @@ export async function GET() {
     return Response.json({ error: "profile failed" }, { status: 500 });
   }
 
+  const db = createServiceClient();
+  const { data: session } = await db
+    .from("sessions")
+    .select("email_verified_at")
+    .eq("id", sessionId)
+    .maybeSingle();
+
   return Response.json({
     id: profile.id,
     handle: profile.handle,
-    handle_kind: profile.handle_kind
+    handle_kind: profile.handle_kind,
+    email_verified: session?.email_verified_at != null
   });
 }

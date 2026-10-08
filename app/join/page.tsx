@@ -49,7 +49,12 @@ export default function JoinPage() {
         })
       });
 
-      let json: { ok?: boolean; error?: string; handle?: string } = {};
+      let json: {
+        ok?: boolean;
+        error?: string;
+        handle?: string;
+        verification_email_sent?: boolean;
+      } = {};
       try {
         json = await res.json();
       } catch {
@@ -112,6 +117,10 @@ export default function JoinPage() {
             placeholder="you@example.com"
             autoComplete="email"
           />
+          <p className="mt-1.5 text-[0.75rem] leading-relaxed text-faint">
+            We&apos;ll send a verification link. You can use Wetin Dey right
+            away — but password reset only works after you verify.
+          </p>
         </div>
 
         <div>
