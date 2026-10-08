@@ -7,7 +7,6 @@ import { timeAgoShort } from "@/lib/dm";
 import {
   playProfile,
   unlockAudio,
-  vibrate,
   showBrowserNotification
 } from "@/lib/sounds";
 import {
@@ -15,6 +14,7 @@ import {
   subscribePrefs,
   type SoundPrefs
 } from "@/lib/sound-prefs";
+import { notifyFeedback } from "@/lib/haptics";
 import { FilterWarning } from "./FilterWarning";
 import { DMComposer } from "./DMComposer";
 import { FlagSheet } from "./FlagSheet";
@@ -184,7 +184,7 @@ export function DMThread({
 
             const p = prefsRef.current;
             if (p.receive) playProfile(p.profile, "receive");
-            if (p.vibrate) vibrate(35);
+            if (p.vibrate) void notifyFeedback();
 
             if (p.browserNotifications) {
               showBrowserNotification(
