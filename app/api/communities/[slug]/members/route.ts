@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { NextRequest } from "next/server";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
+import { getBlockedIds } from "@/lib/blocks";
 
 export async function GET(
   _req: NextRequest,
@@ -13,7 +14,7 @@ export async function GET(
 
     const { data: community } = await db
       .from("communities")
-      .select("id")
+      .select("id, is_public")
       .eq("slug", params.slug)
       .maybeSingle();
 
@@ -22,6 +23,22 @@ export async function GET(
     }
 
     const sessionId = await getSessionId();
+
+    // Private space: member list is only visible to members.
+    if (!community.is_public) {
+      if (!sessionId) {
+        return Response.json({ error: "forbidden" }, { status: 403 });
+      }
+      const { data: self } = await db
+        .from("community_members")
+        .select("id")
+        .eq("community_id", community.id)
+        .eq("session_id", sessionId)
+        .maybeSingle();
+      if (!self) {
+        return Response.json({ error: "forbidden" }, { status: 403 });
+      }
+    }
 
     // If the requester hides their presence, they don't see anyone else's.
     let requesterHides = false;
@@ -34,12 +51,18 @@ export async function GET(
       requesterHides = me?.hide_presence === true;
     }
 
+    // Filter out members the requester has blocked (either direction).
+    const blockedIds = await getBlockedIds(sessionId);
+
     const { data: memberRows } = await db
       .from("community_members")
       .select("session_id, role")
       .eq("community_id", community.id);
 
-    const ids = (memberRows ?? []).map((m) => m.session_id);
+    const ids = (memberRows ?? [])
+      .map((m) => m.session_id)
+      .filter((id) => !blockedIds.has(id));
+
     if (ids.length === 0) {
       return Response.json({ members: [] });
     }
@@ -55,7 +78,8 @@ export async function GET(
 
     const members = (sessions ?? []).map((s) => {
       const targetHides =
-        requesterHides || (s as { hide_presence?: boolean }).hide_presence === true;
+        requesterHides ||
+        (s as { hide_presence?: boolean }).hide_presence === true;
       return {
         session_id: s.id,
         handle: s.handle,
