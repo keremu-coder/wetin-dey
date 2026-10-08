@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sameOrigin } from "@/lib/rate-limit";
+import { assertCanWrite } from "@/lib/guards";
 
 const VALID = ["everyone", "following"] as const;
 type Policy = (typeof VALID)[number];
@@ -44,6 +45,9 @@ export async function POST(req: NextRequest) {
     if (!sessionId) {
       return Response.json({ error: "no session" }, { status: 401 });
     }
+
+    const denied = await assertCanWrite(sessionId);
+    if (denied) return denied;
 
     const body = (await req.json()) as { policy?: unknown };
     if (
