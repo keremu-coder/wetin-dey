@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import nextDynamic from "next/dynamic";
 import Link from "next/link";
 import { getBrowserClient } from "@/lib/supabase/client";
 import {
@@ -22,15 +23,39 @@ import {
 import { MessageBody } from "@/components/MessageBody";
 import { PresenceDot, presenceFromLastSeen } from "@/components/PresenceDot";
 import { StatusLine } from "@/components/StatusLine";
-import { VoiceNotePlayer } from "@/components/VoiceNotePlayer";
 import { DEFAULT_FONT_ID } from "@/lib/bbm-fonts";
-import { InviteSheet } from "@/components/InviteSheet";
-import { FlagSheet } from "@/components/FlagSheet";
 import {
   BroadcastBanner,
   type Broadcast
-} from "@/components/BroadcastBanner";
-import { BroadcastRecorder } from "@/components/BroadcastRecorder";
+} from "@/components/BroadcastBanner";
+
+// Lazy-loaded children â€” off the initial chat bundle, fetched on first
+// use. Same components, same props, same behavior as before.
+//
+// ssr:false for modals/recorder (only appear on user action).
+// VoiceNotePlayer keeps default SSR because voice notes can be
+// visible on first paint.
+const VoiceNotePlayer = nextDynamic(() =>
+  import("@/components/VoiceNotePlayer").then((m) => m.VoiceNotePlayer)
+);
+
+const InviteSheet = nextDynamic(
+  () => import("@/components/InviteSheet").then((m) => m.InviteSheet),
+  { ssr: false }
+);
+
+const FlagSheet = nextDynamic(
+  () => import("@/components/FlagSheet").then((m) => m.FlagSheet),
+  { ssr: false }
+);
+
+const BroadcastRecorder = nextDynamic(
+  () =>
+    import("@/components/BroadcastRecorder").then(
+      (m) => m.BroadcastRecorder
+    ),
+  { ssr: false }
+);
 import { BlockButton } from "@/components/BlockButton";
 import { useRouter } from "next/navigation";
 

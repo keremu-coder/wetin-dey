@@ -1,13 +1,19 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FlagSheet } from "./FlagSheet";
+import nextDynamic from "next/dynamic";
 import {
   pickRecorderFormat,
   actualMime,
   extFromType
 } from "@/lib/voice-recorder";
-import { BlockButton } from "./BlockButton";
+import { BlockButton } from "./BlockButton";
+
+// Lazy-loaded â€” the flag sheet is only shown when the user taps report.
+const FlagSheet = nextDynamic(
+  () => import("./FlagSheet").then((m) => m.FlagSheet),
+  { ssr: false }
+);
 
 type Comment = {
   id: string;
