@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Nav, SiteFooter } from "@/components/Nav";
-import { PresencePing } from "@/components/PresencePing";
+import { LiveStateProvider } from "@/components/LiveStateProvider";
 import { Onboarding } from "@/components/Onboarding";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { PushRegistrar } from "@/components/PushRegistrar";
@@ -36,7 +36,6 @@ export const viewport: Viewport = {
   themeColor: "#0a0a0a",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
   viewportFit: "cover"
 };
 
@@ -109,17 +108,18 @@ export default function RootLayout({
         ) : null}
       </head>
       <body className="min-h-screen font-sans">
-        <PresencePing />
-        <PushRegistrar />
-        <RouteWarmup />
-        <Onboarding />
-        <InstallPrompt />
-        <TermsGate />
-        <EmailVerificationHandler />
-        <Nav />
-        {children}
-        <SiteFooter />
-        <BottomNav />
+        <LiveStateProvider>
+          <PushRegistrar />
+          <RouteWarmup />
+          <Onboarding />
+          <InstallPrompt />
+          <TermsGate />
+          <EmailVerificationHandler />
+          <Nav />
+          {children}
+          <SiteFooter />
+          <BottomNav />
+        </LiveStateProvider>
       </body>
     </html>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 const TABS = [
@@ -23,26 +23,6 @@ const HIDDEN_PREFIXES = [
 export function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
-  const [unread, setUnread] = useState(0);
-
-  useEffect(() => {
-    let cancelled = false;
-    function refresh() {
-      fetch("/api/dm/unread", { cache: "no-store" })
-        .then((r) => (r.ok ? r.json() : null))
-        .then((d) => {
-          if (cancelled) return;
-          setUnread(typeof d?.count === "number" ? d.count : 0);
-        })
-        .catch(() => {});
-    }
-    refresh();
-    const t = setInterval(refresh, 30000);
-    return () => {
-      cancelled = true;
-      clearInterval(t);
-    };
-  }, [pathname]);
 
   // Prefetch all three tabs on mount so a cold first tap is instant.
   useEffect(() => {

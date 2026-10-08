@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "./ThemeToggle";
 import { getWhoAmI, type WhoAmI } from "@/lib/whoami-cache";
+import { useLiveUnread } from "./LiveStateProvider";
 
 type Row = {
   href: string;
@@ -46,9 +47,9 @@ export function Nav() {
   const pathname = usePathname();
   const [me, setMe] = useState<WhoAmI | null>(null);
   const [status, setStatus] = useState<string | null>(null);
-  const [unreadDMs, setUnreadDMs] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [signOutConfirm, setSignOutConfirm] = useState(false);
+  const unreadDMs = useLiveUnread();
 
   useEffect(() => {
     getWhoAmI()
@@ -57,25 +58,6 @@ export function Nav() {
       })
       .catch(() => {});
   }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    function refresh() {
-      fetch("/api/dm/unread", { cache: "no-store" })
-        .then((r) => (r.ok ? r.json() : null))
-        .then((d) => {
-          if (cancelled) return;
-          setUnreadDMs(typeof d?.count === "number" ? d.count : 0);
-        })
-        .catch(() => {});
-    }
-    refresh();
-    const t = setInterval(refresh, 30000);
-    return () => {
-      cancelled = true;
-      clearInterval(t);
-    };
-  }, [pathname]);
 
   useEffect(() => {
     if (!drawerOpen || !me) return;
@@ -172,7 +154,7 @@ export function Nav() {
         },
         {
           href: "/settings/presence",
-          icon: "👁️",
+          icon: "👻",
           label: "Presence",
           hint: "Hide your online status"
         },
