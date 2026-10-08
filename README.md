@@ -1,56 +1,35 @@
-# Naija Archive
+# Wetin Dey
 
-Anonymous corruption reporting for Nigeria. Permanent URLs. Pidgin-first. No identity.
+Nigerian community platform. Anonymous civic reports with permanent URLs.
+Free-form community feed. Discord-style Spaces with live chat. Pidgin-first.
+No identity. No ads on Talk Am, ever.
+
+Live at: https://9jawatindey.vercel.app
+
+## What this is
+
+Two tabs, one app:
+
+- **Talk Am** — civic accountability. Reports about agencies, officials, and
+  public services. Every report requires evidence (photo, video, audio,
+  voice note, or public link). Anonymous by default. AI formalizes each
+  report into a Pidgin summary and an English summary.
+- **Community** — free-form posts, discussion, and Spaces. Group chats for
+  families, churches, estates, and friends. BBM-style sounds and haptics.
+
+**Spaces** are Discord-style communities inside the app. Public or private,
+with a member list, live chat, presence indicators, and voice broadcasts.
+
+## Stack
+
+- Next.js 14.2 App Router + TypeScript (strict)
+- Tailwind CSS + custom design system (dark + light mode)
+- Supabase (Postgres, Storage, Realtime, RLS)
+- Groq API (`openai/gpt-oss-120b`) for report formalization
+- Resend + Supabase Auth SMTP for verification emails
+- Web Push for browser notifications
+- Vercel hosting
 
 ## Setup
 
 1. Copy `.env.example` to `.env.local` and set:
-
-```
-NEXT_PUBLIC_SUPABASE_URL
-NEXT_PUBLIC_SUPABASE_ANON_KEY
-SUPABASE_SERVICE_ROLE_KEY
-ANTHROPIC_API_KEY
-SESSION_SECRET
-```
-
-`SESSION_SECRET` must be a long random string. It signs the anonymous session cookie.
-
-2. Run the SQL migration against your Supabase project:
-
-```bash
-npx supabase db query --file migrations/001_initial.sql
-```
-
-Or paste `migrations/001_initial.sql` into the Supabase SQL editor and run it.
-
-3. Install and run:
-
-```bash
-npm install
-npm run dev
-```
-
-## First admin
-
-Visit the site once so the `na_session` cookie is issued. In DevTools → Application → Cookies, copy the value of `na_session` **before the first dot**. That is your `session_id`.
-
-```sql
-INSERT INTO admins (session_id) VALUES ('PASTE_NANOID_FROM_COOKIE');
-```
-
-Then open `/admin`.
-
-## Tests
-
-```bash
-npm test
-```
-
-`lib/exif.test.ts` fails if GPS survives the client or server EXIF strip.
-
-## Rules
-
-- Reports are never deleted.
-- Formalization runs after publish and must not block the report URL.
-- No analytics packages.
