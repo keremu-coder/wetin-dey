@@ -4,6 +4,7 @@ import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { formatNaira } from "@/lib/constants";
 import { ModerateActions } from "./moderate-actions";
+import { FlagQueue, type FlagRow } from "@/components/FlagQueue";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,124 @@ type PendingReply = {
   body: string;
   created_at: string;
 };
+
+type RawFlag = {
+  id: string;
+  session_id: string;
+  target_type: string;
+  target_id: string;
+  reason: string;
+  note: string | null;
+  status: string;
+  created_at: string;
+};
+
+async function resolveFlagForAdmin(
+  db: ReturnType<typeof createServiceClient>,
+  flag: RawFlag
+): Promise<FlagRow> {
+  const reporterHandle: string | null = null;
+  let targetPreview: string | null = null;
+  let targetAuthorId: string | null = null;
+  let targetHref: string | null = null;
+
+  const { data: reporter } = await db
+    .from("sessions")
+    .select("handle")
+    .eq("id", flag.session_id)
+    .maybeSingle();
+
+  const reporterHandleFinal = reporter?.handle ?? null;
+
+  if (flag.target_type === "message") {
+    const { data } = await db
+      .from("community_messages")
+      .select("body, audio_url, session_id")
+      .eq("id", flag.target_id)
+      .maybeSingle();
+    targetPreview = data?.body ?? (data?.audio_url ? "(voice note)" : null);
+    targetAuthorId = data?.session_id ?? null;
+  } else if (flag.target_type === "comment") {
+    const { data } = await db
+      .from("comments")
+      .select("body, audio_url, session_id, report_id")
+      .eq("id", flag.target_id)
+      .maybeSingle();
+    targetPreview = data?.body ?? (data?.audio_url ? "(voice note)" : null);
+    targetAuthorId = data?.session_id ?? null;
+    if (data?.report_id) targetHref = `/r/${data.report_id}`;
+  } else if (flag.target_type === "post" || flag.target_type === "report") {
+    const { data } = await db
+      .from("reports")
+      .select("body, summary_pidgin, session_id")
+      .eq("id", flag.target_id)
+      .maybeSingle();
+    targetPreview = data?.summary_pidgin ?? data?.body ?? null;
+    targetAuthorId = data?.session_id ?? null;
+    targetHref = `/r/${flag.target_id}`;
+  } else if (flag.target_type === "dm_message") {
+    const { data } = await db
+      .from("dm_messages")
+      .select("body, sender_id")
+      .eq("id", flag.target_id)
+      .maybeSingle();
+    targetPreview = data?.body ?? null;
+    targetAuthorId = data?.sender_id ?? null;
+  } else if (flag.target_type === "broadcast") {
+    const { data } = await db
+      .from("broadcasts")
+      .select("title, session_id")
+      .eq("id", flag.target_id)
+      .maybeSingle();
+    targetPreview = data?.title ?? "(voice broadcast)";
+    targetAuthorId = data?.session_id ?? null;
+  } else if (flag.target_type === "user") {
+    const { data } = await db
+      .from("sessions")
+      .select("handle, bio")
+      .eq("id", flag.target_id)
+      .maybeSingle();
+    targetPreview = data?.bio ?? null;
+    targetAuthorId = flag.target_id;
+    if (data?.handle) targetHref = `/u/${encodeURIComponent(data.handle)}`;
+  } else if (flag.target_type === "community") {
+    const { data } = await db
+      .from("communities")
+      .select("name, description, owner_session_id, slug")
+      .eq("id", flag.target_id)
+      .maybeSingle();
+    targetPreview = data?.description ?? data?.name ?? null;
+    targetAuthorId = data?.owner_session_id ?? null;
+    if (data?.slug) targetHref = `/c/${data.slug}`;
+  } else if (flag.target_type === "dm_thread") {
+    targetPreview = "(DM conversation)";
+  }
+
+  let targetAuthorHandle: string | null = null;
+  if (targetAuthorId) {
+    const { data: author } = await db
+      .from("sessions")
+      .select("handle")
+      .eq("id", targetAuthorId)
+      .maybeSingle();
+    targetAuthorHandle = author?.handle ?? null;
+  }
+
+  return {
+    id: flag.id,
+    session_id: flag.session_id,
+    target_type: flag.target_type,
+    target_id: flag.target_id,
+    reason: flag.reason,
+    note: flag.note,
+    status: flag.status,
+    created_at: flag.created_at,
+    reporter_handle: reporterHandleFinal ?? reporterHandle,
+    target_preview: targetPreview,
+    target_author_handle: targetAuthorHandle,
+    target_href: targetHref
+  };
+}
 
 export default async function AdminPendingPage() {
   const sessionId = await getSessionId();
@@ -60,7 +179,7 @@ export default async function AdminPendingPage() {
     );
   }
 
-  const [heldRes, repliesRes] = await Promise.all([
+  const [heldRes, repliesRes, flagsRes] = await Promise.all([
     db
       .from("reports")
       .select(
@@ -77,11 +196,25 @@ export default async function AdminPendingPage() {
       )
       .eq("status", "pending")
       .order("created_at", { ascending: false })
+      .limit(50),
+    db
+      .from("content_flags")
+      .select(
+        "id, session_id, target_type, target_id, reason, note, status, created_at"
+      )
+      .eq("status", "open")
+      .order("created_at", { ascending: false })
       .limit(50)
   ]);
 
   const held = (heldRes.data ?? []) as HeldReport[];
   const replies = (repliesRes.data ?? []) as PendingReply[];
+  const rawFlags = (flagsRes.data ?? []) as RawFlag[];
+
+  const flags: FlagRow[] = [];
+  for (const f of rawFlags) {
+    flags.push(await resolveFlagForAdmin(db, f));
+  }
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-6 pb-28">
@@ -90,9 +223,17 @@ export default async function AdminPendingPage() {
           Moderation
         </h1>
         <p className="mt-1 text-[0.875rem] text-muted">
-          Held reports and pending right-of-reply submissions.
+          Held reports, pending right-of-reply submissions, and open content
+          flags.
         </p>
       </div>
+
+      <section className="mb-8">
+        <h2 className="mb-3 font-serif text-[1.15rem] font-semibold text-ink">
+          Content flags <span className="text-muted">({flags.length})</span>
+        </h2>
+        <FlagQueue flags={flags} />
+      </section>
 
       <section className="mb-8">
         <h2 className="mb-3 font-serif text-[1.15rem] font-semibold text-ink">
