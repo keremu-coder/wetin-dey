@@ -129,6 +129,14 @@ export const PUBLIC_FEED_PER_MIN = 60;
  */
 export const AUTO_HIDE_FLAG_THRESHOLD = 3;
 
+/**
+ * Only counts toward the auto-hide threshold if the reporter's session
+ * is at least this old. Combined with the "has email" check in
+ * /api/flag, this prevents a single bad actor from creating three
+ * fresh anonymous sessions and hiding content.
+ */
+export const AUTO_HIDE_MIN_ACCOUNT_AGE_HOURS = 24;
+
 export function nearestState(lat: number, lng: number): NigeriaState {
   let best: NigeriaState = "FCT";
   let bestDist = Number.POSITIVE_INFINITY;
