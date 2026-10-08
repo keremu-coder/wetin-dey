@@ -31,6 +31,8 @@ import {
   type Broadcast
 } from "@/components/BroadcastBanner";
 import { BroadcastRecorder } from "@/components/BroadcastRecorder";
+import { BlockButton } from "@/components/BlockButton";
+import { useRouter } from "next/navigation";
 
 type Reaction = { emoji: string; count: number };
 
@@ -54,7 +56,7 @@ type Member = {
   role: string;
 };
 
-const QUICK_EMOJI = ["😂", "😢", "😮", "❤️", "🔥", "👏", "👍", "🙏"];
+const QUICK_EMOJI = ["😂", "😢", "😮", "❤️", "🔥", "👍", "👏", "🙏"];
 
 function timeShort(date: string): string {
   return new Date(date).toLocaleTimeString("en-NG", {
@@ -194,6 +196,9 @@ export function ChatRoom({
     NotificationPermission | "unsupported"
   >("default");
   const [showEnableBanner, setShowEnableBanner] = useState(false);
+  const router = useRouter();
+  const [blockedHandles, setBlockedHandles] = useState<Set<string>>(new Set());
+  const [openBlockFor, setOpenBlockFor] = useState<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -941,9 +946,11 @@ export function ChatRoom({
           </div>
         ) : (
           <div>
-            {messages.map((m, idx) => {
+            {messages
+              .filter((m) => !blockedHandles.has(m.author_handle))
+              .map((m, idx, arr) => {
               const key = m._cid ?? m.id;
-              const prev = idx > 0 ? messages[idx - 1] : null;
+              const prev = idx > 0 ? arr[idx - 1] : null;
               const isSameAuthor =
                 prev && prev.author_handle === m.author_handle;
               const withinWindow =
@@ -1096,20 +1103,59 @@ export function ChatRoom({
                         >
                           <span className="text-[0.9rem]">😊</span>
                         </button>
-                        {!isMe ? (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setFlagTarget({
-                                id: m.id,
-                                label: `@${m.author_handle}`
-                              })
-                            }
-                            aria-label="Report"
-                            title="Report"
-                          >
-                            <span className="text-[0.9rem]">🚩</span>
-                          </button>
+                        {!isMe ? (
+                          <>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setFlagTarget({
+                                id: m.id,
+                                label: `@${m.author_handle}`
+                              })
+                            }
+                            aria-label="Report"
+                            title="Report"
+                          >
+                            <span className="text-[0.9rem]">🚨</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setOpenBlockFor(
+                                openBlockFor === m.author_handle
+                                  ? null
+                                  : m.author_handle
+                              )
+                            }
+                            aria-label="Block"
+                            title={`Block @${m.author_handle}`}
+                          >
+                            <span className="text-[0.9rem]">🚫</span>
+                          </button>
+                          </>
+                        ) : null}
+
+                        {!isMe && openBlockFor === m.author_handle ? (
+                          <>
+                            <div
+                              className="fixed inset-0 z-30"
+                              onClick={() => setOpenBlockFor(null)}
+                            />
+                            <div className="absolute right-3 top-full z-40 mt-1 w-56 rounded-xl border border-border bg-surface p-2 shadow-card-hover">
+                              <BlockButton
+                                handle={m.author_handle}
+                                className="block w-full rounded-lg px-3 py-2 text-left text-[0.8125rem] text-danger hover:bg-danger-soft"
+                                onBlocked={(h) => {
+                                  setOpenBlockFor(null);
+                                  setBlockedHandles((prev) => {
+                                    const next = new Set(prev);
+                                    next.add(h);
+                                    return next;
+                                  });
+                                }}
+                              />
+                            </div>
+                          </>
                         ) : null}
                       </div>
                     ) : null}
