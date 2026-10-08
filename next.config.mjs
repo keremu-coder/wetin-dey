@@ -16,16 +16,12 @@ const nextConfig = {
     staleTimes: {
       dynamic: 30,
       static: 180
-    },
-    optimizePackageImports: ["date-fns"]
+    }
   },
   async headers() {
-    // CSP is intentionally permissive for inline scripts because Next.js
-    // injects hydration scripts and Vercel preview toolbar injects its own.
-    // Tightening further requires nonces/hashes — separate session.
     const csp = [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live",
+      "script-src 'self' 'unsafe-inline' https://vercel.live",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com data:",
       "img-src 'self' data: blob: https:",
