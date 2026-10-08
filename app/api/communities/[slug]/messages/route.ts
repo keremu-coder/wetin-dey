@@ -6,6 +6,7 @@ import { waitUntil } from "@vercel/functions";
 import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { notifyCommunityMembers } from "@/lib/push-server";
+import { analyzeModeration, moderationReason } from "@/lib/dm-filter";
 
 export async function GET(
   _req: NextRequest,
@@ -39,6 +40,7 @@ export async function GET(
       .from("community_messages")
       .select("id, session_id, body, audio_url, created_at")
       .eq("community_id", community.id)
+      .eq("hidden", false)
       .order("created_at", { ascending: false })
       .limit(100);
 
@@ -207,6 +209,21 @@ export async function POST(
       );
     }
 
+    // Moderation filter on the text portion (voice notes are not scanned yet).
+    let hidden = false;
+    if (body) {
+      const mod = analyzeModeration(body);
+      if (mod.hold) {
+        hidden = true;
+        console.warn(
+          "[chat] held for review:",
+          moderationReason(mod),
+          "| matches:",
+          mod.matches.map((m) => m.kind).join(",")
+        );
+      }
+    }
+
     const id = nanoid();
     const { data, error } = await db
       .from("community_messages")
@@ -215,31 +232,36 @@ export async function POST(
         community_id: community.id,
         session_id: sessionId,
         body: body || null,
-        audio_url
+        audio_url,
+        hidden
       })
-      .select("id, body, audio_url, created_at")
+      .select("id, body, audio_url, created_at, hidden")
       .single();
 
     if (error) {
       return Response.json({ error: error.message }, { status: 500 });
     }
 
-    waitUntil(
-      notifyCommunityMembers({
-        communityId: community.id,
-        senderSessionId: sessionId,
-        senderHandle: profile.handle,
-        communityName: community.name,
-        communitySlug: community.slug,
-        body: body || null,
-        hasAudio: !!audio_url
-      }).catch((err) => {
-        console.error("[push notify]", err);
-      })
-    );
+    // Do not notify on hidden messages — moderators will see it via the queue.
+    if (!hidden) {
+      waitUntil(
+        notifyCommunityMembers({
+          communityId: community.id,
+          senderSessionId: sessionId,
+          senderHandle: profile.handle,
+          communityName: community.name,
+          communitySlug: community.slug,
+          body: body || null,
+          hasAudio: !!audio_url
+        }).catch((err) => {
+          console.error("[push notify]", err);
+        })
+      );
+    }
 
     return Response.json({
       ok: true,
+      held: hidden,
       message: {
         id: data.id,
         body: data.body,

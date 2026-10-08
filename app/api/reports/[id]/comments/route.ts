@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 import { nanoid } from "nanoid";
 import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
+import { analyzeModeration, moderationReason } from "@/lib/dm-filter";
 
 /**
  * Derive a safe file extension from an audio MIME type.
@@ -160,7 +161,6 @@ export async function POST(
       );
     }
 
-    // If parent_id given, verify it exists and belongs to same report
     if (parent_id) {
       const { data: parent } = await db
         .from("comments")
@@ -169,6 +169,21 @@ export async function POST(
         .maybeSingle();
       if (!parent || parent.report_id !== params.id) {
         return Response.json({ error: "Reply target not found" }, { status: 404 });
+      }
+    }
+
+    // Moderation filter on the text portion (voice notes are not scanned yet).
+    let hidden = false;
+    if (body) {
+      const mod = analyzeModeration(body);
+      if (mod.hold) {
+        hidden = true;
+        console.warn(
+          "[comments] held for review:",
+          moderationReason(mod),
+          "| matches:",
+          mod.matches.map((m) => m.kind).join(",")
+        );
       }
     }
 
@@ -184,7 +199,7 @@ export async function POST(
         parent_id,
         session_id: sessionId,
         reviewed: false,
-        hidden: false,
+        hidden,
         upvotes: 0,
         downvotes: 0
       })
@@ -201,6 +216,7 @@ export async function POST(
 
     return Response.json({
       ok: true,
+      held: hidden,
       comment: {
         id: data.id,
         created_at: data.created_at,

@@ -1,17 +1,15 @@
-// Contact-info filter for DMs.
+// Content filter for Wetin Dey.
 //
-// Purpose: prevent users from moving a conversation off-platform. Nigerian
-// social-app scams almost always begin with "send me your number" or "let's
-// talk on WhatsApp" — once contact info is exchanged, the platform loses the
-// ability to moderate and the victim has no recourse.
+// Two classifiers live here:
 //
-// The filter classifies a message into three levels:
-//   pass   — no contact info detected, deliver as-is
-//   warn   — suspicious but ambiguous, deliver with a small nudge
-//   block  — clear contact info, do not deliver; show the sender a warning
+//   1. analyzeMessage()   — contact-info detection, used by DMs. Prevents
+//                           moving a conversation off-platform. Unchanged.
 //
-// This file only classifies. Enforcement (hold, restrict, suspend) is the
-// caller's responsibility and lives in the API route.
+//   2. analyzeModeration() — profanity / hate / threat detection, used by
+//                           community chat and comments. Held for moderator
+//                           review when matched.
+//
+// Both only classify. Enforcement (hold, hide, reject) lives in the caller.
 
 export type FilterLevel = "pass" | "warn" | "block";
 
@@ -20,7 +18,10 @@ export type FilterKind =
   | "spelled_phone"
   | "email"
   | "spelled_email"
-  | "external_link";
+  | "external_link"
+  | "profanity"
+  | "hate"
+  | "threat";
 
 export type FilterMatch = {
   kind: FilterKind;
@@ -90,7 +91,7 @@ function stripSeparators(text: string): string {
   return text.replace(/[\s\-._()\[\],+]/g, "");
 }
 
-/* ───────────── Patterns ───────────── */
+/* ───────────── Contact-info patterns (DMs) ───────────── */
 
 const NG_PHONE_LOCAL = /0[7-9][0-1]\d{8}/;
 const NG_PHONE_INTL = /234[7-9][0-1]\d{8}/;
@@ -128,7 +129,42 @@ const EXTERNAL_LINK = new RegExp(
   "i"
 );
 
-/* ───────────── Classification ───────────── */
+/* ───────────── Moderation patterns (chat + comments) ───────────── */
+
+// Common high-signal profanity. Deliberately conservative — Pidgin slang
+// like "wahala", "abeg", "yeye" is NOT profanity and must not be flagged.
+const PROFANITY: RegExp[] = [
+  /\bf+u+c+k+(ing|er|ed)?\b/i,
+  /\bshit+(ty|ting)?\b/i,
+  /\bbitch(es|ass)?\b/i,
+  /\basshole(s)?\b/i,
+  /\bbastard(s)?\b/i,
+  /\bcunt(s)?\b/i,
+  /\bdickhead(s)?\b/i,
+  /\bmotherfuck(er|ing)?\b/i
+];
+
+// Threat language. Requires a violent verb + a target to reduce false
+// positives like "this exam will kill me".
+const THREAT: RegExp[] = [
+  /\b(i|we)\s+(will|go|gonna|wan|want\s+to)\s+(kill|murder|shoot|stab|burn|behead)\s+(you|u|him|her|them|your|his|her|their)\b/i,
+  /\b(i|we)\s+(will|go|gonna|wan|want\s+to)\s+(beat|flog|deal\s+with)\s+(you|u|him|her|them)\s+up\b/i,
+  /\bi\s+go\s+(kill|shoot|stab|burn)\s+(you|u|am)\b/i,
+  /\bi\s+know\s+where\s+you\s+(live|dey|stay)\b/i,
+  /\byou\s+(go|will)\s+die\b/i,
+  /\b(we|dem)\s+go\s+kill\s+(you|u|am)\b/i
+];
+
+// Hate patterns. Only high-signal "kill all [group]" style — no slur list,
+// for legal and false-positive reasons. A moderator-curated list can be
+// added later.
+const HATE: RegExp[] = [
+  /\b(kill|wipe\s+out|exterminate|eliminate)\s+all\s+(the\s+)?[a-z]{3,}s?\b/i,
+  /\b[a-z]{3,}s?\s+(are|na)\s+(animals|dogs|pigs|monkeys|vermin)\b/i,
+  /\bdeath\s+to\s+(all\s+)?[a-z]{3,}s?\b/i
+];
+
+/* ───────────── Contact-info classification ───────────── */
 
 export function analyzeMessage(raw: string): FilterResult {
   const matches: FilterMatch[] = [];
@@ -138,10 +174,6 @@ export function analyzeMessage(raw: string): FilterResult {
     return { level: "pass", matches, reasons };
   }
 
-  // 1. External links FIRST. A wa.me/234... link is off-platform contact,
-  //    and any phone number inside the URL is redundant. Blank out the
-  //    link text so we never double-report the same contact as both
-  //    a phone and a link.
   let body = raw;
   const link = raw.match(EXTERNAL_LINK);
   if (link && link.index !== undefined) {
@@ -157,7 +189,6 @@ export function analyzeMessage(raw: string): FilterResult {
       raw.slice(link.index + link[0].length);
   }
 
-  // 2. Numeric phone numbers.
   const numeric = stripSeparators(body);
   const localPhone = numeric.match(NG_PHONE_LOCAL);
   if (localPhone) {
@@ -178,7 +209,6 @@ export function analyzeMessage(raw: string): FilterResult {
     reasons.push("Nigerian phone number (international format) detected.");
   }
 
-  // 3. Spelled-out phone numbers.
   const expanded = collapseSpelledDigits(body);
   const expandedNumeric = stripSeparators(expanded);
   const spelledLocal = expandedNumeric.match(NG_PHONE_LOCAL);
@@ -200,7 +230,6 @@ export function analyzeMessage(raw: string): FilterResult {
     reasons.push("Phone number (international) spelled out in words.");
   }
 
-  // 4. Emails.
   const email = body.match(EMAIL_STANDARD);
   if (email) {
     matches.push({
@@ -229,14 +258,13 @@ export function analyzeMessage(raw: string): FilterResult {
     reasons.push("Email address using spelled 'at'.");
   }
 
-  // 5. Classify: any match is a block.
   const level: FilterLevel = matches.length > 0 ? "block" : "pass";
 
   return { level, matches, reasons };
 }
 
 /**
- * Convenience: returns the primary reason a message was blocked, for
+ * Convenience: returns the primary reason a DM was blocked, for
  * display in the sender's warning dialog.
  */
 export function blockReason(result: FilterResult): string | null {
@@ -251,5 +279,71 @@ export function blockReason(result: FilterResult): string | null {
       return "Email addresses can't be sent in DMs. Keep the conversation here.";
     case "external_link":
       return "Links to other apps can't be sent in DMs. Keep the conversation here.";
+    default:
+      return null;
+  }
+}
+
+/* ───────────── Moderation classification ───────────── */
+
+export type ModerationResult = {
+  hold: boolean;
+  matches: FilterMatch[];
+  reasons: string[];
+};
+
+export function analyzeModeration(raw: string): ModerationResult {
+  const matches: FilterMatch[] = [];
+  const reasons: string[] = [];
+
+  if (!raw || !raw.trim()) {
+    return { hold: false, matches, reasons };
+  }
+
+  for (const rx of PROFANITY) {
+    const m = raw.match(rx);
+    if (m && m.index !== undefined) {
+      matches.push({ kind: "profanity", text: m[0], index: m.index });
+      reasons.push("Profanity detected.");
+      break;
+    }
+  }
+
+  for (const rx of THREAT) {
+    const m = raw.match(rx);
+    if (m && m.index !== undefined) {
+      matches.push({ kind: "threat", text: m[0], index: m.index });
+      reasons.push("Threat of violence detected.");
+      break;
+    }
+  }
+
+  for (const rx of HATE) {
+    const m = raw.match(rx);
+    if (m && m.index !== undefined) {
+      matches.push({ kind: "hate", text: m[0], index: m.index });
+      reasons.push("Hate speech pattern detected.");
+      break;
+    }
+  }
+
+  return { hold: matches.length > 0, matches, reasons };
+}
+
+/**
+ * A short, user-facing reason string for held content.
+ */
+export function moderationReason(result: ModerationResult): string | null {
+  if (!result.hold || result.matches.length === 0) return null;
+  const first = result.matches[0];
+  switch (first.kind) {
+    case "threat":
+      return "This message looks like a threat and is held for review.";
+    case "hate":
+      return "This message may violate our rules on hate speech and is held for review.";
+    case "profanity":
+      return "This message contains language that is held for review.";
+    default:
+      return "This message is held for review.";
   }
 }
