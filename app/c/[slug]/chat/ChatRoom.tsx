@@ -31,7 +31,8 @@ import {
   makeCid,
   timeWithDate,
   type Member,
-  type Message
+  type Message,
+  type MessageParent
 } from "@/lib/chat";
 import { MessageBody } from "@/components/MessageBody";
 import { PresenceDot, presenceFromLastSeen } from "@/components/PresenceDot";
