@@ -752,7 +752,7 @@ export function ChatRoom({
                 {emoji}
               </div>
             )}
-            <div className="min-w-0 text-left">
+            <div className="min-w-0 flex-1 text-left">
               <p className="truncate text-[0.9375rem] font-semibold text-ink">
                 {name}
               </p>
