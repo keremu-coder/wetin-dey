@@ -9,11 +9,55 @@ import { notifyCommunityMembers } from "@/lib/push-server";
 import { analyzeModeration, moderationReason } from "@/lib/dm-filter";
 import { isBanned, BANNED_MESSAGE } from "@/lib/ban-guard";
 import { getBlockedIds } from "@/lib/blocks";
+import type { MessageParent } from "@/lib/chat";
 import {
   hasAcceptedTerms,
   TERMS_NOT_ACCEPTED_CODE,
   TERMS_NOT_ACCEPTED_MESSAGE
 } from "@/lib/terms-guard";
+
+type ParentRow = {
+  id: string;
+  session_id: string;
+  community_id: string;
+  body: string | null;
+  audio_url: string | null;
+};
+
+/**
+ * Load a message row that a reply points at, plus the handle of the
+ * person who wrote it. Returns null when the parent no longer exists
+ * (ON DELETE SET NULL removes the FK value but the referenced row can
+ * still be gone if the whole community was deleted).
+ */
+async function loadParent(
+  db: ReturnType<typeof createServiceClient>,
+  parentId: string,
+  expectedCommunityId: string
+): Promise<MessageParent | null> {
+  const { data: parent } = await db
+    .from("community_messages")
+    .select("id, session_id, community_id, body, audio_url")
+    .eq("id", parentId)
+    .maybeSingle();
+
+  if (!parent) return null;
+  const p = parent as ParentRow;
+  if (p.community_id !== expectedCommunityId) return null;
+
+  const { data: session } = await db
+    .from("sessions")
+    .select("handle")
+    .eq("id", p.session_id)
+    .maybeSingle();
+
+  return {
+    id: p.id,
+    author_handle: session?.handle ?? "Anonymous",
+    body: p.body,
+    audio_url: p.audio_url
+  };
+}
 
 export async function GET(
   _req: NextRequest,
@@ -47,7 +91,7 @@ export async function GET(
 
     let q = db
       .from("community_messages")
-      .select("id, session_id, body, audio_url, created_at")
+      .select("id, session_id, body, audio_url, created_at, parent_id")
       .eq("community_id", community.id)
       .eq("hidden", false)
       .order("created_at", { ascending: false })
@@ -65,7 +109,32 @@ export async function GET(
 
     const ordered = (messages ?? []).reverse();
 
-    const sessionIds = Array.from(new Set(ordered.map((m) => m.session_id)));
+    // Fetch parents for any replies in this batch.
+    const parentIds = Array.from(
+      new Set(
+        ordered
+          .map((m) => m.parent_id)
+          .filter(
+            (id): id is string => typeof id === "string" && id.length > 0
+          )
+      )
+    );
+
+    let parentRows: ParentRow[] = [];
+    if (parentIds.length > 0) {
+      const { data } = await db
+        .from("community_messages")
+        .select("id, session_id, community_id, body, audio_url")
+        .in("id", parentIds);
+      parentRows = (data ?? []) as ParentRow[];
+    }
+
+    const sessionIds = Array.from(
+      new Set([
+        ...ordered.map((m) => m.session_id),
+        ...parentRows.map((p) => p.session_id)
+      ])
+    );
     const handleMap = new Map<string, string>();
     const lastSeenMap = new Map<string, string | null>();
 
@@ -85,6 +154,16 @@ export async function GET(
           targetHides ? null : (p.last_seen_at ?? null)
         );
       }
+    }
+
+    const parentMap = new Map<string, MessageParent>();
+    for (const p of parentRows) {
+      parentMap.set(p.id, {
+        id: p.id,
+        author_handle: handleMap.get(p.session_id) ?? "Anonymous",
+        body: p.body,
+        audio_url: p.audio_url
+      });
     }
 
     const msgIds = ordered.map((m) => m.id);
@@ -110,15 +189,20 @@ export async function GET(
       new Set(recent.map((m) => handleMap.get(m.session_id) ?? "Anonymous"))
     ).slice(0, 8);
 
-    const output = ordered.map((m) => ({
-      id: m.id,
-      body: m.body,
-      audio_url: m.audio_url,
-      created_at: m.created_at,
-      author_handle: handleMap.get(m.session_id) ?? "Anonymous",
-      author_last_seen: lastSeenMap.get(m.session_id) ?? null,
-      reactions: reactionMap.get(m.id) ?? []
-    }));
+    const output = ordered.map((m) => {
+      const parentId = m.parent_id ?? null;
+      return {
+        id: m.id,
+        body: m.body,
+        audio_url: m.audio_url,
+        created_at: m.created_at,
+        author_handle: handleMap.get(m.session_id) ?? "Anonymous",
+        author_last_seen: lastSeenMap.get(m.session_id) ?? null,
+        reactions: reactionMap.get(m.id) ?? [],
+        parent_id: parentId,
+        parent: parentId ? parentMap.get(parentId) ?? null : null
+      };
+    });
 
     return Response.json({ messages: output, online: onlineHandles });
   } catch (e) {
@@ -182,10 +266,15 @@ export async function POST(
     const contentType = req.headers.get("content-type") ?? "";
     let body = "";
     let audio_url: string | null = null;
+    let parentIdRaw: string | null = null;
 
     if (contentType.includes("multipart/form-data")) {
       const form = await req.formData();
       body = String(form.get("body") ?? "").trim();
+      const parentField = form.get("parent_id");
+      if (typeof parentField === "string" && parentField.length > 0) {
+        parentIdRaw = parentField;
+      }
       const file = form.get("audio");
 
       if (file instanceof File && file.size > 0) {
@@ -220,6 +309,9 @@ export async function POST(
       try {
         const json = await req.json();
         body = String(json.body ?? "").trim();
+        if (typeof json.parent_id === "string" && json.parent_id.length > 0) {
+          parentIdRaw = json.parent_id;
+        }
       } catch {
         return Response.json({ error: "bad request" }, { status: 400 });
       }
@@ -233,6 +325,20 @@ export async function POST(
         { error: "Message too long (max 500 chars)" },
         { status: 400 }
       );
+    }
+
+    // Resolve and validate the parent, if any. Must exist and live in
+    // the same community. Silently ignore an invalid parent rather than
+    // 400 the whole send — the user typed a message, they don't want to
+    // lose it because the reply target got deleted.
+    let parentId: string | null = null;
+    let parentSnapshot: MessageParent | null = null;
+    if (parentIdRaw) {
+      const snap = await loadParent(db, parentIdRaw, community.id);
+      if (snap) {
+        parentId = snap.id;
+        parentSnapshot = snap;
+      }
     }
 
     let hidden = false;
@@ -258,9 +364,10 @@ export async function POST(
         session_id: sessionId,
         body: body || null,
         audio_url,
-        hidden
+        hidden,
+        parent_id: parentId
       })
-      .select("id, body, audio_url, created_at, hidden")
+      .select("id, body, audio_url, created_at, hidden, parent_id")
       .single();
 
     if (error) {
@@ -293,7 +400,9 @@ export async function POST(
         created_at: data.created_at,
         author_handle: profile.handle,
         author_last_seen: new Date().toISOString(),
-        reactions: []
+        reactions: [],
+        parent_id: data.parent_id ?? null,
+        parent: parentSnapshot
       }
     });
   } catch (e) {
