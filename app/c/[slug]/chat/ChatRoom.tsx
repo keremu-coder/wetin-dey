@@ -146,6 +146,11 @@ export function ChatRoom({
   const [blockedHandles, setBlockedHandles] = useState<Set<string>>(new Set());
   const [openBlockFor, setOpenBlockFor] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<Message | null>(null);
+  const [swipeMessageId, setSwipeMessageId] = useState<string | null>(null);
+  const [swipeOffset, setSwipeOffset] = useState(0);
+  const swipeStartX = useRef<number | null>(null);
+  const swipeStartY = useRef<number | null>(null);
+  const swipeLocked = useRef<"horizontal" | "vertical" | null>(null);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -700,6 +705,52 @@ export function ChatRoom({
     }
   }
 
+  function onMsgTouchStart(m: Message, e: React.TouchEvent<HTMLDivElement>) {
+    if (m._pending || m._failed) return;
+    const t = e.touches[0];
+    swipeStartX.current = t.clientX;
+    swipeStartY.current = t.clientY;
+    swipeLocked.current = null;
+    setSwipeMessageId(m.id);
+  }
+
+  function onMsgTouchMove(e: React.TouchEvent<HTMLDivElement>) {
+    if (swipeStartX.current === null || swipeStartY.current === null) return;
+    const t = e.touches[0];
+    const dx = t.clientX - swipeStartX.current;
+    const dy = t.clientY - swipeStartY.current;
+
+    if (swipeLocked.current === null) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      if (Math.abs(dy) > Math.abs(dx)) {
+        swipeLocked.current = "vertical";
+        setSwipeMessageId(null);
+        setSwipeOffset(0);
+        swipeStartX.current = null;
+        swipeStartY.current = null;
+        return;
+      }
+      swipeLocked.current = "horizontal";
+    }
+
+    if (swipeLocked.current === "vertical") return;
+    if (dx <= 0) { setSwipeOffset(0); return; }
+    setSwipeOffset(Math.min(80, dx * 0.7));
+  }
+
+  function onMsgTouchEnd(m: Message) {
+    const wasHorizontal = swipeLocked.current === "horizontal";
+    const offset = swipeOffset;
+    swipeStartX.current = null;
+    swipeStartY.current = null;
+    swipeLocked.current = null;
+    setSwipeMessageId(null);
+    setSwipeOffset(0);
+    if (wasHorizontal && offset >= 50) {
+      setReplyTo(m);
+      void tapFeedback();
+    }
+  }
   if (!isMember) {
     return (
       <main className="mx-auto max-w-2xl px-4 py-10 pb-24">
