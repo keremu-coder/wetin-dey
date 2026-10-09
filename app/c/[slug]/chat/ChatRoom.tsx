@@ -947,6 +947,23 @@ export function ChatRoom({
                           </>
                         ) : null}
 
+                        {m.parent ? (
+                          <div className="mb-1.5 flex max-w-full items-stretch gap-2 overflow-hidden rounded-lg border-l-2 border-accent bg-ink/[0.04] px-2.5 py-1.5">
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate font-mono text-[0.65rem] font-medium uppercase tracking-wider text-accent-deep">
+                                {m.parent.author_handle}
+                              </p>
+                              <p className="mt-0.5 line-clamp-2 text-[0.75rem] leading-snug text-muted">
+                                {m.parent.body && m.parent.body.trim()
+                                  ? m.parent.body
+                                  : m.parent.audio_url
+                                    ? "🎤 Voice note"
+                                    : "(empty)"}
+                              </p>
+                            </div>
+                          </div>
+                        ) : null}
+
                         {m.audio_url ? (
                           <VoiceNotePlayer src={m.audio_url} />
                         ) : null}
