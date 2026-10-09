@@ -2,19 +2,39 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ═══ LAYOUT SAFE-AREA ═══
-   iOS notch/status-bar occupies the top ~44px when the PWA is installed
-   with viewport-fit=cover. Without this padding, page headers and back
-   arrows are hidden behind the notch. env() returns 0 on browsers that
-   don't support it. */
-html {
-  padding-top: env(safe-area-inset-top, 0px);
-}
-body {
-  padding-bottom: 0;
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
 }
 
-/* ═══ LIGHT THEME ═══ */
+/*
+  iOS notch/status-bar occupies the top ~44px when the PWA is installed
+  with viewport-fit=cover. Without this padding, page headers and back
+  arrows are hidden behind the notch. env() returns 0 on browsers that
+  don't support it.
+
+  We also paint the html element itself with the theme paper colour. The
+  native splash screen fades into the WKWebView; without this, the html
+  element paints white for one or two frames before React hydrates. This
+  is the single biggest "web app" tell at launch.
+
+  Native-feel baseline:
+    - text-size-adjust 100% stops iOS from auto-scaling body text when
+      the device rotates.
+    - overscroll-behavior-y none stops the page from rubber-banding past
+      its ends, which is a browser-only visual.
+*/
+html {
+  padding-top: env(safe-area-inset-top, 0px);
+  background: var(--color-paper);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  overscroll-behavior-y: none;
+}
+
+/* LIGHT THEME */
 :root,
 :root[data-theme="light"] {
   color-scheme: light;
@@ -38,7 +58,7 @@ body {
   --color-msg-meta: #6b7280;
 }
 
-/* ═══ DARK THEME ═══ */
+/* DARK THEME */
 :root[data-theme="dark"] {
   color-scheme: dark;
   --color-paper: #000000;
@@ -61,10 +81,18 @@ body {
   --color-msg-meta: #8b8f95;
 }
 
-* { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; }
-html { padding-top: env(safe-area-inset-top, 0px); }
-
+/*
+  Native-feel body rules:
+    - tap-highlight-color transparent removes the blue/grey flash that
+      Chrome and Safari paint over tapped links and buttons. No native
+      app has this; every tap on a tap-highlighted element reads as
+      "this is a website".
+    - touch-action manipulation removes the browser's double-tap-to-zoom
+      gesture on buttons and inputs, so quick repeat taps do nothing
+      weird.
+    - overscroll-behavior-y none (repeated from html) makes sure no inner
+      element accidentally re-enables rubber-band scroll.
+*/
 body {
   background: var(--color-paper);
   color: var(--color-ink);
@@ -73,6 +101,9 @@ body {
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
   transition: background-color 150ms ease, color 150ms ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  overscroll-behavior-y: none;
 }
 
 h1, h2, h3, h4 {
@@ -139,7 +170,7 @@ textarea { resize: vertical; min-height: 100px; line-height: 1.5; }
 .hide-scrollbar::-webkit-scrollbar { display: none; }
 .hide-scrollbar { scrollbar-width: none; }
 
-/* ═══ ANIMATIONS ═══ */
+/* ANIMATIONS */
 @keyframes slide-in-right {
   from { transform: translateX(100%); }
   to { transform: translateX(0); }
@@ -176,14 +207,30 @@ textarea { resize: vertical; min-height: 100px; line-height: 1.5; }
   animation: typing-dot 1.2s ease-in-out infinite;
 }
 
-/* ═══ CLEAN CARD PATTERN ═══ */
+/*
+  Honour the OS-level "reduce motion" setting. iOS Accessibility has it,
+  Android has "Remove animations". Apple reviewers look for this. When
+  it is on, kill every animation and transition on the page.
+*/
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* CLEAN CARD PATTERN */
 .card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 12px;
 }
 
-/* ═══ CLEAN EMPTY STATE ═══ */
+/* CLEAN EMPTY STATE */
 .empty-state {
   padding: 3rem 1rem;
   text-align: center;
@@ -207,10 +254,7 @@ textarea { resize: vertical; min-height: 100px; line-height: 1.5; }
   margin: 0;
 }
 
-/* ═══════════════════════════════════════════════
-   DISCORD-STYLE MESSAGE LOG
-   ═══════════════════════════════════════════════ */
-
+/* DISCORD-STYLE MESSAGE LOG */
 .chat-log {
   background: var(--color-chat-bg);
 }
