@@ -427,7 +427,7 @@ export function ChatRoom({
     }
   }
 
-  async function send(e: React.FormEvent) {
+  async function send(e: React.FormEvent, parentId: string | null = null) {
     e.preventDefault();
     const raw = body.trim();
     if (!raw) return;
@@ -450,7 +450,7 @@ export function ChatRoom({
       author_handle: me ?? "you",
       author_last_seen: null,
       reactions: [],
-      parent_id: null, parent: null, _cid: cid,
+      parent_id: parentId, parent: parentId ? (() => { const f = messagesRef.current.find((mm) => mm.id === parentId); return f ? { id: f.id, author_handle: f.author_handle, body: f.body, audio_url: f.audio_url } : null; })() : null, _cid: cid,
       _pending: true
     };
 
@@ -468,7 +468,7 @@ export function ChatRoom({
       const res = await fetch(`/api/communities/${slug}/messages`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ body: finalBody })
+        body: JSON.stringify({ body: finalBody, ...(parentId ? { parent_id: parentId } : {}) })
       });
       const json = await res.json();
 
@@ -507,12 +507,13 @@ export function ChatRoom({
   function retryFailed(cid: string) {
     const target = messages.find((m) => m._cid === cid);
     if (!target?.body) return;
+    const retryParentId = target.parent_id ?? null;
     setMessages((prev) => prev.filter((m) => m._cid !== cid));
     setBody(target.body);
     setError("");
     setTimeout(() => {
       const fake = { preventDefault() {} } as React.FormEvent;
-      void send(fake);
+      void send(fake, retryParentId);
     }, 0);
   }
 
@@ -597,7 +598,7 @@ export function ChatRoom({
     }
   }
 
-  async function sendVoice(blob: Blob) {
+  async function sendVoice(blob: Blob, parentId: string | null = null) {
     const p = prefsRef.current;
     const cid = makeCid();
     const localUrl = URL.createObjectURL(blob);
@@ -612,7 +613,7 @@ export function ChatRoom({
       author_handle: me ?? "you",
       author_last_seen: null,
       reactions: [],
-      parent_id: null, parent: null, _cid: cid,
+      parent_id: parentId, parent: parentId ? (() => { const f = messagesRef.current.find((mm) => mm.id === parentId); return f ? { id: f.id, author_handle: f.author_handle, body: f.body, audio_url: f.audio_url } : null; })() : null, _cid: cid,
       _pending: true
     };
     setMessages((prev) => [...prev, optimistic]);
@@ -631,6 +632,7 @@ export function ChatRoom({
           type: blob.type || "audio/webm"
         })
       );
+      if (parentId) fd.set("parent_id", parentId);
       const res = await fetch(`/api/communities/${slug}/messages`, {
         method: "POST",
         body: fd
