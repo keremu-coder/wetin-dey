@@ -771,32 +771,6 @@ export function ChatRoom({
         <div className="flex shrink-0 items-center gap-1">
           <button
             type="button"
-            onClick={() => {
-              unlockAudio();
-              setInviteOpen(true);
-            }}
-            className="flex h-9 items-center gap-1.5 rounded-full bg-accent px-3 text-[0.8125rem] font-semibold text-white transition-colors hover:bg-accent-deep"
-            aria-label="Invite people"
-          >
-            <svg
-              width="15"
-              height="15"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <line x1="19" y1="8" x2="19" y2="14" />
-              <line x1="22" y1="11" x2="16" y2="11" />
-            </svg>
-            Invite
-          </button>
-          <button
-            type="button"
             onClick={() => setMembersOpen(true)}
             className="flex h-9 w-9 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5"
             aria-label="Members"
