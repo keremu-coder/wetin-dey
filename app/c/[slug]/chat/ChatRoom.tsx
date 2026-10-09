@@ -68,7 +68,7 @@ const BroadcastRecorder = nextDynamic(
   { ssr: false }
 );
 
-const QUICK_EMOJI = ["😂", "😢", "😮", "❤️", "🔥", "👍", "👏", "🙏"];
+const QUICK_EMOJI = ["😂", "😢", "😮", "❤️", "🔥", "👍", "👎", "🙏"];
 
 export function ChatRoom({
   slug,
@@ -719,7 +719,7 @@ export function ChatRoom({
         <div className="flex min-w-0 items-center gap-2">
           <Link
             href={`/c/${slug}`}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-accent transition-colors hover:bg-ink/5"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-accent transition-colors hover:bg-ink/5"
             aria-label="Back"
           >
             <svg
@@ -738,7 +738,7 @@ export function ChatRoom({
           <button
             type="button"
             onClick={() => setMembersOpen(true)}
-            className="flex min-w-0 items-center gap-2 rounded-full px-2 py-1 transition-colors hover:bg-ink/5"
+            className="flex min-w-0 items-center gap-2 rounded-full px-1.5 py-1 transition-colors hover:bg-ink/5"
           >
             {avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -768,29 +768,7 @@ export function ChatRoom({
           </button>
         </div>
 
-        <div className="flex items-center gap-1">
-          {isOwner ? (
-            <button
-              type="button"
-              onClick={() => {
-                unlockAudio();
-                setBroadcastRecorderOpen(true);
-              }}
-              className="flex h-9 w-9 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5"
-              aria-label="Send broadcast"
-              title="Send broadcast"
-            >
-              <span className="text-[1rem]">📢</span>
-            </button>
-          ) : null}
-          <Link
-            href="/settings/sounds"
-            className="flex h-9 w-9 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5"
-            aria-label="Sound settings"
-            title="Sound settings"
-          >
-            {prefs.profile === "none" ? "🔕" : "🔔"}
-          </Link>
+        <div className="flex shrink-0 items-center gap-1">
           <button
             type="button"
             onClick={() => {
@@ -1322,7 +1300,7 @@ export function ChatRoom({
                     setBody(autocorrect(body));
                   }
                 }}
-                placeholder={`Message ${emoji} ${name}`}
+                placeholder="Message"
                 rows={1}
                 maxLength={500}
                 onKeyDown={(e) => {
