@@ -11,6 +11,7 @@ import { TermsGate } from "@/components/TermsGate";
 import { EmailVerificationHandler } from "@/components/EmailVerificationHandler";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { ToastProvider } from "@/components/Toast";
+import { StatusBarTheme } from "@/components/StatusBarTheme";
 import { FONT_VARIABLE_CLASSES } from "@/lib/fonts";
 import "./globals.css";
 
@@ -103,6 +104,7 @@ export default function RootLayout({
       <body className={`min-h-screen font-sans ${FONT_VARIABLE_CLASSES}`}>
         <ToastProvider>
           <LiveStateProvider>
+            <StatusBarTheme />
             <PushRegistrar />
             <NativeNetworkMonitor />
             <RouteWarmup />
