@@ -942,9 +942,20 @@ export function ChatRoom({
                     ) : null}
 
                     <div
+                      onTouchStart={(e) => onMsgTouchStart(m, e)}
+                      onTouchMove={onMsgTouchMove}
+                      onTouchEnd={() => onMsgTouchEnd(m)}
                       className={`chat-msg message-in ${
                         isGroupStart ? "chat-msg-group-start" : ""
                       } ${m._pending ? "opacity-70" : ""}`}
+                      style={
+                        swipeMessageId === m.id && swipeOffset > 0
+                          ? {
+                              transform: `translateX(${swipeOffset}px)`,
+                              transition: "none"
+                            }
+                          : undefined
+                      }
                     >
                       {isGroupStart ? (
                         <Link
