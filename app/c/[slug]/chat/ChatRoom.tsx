@@ -1028,6 +1028,14 @@ export function ChatRoom({
                           >
                             <span className="text-[0.9rem]">😊</span>
                           </button>
+                          <button
+                            type="button"
+                            onClick={() => setReplyTo(m)}
+                            aria-label="Reply"
+                            title="Reply"
+                          >
+                            <span className="text-[0.9rem]">↩</span>
+                          </button>
                           {!isMe ? (
                             <>
                               <button
