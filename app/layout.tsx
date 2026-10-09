@@ -10,6 +10,7 @@ import { RouteWarmup } from "@/components/RouteWarmup";
 import { TermsGate } from "@/components/TermsGate";
 import { EmailVerificationHandler } from "@/components/EmailVerificationHandler";
 import { PullToRefresh } from "@/components/PullToRefresh";
+import { ToastProvider } from "@/components/Toast";
 import { FONT_VARIABLE_CLASSES } from "@/lib/fonts";
 import "./globals.css";
 
@@ -100,19 +101,21 @@ export default function RootLayout({
         ) : null}
       </head>
       <body className={`min-h-screen font-sans ${FONT_VARIABLE_CLASSES}`}>
-        <LiveStateProvider>
-          <PushRegistrar />
-          <NativeNetworkMonitor />
-          <RouteWarmup />
-          <Onboarding />
-          <InstallPrompt />
-          <TermsGate />
-          <EmailVerificationHandler />
-          <Nav />
-          <PullToRefresh>{children}</PullToRefresh>
-          <SiteFooter />
-          <BottomNav />
-        </LiveStateProvider>
+        <ToastProvider>
+          <LiveStateProvider>
+            <PushRegistrar />
+            <NativeNetworkMonitor />
+            <RouteWarmup />
+            <Onboarding />
+            <InstallPrompt />
+            <TermsGate />
+            <EmailVerificationHandler />
+            <Nav />
+            <PullToRefresh>{children}</PullToRefresh>
+            <SiteFooter />
+            <BottomNav />
+          </LiveStateProvider>
+        </ToastProvider>
       </body>
     </html>
   );
