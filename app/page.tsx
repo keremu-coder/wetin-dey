@@ -150,7 +150,7 @@ export default async function HomePage() {
   const hasSpaces = spaces.length > 0;
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-4 pb-28">
+    <main className="mx-auto max-w-2xl px-4 py-4 pb-6">
       <StatusBar />
       <StatusStrip />
 
