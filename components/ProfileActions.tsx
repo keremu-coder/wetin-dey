@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useToast } from "./Toast";
 import { FlagSheet } from "./FlagSheet";
 
 export function ProfileActions({
@@ -12,6 +13,7 @@ export function ProfileActions({
   handle: string;
 }) {
   const router = useRouter();
+  const toast = useToast();
   const [menuOpen, setMenuOpen] = useState(false);
   const [flagOpen, setFlagOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -30,14 +32,14 @@ export function ProfileActions({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        alert(data.error ?? "Could not block. Try again.");
+        toast.show(data.error ?? "Could not block. Try again.", "error");
         setBusy(false);
         return;
       }
       setMenuOpen(false);
       router.refresh();
     } catch {
-      alert("Could not block. Check your connection.");
+      toast.show("Could not block. Check your connection.", "error");
       setBusy(false);
     }
   }
