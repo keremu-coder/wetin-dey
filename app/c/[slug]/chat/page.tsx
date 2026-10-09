@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
 import { isMember } from "@/lib/community";
+import type { MessageParent } from "@/lib/chat";
 import { ChatRoom } from "./ChatRoom";
 
 export const dynamic = "force-dynamic";
@@ -58,7 +59,7 @@ export default async function ChatPage({
   const [messagesRes, membersRes] = await Promise.all([
     db
       .from("community_messages")
-      .select("id, session_id, body, audio_url, created_at")
+      .select("id, session_id, body, audio_url, created_at, parent_id")
       .eq("community_id", community.id)
       .order("created_at", { ascending: false })
       .limit(100),
@@ -71,11 +72,39 @@ export default async function ChatPage({
   const rawMessages = (messagesRes.data ?? []).reverse();
   const memberRows = membersRes.data ?? [];
 
-  // Unique session ids from both messages and members
+  // Fetch the parent rows for any replies in this batch. These are also
+  // community_messages rows — same shape — but we only need a small
+  // subset of columns to render the quoted reply.
+  const parentIds = Array.from(
+    new Set(
+      rawMessages
+        .map((m) => m.parent_id)
+        .filter((id): id is string => typeof id === "string" && id.length > 0)
+    )
+  );
+
+  type ParentRow = {
+    id: string;
+    session_id: string;
+    body: string | null;
+    audio_url: string | null;
+  };
+
+  let parentRows: ParentRow[] = [];
+  if (parentIds.length > 0) {
+    const { data } = await db
+      .from("community_messages")
+      .select("id, session_id, body, audio_url")
+      .in("id", parentIds);
+    parentRows = (data ?? []) as ParentRow[];
+  }
+
+  // Unique session ids from messages, members, and reply parents
   const allSessionIds = Array.from(
     new Set([
       ...rawMessages.map((m) => m.session_id),
-      ...memberRows.map((m) => m.session_id)
+      ...memberRows.map((m) => m.session_id),
+      ...parentRows.map((p) => p.session_id)
     ])
   ).filter(Boolean);
 
@@ -106,6 +135,17 @@ export default async function ChatPage({
     }
   }
 
+  // Build the parent snapshot map now that we have handles
+  const parentMap = new Map<string, MessageParent>();
+  for (const p of parentRows) {
+    parentMap.set(p.id, {
+      id: p.id,
+      author_handle: profilesMap.get(p.session_id)?.handle ?? "Anonymous",
+      body: p.body,
+      audio_url: p.audio_url
+    });
+  }
+
   // Reactions for the messages
   const msgIds = rawMessages.map((m) => m.id);
   const reactionMap = new Map<string, { emoji: string; count: number }[]>();
@@ -127,6 +167,7 @@ export default async function ChatPage({
   // Build the initial messages array exactly like ChatRoom expects
   const initialMessages = rawMessages.map((m) => {
     const p = profilesMap.get(m.session_id);
+    const parentId = m.parent_id ?? null;
     return {
       id: m.id,
       body: m.body,
@@ -134,7 +175,9 @@ export default async function ChatPage({
       created_at: m.created_at,
       author_handle: p?.handle ?? "Anonymous",
       author_last_seen: p?.last_seen_at ?? null,
-      reactions: reactionMap.get(m.id) ?? []
+      reactions: reactionMap.get(m.id) ?? [],
+      parent_id: parentId,
+      parent: parentId ? parentMap.get(parentId) ?? null : null
     };
   });
 
