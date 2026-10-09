@@ -145,6 +145,7 @@ export function ChatRoom({
   const [showEnableBanner, setShowEnableBanner] = useState(false);
   const [blockedHandles, setBlockedHandles] = useState<Set<string>>(new Set());
   const [openBlockFor, setOpenBlockFor] = useState<string | null>(null);
+  const [replyTo, setReplyTo] = useState<Message | null>(null);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -525,6 +526,7 @@ export function ChatRoom({
     try {
       unlockAudio();
       void maybeAskForNotifications();
+      const voicePid = replyTo?.id ?? null;
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
       const format = pickRecorderFormat();
@@ -548,7 +550,7 @@ export function ChatRoom({
         const mime = actualMime(mr, format.mimeType);
         const blob = new Blob(chunksRef.current, { type: mime });
         stream.getTracks().forEach((t) => t.stop());
-        await sendVoice(blob);
+        await sendVoice(blob, voicePid);
       };
 
       mr.start();
@@ -1135,11 +1137,31 @@ export function ChatRoom({
       ) : null}
 
       <form
-        onSubmit={send}
+        onSubmit={(e) => {
+          const pid = replyTo?.id ?? null;
+          setReplyTo(null);
+          void send(e, pid);
+        }}
         className="border-t border-border bg-paper/90 px-3 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] backdrop-blur-xl"
       >
         {error ? (
           <p className="mb-1 text-[0.75rem] text-danger">{error}</p>
+        ) : null}
+
+        {replyTo ? (
+          <div className="mb-1.5 flex items-start gap-2 rounded-xl border-l-2 border-accent bg-ink/[0.04] px-2.5 py-1.5">
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-mono text-[0.65rem] font-medium uppercase tracking-wider text-accent-deep">
+                Replying to {replyTo.author_handle}
+              </p>
+              <p className="mt-0.5 line-clamp-1 text-[0.75rem] leading-snug text-muted">
+                {replyTo.body && replyTo.body.trim() ? replyTo.body : replyTo.audio_url ? "🎤 Voice note" : "(empty)"}
+              </p>
+            </div>
+            <button type="button" onClick={() => setReplyTo(null)} className="shrink-0 rounded-full p-1 text-faint transition-colors hover:bg-ink/10 hover:text-ink" aria-label="Cancel reply">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+            </button>
+          </div>
         ) : null}
 
         {suggestion && composerMode === "text" ? (
@@ -1308,7 +1330,9 @@ export function ChatRoom({
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
-                    send(e as unknown as React.FormEvent);
+                    const pid = replyTo?.id ?? null;
+                    setReplyTo(null);
+                    send(e as unknown as React.FormEvent, pid);
                   }
                 }}
                 className="!max-h-24 !min-h-[28px] flex-1 resize-none !border-0 !bg-transparent !py-1 !text-[0.9375rem] !outline-none !ring-0 focus:!border-0 focus:!ring-0 focus:!shadow-none"
