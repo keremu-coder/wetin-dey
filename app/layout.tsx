@@ -12,6 +12,7 @@ import { EmailVerificationHandler } from "@/components/EmailVerificationHandler"
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { ToastProvider } from "@/components/Toast";
 import { StatusBarTheme } from "@/components/StatusBarTheme";
+import { SwipeBack } from "@/components/SwipeBack";
 import { FONT_VARIABLE_CLASSES } from "@/lib/fonts";
 import "./globals.css";
 
@@ -105,6 +106,7 @@ export default function RootLayout({
         <ToastProvider>
           <LiveStateProvider>
             <StatusBarTheme />
+            <SwipeBack />
             <PushRegistrar />
             <NativeNetworkMonitor />
             <RouteWarmup />

@@ -16,10 +16,12 @@ import { impactFeedback } from "@/lib/haptics";
  *      or Safari's own scroll behaviour.
  *   2. Bails out on fullscreen routes (`/c/[slug]/chat`, `/inbox/[id]`).
  *      Those screens scroll an inner container, not the window.
- *   3. Listens for a downward drag that *starts* when the page is
+ *   3. Declines touches that start near the left edge — those are for
+ *      SwipeBack, not pull-to-refresh.
+ *   4. Listens for a downward drag that *starts* when the page is
  *      already scrolled to the top. Once the finger moves the page, the
  *      gesture is dead until the user lifts and pulls again from the top.
- *   4. Fires `router.refresh()` on release past the threshold, with
+ *   5. Fires `router.refresh()` on release past the threshold, with
  *      haptic feedback so it feels native on a real device.
  *
  * IMPORTANT — why we use position:relative + top instead of transform:
@@ -37,6 +39,7 @@ const PULL_THRESHOLD = 70;
 const MAX_PULL = 120;
 const DAMPING = 0.5;
 const RESET_DELAY_MS = 700;
+const SWIPE_EDGE_ZONE = 24;
 
 // Keep this in sync with `isFullscreenRoute` in components/Nav.tsx.
 function isFullscreenRoute(pathname: string): boolean {
@@ -76,7 +79,10 @@ export function PullToRefresh({ children }: { children: React.ReactNode }) {
     function onTouchStart(e: TouchEvent) {
       if (refreshingRef.current) return;
       if (window.scrollY > 0) return;
-      startY.current = e.touches[0].clientY;
+      // Leave the left edge alone — that gesture belongs to SwipeBack.
+      const t = e.touches[0];
+      if (t.clientX < SWIPE_EDGE_ZONE) return;
+      startY.current = t.clientY;
       dragging.current = true;
     }
 
