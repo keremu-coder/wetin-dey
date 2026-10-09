@@ -262,6 +262,7 @@ export function ChatRoom({
               body: string | null;
               audio_url: string | null;
               created_at: string;
+              parent_id: string | null;
             };
 
             if (row.session_id === mySessionId) return;
@@ -274,7 +275,7 @@ export function ChatRoom({
               body: row.body,
               audio_url: row.audio_url,
               created_at: row.created_at,
-              author_handle: handle, parent_id: null, parent: null,
+              author_handle: handle, parent_id: row.parent_id ?? null, parent: row.parent_id ? (() => { const f = messagesRef.current.find((mm) => mm.id === row.parent_id); return f ? { id: f.id, author_handle: f.author_handle, body: f.body, audio_url: f.audio_url } : null; })() : null,
               author_last_seen: null,
               reactions: []
             };
