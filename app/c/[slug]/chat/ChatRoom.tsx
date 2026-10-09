@@ -866,7 +866,7 @@ export function ChatRoom({
             </p>
           </div>
         ) : (
-          <div>
+          <div className="mt-auto">
             {messages
               .filter((m) => !blockedHandles.has(m.author_handle))
               .map((m, idx, arr) => {
