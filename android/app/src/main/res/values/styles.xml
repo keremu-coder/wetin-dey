@@ -15,8 +15,25 @@
         <item name="android:background">@null</item>
     </style>
 
+    <!--
+      Launch theme.
 
+      We use a solid dark colour instead of the default @drawable/splash
+      PNG. The default splash drawable is light-on-light and causes a
+      white flash before the WebView paints. A solid black frame blends
+      into the app's html/body background (#0a0a0a), so the user never
+      sees a light frame between launch and first paint.
+
+      When branded splash assets are ready (you will need an assets/
+      folder with a dark splash.png), run:
+
+        npx @capacitor/assets generate
+
+      which regenerates every splash.png variant under
+      android/app/src/main/res/drawable-*. Then swap @android:color/black
+      back to @drawable/splash.
+    -->
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
-        <item name="android:background">@drawable/splash</item>
+        <item name="android:background">@android:color/black</item>
     </style>
 </resources>
