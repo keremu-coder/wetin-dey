@@ -704,13 +704,14 @@ export function ChatRoom({
     }
   }
 
+  // Swipe gesture — DOM-direct for 60fps.
   function onMsgTouchStart(m: Message, e: React.TouchEvent<HTMLDivElement>) {
     if (m._pending || m._failed) return;
     const t = e.touches[0];
     swipeStartX.current = t.clientX;
     swipeStartY.current = t.clientY;
     swipeLocked.current = null;
-    setSwipeMessageId(m.id);
+    swipeEl.current = e.currentTarget;
   }
 
   function onMsgTouchMove(e: React.TouchEvent<HTMLDivElement>) {
@@ -723,33 +724,45 @@ export function ChatRoom({
       if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
       if (Math.abs(dy) > Math.abs(dx)) {
         swipeLocked.current = "vertical";
-        setSwipeMessageId(null);
-        setSwipeOffset(0);
         swipeStartX.current = null;
         swipeStartY.current = null;
+        swipeEl.current = null;
         return;
       }
       swipeLocked.current = "horizontal";
+      if (swipeEl.current) swipeEl.current.style.willChange = "transform";
     }
 
     if (swipeLocked.current === "vertical") return;
-    if (dx <= 0) { setSwipeOffset(0); return; }
-    setSwipeOffset(Math.min(80, dx * 0.7));
+    const el = swipeEl.current;
+    if (!el) return;
+    if (dx <= 0) { el.style.transform = ""; return; }
+    el.style.transform = `translateX(${Math.min(80, dx * 0.7)}px)`;
   }
 
   function onMsgTouchEnd(m: Message) {
+    const el = swipeEl.current;
     const wasHorizontal = swipeLocked.current === "horizontal";
-    const offset = swipeOffset;
     swipeStartX.current = null;
     swipeStartY.current = null;
     swipeLocked.current = null;
-    setSwipeMessageId(null);
-    setSwipeOffset(0);
+    swipeEl.current = null;
+    if (!el) return;
+    let offset = 0;
+    const mt = el.style.transform.match(/translateX\(([\d.]+)px\)/);
+    if (mt) offset = parseFloat(mt[1]);
+    el.style.transition = "transform 200ms cubic-bezier(0.32, 0.72, 0, 1)";
+    el.style.transform = "";
+    window.setTimeout(() => {
+      el.style.transition = "";
+      el.style.willChange = "";
+    }, 250);
     if (wasHorizontal && offset >= 50) {
       setReplyTo(m);
       void tapFeedback();
     }
   }
+
   if (!isMember) {
     return (
       <main className="mx-auto max-w-2xl px-4 py-10 pb-24">
@@ -944,17 +957,10 @@ export function ChatRoom({
                       onTouchStart={(e) => onMsgTouchStart(m, e)}
                       onTouchMove={onMsgTouchMove}
                       onTouchEnd={() => onMsgTouchEnd(m)}
+                      style={{ touchAction: "pan-y" }}
                       className={`chat-msg message-in ${
                         isGroupStart ? "chat-msg-group-start" : ""
                       } ${m._pending ? "opacity-70" : ""}`}
-                      style={
-                        swipeMessageId === m.id && swipeOffset > 0
-                          ? {
-                              transform: `translateX(${swipeOffset}px)`,
-                              transition: "none"
-                            }
-                          : undefined
-                      }
                     >
                       {isGroupStart ? (
                         <Link
