@@ -9,6 +9,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { RouteWarmup } from "@/components/RouteWarmup";
 import { TermsGate } from "@/components/TermsGate";
 import { EmailVerificationHandler } from "@/components/EmailVerificationHandler";
+import { PullToRefresh } from "@/components/PullToRefresh";
 import { FONT_VARIABLE_CLASSES } from "@/lib/fonts";
 import "./globals.css";
 
@@ -108,7 +109,7 @@ export default function RootLayout({
           <TermsGate />
           <EmailVerificationHandler />
           <Nav />
-          {children}
+          <PullToRefresh>{children}</PullToRefresh>
           <SiteFooter />
           <BottomNav />
         </LiveStateProvider>
