@@ -716,7 +716,7 @@ export function ChatRoom({
   return (
     <div className="fixed inset-x-0 top-0 bottom-0 flex flex-col bg-paper">
       <header className="flex items-center justify-between gap-2 border-b border-border bg-paper/90 px-3 py-2.5 backdrop-blur-xl">
-        <div className="flex min-w-0 items-center gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           <Link
             href={`/c/${slug}`}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-accent transition-colors hover:bg-ink/5"
@@ -738,7 +738,7 @@ export function ChatRoom({
           <button
             type="button"
             onClick={() => setMembersOpen(true)}
-            className="flex min-w-0 items-center gap-2 rounded-full px-1.5 py-1 transition-colors hover:bg-ink/5"
+            className="flex min-w-0 flex-1 items-center gap-2 rounded-full px-1.5 py-1 text-left transition-colors hover:bg-ink/5"
           >
             {avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -854,7 +854,7 @@ export function ChatRoom({
 
       <div
         ref={scrollRef}
-        className="chat-log flex-1 overflow-y-auto py-4"
+        className="chat-log flex flex-1 flex-col overflow-y-auto py-4"
         style={{ overscrollBehavior: "contain" }}
       >
         {messages.length === 0 ? (
