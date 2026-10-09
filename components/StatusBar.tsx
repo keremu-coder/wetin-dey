@@ -172,7 +172,7 @@ export function StatusBar() {
           <p className="truncate font-mono text-[0.65rem] uppercase tracking-wider text-faint">
             @{me.handle}
           </p>
-          <p className="mt-0.5 truncate text-[0.9375rem] leading-snug text-ink">
+          <p className="mt-0.5 line-clamp-2 text-[0.9375rem] leading-snug text-ink">
             {line}
           </p>
         </div>
