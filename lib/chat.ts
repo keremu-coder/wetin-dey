@@ -3,6 +3,20 @@
 
 export type Reaction = { emoji: string; count: number };
 
+/**
+ * Snapshot of the message this one is replying to.
+ *
+ * Embedded directly on the reply so rendering a quoted parent never
+ * requires a second lookup. Set to null when parent_id is null, or
+ * when the parent was deleted (parent_id cascade-sets to null).
+ */
+export type MessageParent = {
+  id: string;
+  author_handle: string;
+  body: string | null;
+  audio_url: string | null;
+};
+
 export type Message = {
   id: string;
   body: string | null;
@@ -11,6 +25,8 @@ export type Message = {
   author_handle: string;
   author_last_seen: string | null;
   reactions: Reaction[];
+  parent_id: string | null;
+  parent: MessageParent | null;
   _cid?: string;
   _pending?: boolean;
   _failed?: boolean;
@@ -87,4 +103,15 @@ export function dayLabel(date: string): string {
 
 export function makeCid(): string {
   return `c_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/**
+ * Build a compact preview of a message for use as a quoted reply parent.
+ * Body first; if it's a voice note with no body, show a mic marker.
+ */
+export function previewOf(parent: MessageParent | null): string {
+  if (!parent) return "";
+  if (parent.body && parent.body.trim()) return parent.body;
+  if (parent.audio_url) return "🎤 Voice note";
+  return "(empty)";
 }
