@@ -152,6 +152,13 @@ export function ChatRoom({
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Latest messages list, so the realtime handler and optimistic sends
+  // can resolve parent snapshots without depending on stale closures.
+  const messagesRef = useRef<Message[]>(messages);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
   // Pre-seed the handle cache from server-provided members so the realtime
   // handler can resolve handles immediately.
   const handleCacheRef = useRef<Map<string, string>>(
