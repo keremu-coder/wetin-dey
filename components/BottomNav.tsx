@@ -96,19 +96,17 @@ function TalkAmIcon({ active }: IconProps) {
   );
 }
 
+/**
+ * Radar = signals pulsing out from where you are, reading activity in
+ * your area. Concentric arcs + center dot is the universal shorthand
+ * for that. A map pin says "a place" — this says "signals around me."
+ */
 function RadarIcon({ active }: IconProps) {
-  if (active) {
-    return (
-      <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden>
-        <path
-          fillRule="evenodd"
-          clipRule="evenodd"
-          d="M12 22s7-7.5 7-13a7 7 0 1 0-14 0c0 5.5 7 13 7 13zm0-10.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"
-          fill="currentColor"
-        />
-      </svg>
-    );
-  }
+  const outer = 9.5;
+  const inner = 5.5;
+  const dotR = active ? 2.25 : 1.75;
+  const strokeWidth = active ? 2.4 : 1.9;
+
   return (
     <svg
       width="24"
@@ -116,13 +114,21 @@ function RadarIcon({ active }: IconProps) {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.9"
+      strokeWidth={strokeWidth}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
     >
-      <path d="M12 22s7-7.5 7-13a7 7 0 1 0-14 0c0 5.5 7 13 7 13z" />
-      <circle cx="12" cy="9" r="2.5" />
+      {/* Inner pulse arc — top-right */}
+      <path d={`M12 ${12 - inner}a${inner} ${inner} 0 0 1 ${inner} ${inner}`} />
+      {/* Inner pulse arc — bottom-left */}
+      <path d={`M12 ${12 + inner}a${inner} ${inner} 0 0 1 -${inner} -${inner}`} />
+      {/* Outer pulse arc — top-right */}
+      <path d={`M12 ${12 - outer}a${outer} ${outer} 0 0 1 ${outer} ${outer}`} />
+      {/* Outer pulse arc — bottom-left */}
+      <path d={`M12 ${12 + outer}a${outer} ${outer} 0 0 1 -${outer} -${outer}`} />
+      {/* Center — you are here */}
+      <circle cx="12" cy="12" r={dotR} fill="currentColor" stroke="none" />
     </svg>
   );
 }
