@@ -266,7 +266,7 @@ export function ChatRoom({
               body: row.body,
               audio_url: row.audio_url,
               created_at: row.created_at,
-              author_handle: handle,
+              author_handle: handle, parent_id: null, parent: null,
               author_last_seen: null,
               reactions: []
             };
@@ -441,7 +441,7 @@ export function ChatRoom({
       author_handle: me ?? "you",
       author_last_seen: null,
       reactions: [],
-      _cid: cid,
+      parent_id: null, parent: null, _cid: cid,
       _pending: true
     };
 
@@ -603,7 +603,7 @@ export function ChatRoom({
       author_handle: me ?? "you",
       author_last_seen: null,
       reactions: [],
-      _cid: cid,
+      parent_id: null, parent: null, _cid: cid,
       _pending: true
     };
     setMessages((prev) => [...prev, optimistic]);
