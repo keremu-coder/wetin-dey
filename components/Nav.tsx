@@ -467,7 +467,7 @@ export function Nav() {
 
 export function SiteFooter() {
   return (
-    <footer className="mx-auto mt-16 max-w-2xl px-4 pb-28">
+    <footer className="mx-auto mt-8 max-w-2xl px-4 pb-28">
       <div className="border-t border-border pt-6">
         <p className="text-[0.8125rem] leading-relaxed text-muted">
           Wetin Dey na community. Anonymous if you want. No court judgment — na
