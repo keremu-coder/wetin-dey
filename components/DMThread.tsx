@@ -15,6 +15,7 @@ import {
   type SoundPrefs
 } from "@/lib/sound-prefs";
 import { notifyFeedback } from "@/lib/haptics";
+import { useToast } from "./Toast";
 import { FilterWarning } from "./FilterWarning";
 import { DMComposer } from "./DMComposer";
 import { FlagSheet } from "./FlagSheet";
@@ -66,6 +67,7 @@ export function DMThread({
   otherHandle: string;
   initialMessages: Message[];
 }) {
+  const toast = useToast();
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [error, setError] = useState("");
   const [blockReason, setBlockReason] = useState<string | null>(null);
@@ -134,14 +136,14 @@ export function DMThread({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        alert(data.error ?? "Could not block. Try again.");
+        toast.show(data.error ?? "Could not block. Try again.", "error");
         setBlocking(false);
         return;
       }
       setMenuOpen(false);
       window.location.href = "/inbox";
     } catch {
-      alert("Could not block. Check your connection.");
+      toast.show("Could not block. Check your connection.", "error");
       setBlocking(false);
     }
   }
