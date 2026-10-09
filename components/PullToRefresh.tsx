@@ -15,17 +15,23 @@ import { impactFeedback } from "@/lib/haptics";
  *      renders children straight through, so it never fights with Chrome
  *      or Safari's own scroll behaviour.
  *   2. Bails out on fullscreen routes (`/c/[slug]/chat`, `/inbox/[id]`).
- *      Those screens scroll an inner container, not the window. Without
- *      this guard, a pull inside the chat would trigger the refresh
- *      indicator, which is wrong.
+ *      Those screens scroll an inner container, not the window.
  *   3. Listens for a downward drag that *starts* when the page is
  *      already scrolled to the top. Once the finger moves the page, the
  *      gesture is dead until the user lifts and pulls again from the top.
  *   4. Fires `router.refresh()` on release past the threshold, with
  *      haptic feedback so it feels native on a real device.
  *
- * The children are always wrapped in the same div regardless of enabled
- * state, so flipping between native and browser never remounts them.
+ * IMPORTANT — why we use position:relative + top instead of transform:
+ *
+ * A non-none `transform` on an ancestor creates a new containing block
+ * for any `position: fixed` descendant. Chat pages put their composer on
+ * `fixed bottom-0` (relative to the viewport). Wrapping them in a
+ * `transform: translateY(0)` div made that composer jump to the bottom
+ * of a short wrapper box instead of the screen — the whole chat layout
+ * collapsed upward. `position: relative; top: Npx` gives the same visual
+ * offset without creating a containing block, so `fixed` children stay
+ * anchored to the viewport.
  */
 const PULL_THRESHOLD = 70;
 const MAX_PULL = 120;
@@ -33,8 +39,6 @@ const DAMPING = 0.5;
 const RESET_DELAY_MS = 700;
 
 // Keep this in sync with `isFullscreenRoute` in components/Nav.tsx.
-// Duplicated rather than shared to avoid a refactor of Nav.tsx in the
-// same session; both files are tiny and both lists change together.
 function isFullscreenRoute(pathname: string): boolean {
   if (/^\/c\/[^/]+\/chat/.test(pathname)) return true;
   if (/^\/inbox\/[^/]+/.test(pathname)) return true;
@@ -53,8 +57,7 @@ export function PullToRefresh({ children }: { children: React.ReactNode }) {
   const refreshingRef = useRef(false);
 
   // `isNativePlatform()` reads `window`, so it must not run during SSR.
-  // Deferring to an effect keeps server and first-client render identical
-  // (no hydration mismatch in the native shell).
+  // Deferring to an effect keeps server and first-client render identical.
   useEffect(() => {
     setEnabled(isNativePlatform());
   }, []);
@@ -133,17 +136,24 @@ export function PullToRefresh({ children }: { children: React.ReactNode }) {
   }, [fullscreen, pull]);
 
   const progress = Math.min(1, pull / PULL_THRESHOLD);
-  const transition = dragging.current ? "none" : "transform 250ms ease-out";
+  const transition = dragging.current ? "none" : "top 250ms ease-out";
+
+  // On fullscreen routes, render children straight through. No wrapper,
+  // no positioning context — the chat page's fixed composer stays fixed
+  // to the viewport as intended.
+  if (!active) {
+    return <>{children}</>;
+  }
 
   return (
     <>
-      {active && pull > 0 ? (
+      {pull > 0 ? (
         <div
           className="pointer-events-none fixed inset-x-0 z-30 flex justify-center"
           style={{
             top: "calc(0.5rem + env(safe-area-inset-top, 0px))",
             transform: `translateY(${pull}px)`,
-            transition
+            transition: "transform 250ms ease-out"
           }}
           aria-hidden
         >
@@ -174,7 +184,8 @@ export function PullToRefresh({ children }: { children: React.ReactNode }) {
       ) : null}
       <div
         style={{
-          transform: `translateY(${pull}px)`,
+          position: "relative",
+          top: pull,
           transition
         }}
       >
