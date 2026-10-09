@@ -633,7 +633,6 @@ export function ChatRoom({
         })
       );
       if (parentId) fd.set("parent_id", parentId);
-      if (parentId) fd.set("parent_id", parentId);
       const res = await fetch(`/api/communities/${slug}/messages`, {
         method: "POST",
         body: fd
