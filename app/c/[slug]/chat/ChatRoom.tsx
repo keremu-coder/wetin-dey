@@ -146,11 +146,10 @@ export function ChatRoom({
   const [blockedHandles, setBlockedHandles] = useState<Set<string>>(new Set());
   const [openBlockFor, setOpenBlockFor] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<Message | null>(null);
-  const [swipeMessageId, setSwipeMessageId] = useState<string | null>(null);
-  const [swipeOffset, setSwipeOffset] = useState(0);
   const swipeStartX = useRef<number | null>(null);
   const swipeStartY = useRef<number | null>(null);
   const swipeLocked = useRef<"horizontal" | "vertical" | null>(null);
+  const swipeEl = useRef<HTMLDivElement | null>(null);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
