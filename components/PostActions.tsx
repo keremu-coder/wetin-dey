@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FlagSheet } from "./FlagSheet";
+import { useToast } from "./Toast";
 import { tapFeedback, impactFeedback } from "@/lib/haptics";
 import { shareUrl } from "@/lib/share";
 
@@ -50,6 +51,7 @@ export function PostActions({
   postUrl
 }: Props) {
   const router = useRouter();
+  const toast = useToast();
   const [upvotes, setUpvotes] = useState(initialUpvotes);
   const [downvotes, setDownvotes] = useState(initialDownvotes);
   const [meToo, setMeToo] = useState(initialMeToo);
@@ -100,7 +102,7 @@ export function PostActions({
       text: "See this one for Wetin Dey:"
     });
     if (result.ok && result.method === "clipboard") {
-      alert("Link copied. Paste am anywhere.");
+      toast.show("Link copied. Paste am anywhere.", "success");
     }
   }
 
@@ -108,7 +110,7 @@ export function PostActions({
     void tapFeedback();
     const ok = await writeClipboard(fullUrl());
     setMenuOpen(false);
-    if (ok) alert("Link copied.");
+    if (ok) toast.show("Link copied.", "success");
   }
 
   async function blockUser() {
@@ -122,14 +124,14 @@ export function PostActions({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        alert(data.error ?? "Could not block. Try again.");
+        toast.show(data.error ?? "Could not block. Try again.", "error");
         setBusy(false);
         return;
       }
       setMenuOpen(false);
       router.refresh();
     } catch {
-      alert("Could not block. Check your connection.");
+      toast.show("Could not block. Check your connection.", "error");
       setBusy(false);
     }
   }
