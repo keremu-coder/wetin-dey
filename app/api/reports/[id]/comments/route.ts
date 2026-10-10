@@ -2,6 +2,8 @@ export const runtime = "nodejs";
 
 import { NextRequest } from "next/server";
 import { nanoid } from "nanoid";
+import { waitUntil } from "@vercel/functions";
+import { createNotification } from "@/lib/notifications";
 import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { analyzeModeration, moderationReason } from "@/lib/dm-filter";
@@ -231,6 +233,37 @@ export async function POST(
       return Response.json(
         { error: "Insert: " + error.message },
         { status: 500 }
+      );
+    }
+
+    // Best-effort: notify the report author when someone comments on
+    // their report. Runs after the response, skips replies-to-comments
+    // (v1 scope — comment replies do not notify, to avoid spam on long
+    // threads). The notification helper handles self-check and block
+    // check.
+    if (!parent_id) {
+      waitUntil(
+        (async () => {
+          try {
+            const { data: reportRow } = await db
+              .from("reports")
+              .select("session_id")
+              .eq("id", params.id)
+              .maybeSingle();
+            if (reportRow?.session_id) {
+              await createNotification(db, {
+                recipientId: reportRow.session_id,
+                actorId: sessionId,
+                kind: "comment",
+                targetType: "report",
+                targetId: params.id,
+                preview: body || (audio_url ? "🎤 Voice note" : null)
+              });
+            }
+          } catch (e) {
+            console.error("[notify comment]", e);
+          }
+        })()
       );
     }
 
