@@ -1,4 +1,5 @@
 import "server-only";
+import { createHash } from "crypto";
 import { createServiceClient } from "@/lib/supabase/server";
 
 // Simple in-memory rate limiter with a database fallback for
@@ -18,20 +19,53 @@ type Rule = {
   windowMs: number;
 };
 
-// Both branches include retryAfterMs so callers never need discriminated
-// union narrowing — works regardless of tsconfig strict mode.
 export type RateLimitResult =
   | { ok: true; retryAfterMs: 0 }
   | { ok: false; retryAfterMs: number };
 
-export async function checkRateLimit(
-  sessionId: string,
+/**
+ * Read the client IP from Vercel's forwarded headers.
+ *
+ * Vercel sets x-forwarded-for as a comma-separated list (client, proxy,
+ * proxy, ...). The first entry is the original client. x-real-ip is a
+ * single-value fallback. Returns null when neither header is present
+ * (local dev, unusual proxies) — callers treat null as "no IP signal".
+ */
+export function getRequestIp(req: Request): string | null {
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) {
+    const first = xff.split(",")[0]?.trim();
+    if (first) return first;
+  }
+  const real = req.headers.get("x-real-ip");
+  if (real) return real.trim();
+  return null;
+}
+
+/**
+ * Deterministic hash of an IP, salted with the service role key.
+ *
+ * Why hash: SPEC.md rule 1 forbids logging IP addresses for anonymous
+ * activity. We never store the raw IP — only a salted hash. It's enough
+ * to rate-limit the same client across sessions, and it disappears with
+ * the rate_events row. If the service role key rotates, older IP-hash
+ * buckets become unreachable — fine, since all windows are <= 1h.
+ */
+function hashIp(ip: string): string {
+  const salt = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "dev-salt";
+  return createHash("sha256")
+    .update(`${salt}:${ip}`)
+    .digest("hex")
+    .slice(0, 16);
+}
+
+async function checkBucket(
+  bucketKey: string,
   rule: Rule
 ): Promise<RateLimitResult> {
   const now = Date.now();
-  const bucketKey = `${sessionId}:${rule.key}`;
 
-  // Fast path: check in-memory
+  // Fast path: in-memory.
   const mem = memBuckets.get(bucketKey);
   if (mem && mem.resetAt > now) {
     if (mem.count >= rule.limit) {
@@ -45,30 +79,77 @@ export async function checkRateLimit(
     });
   }
 
-  // Slow path: also check the database for cross-instance abuse.
-  // Only for tight limits (<=10) to keep DB load low.
+  // Slow path: DB check for cross-instance abuse. Only for tight limits
+  // to keep DB write volume low.
   if (rule.limit <= 10) {
+    const db = createServiceClient();
+    const sinceIso = new Date(now - rule.windowMs).toISOString();
+
+    let count: number | null = null;
+    let dbError = false;
+
     try {
-      const db = createServiceClient();
-      const sinceIso = new Date(now - rule.windowMs).toISOString();
-      const { count } = await db
+      const { count: c, error } = await db
         .from("rate_events")
         .select("id", { count: "exact", head: true })
-        .eq("session_id", sessionId)
+        .eq("session_id", bucketKey)
         .eq("bucket", rule.key)
         .gte("created_at", sinceIso);
+      if (error) dbError = true;
+      else count = c ?? 0;
+    } catch {
+      dbError = true;
+    }
 
-      if ((count ?? 0) >= rule.limit) {
-        return { ok: false, retryAfterMs: rule.windowMs };
-      }
+    if (dbError) {
+      // Fail closed. The audit (finding 2) flagged that DB errors used
+      // to silently allow the request. Deny instead — the caller already
+      // returns 429 with a retry hint.
+      return { ok: false, retryAfterMs: 60_000 };
+    }
 
-      void db.from("rate_events").insert({
-        session_id: sessionId,
+    if ((count ?? 0) >= rule.limit) {
+      return { ok: false, retryAfterMs: rule.windowMs };
+    }
+
+    // Best-effort insert. Failure here does not deny the request — the
+    // in-memory bucket already counted it.
+    try {
+      await db.from("rate_events").insert({
+        session_id: bucketKey,
         bucket: rule.key
       });
     } catch {
-      // DB failure does not block the user
+      /* non-fatal */
     }
+  }
+
+  return { ok: true, retryAfterMs: 0 };
+}
+
+/**
+ * Rate limit check, session-scoped plus optional IP-scoped.
+ *
+ * The session bucket prevents a single client from spamming. The IP
+ * bucket (when opts.ip is passed) prevents the cookie-drop bypass the
+ * audit documented: dropping the session cookie no longer resets the
+ * limit, because the IP bucket accumulates across sessions.
+ *
+ * Both buckets must pass. Either failing returns ok: false.
+ */
+export async function checkRateLimit(
+  sessionId: string,
+  rule: Rule,
+  opts?: { ip?: string | null }
+): Promise<RateLimitResult> {
+  const sessionKey = `${sessionId}:${rule.key}`;
+  const sessionResult = await checkBucket(sessionKey, rule);
+  if (!sessionResult.ok) return sessionResult;
+
+  if (opts?.ip) {
+    const ipKey = `ip:${hashIp(opts.ip)}:${rule.key}`;
+    const ipResult = await checkBucket(ipKey, rule);
+    if (!ipResult.ok) return ipResult;
   }
 
   return { ok: true, retryAfterMs: 0 };
