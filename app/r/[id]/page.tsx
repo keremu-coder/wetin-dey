@@ -102,6 +102,22 @@ function EvidenceBlock(report: {
   );
 }
 
+function tierBadgeClass(tier: string): string {
+  if (tier === "strong") {
+    return "bg-accent-soft text-accent-deep border-accent/30";
+  }
+  if (tier === "medium") {
+    return "bg-warm-soft text-warm-deep border-warm/30";
+  }
+  return "bg-ink/5 text-faint border-border";
+}
+
+function tierBadgeLabel(tier: string): string {
+  if (tier === "strong") return "Strong evidence";
+  if (tier === "medium") return "Medium evidence";
+  return "Unverified";
+}
+
 export default async function ReportPage({
   params
 }: {
@@ -138,17 +154,12 @@ export default async function ReportPage({
   const reportSessionId = (report as { session_id?: string | null })
     .session_id;
 
-  const held =
-    (report as { held?: boolean | null }).held === true;
+  const held = (report as { held?: boolean | null }).held === true;
   const isPublic = report.reviewed === true && !held;
+  const evidenceTier =
+    (report as { evidence_tier?: string | null }).evidence_tier ?? null;
 
-  // If the viewing session has blocked the report's author, show a
-  // placeholder instead of the report.
-  if (
-    !isOwnPost &&
-    reportSessionId &&
-    blockedIds.has(reportSessionId)
-  ) {
+  if (!isOwnPost && reportSessionId && blockedIds.has(reportSessionId)) {
     return (
       <main className="mx-auto max-w-2xl px-4 py-6 pb-24">
         <Link
@@ -175,9 +186,6 @@ export default async function ReportPage({
     );
   }
 
-  // Held + not mine + not yet reviewed → show only an "under review"
-  // placeholder. Prevents a private-individual report being visible to
-  // anyone who guesses the URL.
   if (held && !isOwnPost) {
     return (
       <main className="mx-auto max-w-2xl px-4 py-6 pb-24">
@@ -202,8 +210,6 @@ export default async function ReportPage({
     );
   }
 
-  // Load approved right-of-reply responses, then filter out any whose
-  // submitting session is blocked.
   const { data: repliesRaw } = await db
     .from("report_replies")
     .select("id, session_id, submitter_name, body, approved_at, created_at")
@@ -211,21 +217,22 @@ export default async function ReportPage({
     .eq("status", "approved")
     .order("created_at", { ascending: true });
 
-  const replies = ((repliesRaw ?? []) as Array<{
-    id: string;
-    session_id: string | null;
-    submitter_name: string;
-    body: string;
-    approved_at: string | null;
-    created_at: string;
-  }>).filter(
-    (r) => !r.session_id || !blockedIds.has(r.session_id)
-  );
+  const replies = (
+    (repliesRaw ?? []) as Array<{
+      id: string;
+      session_id: string | null;
+      submitter_name: string;
+      body: string;
+      approved_at: string | null;
+      created_at: string;
+    }>
+  ).filter((r) => !r.session_id || !blockedIds.has(r.session_id));
 
   const upvotes = (report as { upvotes?: number }).upvotes ?? 0;
   const downvotes = (report as { downvotes?: number }).downvotes ?? 0;
   const meToo = (report as { me_too_count?: number }).me_too_count ?? 0;
-  const commentCount = (report as { comment_count?: number }).comment_count ?? 0;
+  const commentCount =
+    (report as { comment_count?: number }).comment_count ?? 0;
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-6 pb-24">
@@ -239,7 +246,7 @@ export default async function ReportPage({
       {held && isOwnPost ? (
         <div className="mt-4 rounded-2xl border-2 border-gold/50 bg-gold-soft/50 p-4">
           <p className="text-[0.875rem] font-semibold text-ink">
-            ⏳ Your report is held for review
+            ⚠ Your report is held for review
           </p>
           <p className="mt-1 text-[0.8125rem] leading-relaxed text-ink/80">
             Because it names a private individual or carries elevated legal
@@ -267,9 +274,7 @@ export default async function ReportPage({
         evidence_url={report.evidence_url}
         evidence_link={report.evidence_link}
         evidence_label={report.evidence_label}
-        evidence_tier={
-          (report as { evidence_tier?: string | null }).evidence_tier
-        }
+        evidence_tier={evidenceTier}
       />
 
       {report.summary_pidgin ? (
@@ -299,6 +304,13 @@ export default async function ReportPage({
 
       <div className="mb-5 flex flex-wrap items-center gap-2">
         <StatusBadge status={report.status} />
+        {evidenceTier ? (
+          <span
+            className={`rounded-full border px-3 py-1 text-[0.75rem] font-medium ${tierBadgeClass(evidenceTier)}`}
+          >
+            {tierBadgeLabel(evidenceTier)}
+          </span>
+        ) : null}
         {report.amount_kobo != null ? (
           <span className="rounded-full bg-warm-soft px-3 py-1 text-[0.75rem] font-medium text-warm-deep">
             {formatNaira(report.amount_kobo)}
