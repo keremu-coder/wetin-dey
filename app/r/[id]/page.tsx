@@ -7,6 +7,7 @@ import { CommentThread } from "@/components/CommentThread";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ReviewedFlag } from "@/components/ReviewedFlag";
 import { PostActions } from "@/components/PostActions";
+import { ShareCard } from "@/components/ShareCard";
 import { PublishedReplies } from "@/components/PublishedReplies";
 import { ReplyTrigger } from "@/components/ReplyTrigger";
 import { formatNaira } from "@/lib/constants";
@@ -339,6 +340,10 @@ export default async function ReportPage({
           evidenceLink={report.evidence_link}
           postUrl={postUrl}
         />
+      </div>
+
+      <div className="mb-5">
+        <ShareCard id={report.id} />
       </div>
 
       <PublishedReplies replies={replies} />
