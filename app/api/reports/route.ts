@@ -5,6 +5,7 @@ import { nanoid } from "nanoid";
 import { CATEGORIES, NIGERIA_STATES, PAGE_SIZE } from "@/lib/constants";
 import { stripExifServer } from "@/lib/exif";
 import { classifyImage } from "@/lib/image-moderation";
+import { transcribeAndModerate } from "@/lib/voice-moderation";
 import { originAllowed, jsonError } from "@/lib/http";
 import { hashDedupe } from "@/lib/rateLimit";
 import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
@@ -318,6 +319,26 @@ export async function POST(req: NextRequest) {
         return jsonError("Voice too large", 400);
       }
       const buf = Buffer.from(await voiceTestimony.arrayBuffer());
+
+      // Voice moderation — Whisper transcribe + text filter.
+      // Best-effort: fails open on any error so a Groq outage
+      // never blocks a legitimate voice testimony.
+      try {
+        const voiceMod = await transcribeAndModerate(
+          buf,
+          voiceTestimony.type || "audio/webm"
+        );
+        if (voiceMod.hold) {
+          held = true;
+          console.warn(
+            "[reports] voice held for review:",
+            voiceMod.reasons.join(" | ")
+          );
+        }
+      } catch (e) {
+        console.warn("[reports] voice moderation error:", e);
+      }
+
       const path = `${id}-testimony.webm`;
       const up = await db.storage.from("evidence").upload(path, buf, {
         contentType: "audio/webm",
