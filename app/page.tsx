@@ -27,22 +27,34 @@ type LastMessage = {
 };
 
 function timeShort(date: string): string {
+  // Pin every date comparison and format to one timezone. Vercel runs in
+  // UTC; users are in WAT (UTC+1). Without this, a message sent near
+  // midnight says "Friday" on the server and "Saturday" on the phone,
+  // which React flags as a hydration mismatch (errors 425/422).
+  const TZ = "Africa/Lagos";
   const d = new Date(date);
   const today = new Date();
-  if (d.toDateString() === today.toDateString()) {
+  const dDay = d.toLocaleDateString("en-NG", { timeZone: TZ });
+  const todayDay = today.toLocaleDateString("en-NG", { timeZone: TZ });
+  if (dDay === todayDay) {
     return d.toLocaleTimeString("en-NG", {
       hour: "numeric",
-      minute: "2-digit"
+      minute: "2-digit",
+      timeZone: TZ
     });
   }
   const diff = Date.now() - d.getTime();
   const days = Math.floor(diff / (24 * 60 * 60 * 1000));
   if (days < 7) {
-    return d.toLocaleDateString("en-NG", { weekday: "short" });
+    return d.toLocaleDateString("en-NG", {
+      weekday: "short",
+      timeZone: TZ
+    });
   }
   return d.toLocaleDateString("en-NG", {
     month: "short",
-    day: "numeric"
+    day: "numeric",
+    timeZone: TZ
   });
 }
 
