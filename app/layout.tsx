@@ -59,6 +59,9 @@ const themeScript = `
     var t = localStorage.getItem('wetindey_theme') || 'system';
     var isDark = t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+    if (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) {
+      document.documentElement.classList.add('native');
+    }
   } catch (e) {
     document.documentElement.setAttribute('data-theme', 'light');
   }

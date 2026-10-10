@@ -387,3 +387,14 @@ textarea { resize: vertical; min-height: 100px; line-height: 1.5; }
   border-color: color-mix(in srgb, var(--color-accent) 60%, transparent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 12%, transparent);
 }
+/* Native shell: use platform system fonts on form controls so buttons
+   and inputs feel like iOS/Android native controls instead of web form
+   elements. Headings and body text keep the branded Space Grotesk /
+   Inter pairing. The class is added to html by the themeScript in
+   app/layout.tsx when Capacitor reports isNativePlatform() === true. */
+html.native input,
+html.native textarea,
+html.native select,
+html.native button {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Roboto", "Helvetica Neue", system-ui, sans-serif;
+}
