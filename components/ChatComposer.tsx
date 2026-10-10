@@ -1,6 +1,7 @@
 "use client";
 
 import type { Message } from "@/lib/chat";
+import { autocorrect } from "@/lib/autocorrect";
 
 export type ChatComposerProps = {
   body: string;
@@ -245,7 +246,7 @@ export function ChatComposer({
               onChange={(e) => onBodyChange(e.target.value)}
               onBlur={() => {
                 if (autocorrectOn && body.trim()) {
-                  onBodyAutocorrected(body);
+                  onBodyAutocorrected(autocorrect(body));
                 }
               }}
               placeholder="Message"
