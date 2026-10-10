@@ -16,6 +16,7 @@ import {
 } from "@/lib/sound-prefs";
 import { notifyFeedback } from "@/lib/haptics";
 import { useToast } from "./Toast";
+import { useLiveRefreshUnread } from "./LiveStateProvider";
 import { FilterWarning } from "./FilterWarning";
 import { DMComposer } from "./DMComposer";
 import { FlagSheet } from "./FlagSheet";
@@ -68,6 +69,7 @@ export function DMThread({
   initialMessages: Message[];
 }) {
   const toast = useToast();
+  const refreshUnread = useLiveRefreshUnread();
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [error, setError] = useState("");
   const [blockReason, setBlockReason] = useState<string | null>(null);
@@ -120,6 +122,7 @@ export function DMThread({
     lastMarkRef.current = now;
     try {
       await fetch(`/api/dm/threads/${threadId}/read`, { method: "POST" });
+      refreshUnread();
     } catch {
       /* silent */
     }
@@ -221,6 +224,15 @@ export function DMThread({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [threadId, mySessionId, otherHandle]);
+
+  // Mark read on mount. Before this, markRead() only ran on focus and
+  // visibilitychange, so opening a thread directly from the inbox never
+  // cleared the unread flag. The 3s debounce inside markRead() stops the
+  // immediate focus event that follows a tap from double-firing.
+  useEffect(() => {
+    void markRead();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [threadId]);
 
   // Background poll as a safety net
   useEffect(() => {
