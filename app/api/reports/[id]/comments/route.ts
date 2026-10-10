@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 import { nanoid } from "nanoid";
 import { waitUntil } from "@vercel/functions";
 import { createNotification } from "@/lib/notifications";
+import { transcribeAndModerate } from "@/lib/voice-moderation";
 import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { analyzeModeration, moderationReason } from "@/lib/dm-filter";
@@ -123,6 +124,7 @@ export async function POST(
     let parent_id: string | null = null;
     let audio_url: string | null = null;
     let transcript: string | null = null;
+    let voiceHeld = false;
 
     if (contentType.includes("multipart/form-data")) {
       let form: FormData;
@@ -163,6 +165,27 @@ export async function POST(
         }
         const pub = db.storage.from("voice-notes").getPublicUrl(path);
         audio_url = pub.data.publicUrl;
+
+        // Voice moderation — Whisper transcribe + text filter.
+        // Best-effort: fails open on any error.
+        try {
+          const voiceMod = await transcribeAndModerate(
+            buf,
+            file.type || "audio/webm"
+          );
+          if (voiceMod.transcript) {
+            transcript = voiceMod.transcript;
+          }
+          if (voiceMod.hold) {
+            voiceHeld = true;
+            console.warn(
+              "[comments] voice held for review:",
+              voiceMod.reasons.join(" | ")
+            );
+          }
+        } catch (e) {
+          console.warn("[comments] voice moderation error:", e);
+        }
       }
     } else {
       try {
@@ -195,7 +218,7 @@ export async function POST(
       }
     }
 
-    let hidden = false;
+    let hidden = voiceHeld;
     if (body) {
       const mod = analyzeModeration(body);
       if (mod.hold) {
