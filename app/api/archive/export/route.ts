@@ -9,7 +9,17 @@ const PAGE_SIZE = 1000;
 
 function isAuthorized(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
-  if (!secret) return true;
+  // Fail closed. If CRON_SECRET is unset in any environment, deny
+  // the request rather than letting anyone hit a privileged endpoint.
+  // Previously this returned true, which meant an unset secret opened
+  // the endpoint to the public.
+  if (!secret) {
+    console.error(
+      "[cron] CRON_SECRET is not set - refusing request on " +
+      req.url
+    );
+    return false;
+  }
   const header = req.headers.get("authorization");
   return header === `Bearer ${secret}`;
 }
