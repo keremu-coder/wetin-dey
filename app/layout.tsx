@@ -8,6 +8,7 @@ import { NativeNetworkMonitor } from "@/components/NativeNetworkMonitor";
 import { BottomNav } from "@/components/BottomNav";
 import { RouteWarmup } from "@/components/RouteWarmup";
 import { TermsGate } from "@/components/TermsGate";
+import { AgeGate } from "@/components/AgeGate";
 import { EmailVerificationHandler } from "@/components/EmailVerificationHandler";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { ToastProvider } from "@/components/Toast";
@@ -113,6 +114,7 @@ export default function RootLayout({
             <PushRegistrar />
             <NativeNetworkMonitor />
             <RouteWarmup />
+            <AgeGate />
             <Onboarding />
             <InstallPrompt />
             <TermsGate />
