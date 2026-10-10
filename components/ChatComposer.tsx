@@ -20,7 +20,7 @@ export type ChatComposerProps = {
   composerMode: "voice" | "text";
   onSwitchToText: () => void;
   onSwitchToVoice: () => void;
-  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
+  textareaRef: React.RefObject<HTMLTextAreaElement>;
   autocorrectOn: boolean;
   onBodyAutocorrected: (v: string) => void;
   onSubmit: (e: React.FormEvent, parentId: string | null) => void;
