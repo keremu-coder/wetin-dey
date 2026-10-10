@@ -27,12 +27,16 @@ import {
 
 type LiveState = {
   unread: number;
+  notificationsUnread: number;
   refreshUnread: () => void;
+  refreshNotifications: () => void;
 };
 
 const LiveStateContext = createContext<LiveState>({
   unread: 0,
-  refreshUnread: () => {}
+  notificationsUnread: 0,
+  refreshUnread: () => {},
+  refreshNotifications: () => {}
 });
 
 const TICK_MS = 30_000;
@@ -49,12 +53,24 @@ async function fetchUnreadCount(): Promise<number | null> {
   }
 }
 
+async function fetchNotificationsUnread(): Promise<number | null> {
+  try {
+    const res = await fetch("/api/notifications/unread", { cache: "no-store" });
+    if (!res.ok) return null;
+    const d = await res.json();
+    return typeof d?.count === "number" ? d.count : 0;
+  } catch {
+    return null;
+  }
+}
+
 function pingPresence() {
   fetch("/api/ping", { method: "POST", keepalive: true }).catch(() => {});
 }
 
 export function LiveStateProvider({ children }: { children: ReactNode }) {
   const [unread, setUnread] = useState(0);
+  const [notificationsUnread, setNotificationsUnread] = useState(0);
   const aliveRef = useRef(true);
   const tickRef = useRef(0);
 
@@ -63,18 +79,25 @@ export function LiveStateProvider({ children }: { children: ReactNode }) {
     if (aliveRef.current && n !== null) setUnread(n);
   }, []);
 
+  const refreshNotifications = useCallback(async () => {
+    const n = await fetchNotificationsUnread();
+    if (aliveRef.current && n !== null) setNotificationsUnread(n);
+  }, []);
+
   useEffect(() => {
     aliveRef.current = true;
     tickRef.current = 0;
 
     // Initial hit — both unread and presence
     void refreshUnread();
+    void refreshNotifications();
     pingPresence();
 
     const id = setInterval(() => {
       if (typeof document !== "undefined" && document.hidden) return;
       tickRef.current += 1;
       void refreshUnread();
+      void refreshNotifications();
       if (tickRef.current % PRESENCE_EVERY_N_TICKS === 0) {
         pingPresence();
       }
@@ -83,12 +106,14 @@ export function LiveStateProvider({ children }: { children: ReactNode }) {
     function onVisibility() {
       if (document.visibilityState === "visible") {
         void refreshUnread();
+        void refreshNotifications();
         pingPresence();
       }
     }
 
     function onFocus() {
       void refreshUnread();
+      void refreshNotifications();
     }
 
     document.addEventListener("visibilitychange", onVisibility);
@@ -100,10 +125,17 @@ export function LiveStateProvider({ children }: { children: ReactNode }) {
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("focus", onFocus);
     };
-  }, [refreshUnread]);
+  }, [refreshUnread, refreshNotifications]);
 
   return (
-    <LiveStateContext.Provider value={{ unread, refreshUnread }}>
+    <LiveStateContext.Provider
+      value={{
+        unread,
+        notificationsUnread,
+        refreshUnread,
+        refreshNotifications
+      }}
+    >
       {children}
     </LiveStateContext.Provider>
   );
@@ -111,6 +143,14 @@ export function LiveStateProvider({ children }: { children: ReactNode }) {
 
 export function useLiveUnread(): number {
   return useContext(LiveStateContext).unread;
+}
+
+export function useLiveNotificationsUnread(): number {
+  return useContext(LiveStateContext).notificationsUnread;
+}
+
+export function useLiveRefreshNotifications(): () => void {
+  return useContext(LiveStateContext).refreshNotifications;
 }
 
 export function useLiveRefreshUnread(): () => void {
