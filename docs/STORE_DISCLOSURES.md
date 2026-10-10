@@ -172,8 +172,10 @@ attached evidence — a photo, video, audio, voice note, or public link.
 
 ### Demo account for review
 
-Email: kpekpes@wetindey.app
-Password: REMOVED-CREDENTIAL
+A dedicated review account is provisioned for each submission. Credentials
+are supplied through the App Store Connect review notes (private channel),
+never in this document or the public repo. See .env.test locally for the
+current test account used during development.
 
 Use this account to explore:
 
