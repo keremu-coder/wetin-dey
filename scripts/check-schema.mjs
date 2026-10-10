@@ -1,52 +1,46 @@
 // Usage: node scripts/check-schema.mjs
 //
 // Reads .env.local, connects to Supabase with the service role key,
-// and checks that every table the app expects actually exists.
+// and checks:
+//   1. Every table the app expects exists.
+//   2. Every column the app reads from those tables exists.
 //
-// For each expected table, tries a zero-row select. If PostgREST
-// replies "relation ... does not exist", the table is missing. Any
-// other reply (200, 401, 403, permission error) means the table
-// exists — the check is purely about existence, not access.
+// Table check: zero-row select against the table. PostgREST replies
+// "relation ... does not exist" (code 42P01) when missing.
 //
-// Exits 0 if all tables exist, 1 if any are missing.
+// Column check: zero-row select naming specific columns. PostgREST
+// replies "column X does not exist" (code 42703) when missing.
+//
+// Exits 0 if all tables and columns exist, 1 otherwise.
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createClient } from "@supabase/supabase-js";
 
 const EXPECTED_TABLES = [
-  // Identity
   "sessions",
-  // Civic reports
   "reports",
   "comments",
   "comment_votes",
   "report_replies",
-  // Community feed
-  "posts",
+  // NOTE: "posts" was in the original roadmap but was superseded by
+  // reports.post_type. Nothing in the code reads from it. Removed 2026-10-10.
   "post_votes",
-  // Spaces
   "communities",
   "community_members",
   "community_messages",
   "broadcasts",
-  // Reactions
   "reactions",
   "message_reactions",
-  // Social graph
   "follows",
   "blocked_users",
-  // Direct messages
   "dm_threads",
   "dm_messages",
   "dm_violations",
-  // Push
   "push_subscriptions",
   "native_push_tokens",
-  // Rate limiting + moderation
   "rate_events",
   "content_flags",
-  // Misc
   "topic_follows",
   "daily_answers",
   "checkin_requests",
@@ -54,14 +48,95 @@ const EXPECTED_TABLES = [
   "radar_signals"
 ];
 
+// Columns the app reads from each table. Anything named here must exist
+// in the live DB, or the app will 500 on a query.
+const EXPECTED_COLUMNS = {
+  sessions: [
+    "id",
+    "handle",
+    "last_seen_at",
+    "hide_presence",
+    "status_line",
+    "availability",
+    "font_preference"
+  ],
+  reports: [
+    "id",
+    "session_id",
+    "body",
+    "agency_canonical",
+    "agency_raw",
+    "state",
+    "lga",
+    "category",
+    "status",
+    "summary_pidgin",
+    "summary_english",
+    "amount_kobo",
+    "evidence_type",
+    "evidence_url",
+    "evidence_link",
+    "evidence_label",
+    "evidence_tier",
+    "reviewed",
+    "held",
+    "created_at",
+    "post_type",
+    "community_id"
+  ],
+  communities: [
+    "id",
+    "slug",
+    "name",
+    "emoji",
+    "avatar_url",
+    "member_count",
+    "post_count",
+    "is_public"
+  ],
+  community_members: [
+    "community_id",
+    "session_id",
+    "role",
+    "joined_at"
+  ],
+  community_messages: [
+    "id",
+    "community_id",
+    "session_id",
+    "body",
+    "audio_url",
+    "created_at",
+    "hidden",
+    "parent_id"
+  ],
+  dm_threads: [
+    "id",
+    "session_a",
+    "session_b",
+    "created_at",
+    "last_message_at"
+  ],
+  dm_messages: [
+    "id",
+    "thread_id",
+    "sender_id",
+    "body",
+    "held",
+    "read_at",
+    "created_at"
+  ]
+};
+
 function loadEnvLocal() {
   const path = resolve(process.cwd(), ".env.local");
   let raw;
   try {
     raw = readFileSync(path, "utf8");
-  } catch (e) {
-    console.error("Could not read .env.local:", e.message);
-    process.exit(1);
+  } catch {
+    // .env.local is missing when running in CI. Vercel and GitHub Actions
+    // set env vars directly. Fall through silently.
+    return;
   }
   for (const line of raw.split(/\r?\n/)) {
     const trimmed = line.trim();
@@ -80,17 +155,41 @@ function loadEnvLocal() {
   }
 }
 
+function isMissingTable(error) {
+  if (!error) return false;
+  const code = error.code ?? "";
+  const msg = (error.message ?? "").toLowerCase();
+  // Postgres raw: 42P01 / "relation does not exist"
+  // PostgREST schema cache: PGRST205 / "Could not find the table"
+  if (code === "42P01" || code === "PGRST205") return true;
+  if (msg.includes("could not find the table")) return true;
+  if (msg.includes("relation") && msg.includes("does not exist")) return true;
+  return false;
+}
+
+function isMissingColumn(error) {
+  if (!error) return false;
+  const code = error.code ?? "";
+  const msg = (error.message ?? "").toLowerCase();
+  // Postgres raw: 42703 / "column X does not exist"
+  // PostgREST schema cache: PGRST204 / "Could not find the 'X' column"
+  if (code === "42703" || code === "PGRST204") return true;
+  if (msg.includes("could not find the") && msg.includes("column")) return true;
+  if (msg.includes("column") && msg.includes("does not exist")) return true;
+  // Anything else mentioning "column" that reached us is likely a real
+  // column problem — err on the side of failing loudly.
+  return msg.includes("column");
+}
+
 async function main() {
   loadEnvLocal();
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!url || !key) {
     console.error(
-      "Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env.local"
+      "Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY"
     );
     process.exit(1);
   }
@@ -99,47 +198,51 @@ async function main() {
     auth: { persistSession: false, autoRefreshToken: false }
   });
 
-  const results = [];
+  const problems = [];
 
+  console.log("");
+  console.log("Tables:");
   for (const table of EXPECTED_TABLES) {
     const { error } = await db.from(table).select("*").limit(0);
     if (!error) {
-      results.push({ table, status: "ok" });
-      continue;
+      console.log(`  ok    ${table}`);
+    } else if (isMissingTable(error)) {
+      console.log(`  MISS  ${table}  (${error.message})`);
+      problems.push({ kind: "table", name: table, note: error.message });
+    } else {
+      // Not a "missing" error (permission, etc.) — for existence this is a pass.
+      console.log(`  ok    ${table}  (${error.message})`);
     }
-    // PostgREST signals a missing table with code 42P01 (undefined_table)
-    // or a message containing "does not exist". Anything else — 401, 403,
-    // permission denied — means the table exists but we can't read it,
-    // which for existence purposes is still a pass.
-    const code = error.code ?? "";
-    const msg = error.message ?? "";
-    const missing =
-      code === "42P01" || msg.toLowerCase().includes("does not exist");
-    results.push({
-      table,
-      status: missing ? "missing" : "ok",
-      note: missing ? msg : undefined
-    });
   }
-
-  const ok = results.filter((r) => r.status === "ok").length;
-  const missing = results.filter((r) => r.status === "missing");
 
   console.log("");
-  for (const r of results) {
-    const mark = r.status === "ok" ? "  ok   " : " MISS  ";
-    console.log(`${mark} ${r.table}${r.note ? `  (${r.note})` : ""}`);
+  console.log("Columns:");
+  for (const [table, columns] of Object.entries(EXPECTED_COLUMNS)) {
+    const colList = columns.join(",");
+    const { error } = await db.from(table).select(colList).limit(0);
+    if (!error) {
+      console.log(`  ok    ${table}  (${columns.length} columns)`);
+    } else if (isMissingColumn(error)) {
+      console.log(`  MISS  ${table}  (${error.message})`);
+      problems.push({ kind: "column", name: `${table}.${colList}`, note: error.message });
+    } else {
+      console.log(`  ok    ${table}  (${error.message})`);
+    }
+  }
+
+  console.log("");
+  if (problems.length === 0) {
+    console.log("Schema matches expectations.");
+    process.exit(0);
+  }
+
+  console.log(`Schema drift detected: ${problems.length} problem(s).`);
+  for (const p of problems) {
+    console.log(`  ${p.kind}: ${p.name}  —  ${p.note}`);
   }
   console.log("");
-  console.log(`Checked ${results.length} tables. OK: ${ok}. Missing: ${missing.length}.`);
-
-  if (missing.length > 0) {
-    console.error("\nSchema drift detected. Apply the missing migrations.");
-    process.exit(1);
-  }
-
-  console.log("Schema matches expectations.");
-  process.exit(0);
+  console.log("Apply the missing migrations in Supabase SQL Editor, then re-run.");
+  process.exit(1);
 }
 
 main().catch((e) => {
