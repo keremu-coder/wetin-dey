@@ -9,6 +9,7 @@ import { notifyCommunityMembers } from "@/lib/push-server";
 import { analyzeModeration, moderationReason } from "@/lib/dm-filter";
 import { isBanned, BANNED_MESSAGE } from "@/lib/ban-guard";
 import { getBlockedIds } from "@/lib/blocks";
+import { createNotification } from "@/lib/notifications";
 import type { MessageParent } from "@/lib/chat";
 import {
   hasAcceptedTerms,
@@ -388,6 +389,35 @@ export async function POST(
           console.error("[push notify]", err);
         })
       );
+
+      // Reply notification — best-effort, runs after the response. Looks
+      // up the parent's session id because the snapshot we built earlier
+      // carries the handle only. Skip silently on any failure.
+      if (parentId) {
+        waitUntil(
+          (async () => {
+            try {
+              const { data: parentRow } = await db
+                .from("community_messages")
+                .select("session_id")
+                .eq("id", parentId)
+                .maybeSingle();
+              if (parentRow?.session_id) {
+                await createNotification(db, {
+                  recipientId: parentRow.session_id,
+                  actorId: sessionId,
+                  kind: "reply",
+                  targetType: "community_message",
+                  targetId: id,
+                  preview: body || (audio_url ? "🎤 Voice note" : null)
+                });
+              }
+            } catch (e) {
+              console.error("[notify reply]", e);
+            }
+          })()
+        );
+      }
     }
 
     return Response.json({
