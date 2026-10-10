@@ -1,0 +1,363 @@
+"use client";
+
+import Link from "next/link";
+import nextDynamic from "next/dynamic";
+import { useRef } from "react";
+import { tapFeedback } from "@/lib/haptics";
+import {
+  avatarColor,
+  dayLabel,
+  timeWithDate,
+  type Message
+} from "@/lib/chat";
+import { MessageBody } from "./MessageBody";
+import { PresenceDot, presenceFromLastSeen } from "./PresenceDot";
+import { StatusLine } from "./StatusLine";
+import { BlockButton } from "./BlockButton";
+
+const VoiceNotePlayer = nextDynamic(() =>
+  import("./VoiceNotePlayer").then((m) => m.VoiceNotePlayer)
+);
+
+const QUICK_EMOJI = ["😂", "😢", "😮", "❤️", "🔥", "👍", "👎", "🙏"];
+
+const SWIPE_THRESHOLD_PX = 50;
+const SWIPE_MAX_PX = 80;
+const SWIPE_DAMPING = 0.7;
+
+export type MessageRowProps = {
+  m: Message;
+  prev: Message | null;
+  me: string | null;
+  fontId: string;
+  status: string | undefined;
+  mentionsMe: boolean;
+  openReactionsFor: string | null;
+  openBlockFor: string | null;
+  onReact: (messageId: string, emoji: string) => void;
+  onReply: (m: Message) => void;
+  onReport: (id: string, label: string) => void;
+  onToggleReactions: (id: string | null) => void;
+  onToggleBlock: (handle: string | null) => void;
+  onBlocked: (handle: string) => void;
+  onRetry: (cid: string) => void;
+  onDiscard: (cid: string) => void;
+};
+
+export function MessageRow({
+  m,
+  prev,
+  me,
+  fontId,
+  status,
+  mentionsMe,
+  openReactionsFor,
+  openBlockFor,
+  onReact,
+  onReply,
+  onReport,
+  onToggleReactions,
+  onToggleBlock,
+  onBlocked,
+  onRetry,
+  onDiscard
+}: MessageRowProps) {
+  const swipeStartX = useRef<number | null>(null);
+  const swipeStartY = useRef<number | null>(null);
+  const swipeLocked = useRef<"horizontal" | "vertical" | null>(null);
+  const swipeEl = useRef<HTMLDivElement | null>(null);
+
+  function onTouchStart(e: React.TouchEvent<HTMLDivElement>) {
+    if (m._pending || m._failed) return;
+    const t = e.touches[0];
+    swipeStartX.current = t.clientX;
+    swipeStartY.current = t.clientY;
+    swipeLocked.current = null;
+    swipeEl.current = e.currentTarget;
+  }
+
+  function onTouchMove(e: React.TouchEvent<HTMLDivElement>) {
+    if (swipeStartX.current === null || swipeStartY.current === null) return;
+    const t = e.touches[0];
+    const dx = t.clientX - swipeStartX.current;
+    const dy = t.clientY - swipeStartY.current;
+
+    if (swipeLocked.current === null) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      if (Math.abs(dy) > Math.abs(dx)) {
+        swipeLocked.current = "vertical";
+        swipeStartX.current = null;
+        swipeStartY.current = null;
+        swipeEl.current = null;
+        return;
+      }
+      swipeLocked.current = "horizontal";
+      if (swipeEl.current) swipeEl.current.style.willChange = "transform";
+    }
+
+    if (swipeLocked.current === "vertical") return;
+    const el = swipeEl.current;
+    if (!el) return;
+    if (dx <= 0) {
+      el.style.transform = "";
+      return;
+    }
+    el.style.transform = `translateX(${Math.min(SWIPE_MAX_PX, dx * SWIPE_DAMPING)}px)`;
+  }
+
+  function onTouchEnd() {
+    const el = swipeEl.current;
+    const wasHorizontal = swipeLocked.current === "horizontal";
+    swipeStartX.current = null;
+    swipeStartY.current = null;
+    swipeLocked.current = null;
+    swipeEl.current = null;
+    if (!el) return;
+    let offset = 0;
+    const mt = el.style.transform.match(/translateX\(([\d.]+)px\)/);
+    if (mt) offset = parseFloat(mt[1]);
+    el.style.transition = "transform 200ms cubic-bezier(0.32, 0.72, 0, 1)";
+    el.style.transform = "";
+    window.setTimeout(() => {
+      el.style.transition = "";
+      el.style.willChange = "";
+    }, 250);
+    if (wasHorizontal && offset >= SWIPE_THRESHOLD_PX) {
+      onReply(m);
+      void tapFeedback();
+    }
+  }
+
+  const isSameAuthor = prev && prev.author_handle === m.author_handle;
+  const withinWindow =
+    prev &&
+    new Date(m.created_at).getTime() -
+      new Date(prev.created_at).getTime() <
+      5 * 60 * 1000;
+  const isGroupStart = !isSameAuthor || !withinWindow;
+  const sameDayAsPrev =
+    prev &&
+    new Date(prev.created_at).toDateString() ===
+      new Date(m.created_at).toDateString();
+  const isMe = me === m.author_handle || !!m._cid;
+  const bg = avatarColor(m.author_handle);
+  const letter = m.author_handle.charAt(0).toUpperCase();
+  const presence = presenceFromLastSeen(m.author_last_seen);
+  return (
+    <div>
+      {!sameDayAsPrev ? (
+        <div className="chat-day-divider">{dayLabel(m.created_at)}</div>
+      ) : null}
+
+      <div
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        style={{ touchAction: "pan-y" }}
+        className={`chat-msg message-in ${
+          isGroupStart ? "chat-msg-group-start" : ""
+        } ${m._pending ? "opacity-70" : ""}`}
+      >
+        {isGroupStart ? (
+          <Link
+            href={`/u/${encodeURIComponent(m.author_handle)}`}
+            className="relative shrink-0"
+            aria-label={`View @${m.author_handle}`}
+          >
+            <div className="chat-msg-avatar" style={{ background: bg }}>
+              {letter}
+            </div>
+            <span className="absolute -bottom-0.5 -right-0.5">
+              <PresenceDot state={presence} />
+            </span>
+          </Link>
+        ) : (
+          <div className="chat-msg-avatar-spacer" />
+        )}
+
+        <div className="chat-msg-body">
+          {isGroupStart ? (
+            <>
+              <div className="chat-msg-header">
+                <Link
+                  href={`/u/${encodeURIComponent(m.author_handle)}`}
+                  className="chat-msg-author transition-colors hover:text-accent"
+                >
+                  {m.author_handle}
+                  {isMe ? (
+                    <span className="ml-1.5 text-[0.7rem] font-normal text-accent">
+                      you
+                    </span>
+                  ) : null}
+                </Link>
+                <span className="chat-msg-timestamp">
+                  {m._pending
+                    ? "Sending…"
+                    : m._failed
+                      ? "Failed"
+                      : timeWithDate(m.created_at)}
+                </span>
+              </div>
+              {status ? (
+                <StatusLine status={status} className="mb-1 !text-[0.75rem]" />
+              ) : null}
+            </>
+          ) : null}
+
+          {m.parent ? (
+            <div className="mb-1.5 flex max-w-full items-stretch gap-2 overflow-hidden rounded-lg border-l-2 border-accent bg-ink/[0.04] px-2.5 py-1.5">
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-mono text-[0.65rem] font-medium uppercase tracking-wider text-accent-deep">
+                  {m.parent.author_handle}
+                </p>
+                <p className="mt-0.5 line-clamp-2 text-[0.75rem] leading-snug text-muted">
+                  {m.parent.body && m.parent.body.trim()
+                    ? m.parent.body
+                    : m.parent.audio_url
+                      ? "🎤 Voice note"
+                      : "(empty)"}
+                </p>
+              </div>
+            </div>
+          ) : null}
+
+          {m.audio_url ? <VoiceNotePlayer src={m.audio_url} /> : null}
+
+          {m.body ? (
+            <MessageBody
+              body={m.body}
+              isOwn={isMe}
+              mentionsMe={mentionsMe}
+              fontId={fontId}
+            />
+          ) : null}
+
+          {m._failed ? (
+            <div className="mt-2 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => onRetry(m._cid!)}
+                className="rounded-lg bg-danger px-3 py-1 text-[0.7rem] font-semibold text-white"
+              >
+                Retry
+              </button>
+              <button
+                type="button"
+                onClick={() => onDiscard(m._cid!)}
+                className="text-[0.7rem] text-faint hover:text-ink"
+              >
+                Discard
+              </button>
+            </div>
+          ) : null}
+
+          {m.reactions.length > 0 ? (
+            <div className="mt-1.5 flex flex-wrap gap-1">
+              {m.reactions.map((r) => (
+                <button
+                  key={r.emoji}
+                  type="button"
+                  onClick={() => onReact(m.id, r.emoji)}
+                  className="rounded-full border border-border bg-surface px-2 py-0.5 text-[0.7rem] text-ink transition-colors hover:border-accent"
+                >
+                  {r.emoji} {r.count}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
+        {!m._pending && !m._failed ? (
+          <div className="chat-msg-actions">
+            <button
+              type="button"
+              onClick={() =>
+                onToggleReactions(openReactionsFor === m.id ? null : m.id)
+              }
+              aria-label="React"
+              title="React"
+            >
+              <span className="text-[0.9rem]">😊</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onReply(m)}
+              aria-label="Reply"
+              title="Reply"
+            >
+              <span className="text-[0.9rem]">↩</span>
+            </button>
+            {!isMe ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() =>
+                    onReport(m.id, `@${m.author_handle}`)
+                  }
+                  aria-label="Report"
+                  title="Report"
+                >
+                  <span className="text-[0.9rem]">🚨</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    onToggleBlock(
+                      openBlockFor === m.author_handle
+                        ? null
+                        : m.author_handle
+                    )
+                  }
+                  aria-label="Block"
+                  title={`Block @${m.author_handle}`}
+                >
+                  <span className="text-[0.9rem]">🚫</span>
+                </button>
+              </>
+            ) : null}
+
+            {!isMe && openBlockFor === m.author_handle ? (
+              <>
+                <div
+                  className="fixed inset-0 z-30"
+                  onClick={() => onToggleBlock(null)}
+                />
+                <div className="absolute right-3 top-full z-40 mt-1 w-56 rounded-xl border border-border bg-surface p-2 shadow-card-hover">
+                  <BlockButton
+                    handle={m.author_handle}
+                    className="block w-full rounded-lg px-3 py-2 text-left text-[0.8125rem] text-danger hover:bg-danger-soft"
+                    onBlocked={(h) => {
+                      onToggleBlock(null);
+                      onBlocked(h);
+                    }}
+                  />
+                </div>
+              </>
+            ) : null}
+          </div>
+        ) : null}
+
+        {openReactionsFor === m.id ? (
+          <>
+            <div
+              className="fixed inset-0 z-30"
+              onClick={() => onToggleReactions(null)}
+            />
+            <div className="absolute right-3 top-full z-40 mt-1 flex gap-1 rounded-full border border-border bg-surface p-1.5 shadow-card-hover">
+              {QUICK_EMOJI.map((e) => (
+                <button
+                  key={e}
+                  type="button"
+                  onClick={() => onReact(m.id, e)}
+                  className="flex h-7 w-7 items-center justify-center rounded-full text-[1rem] transition-colors hover:bg-ink/10"
+                >
+                  {e}
+                </button>
+              ))}
+            </div>
+          </>
+        ) : null}
+      </div>
+    </div>
+  );
+}
