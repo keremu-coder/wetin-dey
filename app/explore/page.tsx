@@ -76,88 +76,154 @@ export default async function ExplorePage({
   }
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-8">
-      <h1 className="font-serif text-4xl">See the pattern</h1>
-      <form className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-5">
-        <select
-          name="state"
-          defaultValue={searchParams.state ?? ""}
-          className="rounded-md border px-3 py-3"
-        >
-          <option value="">All states</option>
-          {NIGERIA_STATES.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-        <select
-          name="category"
-          defaultValue={searchParams.category ?? ""}
-          className="rounded-md border px-3 py-3"
-        >
-          <option value="">All categories</option>
-          {CATEGORIES.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-        <input
-          type="date"
-          name="from"
-          defaultValue={searchParams.from ?? ""}
-          className="rounded-md border px-3 py-3"
-        />
-        <input
-          type="date"
-          name="to"
-          defaultValue={searchParams.to ?? ""}
-          className="rounded-md border px-3 py-3"
-        />
+    <main className="mx-auto max-w-2xl px-4 py-6 pb-24">
+      <Link
+        href="/"
+        className="inline-flex items-center gap-1 font-mono text-[0.7rem] uppercase tracking-widest text-faint transition-colors hover:text-accent"
+      >
+        ← Back to feed
+      </Link>
+
+      <div className="mt-4 mb-5">
+        <h1 className="font-serif text-[1.85rem] font-semibold leading-tight text-ink">
+          See the pattern
+        </h1>
+        <p className="mt-2 text-[0.9375rem] leading-relaxed text-muted">
+          Every reviewed report, filterable. The whole civic archive — no
+          editorial selection.
+        </p>
+      </div>
+
+      <form className="mb-6 rounded-2xl border border-border bg-surface p-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label
+              htmlFor="filter-state"
+              className="mb-1.5 block font-mono text-[0.65rem] uppercase tracking-wider text-faint"
+            >
+              State
+            </label>
+            <select
+              id="filter-state"
+              name="state"
+              defaultValue={searchParams.state ?? ""}
+            >
+              <option value="">All states</option>
+              {NIGERIA_STATES.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label
+              htmlFor="filter-category"
+              className="mb-1.5 block font-mono text-[0.65rem] uppercase tracking-wider text-faint"
+            >
+              Category
+            </label>
+            <select
+              id="filter-category"
+              name="category"
+              defaultValue={searchParams.category ?? ""}
+            >
+              <option value="">All categories</option>
+              {CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label
+              htmlFor="filter-from"
+              className="mb-1.5 block font-mono text-[0.65rem] uppercase tracking-wider text-faint"
+            >
+              From
+            </label>
+            <input
+              id="filter-from"
+              type="date"
+              name="from"
+              defaultValue={searchParams.from ?? ""}
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="filter-to"
+              className="mb-1.5 block font-mono text-[0.65rem] uppercase tracking-wider text-faint"
+            >
+              To
+            </label>
+            <input
+              id="filter-to"
+              type="date"
+              name="to"
+              defaultValue={searchParams.to ?? ""}
+            />
+          </div>
+        </div>
         <button
-          className="rounded-md bg-accent py-3 text-white"
           type="submit"
+          className="mt-4 w-full rounded-xl bg-accent py-3 text-[0.875rem] font-semibold text-white transition-colors hover:bg-accent-deep"
         >
           Filter
         </button>
       </form>
 
-      <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Link href="/" className="rounded-lg bg-surface p-4">
-          <p className="text-sm text-ink/60">Total reports</p>
-          <p className="font-serif text-3xl">{total}</p>
-        </Link>
-        <Link href="/" className="rounded-lg bg-surface p-4">
-          <p className="text-sm text-ink/60">Total demanded</p>
-          <p className="font-serif text-3xl">
-            {formatNaira(Math.round(naira * 100)) || "₦0"}
+      <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div className="rounded-2xl border border-border bg-surface p-4">
+          <p className="font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+            Total reports
           </p>
-        </Link>
-        <Link href="/" className="rounded-lg bg-surface p-4">
-          <p className="text-sm text-ink/60">This month</p>
-          <p className="font-serif text-3xl">{thisMonth}</p>
-        </Link>
+          <p className="mt-1 font-serif text-[1.75rem] font-semibold leading-tight text-ink">
+            {total}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-border bg-surface p-4">
+          <p className="font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+            Total demanded
+          </p>
+          <p className="mt-1 font-serif text-[1.75rem] font-semibold leading-tight text-ink">
+            {formatNaira(Math.round(naira * 100))}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-border bg-surface p-4">
+          <p className="font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+            This month
+          </p>
+          <p className="mt-1 font-serif text-[1.75rem] font-semibold leading-tight text-ink">
+            {thisMonth}
+          </p>
+        </div>
         {resolved > 0 ? (
-          <Link href="/?status=resolved" className="rounded-lg bg-surface p-4">
-            <p className="text-sm text-ink/60">% resolved</p>
-            <p className="font-serif text-3xl">{pct}%</p>
-          </Link>
+          <div className="rounded-2xl border border-border bg-surface p-4">
+            <p className="font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+              Resolved
+            </p>
+            <p className="mt-1 font-serif text-[1.75rem] font-semibold leading-tight text-accent-deep">
+              {pct}%
+            </p>
+          </div>
         ) : (
-          <Link href="/?status=reported" className="rounded-lg bg-surface p-4">
-            <p className="text-sm text-ink/60">Awaiting response</p>
-            <p className="font-serif text-3xl">{awaitingResponse}</p>
-          </Link>
+          <div className="rounded-2xl border border-border bg-surface p-4">
+            <p className="font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+              Awaiting
+            </p>
+            <p className="mt-1 font-serif text-[1.75rem] font-semibold leading-tight text-warm-deep">
+              {awaitingResponse}
+            </p>
+          </div>
         )}
       </div>
 
-      <div className="mt-8">
-        <ExploreChartLoader
-          byVolume={byVolume}
-          byNaira={byNaira}
-          byWeek={weeks}
-        />
-      </div>
+      <ExploreChartLoader
+        byVolume={byVolume}
+        byNaira={byNaira}
+        byWeek={weeks}
+      />
     </main>
   );
 }
