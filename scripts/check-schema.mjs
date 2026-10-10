@@ -58,7 +58,8 @@ const EXPECTED_COLUMNS = {
     "hide_presence",
     "status_line",
     "availability",
-    "font_preference"
+    "font_preference",
+    "handle_lower"
   ],
   reports: [
     "id",
