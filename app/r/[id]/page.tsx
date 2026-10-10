@@ -308,7 +308,8 @@ export default async function ReportPage({
           {new Date(report.created_at).toLocaleDateString("en-NG", {
             month: "long",
             day: "numeric",
-            year: "numeric"
+            year: "numeric",
+            timeZone: "Africa/Lagos"
           })}
         </span>
       </div>
