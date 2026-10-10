@@ -49,7 +49,17 @@ export function PushRegistrar() {
   useEffect(() => {
     const nativePlatform = getNativePlatform();
 
+    // Native push requires Firebase (Android) + APNs (iOS) to be
+    // configured. Until those are wired, skip registration entirely
+    // so we don't show a permission prompt for a feature that cannot
+    // deliver, and don't risk register() throwing on Android without
+    // google-services.json. Flip NEXT_PUBLIC_NATIVE_PUSH_ENABLED to
+    // 'true' in Vercel env vars once Firebase + APNs are ready.
+    const nativePushEnabled =
+      process.env.NEXT_PUBLIC_NATIVE_PUSH_ENABLED === "true";
+
     if (nativePlatform) {
+      if (!nativePushEnabled) return;
       let cancelled = false;
       const cleanups: Array<() => void | Promise<void>> = [];
 
