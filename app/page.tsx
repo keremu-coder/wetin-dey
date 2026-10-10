@@ -70,6 +70,7 @@ export default async function HomePage() {
   const blockedList = Array.from(blockedIds);
 
   let spaces: Community[] = [];
+  let memberIds: string[] = [];
   const lastMessages = new Map<string, LastMessage>();
 
   if (sessionId) {
@@ -79,15 +80,15 @@ export default async function HomePage() {
       .eq("session_id", sessionId)
       .order("joined_at", { ascending: false });
 
-    const ids = (memberRows ?? []).map((m) => m.community_id);
+    memberIds = (memberRows ?? []).map((m) => m.community_id);
 
-    if (ids.length > 0) {
+    if (memberIds.length > 0) {
       const { data: communities } = await db
         .from("communities")
         .select(
           "id, slug, name, emoji, avatar_url, member_count, post_count, is_public"
         )
-        .in("id", ids);
+        .in("id", memberIds);
 
       spaces = (communities ?? []) as Community[];
 
@@ -95,9 +96,9 @@ export default async function HomePage() {
         .from("community_messages")
         .select("community_id, session_id, body, audio_url, created_at")
         .eq("hidden", false)
-        .in("community_id", ids)
+        .in("community_id", memberIds)
         .order("created_at", { ascending: false })
-        .limit(ids.length * 8);
+        .limit(memberIds.length * 8);
 
       if (blockedList.length > 0) {
         messagesQ = messagesQ.not(
@@ -148,6 +149,28 @@ export default async function HomePage() {
   }
 
   const hasSpaces = spaces.length > 0;
+
+  // Suggested spaces — public, not already a member of, sorted by popularity.
+  // Fills the page for users who've only joined one or two spaces. Same idea
+  // as Instagram's "Suggested for you".
+  let suggestedSpaces: Community[] = [];
+  const { data: candidates } = await db
+    .from("communities")
+    .select(
+      "id, slug, name, emoji, avatar_url, member_count, post_count, is_public"
+    )
+    .eq("is_public", true)
+    .order("member_count", { ascending: false })
+    .limit(30);
+
+  if (candidates) {
+    const memberSet = new Set(memberIds);
+    suggestedSpaces = (candidates as Community[])
+      .filter((c) => !memberSet.has(c.id))
+      .slice(0, 3);
+  }
+
+  const showSuggested = hasSpaces && suggestedSpaces.length > 0;
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-4 pb-6">
@@ -272,6 +295,69 @@ export default async function HomePage() {
           })}
         </div>
       )}
+
+      {showSuggested ? (
+        <section className="mt-8">
+          <div className="mb-3 flex items-baseline justify-between">
+            <h2 className="font-serif text-[1.05rem] font-semibold text-ink">
+              Spaces you might like
+            </h2>
+            <Link
+              href="/communities"
+              className="text-[0.8125rem] font-medium text-accent hover:underline"
+            >
+              See all
+            </Link>
+          </div>
+          <div className="overflow-hidden rounded-2xl border border-border bg-surface">
+            {suggestedSpaces.map((s, i) => {
+              const gradient = spaceGradient(s.slug);
+              return (
+                <Link
+                  key={s.id}
+                  href={`/c/${s.slug}`}
+                  className={`flex items-center gap-3 px-3.5 py-3 transition-colors hover:bg-ink/5 ${
+                    i !== 0 ? "border-t border-border" : ""
+                  }`}
+                >
+                  <div className="shrink-0">
+                    {s.avatar_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={s.avatar_url}
+                        alt={s.name}
+                        className="h-11 w-11 rounded-full border border-border object-cover"
+                      />
+                    ) : (
+                      <div
+                        className="flex h-11 w-11 items-center justify-center rounded-full text-[1.2rem]"
+                        style={{ background: gradient }}
+                      >
+                        <span style={{ filter: "saturate(1.2)" }}>
+                          {s.emoji}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[0.9375rem] font-semibold text-ink">
+                      {s.name}
+                    </p>
+                    <p className="mt-0.5 font-mono text-[0.6rem] uppercase tracking-wider text-faint">
+                      {s.member_count} member{s.member_count === 1 ? "" : "s"}
+                    </p>
+                  </div>
+
+                  <span className="shrink-0 rounded-full border border-accent/40 bg-accent-soft px-3 py-1 text-[0.7rem] font-semibold text-accent-deep">
+                    View
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
     </main>
   );
 }
