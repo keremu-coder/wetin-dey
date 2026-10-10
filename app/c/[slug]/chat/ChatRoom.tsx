@@ -44,6 +44,7 @@ import {
 } from "@/components/BroadcastBanner";
 import { BlockButton } from "@/components/BlockButton";
 import { ChatRoomMembers } from "@/components/ChatRoomMembers";
+import { MessageRow } from "@/components/MessageRow";
 
 // Lazy-loaded children — off the initial chat bundle, fetched on first
 // use. Same components, same props, same behavior as before.
@@ -920,268 +921,38 @@ export function ChatRoom({
             {messages
               .filter((m) => !blockedHandles.has(m.author_handle))
               .map((m, idx, arr) => {
-                const key = m._cid ?? m.id;
                 const prev = idx > 0 ? arr[idx - 1] : null;
-                const isSameAuthor =
-                  prev && prev.author_handle === m.author_handle;
-                const withinWindow =
-                  prev &&
-                  new Date(m.created_at).getTime() -
-                    new Date(prev.created_at).getTime() <
-                    5 * 60 * 1000;
-                const isGroupStart = !isSameAuthor || !withinWindow;
-
-                const sameDayAsPrev =
-                  prev &&
-                  new Date(prev.created_at).toDateString() ===
-                    new Date(m.created_at).toDateString();
-
-                const isMe = me === m.author_handle || !!m._cid;
-                const bg = avatarColor(m.author_handle);
-                const letter = m.author_handle.charAt(0).toUpperCase();
-                const presence = presenceFromLastSeen(m.author_last_seen);
+                const fontId =
+                  fontByHandle[m.author_handle] || DEFAULT_FONT_ID;
+                const status = statusByHandle[m.author_handle];
                 const mentionsMe =
                   me && m.body ? containsMentionOf(m.body, me) : false;
-                const fontId = fontByHandle[m.author_handle] || DEFAULT_FONT_ID;
-                const status = statusByHandle[m.author_handle];
-
                 return (
-                  <div key={key}>
-                    {!sameDayAsPrev ? (
-                      <div className="chat-day-divider">
-                        {dayLabel(m.created_at)}
-                      </div>
-                    ) : null}
-
-                    <div
-                      onTouchStart={(e) => onMsgTouchStart(m, e)}
-                      onTouchMove={onMsgTouchMove}
-                      onTouchEnd={() => onMsgTouchEnd(m)}
-                      style={{ touchAction: "pan-y" }}
-                      className={`chat-msg message-in ${
-                        isGroupStart ? "chat-msg-group-start" : ""
-                      } ${m._pending ? "opacity-70" : ""}`}
-                    >
-                      {isGroupStart ? (
-                        <Link
-                          href={`/u/${encodeURIComponent(m.author_handle)}`}
-                          className="relative shrink-0"
-                          aria-label={`View @${m.author_handle}`}
-                        >
-                          <div
-                            className="chat-msg-avatar"
-                            style={{ background: bg }}
-                          >
-                            {letter}
-                          </div>
-                          <span className="absolute -bottom-0.5 -right-0.5">
-                            <PresenceDot state={presence} />
-                          </span>
-                        </Link>
-                      ) : (
-                        <div className="chat-msg-avatar-spacer" />
-                      )}
-
-                      <div className="chat-msg-body">
-                        {isGroupStart ? (
-                          <>
-                            <div className="chat-msg-header">
-                              <Link
-                                href={`/u/${encodeURIComponent(
-                                  m.author_handle
-                                )}`}
-                                className="chat-msg-author transition-colors hover:text-accent"
-                              >
-                                {m.author_handle}
-                                {isMe ? (
-                                  <span className="ml-1.5 text-[0.7rem] font-normal text-accent">
-                                    you
-                                  </span>
-                                ) : null}
-                              </Link>
-                              <span className="chat-msg-timestamp">
-                                {m._pending
-                                  ? "Sending…"
-                                  : m._failed
-                                    ? "Failed"
-                                    : timeWithDate(m.created_at)}
-                              </span>
-                            </div>
-                            {status ? (
-                              <StatusLine
-                                status={status}
-                                className="mb-1 !text-[0.75rem]"
-                              />
-                            ) : null}
-                          </>
-                        ) : null}
-
-                        {m.parent ? (
-                          <div className="mb-1.5 flex max-w-full items-stretch gap-2 overflow-hidden rounded-lg border-l-2 border-accent bg-ink/[0.04] px-2.5 py-1.5">
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate font-mono text-[0.65rem] font-medium uppercase tracking-wider text-accent-deep">
-                                {m.parent.author_handle}
-                              </p>
-                              <p className="mt-0.5 line-clamp-2 text-[0.75rem] leading-snug text-muted">
-                                {m.parent.body && m.parent.body.trim()
-                                  ? m.parent.body
-                                  : m.parent.audio_url
-                                    ? "🎤 Voice note"
-                                    : "(empty)"}
-                              </p>
-                            </div>
-                          </div>
-                        ) : null}
-
-                        {m.audio_url ? (
-                          <VoiceNotePlayer src={m.audio_url} />
-                        ) : null}
-
-                        {m.body ? (
-                          <MessageBody
-                            body={m.body}
-                            isOwn={isMe}
-                            mentionsMe={mentionsMe}
-                            fontId={fontId}
-                          />
-                        ) : null}
-
-                        {m._failed ? (
-                          <div className="mt-2 flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => retryFailed(m._cid!)}
-                              className="rounded-lg bg-danger px-3 py-1 text-[0.7rem] font-semibold text-white"
-                            >
-                              Retry
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => dismissFailed(m._cid!)}
-                              className="text-[0.7rem] text-faint hover:text-ink"
-                            >
-                              Discard
-                            </button>
-                          </div>
-                        ) : null}
-
-                        {m.reactions.length > 0 ? (
-                          <div className="mt-1.5 flex flex-wrap gap-1">
-                            {m.reactions.map((r) => (
-                              <button
-                                key={r.emoji}
-                                type="button"
-                                onClick={() => react(m.id, r.emoji)}
-                                className="rounded-full border border-border bg-surface px-2 py-0.5 text-[0.7rem] text-ink transition-colors hover:border-accent"
-                              >
-                                {r.emoji} {r.count}
-                              </button>
-                            ))}
-                          </div>
-                        ) : null}
-                      </div>
-
-                      {!m._pending && !m._failed ? (
-                        <div className="chat-msg-actions">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setOpenReactionsFor(
-                                openReactionsFor === m.id ? null : m.id
-                              )
-                            }
-                            aria-label="React"
-                            title="React"
-                          >
-                            <span className="text-[0.9rem]">😊</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setReplyTo(m)}
-                            aria-label="Reply"
-                            title="Reply"
-                          >
-                            <span className="text-[0.9rem]">↩</span>
-                          </button>
-                          {!isMe ? (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setFlagTarget({
-                                    id: m.id,
-                                    label: `@${m.author_handle}`
-                                  })
-                                }
-                                aria-label="Report"
-                                title="Report"
-                              >
-                                <span className="text-[0.9rem]">🚨</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setOpenBlockFor(
-                                    openBlockFor === m.author_handle
-                                      ? null
-                                      : m.author_handle
-                                  )
-                                }
-                                aria-label="Block"
-                                title={`Block @${m.author_handle}`}
-                              >
-                                <span className="text-[0.9rem]">🚫</span>
-                              </button>
-                            </>
-                          ) : null}
-
-                          {!isMe && openBlockFor === m.author_handle ? (
-                            <>
-                              <div
-                                className="fixed inset-0 z-30"
-                                onClick={() => setOpenBlockFor(null)}
-                              />
-                              <div className="absolute right-3 top-full z-40 mt-1 w-56 rounded-xl border border-border bg-surface p-2 shadow-card-hover">
-                                <BlockButton
-                                  handle={m.author_handle}
-                                  className="block w-full rounded-lg px-3 py-2 text-left text-[0.8125rem] text-danger hover:bg-danger-soft"
-                                  onBlocked={(h) => {
-                                    setOpenBlockFor(null);
-                                    setBlockedHandles((prev) => {
-                                      const next = new Set(prev);
-                                      next.add(h);
-                                      return next;
-                                    });
-                                  }}
-                                />
-                              </div>
-                            </>
-                          ) : null}
-                        </div>
-                      ) : null}
-
-                      {openReactionsFor === m.id ? (
-                        <>
-                          <div
-                            className="fixed inset-0 z-30"
-                            onClick={() => setOpenReactionsFor(null)}
-                          />
-                          <div className="absolute right-3 top-full z-40 mt-1 flex gap-1 rounded-full border border-border bg-surface p-1.5 shadow-card-hover">
-                            {QUICK_EMOJI.map((e) => (
-                              <button
-                                key={e}
-                                type="button"
-                                onClick={() => react(m.id, e)}
-                                className="flex h-7 w-7 items-center justify-center rounded-full text-[1rem] transition-colors hover:bg-ink/10"
-                              >
-                                {e}
-                              </button>
-                            ))}
-                          </div>
-                        </>
-                      ) : null}
-                    </div>
-                  </div>
+                  <MessageRow
+                    key={m._cid ?? m.id}
+                    m={m}
+                    prev={prev}
+                    me={me}
+                    fontId={fontId}
+                    status={status}
+                    mentionsMe={mentionsMe}
+                    openReactionsFor={openReactionsFor}
+                    openBlockFor={openBlockFor}
+                    onReact={react}
+                    onReply={setReplyTo}
+                    onReport={(id, label) => setFlagTarget({ id, label })}
+                    onToggleReactions={setOpenReactionsFor}
+                    onToggleBlock={setOpenBlockFor}
+                    onBlocked={(h) => {
+                      setBlockedHandles((prevSet) => {
+                        const next = new Set(prevSet);
+                        next.add(h);
+                        return next;
+                      });
+                    }}
+                    onRetry={retryFailed}
+                    onDiscard={dismissFailed}
+                  />
                 );
               })}
           </div>
