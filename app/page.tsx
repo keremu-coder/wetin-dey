@@ -182,7 +182,10 @@ export default async function HomePage() {
       .slice(0, 3);
   }
 
-  const showSuggested = hasSpaces && suggestedSpaces.length > 0;
+  // Show suggestions even for users with zero memberships — this is the
+  // fix for Apple 4.2.2 (empty first screen). A new user must see real
+  // spaces they can join, not just a "No spaces yet" card.
+  const showSuggested = suggestedSpaces.length > 0;
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-4 pb-6">
@@ -216,7 +219,7 @@ export default async function HomePage() {
           <div className="text-center">
             <div className="text-[2.5rem]">💬</div>
             <p className="mt-3 font-serif text-[1.15rem] font-semibold text-ink">
-              No spaces yet
+              Join a space or start your own
             </p>
             <p className="mt-1 text-[0.875rem] leading-relaxed text-muted">
               A space is a group chat — family, church cell, estate security,
