@@ -70,7 +70,6 @@ const BroadcastRecorder = nextDynamic(
   { ssr: false }
 );
 
-const QUICK_EMOJI = ["😂", "😢", "😮", "❤️", "🔥", "👍", "👎", "🙏"];
 
 export function ChatRoom({
   slug,
@@ -147,10 +146,6 @@ export function ChatRoom({
   const [blockedHandles, setBlockedHandles] = useState<Set<string>>(new Set());
   const [openBlockFor, setOpenBlockFor] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<Message | null>(null);
-  const swipeStartX = useRef<number | null>(null);
-  const swipeStartY = useRef<number | null>(null);
-  const swipeLocked = useRef<"horizontal" | "vertical" | null>(null);
-  const swipeEl = useRef<HTMLDivElement | null>(null);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -706,63 +701,6 @@ export function ChatRoom({
   }
 
   // Swipe gesture — DOM-direct for 60fps.
-  function onMsgTouchStart(m: Message, e: React.TouchEvent<HTMLDivElement>) {
-    if (m._pending || m._failed) return;
-    const t = e.touches[0];
-    swipeStartX.current = t.clientX;
-    swipeStartY.current = t.clientY;
-    swipeLocked.current = null;
-    swipeEl.current = e.currentTarget;
-  }
-
-  function onMsgTouchMove(e: React.TouchEvent<HTMLDivElement>) {
-    if (swipeStartX.current === null || swipeStartY.current === null) return;
-    const t = e.touches[0];
-    const dx = t.clientX - swipeStartX.current;
-    const dy = t.clientY - swipeStartY.current;
-
-    if (swipeLocked.current === null) {
-      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
-      if (Math.abs(dy) > Math.abs(dx)) {
-        swipeLocked.current = "vertical";
-        swipeStartX.current = null;
-        swipeStartY.current = null;
-        swipeEl.current = null;
-        return;
-      }
-      swipeLocked.current = "horizontal";
-      if (swipeEl.current) swipeEl.current.style.willChange = "transform";
-    }
-
-    if (swipeLocked.current === "vertical") return;
-    const el = swipeEl.current;
-    if (!el) return;
-    if (dx <= 0) { el.style.transform = ""; return; }
-    el.style.transform = `translateX(${Math.min(80, dx * 0.7)}px)`;
-  }
-
-  function onMsgTouchEnd(m: Message) {
-    const el = swipeEl.current;
-    const wasHorizontal = swipeLocked.current === "horizontal";
-    swipeStartX.current = null;
-    swipeStartY.current = null;
-    swipeLocked.current = null;
-    swipeEl.current = null;
-    if (!el) return;
-    let offset = 0;
-    const mt = el.style.transform.match(/translateX\(([\d.]+)px\)/);
-    if (mt) offset = parseFloat(mt[1]);
-    el.style.transition = "transform 200ms cubic-bezier(0.32, 0.72, 0, 1)";
-    el.style.transform = "";
-    window.setTimeout(() => {
-      el.style.transition = "";
-      el.style.willChange = "";
-    }, 250);
-    if (wasHorizontal && offset >= 50) {
-      setReplyTo(m);
-      void tapFeedback();
-    }
-  }
 
   if (!isMember) {
     return (
