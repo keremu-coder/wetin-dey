@@ -31,7 +31,6 @@ import {
   type Message,
   type MessageParent
 } from "@/lib/chat";
-import { MessageBody } from "@/components/MessageBody";
 import { presenceFromLastSeen } from "@/components/PresenceDot";
 import { DEFAULT_FONT_ID } from "@/lib/bbm-fonts";
 import {
