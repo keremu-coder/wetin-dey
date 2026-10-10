@@ -390,19 +390,24 @@ export async function POST(
         })
       );
 
-      // Reply notification — best-effort, runs after the response. Looks
-      // up the parent's session id because the snapshot we built earlier
-      // carries the handle only. Skip silently on any failure.
-      if (parentId) {
-        waitUntil(
-          (async () => {
-            try {
+      // Reply + mention notifications. Both are best-effort, run after
+      // the response is sent, and are deduplicated so that a reply that
+      // also mentions the parent author does not produce two rows.
+      //
+      // The reply target's session id is tracked in `alreadyNotified`
+      // so the mention pass skips them.
+      waitUntil(
+        (async () => {
+          const alreadyNotified = new Set<string>();
+          try {
+            if (parentId) {
               const { data: parentRow } = await db
                 .from("community_messages")
                 .select("session_id")
                 .eq("id", parentId)
                 .maybeSingle();
               if (parentRow?.session_id) {
+                alreadyNotified.add(parentRow.session_id);
                 await createNotification(db, {
                   recipientId: parentRow.session_id,
                   actorId: sessionId,
@@ -412,12 +417,48 @@ export async function POST(
                   preview: body || (audio_url ? "🎤 Voice note" : null)
                 });
               }
-            } catch (e) {
-              console.error("[notify reply]", e);
             }
-          })()
-        );
-      }
+          } catch (e) {
+            console.error("[notify reply]", e);
+          }
+
+          // Mention pass. Only runs on text messages — voice notes have
+          // no body to mention in.
+          if (!body) return;
+
+          try {
+            const tokens = Array.from(
+              new Set(
+                (body.match(/@[A-Za-z0-9_]{2,30}/g) ?? []).map((t) =>
+                  t.slice(1).toLowerCase()
+                )
+              )
+            );
+            if (tokens.length === 0) return;
+
+            const { data: mentioners } = await db
+              .from("sessions")
+              .select("id, handle, handle_lower")
+              .in("handle_lower", tokens);
+
+            for (const m of mentioners ?? []) {
+              if (m.id === sessionId) continue;
+              if (alreadyNotified.has(m.id)) continue;
+              alreadyNotified.add(m.id);
+              await createNotification(db, {
+                recipientId: m.id,
+                actorId: sessionId,
+                kind: "mention",
+                targetType: "community_message",
+                targetId: id,
+                preview: body
+              });
+            }
+          } catch (e) {
+            console.error("[notify mention]", e);
+          }
+        })()
+      );
     }
 
     return Response.json({
