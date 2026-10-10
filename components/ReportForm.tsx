@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import exifr from "exifr";
 import {
   CATEGORIES,
@@ -98,12 +98,20 @@ export function ReportForm({
   const [evidenceKind, setEvidenceKind] = useState<string | null>(null);
   const [publicLink, setPublicLink] = useState("");
   const [testimonyFile, setTestimonyFile] = useState<File | null>(null);
+  const [testimonyUrl, setTestimonyUrl] = useState<string | null>(null);
   const [testimonySeconds, setTestimonySeconds] = useState(0);
   const [testimonyRecording, setTestimonyRecording] = useState(false);
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const testimonyUrlRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (testimonyUrlRef.current) URL.revokeObjectURL(testimonyUrlRef.current);
+    };
+  }, []);
 
   const requiresEvidence = tab === "talk" && postType === "report_am";
 
@@ -153,11 +161,14 @@ export function ReportForm({
         const mime = actualMime(mr, format.mimeType);
         const blob = new Blob(chunksRef.current, { type: mime });
         const ext = extFromType(mime);
-        setTestimonyFile(
-          new File([blob], `testimony.${ext}`, {
-            type: mime || "audio/webm"
-          })
-        );
+        const file = new File([blob], `testimony.${ext}`, {
+          type: mime || "audio/webm"
+        });
+        if (testimonyUrlRef.current) URL.revokeObjectURL(testimonyUrlRef.current);
+        const url = URL.createObjectURL(file);
+        testimonyUrlRef.current = url;
+        setTestimonyFile(file);
+        setTestimonyUrl(url);
         stream.getTracks().forEach((t) => t.stop());
       };
 
@@ -190,6 +201,9 @@ export function ReportForm({
   }
 
   function clearTestimony() {
+    if (testimonyUrlRef.current) URL.revokeObjectURL(testimonyUrlRef.current);
+    testimonyUrlRef.current = null;
+    setTestimonyUrl(null);
     setTestimonyFile(null);
     setTestimonySeconds(0);
   }
@@ -559,7 +573,7 @@ export function ReportForm({
             {testimonyFile ? (
               <div className="mt-2 flex items-center gap-3 rounded-xl border border-accent/30 bg-accent-soft/40 p-3">
                 <audio
-                  src={URL.createObjectURL(testimonyFile)}
+                  src={testimonyUrl ?? undefined}
                   controls
                   className="h-8 flex-1"
                 />
@@ -615,9 +629,9 @@ export function ReportForm({
           className="mt-0.5 h-5 w-5 shrink-0 accent-[#1F7A4D]"
         />
         <span className="text-[0.875rem] leading-relaxed text-ink">
-          I confirm say this post dey anonymous.
+          I understand say my name no go show.
           <span className="block text-[0.8125rem] text-muted">
-            No name, no phone, no email.
+            No name, no phone, no email. Everything here dey anonymous.
           </span>
         </span>
       </label>
