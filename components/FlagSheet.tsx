@@ -4,8 +4,12 @@ import { useState } from "react";
 import { Sheet } from "./Sheet";
 
 const REASONS: { id: string; label: string; hint: string }[] = [
+  { id: "threats", label: "Threats", hint: "Violence or harm to people" },
+  { id: "doxxing", label: "Doxxing", hint: "Sharing private info without consent" },
+  { id: "sexual", label: "Sexual content", hint: "Explicit or unwanted sexual content" },
+  { id: "minors", label: "Minors", hint: "Content endangering children" },
   { id: "spam", label: "Spam", hint: "Ads, repeated posts" },
-  { id: "harassment", label: "Harassment", hint: "Abuse, threats, bullying" },
+  { id: "harassment", label: "Harassment", hint: "Abuse, bullying, targeted attacks" },
   { id: "hate", label: "Hate speech", hint: "Tribal, religious, or group attacks" },
   { id: "misinformation", label: "False info", hint: "Knowingly false claims" },
   { id: "scam", label: "Scam", hint: "Fraud, fake offers" },

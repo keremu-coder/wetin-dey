@@ -24,6 +24,10 @@ const VALID_TARGETS = [
 type Target = (typeof VALID_TARGETS)[number];
 
 const VALID_REASONS = [
+  "threats",
+  "doxxing",
+  "sexual",
+  "minors",
   "spam",
   "harassment",
   "hate",
