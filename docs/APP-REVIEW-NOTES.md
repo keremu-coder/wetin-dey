@@ -27,7 +27,6 @@ Wetin Dey is a Nigerian community platform with two surfaces:
 - Offline-aware banner via @capacitor/network
 - Edge-swipe-to-go-back gesture (iOS)
 - Swipe-right-to-reply on chat messages
-- Face ID / passcode app lock (Settings → Security)
 
 **Account deletion:** in-app at /settings/delete and on the web at
 /delete-account. Deletes the auth user first; refuses to scrub the
@@ -70,8 +69,6 @@ https://9jawatindey.vercel.app/privacy.
   "Report this post".
 - To test the chat flow: join a public Space from the home screen.
 - To test account deletion: Settings → Account → Delete account.
-- Reviews posting is disabled for the reviewer account to preserve the
-  integrity of the public record; submit and comment work normally.
 
 ---
 
