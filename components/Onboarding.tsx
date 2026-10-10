@@ -25,10 +25,10 @@ const SLIDES: Slide[] = [
     accent: "Voice-first · Group chat · Invite by link"
   },
   {
-    icon: "🟢",
-    title: "Live Radar — know before you go",
-    body: "Is there light? Is there a checkpoint on your route? Is the junction flooded? One tap to signal, everyone sees it. The pulse of your city, in real time.",
-    accent: "Coming soon · Crowd-powered"
+    icon: "🔔",
+    title: "Never miss a reply",
+    body: "Someone mentions you, replies to your report, or comments on your post — you'll know. Tap the bell to pick up where you left off.",
+    accent: "Replies · Mentions · Comments"
   }
 ];
 
