@@ -3,7 +3,7 @@ export const runtime = "nodejs";
 import { NextRequest } from "next/server";
 import { getSessionId, getOrCreateSessionProfile, isValidHandleFormat } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
-import { sameOrigin, checkRateLimit } from "@/lib/rate-limit";
+import { sameOrigin, checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
   if (!sameOrigin(req)) {
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     key: "join",
     limit: 5,
     windowMs: 60 * 60 * 1000
-  });
+  }, { ip: getRequestIp(req) });
   if (!limit.ok) {
     return Response.json(
       { error: "Too many attempts. Try again later." },

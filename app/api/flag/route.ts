@@ -3,7 +3,7 @@ export const runtime = "nodejs";
 import { NextRequest } from "next/server";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
-import { checkRateLimit, sameOrigin } from "@/lib/rate-limit";
+import { checkRateLimit, sameOrigin, getRequestIp } from "@/lib/rate-limit";
 import {
   AUTO_HIDE_FLAG_THRESHOLD,
   AUTO_HIDE_MIN_ACCOUNT_AGE_HOURS
@@ -159,7 +159,7 @@ export async function POST(req: NextRequest) {
       key: "content_flag",
       limit: 20,
       windowMs: 60 * 60 * 1000
-    });
+    }, { ip: getRequestIp(req) });
     if (!limit.ok) {
       return Response.json(
         { error: "Too many reports. Try again later." },

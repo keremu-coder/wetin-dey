@@ -4,7 +4,7 @@ import { NextRequest } from "next/server";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { bucketCoord, isValidSignalId } from "@/lib/radar";
-import { checkRateLimit, sameOrigin } from "@/lib/rate-limit";
+import { checkRateLimit, sameOrigin, getRequestIp } from "@/lib/rate-limit";
 import { assertCanWrite } from "@/lib/guards";
 
 type SignalRow = {
@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
       key: "radar_signal",
       limit: 6,
       windowMs: 5 * 60 * 1000
-    });
+    }, { ip: getRequestIp(req) });
     if (!limit.ok) {
       const mins = Math.ceil(limit.retryAfterMs / 60000);
       return Response.json(

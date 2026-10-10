@@ -3,7 +3,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
-import { sameOrigin, checkRateLimit } from "@/lib/rate-limit";
+import { sameOrigin, checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 import { COOKIE_NAME } from "@/lib/constants";
 
 type DeleteBody = {
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
       key: "account_delete",
       limit: 3,
       windowMs: 60 * 60 * 1000
-    });
+    }, { ip: getRequestIp(req) });
     if (!limit.ok) {
       return Response.json(
         { error: "Too many attempts. Try again later." },
