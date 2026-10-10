@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 import { nanoid } from "nanoid";
 import { CATEGORIES, NIGERIA_STATES, PAGE_SIZE } from "@/lib/constants";
 import { stripExifServer } from "@/lib/exif";
+import { classifyImage } from "@/lib/image-moderation";
 import { originAllowed, jsonError } from "@/lib/http";
 import { hashDedupe } from "@/lib/rateLimit";
 import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
@@ -257,7 +258,7 @@ export async function POST(req: NextRequest) {
     public_link: evidenceLink
   });
 
-  const held =
+  let held =
     targetType === "private" ||
     verification.requiresManualReview ||
     defamation.held;
@@ -276,6 +277,22 @@ export async function POST(req: NextRequest) {
         uploadBuf = await stripExifServer(buf);
         ext = "jpg";
         contentType = "image/jpeg";
+
+        // Image moderation — Groq vision classifier.
+        // Best-effort: fails open on any error so a Groq outage
+        // never blocks a legitimate civic report.
+        try {
+          const imgMod = await classifyImage(uploadBuf);
+          if (imgMod.hold) {
+            held = true;
+            console.warn(
+              "[reports] image held for review:",
+              imgMod.reasons.join(" | ")
+            );
+          }
+        } catch (e) {
+          console.warn("[reports] image moderation error:", e);
+        }
       } else if (file.type.startsWith("video/")) {
         ext = "mp4";
       } else if (file.type.startsWith("audio/")) {
