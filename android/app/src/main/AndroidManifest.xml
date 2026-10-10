@@ -54,12 +54,6 @@
     <!-- Photo/video capture for report evidence and avatars. -->
     <uses-permission android:name="android.permission.CAMERA" />
 
-    <!-- Read user-selected photos (Android 13+). -->
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-
-    <!-- Read user-selected videos (Android 13+). -->
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
-
     <!-- Push notifications (Android 13+ requires explicit opt-in). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
