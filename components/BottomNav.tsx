@@ -107,16 +107,23 @@ function RadarIcon({ active }: IconProps) {
   const dotR = active ? 2.25 : 1.75;
   const strokeWidth = active ? 2.4 : 1.9;
 
+  // Radar is intentionally red — it reads as an emergency/discovery
+  // signal, matching the "pulse of the city" pitch. Theme-aware via
+  // --color-danger so it stays legible on both light and dark.
+  const signal = "var(--color-danger)";
+  const opacity = active ? 1 : 0.8;
+
   return (
     <svg
       width="24"
       height="24"
       viewBox="0 0 24 24"
       fill="none"
-      stroke="currentColor"
+      stroke={signal}
       strokeWidth={strokeWidth}
       strokeLinecap="round"
       strokeLinejoin="round"
+      opacity={opacity}
       aria-hidden
     >
       {/* Inner pulse arc — top-right */}
@@ -128,7 +135,7 @@ function RadarIcon({ active }: IconProps) {
       {/* Outer pulse arc — bottom-left */}
       <path d={`M12 ${12 + outer}a${outer} ${outer} 0 0 1 -${outer} -${outer}`} />
       {/* Center — you are here */}
-      <circle cx="12" cy="12" r={dotR} fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r={dotR} fill={signal} stroke="none" />
     </svg>
   );
 }
