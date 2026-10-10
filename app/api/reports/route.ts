@@ -296,6 +296,13 @@ export async function POST(req: NextRequest) {
         }
       } else if (file.type.startsWith("video/")) {
         ext = "mp4";
+
+        // Video moderation: hold for human review. We have no
+        // video classifier in the current stack (Groq has no video
+        // endpoint), so every video report waits for a moderator.
+        // Matches the Community Guidelines promise (24h review for
+        // media evidence).
+        held = true;
       } else if (file.type.startsWith("audio/")) {
         ext = "webm";
       }

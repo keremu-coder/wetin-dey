@@ -40,10 +40,15 @@ minors, false info, and scam.
 **Blocking:** bidirectional. If A blocks B, neither sees the other's
 content or notifications.
 
-**Filtering:** text is filtered on submit for threats, hate speech, and
-profanity across chat, comments, and DMs. Violating content is held for
-review (not published) and removed from public view within 24 hours
-per our Community Guidelines.
+**Moderation:** all content types are moderated on submit.
+- Text (chat, comments, DMs, report bodies): filtered for threats,
+  hate speech, and profanity via pattern matching.
+- Voice notes and voice comments: transcribed via Whisper and passed
+  through the same text filter; flagged content is held.
+- Images: held for moderator review before publishing.
+- Video: held for moderator review before publishing.
+Held content is not published. Violating content is removed from
+public view within 24 hours per our Community Guidelines.
 
 **Civic reporting pathway:** Talk Am reports about specific agencies can
 be forwarded by the user to EFCC, ICPC, or the Nigerian Police via their
