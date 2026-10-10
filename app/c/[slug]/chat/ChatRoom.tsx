@@ -25,32 +25,24 @@ import {
   extFromType
 } from "@/lib/voice-recorder";
 import {
-  avatarColor,
   containsMentionOf,
-  dayLabel,
   makeCid,
-  timeWithDate,
   type Member,
   type Message,
   type MessageParent
 } from "@/lib/chat";
 import { MessageBody } from "@/components/MessageBody";
-import { PresenceDot, presenceFromLastSeen } from "@/components/PresenceDot";
-import { StatusLine } from "@/components/StatusLine";
+import { presenceFromLastSeen } from "@/components/PresenceDot";
 import { DEFAULT_FONT_ID } from "@/lib/bbm-fonts";
 import {
   BroadcastBanner,
   type Broadcast
 } from "@/components/BroadcastBanner";
-import { BlockButton } from "@/components/BlockButton";
 import { ChatRoomMembers } from "@/components/ChatRoomMembers";
 import { MessageRow } from "@/components/MessageRow";
 
 // Lazy-loaded children — off the initial chat bundle, fetched on first
 // use. Same components, same props, same behavior as before.
-const VoiceNotePlayer = nextDynamic(() =>
-  import("@/components/VoiceNotePlayer").then((m) => m.VoiceNotePlayer)
-);
 
 const InviteSheet = nextDynamic(
   () => import("@/components/InviteSheet").then((m) => m.InviteSheet),
