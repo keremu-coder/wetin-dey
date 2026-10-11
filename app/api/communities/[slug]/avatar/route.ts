@@ -133,8 +133,9 @@ export async function POST(
 
     return Response.json({ ok: true, avatar_url: url });
   } catch (e) {
+    console.error("[route-error]", e);
     return Response.json(
-      { error: "Server error: " + (e as Error).message },
+      { error: "Server error" },
       { status: 500 }
     );
   }
@@ -181,8 +182,9 @@ export async function DELETE(
 
     return Response.json({ ok: true });
   } catch (e) {
+    console.error("[route-error]", e);
     return Response.json(
-      { error: "Server error: " + (e as Error).message },
+      { error: "Server error" },
       { status: 500 }
     );
   }

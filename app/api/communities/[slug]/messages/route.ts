@@ -208,8 +208,9 @@ export async function GET(
     return Response.json({ messages: output, online: onlineHandles });
   } catch (e) {
     console.error("[messages GET]", e);
+    console.error("[route-error]", e);
     return Response.json(
-      { error: "Server error: " + (e as Error).message },
+      { error: "Server error" },
       { status: 500 }
     );
   }
@@ -478,8 +479,9 @@ export async function POST(
     });
   } catch (e) {
     console.error("[messages POST]", e);
+    console.error("[route-error]", e);
     return Response.json(
-      { error: "Server error: " + (e as Error).message },
+      { error: "Server error" },
       { status: 500 }
     );
   }

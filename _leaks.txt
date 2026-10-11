@@ -1,0 +1,170 @@
+app\api\accept-terms\route.ts : line 83
+    82:     return Response.json(
+    83:       { error: "Server error: " + (e as Error).message },
+    84:       { status: 500 }
+
+app\api\account\delete\route.ts : line 310
+    309:     return Response.json(
+    310:       { error: "Server error: " + (e as Error).message },
+    311:       { status: 500 }
+
+app\api\admin\moderate-action\route.ts : line 109
+    108:     return Response.json(
+    109:       { error: "Server error: " + (e as Error).message },
+    110:       { status: 500 }
+
+app\api\admin\moderate-flag\route.ts : line 327
+    326:     return Response.json(
+    327:       { error: "Server error: " + (e as Error).message },
+    328:       { status: 500 }
+
+app\api\archive\export\route.ts : line 79
+    78:     return Response.json(
+    79:       { error: "Server error: " + (e as Error).message },
+    80:       { status: 500 }
+
+app\api\auth\signin-recovery\route.ts : line 93
+    92:     return Response.json(
+    93:       { error: "Server error: " + (e as Error).message },
+    94:       { status: 500 }
+
+app\api\auth\verify-email\route.ts : line 82
+    81:     return Response.json(
+    82:       { error: "Server error: " + (e as Error).message },
+    83:       { status: 500 }
+
+app\api\block\route.ts : line 52
+    51:     return Response.json(
+    52:       { error: "Server error: " + (e as Error).message },
+    53:       { status: 500 }
+
+app\api\block\route.ts : line 146
+    145:     return Response.json(
+    146:       { error: "Server error: " + (e as Error).message },
+    147:       { status: 500 }
+
+app\api\checkins\active\route.ts : line 136
+    135:     return Response.json(
+    136:       { error: "Server error: " + (e as Error).message },
+    137:       { status: 500 }
+
+app\api\daily\route.ts : line 37
+    36:     return Response.json(
+    37:       { error: "Server error: " + (e as Error).message },
+    38:       { status: 500 }
+
+app\api\daily\route.ts : line 102
+    101:     return Response.json(
+    102:       { error: "Server error: " + (e as Error).message },
+    103:       { status: 500 }
+
+app\api\dm\threads\route.ts : line 101
+    100:     return Response.json(
+    101:       { error: "Server error: " + (e as Error).message },
+    102:       { status: 500 }
+
+app\api\dm\threads\route.ts : line 225
+    224:     return Response.json(
+    225:       { error: "Server error: " + (e as Error).message },
+    226:       { status: 500 }
+
+app\api\flag\route.ts : line 407
+    406:     return Response.json(
+    407:       { error: "Server error: " + (e as Error).message },
+    408:       { status: 500 }
+
+app\api\mirror\route.ts : line 120
+    119:     return Response.json(
+    120:       { error: "Server error: " + (e as Error).message },
+    121:       { status: 500 }
+
+app\api\notifications\read\route.ts : line 56
+    55:     return Response.json(
+    56:       { error: "Server error: " + (e as Error).message },
+    57:       { status: 500 }
+
+app\api\notifications\route.ts : line 79
+    78:     return Response.json(
+    79:       { error: "Server error: " + (e as Error).message },
+    80:       { status: 500 }
+
+app\api\push\native-subscribe\route.ts : line 66
+    65:     return NextResponse.json(
+    66:       { error: "Server error: " + (e as Error).message },
+    67:       { status: 500 }
+
+app\api\push\native-subscribe\route.ts : line 106
+    105:     return NextResponse.json(
+    106:       { error: "Server error: " + (e as Error).message },
+    107:       { status: 500 }
+
+app\api\radar\route.ts : line 77
+    76:     return Response.json(
+    77:       { error: "Server error: " + (e as Error).message },
+    78:       { status: 500 }
+
+app\api\radar\route.ts : line 167
+    166:     return Response.json(
+    167:       { error: "Server error: " + (e as Error).message },
+    168:       { status: 500 }
+
+app\api\settings\avatar\route.ts : line 122
+    121:     return Response.json(
+    122:       { error: "Server error: " + (e as Error).message },
+    123:       { status: 500 }
+
+app\api\settings\avatar\route.ts : line 167
+    166:     return Response.json(
+    167:       { error: "Server error: " + (e as Error).message },
+    168:       { status: 500 }
+
+app\api\settings\dm-policy\route.ts : line 32
+    31:     return Response.json(
+    32:       { error: "Server error: " + (e as Error).message },
+    33:       { status: 500 }
+
+app\api\settings\dm-policy\route.ts : line 73
+    72:     return Response.json(
+    73:       { error: "Server error: " + (e as Error).message },
+    74:       { status: 500 }
+
+app\api\settings\handle\route.ts : line 38
+    37:     return Response.json(
+    38:       { error: "Server error: " + (e as Error).message },
+    39:       { status: 500 }
+
+app\api\settings\handle\route.ts : line 157
+    156:     return Response.json(
+    157:       { error: "Server error: " + (e as Error).message },
+    158:       { status: 500 }
+
+app\api\settings\hide-presence\route.ts : line 26
+    25:     return Response.json(
+    26:       { error: "Server error: " + (e as Error).message },
+    27:       { status: 500 }
+
+app\api\settings\hide-presence\route.ts : line 64
+    63:     return Response.json(
+    64:       { error: "Server error: " + (e as Error).message },
+    65:       { status: 500 }
+
+app\api\settings\recovery-code\route.ts : line 39
+    38:     return Response.json(
+    39:       { error: "Server error: " + (e as Error).message },
+    40:       { status: 500 }
+
+app\api\settings\recovery-code\route.ts : line 105
+    104:     return Response.json(
+    105:       { error: "Server error: " + (e as Error).message },
+    106:       { status: 500 }
+
+app\api\signin\route.ts : line 53
+    52:     return Response.json(
+    53:       { error: "Server error: " + profileErr.message },
+    54:       { status: 500 }
+
+app\api\statuses\following\route.ts : line 55
+    54:     return Response.json(
+    55:       { error: "Server error: " + (e as Error).message },
+    56:       { status: 500 }
+

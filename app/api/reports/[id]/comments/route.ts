@@ -84,8 +84,9 @@ export async function GET(
     return Response.json({ comments });
   } catch (e) {
     console.error("[comments GET] unexpected:", e);
+    console.error("[route-error]", e);
     return Response.json(
-      { error: "Server error: " + (e as Error).message },
+      { error: "Server error" },
       { status: 500 }
     );
   }
@@ -308,8 +309,9 @@ export async function POST(
     });
   } catch (e) {
     console.error("[comments POST] unexpected:", e);
+    console.error("[route-error]", e);
     return Response.json(
-      { error: "Server error: " + (e as Error).message },
+      { error: "Server error" },
       { status: 500 }
     );
   }

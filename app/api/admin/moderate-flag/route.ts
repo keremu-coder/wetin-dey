@@ -323,8 +323,9 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "unreachable" }, { status: 500 });
   } catch (e) {
     console.error("[moderate-flag]", e);
+    console.error("[route-error]", e);
     return Response.json(
-      { error: "Server error: " + (e as Error).message },
+      { error: "Server error" },
       { status: 500 }
     );
   }

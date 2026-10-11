@@ -75,8 +75,9 @@ export async function GET(req: NextRequest) {
       }
     });
   } catch (e) {
+    console.error("[route-error]", e);
     return Response.json(
-      { error: "Server error: " + (e as Error).message },
+      { error: "Server error" },
       { status: 500 }
     );
   }

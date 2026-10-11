@@ -33,8 +33,9 @@ export async function GET() {
       my_answer: mineResult.data ?? null
     });
   } catch (e) {
+    console.error("[route-error]", e);
     return Response.json(
-      { error: "Server error: " + (e as Error).message },
+      { error: "Server error" },
       { status: 500 }
     );
   }
@@ -98,8 +99,9 @@ export async function POST(req: NextRequest) {
       answer_count: count ?? 0
     });
   } catch (e) {
+    console.error("[route-error]", e);
     return Response.json(
-      { error: "Server error: " + (e as Error).message },
+      { error: "Server error" },
       { status: 500 }
     );
   }

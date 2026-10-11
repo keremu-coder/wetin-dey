@@ -106,8 +106,9 @@ export async function POST(
     return Response.json({ ok: true, reactions });
   } catch (e) {
     console.error("[react]", e);
+    console.error("[route-error]", e);
     return Response.json(
-      { error: "Server error: " + (e as Error).message },
+      { error: "Server error" },
       { status: 500 }
     );
   }

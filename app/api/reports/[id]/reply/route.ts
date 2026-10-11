@@ -129,8 +129,9 @@ export async function POST(
         "Your response has been submitted. A moderator will review it. If approved, it will appear on the report page."
     });
   } catch (e) {
+    console.error("[route-error]", e);
     return Response.json(
-      { error: "Server error: " + (e as Error).message },
+      { error: "Server error" },
       { status: 500 }
     );
   }

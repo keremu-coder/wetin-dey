@@ -35,8 +35,9 @@ export async function GET() {
       has_code: Boolean(data?.recovery_code_hash)
     });
   } catch (e) {
+    console.error("[route-error]", e);
     return Response.json(
-      { error: "Server error: " + (e as Error).message },
+      { error: "Server error" },
       { status: 500 }
     );
   }
@@ -101,8 +102,9 @@ export async function POST(req: NextRequest) {
       recovery_code: formatRecoveryCode(plaintext)
     });
   } catch (e) {
+    console.error("[route-error]", e);
     return Response.json(
-      { error: "Server error: " + (e as Error).message },
+      { error: "Server error" },
       { status: 500 }
     );
   }

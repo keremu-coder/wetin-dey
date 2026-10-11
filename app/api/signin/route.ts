@@ -49,8 +49,9 @@ export async function POST(req: NextRequest) {
     .maybeSingle();
 
   if (profileErr) {
+    console.error("[route-error]", profileErr);
     return Response.json(
-      { error: "Server error: " + profileErr.message },
+      { error: "Server error" },
       { status: 500 }
     );
   }

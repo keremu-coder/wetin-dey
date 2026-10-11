@@ -85,8 +85,9 @@ export async function POST(
     });
   } catch (e) {
     console.error("[comment vote] unexpected:", e);
+    console.error("[route-error]", e);
     return Response.json(
-      { error: "Server error: " + (e as Error).message },
+      { error: "Server error" },
       { status: 500 }
     );
   }

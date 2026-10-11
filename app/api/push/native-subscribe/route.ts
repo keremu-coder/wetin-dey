@@ -62,8 +62,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("[native-subscribe]", e);
+    console.error("[route-error]", e);
     return NextResponse.json(
-      { error: "Server error: " + (e as Error).message },
+      { error: "Server error" },
       { status: 500 }
     );
   }
@@ -102,8 +103,9 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("[native-subscribe DELETE]", e);
+    console.error("[route-error]", e);
     return NextResponse.json(
-      { error: "Server error: " + (e as Error).message },
+      { error: "Server error" },
       { status: 500 }
     );
   }
