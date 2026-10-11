@@ -6,6 +6,7 @@ import { CATEGORIES, NIGERIA_STATES, PAGE_SIZE } from "@/lib/constants";
 import { stripExifServer } from "@/lib/exif";
 import { classifyImage } from "@/lib/image-moderation";
 import { transcribeAndModerate } from "@/lib/voice-moderation";
+import { stripMediaMetadata } from "@/lib/media-strip";
 import { jsonError } from "@/lib/http";
 import { sameOrigin } from "@/lib/rate-limit";
 import { hashDedupe } from "@/lib/rateLimit";
@@ -303,8 +304,17 @@ export async function POST(req: NextRequest) {
         // Matches the Community Guidelines promise (24h review for
         // media evidence).
         held = true;
+
+        // Strip metadata. MP4/MOV containers can carry GPS
+        // coordinates that identify a reporter's physical
+        // location. Fail-closed: any error bubbles to the outer
+        // catch and rejects the upload rather than storing raw.
+        uploadBuf = await stripMediaMetadata(buf, "mp4");
       } else if (file.type.startsWith("audio/")) {
         ext = "webm";
+
+        // Same for audio — M4A/MP3 tags can carry GPS. Fail-closed.
+        uploadBuf = await stripMediaMetadata(buf, "webm");
       }
 
       const path = `${id}.${ext}`;
