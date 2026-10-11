@@ -5,6 +5,7 @@ import { unlockAudio, vibrate } from "@/lib/sounds";
 
 export function RecoveryCodeCard() {
   const [code, setCode] = useState<string | null>(null);
+  const [hasCode, setHasCode] = useState(false);
   const [loading, setLoading] = useState(true);
   const [revealed, setRevealed] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -18,7 +19,7 @@ export function RecoveryCodeCard() {
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (cancelled) return;
-        setCode(typeof d?.recovery_code === "string" ? d.recovery_code : null);
+        setHasCode(Boolean(d?.has_code));
       })
       .catch(() => {})
       .finally(() => {
@@ -43,6 +44,7 @@ export function RecoveryCodeCard() {
       }
       setCode(json.recovery_code);
       setRevealed(true);
+      setHasCode(true);
       setConfirmRegen(false);
       vibrate(25);
     } catch {
@@ -65,6 +67,11 @@ export function RecoveryCodeCard() {
     }
   }
 
+  function dismiss() {
+    setCode(null);
+    setRevealed(false);
+  }
+
   if (loading) return null;
 
   return (
@@ -82,22 +89,7 @@ export function RecoveryCodeCard() {
         <span className="shrink-0 text-[1.5rem]">🔑</span>
       </div>
 
-      {!code ? (
-        <div className="mt-4">
-          <p className="text-[0.8125rem] text-muted">
-            You haven&apos;t generated a recovery code yet. Without one, signing
-            out means losing this identity permanently.
-          </p>
-          <button
-            type="button"
-            onClick={regenerate}
-            disabled={busy}
-            className="mt-3 w-full rounded-xl bg-accent py-3 text-[0.875rem] font-semibold text-white transition-colors hover:bg-accent-deep disabled:opacity-50"
-          >
-            {busy ? "Generating…" : "Generate my recovery code"}
-          </button>
-        </div>
-      ) : (
+      {code ? (
         <>
           <div className="mt-4 flex items-center gap-2 rounded-xl border-2 border-dashed border-accent/40 bg-accent-soft/30 px-3 py-3">
             <code
@@ -125,32 +117,48 @@ export function RecoveryCodeCard() {
 
           <div className="mt-3 rounded-xl bg-gold-soft/50 p-3">
             <p className="text-[0.75rem] leading-relaxed text-ink">
-              <strong>Write this down.</strong> Screenshot it. Put it in your
-              Notes app. This is the only way to get back to this identity if
-              you sign out or switch devices.
+              <strong>Save this now.</strong> Write it down. Screenshot it.
+              Put it in your Notes app. We never store the code itself — only
+              a hash — so this is the last time you&apos;ll see it. If you lose
+              it, you can generate a new one, but the old one stops working.
             </p>
           </div>
 
+          <button
+            type="button"
+            onClick={dismiss}
+            className="mt-3 w-full rounded-xl border border-border-strong bg-paper py-2.5 text-[0.8125rem] font-medium text-ink transition-colors hover:bg-ink/5"
+          >
+            I have saved it
+          </button>
+        </>
+      ) : hasCode ? (
+        <div className="mt-4">
+          <p className="text-[0.8125rem] text-muted">
+            You have a recovery code on file. For security we can&apos;t show
+            it again — if you saved it, you&apos;re fine. If you lost it,
+            generate a new one.
+          </p>
           {!confirmRegen ? (
             <button
               type="button"
               onClick={() => setConfirmRegen(true)}
-              className="mt-3 text-[0.75rem] font-medium text-danger hover:underline"
+              className="mt-3 w-full rounded-xl border border-danger/40 bg-danger-soft py-2.5 text-[0.875rem] font-semibold text-danger transition-colors hover:bg-danger/10"
             >
-              Regenerate (loses the old code)
+              Generate a new code (loses the old one)
             </button>
           ) : (
             <div className="mt-3 rounded-xl border border-danger/30 bg-danger-soft p-3">
               <p className="text-[0.75rem] text-ink">
-                This will replace your code. Any saved copy of the old one stops
-                working immediately.
+                This replaces your current code. Any saved copy of the old one
+                stops working immediately.
               </p>
               <div className="mt-2 flex gap-2">
                 <button
                   type="button"
                   onClick={() => setConfirmRegen(false)}
                   disabled={busy}
-                  className="rounded-lg border border-border-strong bg-paper px-3 py-1.5 text-[0.75rem] font-medium text-ink"
+                  className="flex-1 rounded-lg border border-border-strong bg-paper px-3 py-1.5 text-[0.75rem] font-medium text-ink"
                 >
                   Cancel
                 </button>
@@ -158,14 +166,29 @@ export function RecoveryCodeCard() {
                   type="button"
                   onClick={regenerate}
                   disabled={busy}
-                  className="rounded-lg bg-danger px-3 py-1.5 text-[0.75rem] font-semibold text-white disabled:opacity-50"
+                  className="flex-1 rounded-lg bg-danger px-3 py-1.5 text-[0.75rem] font-semibold text-white disabled:opacity-50"
                 >
-                  {busy ? "…" : "Yes, regenerate"}
+                  {busy ? "…" : "Yes, replace"}
                 </button>
               </div>
             </div>
           )}
-        </>
+        </div>
+      ) : (
+        <div className="mt-4">
+          <p className="text-[0.8125rem] text-muted">
+            You haven&apos;t generated a recovery code yet. Without one,
+            signing out means losing this identity permanently.
+          </p>
+          <button
+            type="button"
+            onClick={regenerate}
+            disabled={busy}
+            className="mt-3 w-full rounded-xl bg-accent py-3 text-[0.875rem] font-semibold text-white transition-colors hover:bg-accent-deep disabled:opacity-50"
+          >
+            {busy ? "Generating…" : "Generate my recovery code"}
+          </button>
+        </div>
       )}
 
       {error ? (

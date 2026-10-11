@@ -9,7 +9,7 @@ import {
   generateLegacyHandle
 } from "./handles";
 import { createServiceClient } from "./supabase/server";
-import { generateRecoveryCode } from "./recovery-code";
+import { generateRecoveryCode, hashRecoveryCode } from "./recovery-code";
 
 const encoder = new TextEncoder();
 
@@ -152,18 +152,20 @@ export type SessionProfile = {
  */
 async function uniqueRecoveryCode(
   db: ReturnType<typeof createServiceClient>
-): Promise<string> {
+): Promise<{ raw: string; hash: string }> {
   for (let i = 0; i < 5; i++) {
     const candidate = generateRecoveryCode();
+    const candidateHash = hashRecoveryCode(candidate);
     const { data } = await db
       .from("sessions")
       .select("id")
-      .eq("recovery_code", candidate)
+      .eq("recovery_code_hash", candidateHash)
       .maybeSingle();
-    if (!data) return candidate;
+    if (!data) return { raw: candidate, hash: candidateHash };
   }
   // Fallback: impossible collision; just return something unique
-  return generateRecoveryCode() + Date.now().toString(36).slice(-4).toUpperCase();
+  const fallback = generateRecoveryCode();
+  return { raw: fallback, hash: hashRecoveryCode(fallback) };
 }
 
 export async function getOrCreateSessionProfile(
@@ -182,10 +184,13 @@ export async function getOrCreateSessionProfile(
     // generate one now. Same for avatar (it's a nullable column already).
     if (!existing.recovery_code) {
       try {
-        const code = await uniqueRecoveryCode(db);
+        const { raw: code, hash: codeHash } = await uniqueRecoveryCode(db);
         const { data: updated } = await db
           .from("sessions")
-          .update({ recovery_code: code })
+          .update({
+            recovery_code: code,
+            recovery_code_hash: codeHash
+          })
           .eq("id", sessionId)
           .select("*")
           .single();
@@ -240,7 +245,8 @@ export async function getOrCreateSessionProfile(
     handle = `User_${Date.now().toString().slice(-6)}`;
   }
 
-  const recovery_code = await uniqueRecoveryCode(db);
+  const { raw: recovery_code, hash: recovery_code_hash } =
+    await uniqueRecoveryCode(db);
 
   const { data: created, error } = await db
     .from("sessions")
@@ -249,7 +255,8 @@ export async function getOrCreateSessionProfile(
       handle,
       handle_kind: "anonymous",
       auth_provider: "none",
-      recovery_code
+      recovery_code,
+      recovery_code_hash
     })
     .select("*")
     .single();

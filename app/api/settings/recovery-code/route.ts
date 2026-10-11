@@ -3,11 +3,19 @@ export const runtime = "nodejs";
 import { NextRequest } from "next/server";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
-import { generateRecoveryCode, formatRecoveryCode } from "@/lib/recovery-code";
+import {
+  generateRecoveryCode,
+  formatRecoveryCode,
+  hashRecoveryCode
+} from "@/lib/recovery-code";
 import { sameOrigin } from "@/lib/rate-limit";
 
 /**
- * GET — return current recovery code for this session (if any).
+ * GET - has this session already generated a recovery code?
+ *
+ * We can no longer return the code itself. Only its HMAC-SHA256 hash
+ * exists in the database. If a user has lost their code, they generate
+ * a new one via POST - which invalidates the old one.
  */
 export async function GET() {
   try {
@@ -19,16 +27,12 @@ export async function GET() {
     const db = createServiceClient();
     const { data } = await db
       .from("sessions")
-      .select("recovery_code")
+      .select("recovery_code_hash")
       .eq("id", sessionId)
       .maybeSingle();
 
-    if (!data?.recovery_code) {
-      return Response.json({ recovery_code: null });
-    }
-
     return Response.json({
-      recovery_code: formatRecoveryCode(data.recovery_code)
+      has_code: Boolean(data?.recovery_code_hash)
     });
   } catch (e) {
     return Response.json(
@@ -39,8 +43,10 @@ export async function GET() {
 }
 
 /**
- * POST — generate a fresh recovery code for the current session.
- * If the session already has one, we replace it (user might have lost it).
+ * POST - generate a fresh recovery code for this session.
+ *
+ * The plaintext code is returned exactly once. From that point only the
+ * hash exists. Regenerating invalidates whatever the user had before.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -55,21 +61,23 @@ export async function POST(req: NextRequest) {
 
     const db = createServiceClient();
 
-    // Collision-safe loop (99.99% first try, but be safe)
-    let code: string | null = null;
+    let plaintext: string | null = null;
+    let codeHash: string | null = null;
     for (let i = 0; i < 5; i++) {
       const candidate = generateRecoveryCode();
+      const candidateHash = hashRecoveryCode(candidate);
       const { data: existing } = await db
         .from("sessions")
         .select("id")
-        .eq("recovery_code", candidate)
+        .eq("recovery_code_hash", candidateHash)
         .maybeSingle();
       if (!existing) {
-        code = candidate;
+        plaintext = candidate;
+        codeHash = candidateHash;
         break;
       }
     }
-    if (!code) {
+    if (!plaintext || !codeHash) {
       return Response.json(
         { error: "Could not generate a unique code. Try again." },
         { status: 500 }
@@ -78,7 +86,10 @@ export async function POST(req: NextRequest) {
 
     const { error } = await db
       .from("sessions")
-      .update({ recovery_code: code })
+      .update({
+        recovery_code: plaintext,
+        recovery_code_hash: codeHash
+      })
       .eq("id", sessionId);
 
     if (error) {
@@ -87,7 +98,7 @@ export async function POST(req: NextRequest) {
 
     return Response.json({
       ok: true,
-      recovery_code: formatRecoveryCode(code)
+      recovery_code: formatRecoveryCode(plaintext)
     });
   } catch (e) {
     return Response.json(

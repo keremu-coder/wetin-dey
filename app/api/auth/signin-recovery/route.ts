@@ -6,7 +6,8 @@ import { COOKIE_NAME } from "@/lib/constants";
 import { signSessionId, sessionCookieOptions } from "@/lib/session";
 import {
   normalizeRecoveryCode,
-  isValidRecoveryCodeFormat
+  isValidRecoveryCodeFormat,
+  hashRecoveryCode
 } from "@/lib/recovery-code";
 import { sameOrigin, checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 
@@ -34,10 +35,13 @@ export async function POST(req: NextRequest) {
 
     const db = createServiceClient();
 
+    // Hash the normalized input, then look up by hash. We never
+    // compare plaintext in memory or in the DB query.
+    const codeHash = hashRecoveryCode(normalized);
     const { data: session } = await db
       .from("sessions")
-      .select("id, handle")
-      .eq("recovery_code", normalized)
+      .select("id, handle, recovery_code_hash")
+      .eq("recovery_code_hash", codeHash)
       .maybeSingle();
 
     if (!session) {
