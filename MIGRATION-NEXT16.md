@@ -1,8 +1,9 @@
-# Migration plan: Next.js 14.2 → 16.4
+# Migration plan: Next.js 14.2 → 15.5.27 backport, then optionally 16.4
 
 **Status:** planning document, not yet executed.
-**Author:** generated 2026-10-10.
-**Prerequisite:** `sharp` has already been bumped to 0.35.5 (commit 6f0f490).
+**Generated:** 2026-10-10. Updated 2026-10-11: dead commit hash removed.
+
+**Prerequisite:** `sharp` has already been bumped to 0.35.5.
 
 ## Why this is needed
 
@@ -23,25 +24,6 @@ The two above are the reason to upgrade. Not urgency, but not ignorable either.
 
 **44 files** in `app/` read `params` or `searchParams` synchronously. Next 15
 made those into Promises. Every single one breaks the moment we upgrade.
-
-30 API routes:
-Select-String -LiteralPath 'MIGRATION-NEXT16.md' -Pattern 'sharp has already been bumped|44 files|Do not run npm audit fix --force' | Select-Object LineNumber, Line
-Get-Item MIGRATION-NEXT16.md -ErrorAction SilentlyContinue | Select-Object Name, Length, LastWriteTime
-$c = @'
-# Migration plan: Next.js 14.2 -> 16.4
-
-**Status:** planning doc, not executed yet.
-**Generated:** 2026-10-10.
-
-## Why
-7 critical/high advisories on Next 14.2. Two apply to us:
-- Unauth RCE in Image Optimization API (AVIF). We serve user images. APPLICABLE.
-- SSRF in rewrites via attacker-controlled hostname. We have rewrites. APPLICABLE.
-Rest are not-applicable (Windows RCE, CSP nonce XSS, i18n bypass) or narrow DoS.
-
-## Scope
-44 files in app/ read params or searchParams synchronously. Next 15 makes
-them Promises. Every one breaks the moment we upgrade.
 
 30 API routes:
   app/api/comments/[id]/vote/route.ts
@@ -93,11 +75,13 @@ them Promises. Every one breaks the moment we upgrade.
   app/u/[handle]/page.tsx
 
 ## Change pattern
+
 API route before:
   export async function GET(req, { params }: { params: { slug: string } }) {
     const x = params.slug;
   }
-After:
+
+API route after:
   export async function GET(req, { params }: { params: Promise<{ slug: string }> }) {
     const { slug } = await params;
     const x = slug;
@@ -108,7 +92,8 @@ Page before:
     params: { id: string };
     searchParams: { tab?: string };
   }) { const x = params.id; const y = searchParams.tab; }
-After:
+
+Page after:
   export default async function Page({ params, searchParams }: {
     params: Promise<{ id: string }>;
     searchParams: Promise<{ tab?: string }>;
@@ -116,6 +101,7 @@ After:
        const x = id; const y = sp.tab; }
 
 ## Order
+
 Phase 1 (Next 14 -> 15): pages first, routes second. Build locally after each
 change. Commit + push + verify on Vercel per file. Est 3-4 hours.
 
@@ -123,18 +109,21 @@ Phase 2 (Next 15 -> 16): React 18 -> 19. Only after Phase 1 is verified on
 device for 24h. Est 2-3 hours.
 
 ## Config changes (Phase 2)
+
 next.config.mjs:
   - experimental.serverComponentsExternalPackages -> serverExternalPackages
   - experimental.staleTimes -> cacheLife (different shape)
   - verify next/image remotePatterns schema
 
 ## React 19 changes to grep for (Phase 2)
+
   - useFormState -> useActionState
   - forwardRef (works but deprecated; ref is a regular prop now)
   - children union types simplified to ReactNode
   - Strict Mode double-invocation is stricter; non-idempotent effects will fail
 
 ## Known gotchas
+
 1. searchParams becomes a Promise but TS only warns. Forgetting await silently
    renders [object Promise]. Check visually on every page.
 2. generateMetadata receives async params too. Grep for it before starting.
@@ -148,10 +137,12 @@ next.config.mjs:
    Africa/Lagos timezone checks and console-clean checks on every page.
 
 ## Verify before running npm audit fix --force
+
 It will do Next 14 -> 16 in one shot and break every page.
 Do NOT run it. Do the phases manually.
 
 ## Verification checklist (Phase 1 complete means)
+
 - npm run build passes clean
 - Every one of the 14 pages loads without hydration warnings
 - Every one of the 30 routes responds (test one POST + one GET each)
