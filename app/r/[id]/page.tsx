@@ -135,7 +135,7 @@ function DisputedBanner({ hasResponse }: { hasResponse: boolean }) {
         </span>
         <div className="min-w-0">
           <p className="text-[0.9375rem] font-semibold text-ink">
-            Disputed — the named party has responded
+            Disputed — this report has been contested
           </p>
           <p className="mt-1 text-[0.8125rem] leading-relaxed text-ink/80">
             This report has been contested. The original content is shown
