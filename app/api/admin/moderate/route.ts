@@ -3,7 +3,8 @@ export const runtime = "nodejs";
 import { NextRequest } from "next/server";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
-import { originAllowed, jsonError } from "@/lib/http";
+import { jsonError } from "@/lib/http";
+import { sameOrigin } from "@/lib/rate-limit";
 
 async function requireAdmin(sessionId: string | null): Promise<boolean> {
   if (!sessionId) return false;
@@ -17,7 +18,7 @@ async function requireAdmin(sessionId: string | null): Promise<boolean> {
 }
 
 export async function POST(req: NextRequest) {
-  if (!originAllowed(req)) return jsonError("origin blocked", 403);
+  if (!sameOrigin(req)) return jsonError("origin blocked", 403);
 
   const sessionId = await getSessionId();
   if (!(await requireAdmin(sessionId))) {

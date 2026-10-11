@@ -2,7 +2,8 @@ export const runtime = "nodejs";
 
 import { NextRequest } from "next/server";
 import { nanoid } from "nanoid";
-import { originAllowed, jsonError } from "@/lib/http";
+import { jsonError } from "@/lib/http";
+import { sameOrigin } from "@/lib/rate-limit";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -18,7 +19,7 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    if (!originAllowed(req)) return jsonError("origin blocked", 403);
+    if (!sameOrigin(req)) return jsonError("origin blocked", 403);
 
     const sessionId = await getSessionId();
     if (!sessionId) return jsonError("no session", 401);

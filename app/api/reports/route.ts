@@ -6,7 +6,8 @@ import { CATEGORIES, NIGERIA_STATES, PAGE_SIZE } from "@/lib/constants";
 import { stripExifServer } from "@/lib/exif";
 import { classifyImage } from "@/lib/image-moderation";
 import { transcribeAndModerate } from "@/lib/voice-moderation";
-import { originAllowed, jsonError } from "@/lib/http";
+import { jsonError } from "@/lib/http";
+import { sameOrigin } from "@/lib/rate-limit";
 import { hashDedupe } from "@/lib/rateLimit";
 import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -94,8 +95,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const originOk = originAllowed(req);
-  if (!originOk) return jsonError("origin blocked", 403);
+  if (!sameOrigin(req)) return jsonError("origin blocked", 403);
 
   let sessionId: string | null = null;
   try {

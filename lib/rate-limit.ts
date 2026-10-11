@@ -155,14 +155,39 @@ export async function checkRateLimit(
   return { ok: true, retryAfterMs: 0 };
 }
 
-/** Origin check for POST routes — returns true if request seems same-site. */
+/**
+ * Origin check for POST routes. Fail-closed:
+ *
+ * - Missing Origin AND Referer → deny. (Audit finding 7b: this used
+ *   to return true, which let header-stripping clients through.)
+ * - Explicit allowlist only. No host-header synthesis, so a spoofed
+ *   Host cannot manufacture a matching origin.
+ * - Preview deploys and localhost are enumerated.
+ *
+ * When adding a new deploy URL, extend ALLOWED_ORIGINS rather than
+ * weakening the check.
+ */
+const ALLOWED_ORIGINS = [
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+  "https://9jawatindey.vercel.app",
+  "https://wetin-dey-gamma.vercel.app",
+  "https://wetindey.vercel.app"
+];
+
 export function sameOrigin(req: Request): boolean {
   const origin = req.headers.get("origin");
   const referer = req.headers.get("referer");
-  const host = req.headers.get("host");
-  if (!host) return true;
-  const expected = `https://${host}`;
-  if (origin && origin !== expected) return false;
-  if (!origin && referer && !referer.startsWith(expected)) return false;
-  return true;
+
+  if (origin) {
+    return ALLOWED_ORIGINS.includes(origin);
+  }
+
+  if (referer) {
+    return ALLOWED_ORIGINS.some((o) => referer.startsWith(o));
+  }
+
+  // Neither header present → deny. Same-origin browsers always send
+  // at least one of these for credentialed cross-document requests.
+  return false;
 }
