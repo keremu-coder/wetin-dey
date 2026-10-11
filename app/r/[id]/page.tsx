@@ -119,6 +119,45 @@ function tierBadgeLabel(tier: string): string {
   return "Unverified";
 }
 
+/**
+ * Prominent banner shown on reports whose status is "disputed". By design
+ * the report body stays visible — Wetin Dey is a host, not a publisher,
+ * and the right of reply is the corrective, not removal. The banner makes
+ * the disagreement impossible to miss and links to the published response
+ * below. See docs/MODERATION-RUNBOOK.md for the legal reasoning.
+ */
+function DisputedBanner({ hasResponse }: { hasResponse: boolean }) {
+  return (
+    <div className="mb-5 rounded-2xl border-2 border-warm/50 bg-warm-soft/50 p-4">
+      <div className="flex items-start gap-3">
+        <span className="shrink-0 text-[1.5rem] leading-none" aria-hidden>
+          ⚖️
+        </span>
+        <div className="min-w-0">
+          <p className="text-[0.9375rem] font-semibold text-ink">
+            Disputed — the named party has responded
+          </p>
+          <p className="mt-1 text-[0.8125rem] leading-relaxed text-ink/80">
+            This report has been contested. The original content is shown
+            below as it was submitted.{" "}
+            {hasResponse ? (
+              <>
+                The official response is published further down —{" "}
+                <a href="#replies" className="font-medium text-accent underline">
+                  read the response
+                </a>
+                .
+              </>
+            ) : (
+              "The response is pending approval."
+            )}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default async function ReportPage({
   params
 }: {
@@ -159,6 +198,7 @@ export default async function ReportPage({
   const isPublic = report.reviewed === true && !held;
   const evidenceTier =
     (report as { evidence_tier?: string | null }).evidence_tier ?? null;
+  const isDisputed = report.status === "disputed";
 
   if (!isOwnPost && reportSessionId && blockedIds.has(reportSessionId)) {
     return (
@@ -270,6 +310,8 @@ export default async function ReportPage({
         </p>
       </div>
 
+      {isDisputed ? <DisputedBanner hasResponse={replies.length > 0} /> : null}
+
       <EvidenceBlock
         evidence_type={report.evidence_type}
         evidence_url={report.evidence_url}
@@ -346,7 +388,9 @@ export default async function ReportPage({
         <ShareCard id={report.id} />
       </div>
 
-      <PublishedReplies replies={replies} />
+      <div id="replies">
+        <PublishedReplies replies={replies} />
+      </div>
 
       <div className="mb-6 rounded-2xl border border-border bg-surface/50 p-4">
         <p className="mb-3 text-[0.75rem] leading-relaxed text-faint">
