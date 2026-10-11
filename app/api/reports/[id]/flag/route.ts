@@ -76,6 +76,6 @@ export async function POST(
     return Response.json({ ok: true });
   } catch (e) {
     console.error("[report flag]", e);
-    return jsonError("Server error: " + (e as Error).message, 500);
+    return jsonError("Server error", 500);
   }
 }

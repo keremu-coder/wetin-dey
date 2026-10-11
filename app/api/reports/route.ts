@@ -323,12 +323,12 @@ export async function POST(req: NextRequest) {
         upsert: false
       });
       if (up.error) {
-        return jsonError("Upload failed: " + up.error.message, 500);
+        return jsonError("Upload failed", 500);
       }
       evidenceUrl = db.storage.from("evidence").getPublicUrl(path).data
         .publicUrl;
     } catch (e) {
-      return jsonError("Upload error: " + (e as Error).message, 500);
+      return jsonError("Upload error", 500);
     }
   } else if (voiceTestimony instanceof File && voiceTestimony.size > 0) {
     try {
@@ -362,12 +362,12 @@ export async function POST(req: NextRequest) {
         upsert: false
       });
       if (up.error) {
-        return jsonError("Voice upload failed: " + up.error.message, 500);
+        return jsonError("Voice upload failed", 500);
       }
       evidenceUrl = db.storage.from("evidence").getPublicUrl(path).data
         .publicUrl;
     } catch (e) {
-      return jsonError("Voice error: " + (e as Error).message, 500);
+      return jsonError("Voice error", 500);
     }
   }
 

@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (e) {
     return Response.json(
-      { ok: false, error: "formalize failed: " + (e as Error).message },
+      { ok: false, error: "formalize failed" },
       { status: 500 }
     );
   }

@@ -160,7 +160,7 @@ export async function POST(
     });
     if (up.error) {
       return Response.json(
-        { error: "Upload: " + up.error.message },
+        { error: "Upload failed" },
         { status: 500 }
       );
     }

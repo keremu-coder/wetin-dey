@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
     });
     if (up.error) {
       return Response.json(
-        { error: "Upload failed: " + up.error.message },
+        { error: "Upload failed" },
         { status: 500 }
       );
     }

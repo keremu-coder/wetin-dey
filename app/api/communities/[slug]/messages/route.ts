@@ -300,7 +300,7 @@ export async function POST(
         });
         if (up.error) {
           return Response.json(
-            { error: "Voice upload: " + up.error.message },
+            { error: "Voice upload failed" },
             { status: 500 }
           );
         }

@@ -133,7 +133,7 @@ export async function POST(
         form = await req.formData();
       } catch (e) {
         return Response.json(
-          { error: "form parse: " + (e as Error).message },
+          { error: "Bad request" },
           { status: 400 }
         );
       }
@@ -160,7 +160,7 @@ export async function POST(
         });
         if (up.error) {
           return Response.json(
-            { error: "Voice upload: " + up.error.message },
+            { error: "Voice upload failed" },
             { status: 500 }
           );
         }
