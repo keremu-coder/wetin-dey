@@ -31,8 +31,8 @@ export default function PrivacyPage() {
         <p>
           Wetin Dey is a community platform for anonymous civic reports from
           Nigerian citizens. This policy explains what we collect, what we do
-          not, and your rights under the Nigeria Data Protection Regulation
-          (NDPR).
+          not, and your rights under the Nigeria Data Protection Act 2023
+          (NDPA).
         </p>
 
         <section>
@@ -42,7 +42,7 @@ export default function PrivacyPage() {
           <p>
             <strong>Anonymous activity:</strong> a random session identifier
             stored in a signed HTTP-only cookie. No phone number. No email
-            address. Our application does not log IP addresses for anonymous reports, comments, or messages.
+            address. Our application does not log IP addresses for anonymous reports, comments, or messages. As with any web service, our hosting and database providers process request metadata (including IP) at the network layer for security and abuse prevention.
           </p>
           <p className="mt-2">
             <strong>Optional account recovery:</strong> you may attach an email
@@ -77,8 +77,7 @@ export default function PrivacyPage() {
           </p>
           <p className="mt-2">
             <strong>Push tokens:</strong> if you enable notifications, we store
-            the push subscription your browser issues. Inside the native app,
-            we also store a native push token issued by Apple or Google. You
+            the push subscription your browser issues. Native push (APNs on iOS, FCM on Android) is not enabled in the current build. You
             can disable this anytime.
           </p>
         </section>
@@ -114,8 +113,7 @@ export default function PrivacyPage() {
               for large files. Global edge network.
             </li>
             <li>
-              <strong>Groq</strong> — AI formalization of report text only.
-              Never sees your uploaded files. US.
+              <strong>Groq</strong> — AI formalization of report text, and audio transcription of voice testimony attached to reports and voice comments. Report body text and the relevant audio file are sent to Groq for processing. Groq never receives session identifiers, account data, or any other uploaded files. US.
             </li>
             <li>
               <strong>Resend</strong> — sends verification and password-reset
@@ -176,9 +174,9 @@ export default function PrivacyPage() {
 
         <section>
           <h2 className="mb-2 font-serif text-[1.15rem] font-semibold text-ink">
-            Your rights (NDPR)
+            Your rights (NDPA)
           </h2>
-          <p>Under the Nigeria Data Protection Regulation you can:</p>
+          <p>Under the Nigeria Data Protection Act 2023 you can:</p>
           <ul className="ml-5 mt-2 list-disc space-y-1">
             <li>Access the personal data we hold about you</li>
             <li>Correct inaccurate data</li>
@@ -214,7 +212,7 @@ export default function PrivacyPage() {
           <p className="text-[0.8125rem] leading-relaxed text-ink">
             <strong>Draft notice:</strong> this copy is written in plain
             language and is pending review by a Nigerian lawyer familiar with
-            the NDPR and the Cybercrimes Act 2015. It is not legal advice.
+            the NDPA 2023 and the Cybercrimes Act 2015. It is not legal advice.
           </p>
         </div>
       </article>
