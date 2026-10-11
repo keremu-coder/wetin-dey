@@ -99,8 +99,6 @@ export default async function CommunitiesPage() {
     row: bySlug.get(f.slug) ?? null
   })).filter((f) => f.row !== null);
 
-  const featuredSlugs = new Set(FEATURED.map((f) => f.slug));
-  const others = all.filter((c) => !featuredSlugs.has(c.slug));
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-6 pb-24">
@@ -169,45 +167,7 @@ export default async function CommunitiesPage() {
         </section>
       ) : null}
 
-      {others.length > 0 ? (
-        <section>
-          <div className="mb-3 flex items-baseline justify-between">
-            <h2 className="font-serif text-[1.15rem] font-semibold text-ink">
-              {featured.length > 0 ? "More spaces" : "Public spaces"}
-            </h2>
-          </div>
-
-          <div className="space-y-3">
-            {others.map((c) => (
-              <Link
-                key={c.id}
-                href={`/c/${c.slug}`}
-                className="flex items-start gap-3 rounded-2xl border border-border bg-surface p-4 transition-colors hover:border-border-strong"
-              >
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-ink/5 text-[1.5rem]">
-                  {c.emoji ?? "🇳🇬"}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[0.9375rem] font-semibold text-ink">
-                    {c.name}
-                  </p>
-                  {c.description ? (
-                    <p className="mt-0.5 line-clamp-2 text-[0.8125rem] leading-relaxed text-muted">
-                      {c.description}
-                    </p>
-                  ) : null}
-                  <p className="mt-1 font-mono text-[0.7rem] text-faint">
-                    {c.member_count} member{c.member_count === 1 ? "" : "s"} ·{" "}
-                    {c.post_count} post{c.post_count === 1 ? "" : "s"}
-                  </p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {featured.length === 0 && others.length === 0 ? (
+      {featured.length === 0 ? (
         <div className="rounded-2xl border border-border bg-surface p-6 text-center">
           <div className="text-[2.5rem]">👥</div>
           <p className="mt-3 font-serif text-[1.2rem] font-semibold text-ink">
