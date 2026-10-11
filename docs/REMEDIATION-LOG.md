@@ -81,4 +81,6 @@ The next thing to do — if continuing security work — is the Next.js
 upgrade (finding 7c). If continuing feature work, the evidence-hold and
 notification features are complete and could use real-user testing.
 
-Read HANDOFF.md next, then TONIGHT.md, then this file.
+Read HANDOFF.md next, then TONIGHT.md, then this file.## Known follow-up (not yet fixed)
+
+**DB-error messages leak in ~55 routes.** Pattern: Response.json({ error: error.message }, { status: 500 }) passes the raw Supabase/Postgres error text to the client, which includes column names, constraint names, and SQL fragments. Not a rejection risk under the reviewed scope (the Apple/Play reviewer did not flag it). Fix in a dedicated session with a careful regex sweep: replace each error.message in a response body with a generic string and add a console.error before the return. app/api/block/route.ts alone has 4 sites. Do NOT bulk-edit at 4am.
