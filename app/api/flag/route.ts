@@ -86,15 +86,30 @@ async function applyAutoHide(
 }
 
 /**
- * Counts distinct reporters whose flag should count toward the
- * auto-hide threshold. A reporter counts if EITHER:
+ * Weighted trust score for auto-hide. Replaces the flat one-vote-per-session
+ * count that made the platform gameable: three throwaway accounts aged just
+ * over 24h could hide any comment or message.
  *
- *   - their session has a verified email (email_verified_at is set), OR
- *   - their session is at least AUTO_HIDE_MIN_ACCOUNT_AGE_HOURS old
+ * Weights:
+ *   - verified email                 → 2.0
+ *   - account age >= 30 days         → 1.0
+ *   - account age 24h to 30d         → 0.5
+ *   - younger than 24h               → 0.0 (no vote)
  *
- * This prevents a single bad actor from spinning up fresh anonymous
- * sessions to hide content they don't like.
+ * Threshold (AUTO_HIDE_FLAG_THRESHOLD = 3) is unchanged. Effect:
+ *   3 fresh 25h accounts           = 1.5   → no hide
+ *   6 fresh 25h accounts           = 3.0   → hide
+ *   3 established (30d+) accounts  = 3.0   → hide
+ *   1 verified + 1 established     = 3.0   → hide
+ *
+ * The threshold semantics are preserved for well-meaning users; only the
+ * cheap-fresh-account path is closed.
  */
+const WEIGHT_VERIFIED_EMAIL = 2.0;
+const WEIGHT_OLD_ACCOUNT = 1.0;
+const WEIGHT_NEW_ACCOUNT = 0.5;
+const OLD_ACCOUNT_DAYS = 30;
+
 async function countTrustedReporters(
   db: ReturnType<typeof createServiceClient>,
   targetType: string,
@@ -127,18 +142,31 @@ async function countTrustedReporters(
     return 0;
   }
 
-  const cutoff = new Date(
-    Date.now() - AUTO_HIDE_MIN_ACCOUNT_AGE_HOURS * 60 * 60 * 1000
+  const now = Date.now();
+  const minCutoff = new Date(
+    now - AUTO_HIDE_MIN_ACCOUNT_AGE_HOURS * 60 * 60 * 1000
   );
+  const oldCutoff = new Date(now - OLD_ACCOUNT_DAYS * 24 * 60 * 60 * 1000);
 
-  let count = 0;
+  let score = 0;
   for (const s of sessions ?? []) {
     const hasVerifiedEmail = s.email_verified_at != null;
-    const isOldEnough =
-      s.created_at && new Date(s.created_at) <= cutoff;
-    if (hasVerifiedEmail || isOldEnough) count += 1;
+    if (hasVerifiedEmail) {
+      score += WEIGHT_VERIFIED_EMAIL;
+      continue;
+    }
+
+    if (!s.created_at) continue;
+    const created = new Date(s.created_at);
+
+    if (created <= oldCutoff) {
+      score += WEIGHT_OLD_ACCOUNT;
+    } else if (created <= minCutoff) {
+      score += WEIGHT_NEW_ACCOUNT;
+    }
+    // Younger than minCutoff: contributes nothing.
   }
-  return count;
+  return score;
 }
 
 export async function POST(req: NextRequest) {
