@@ -2,6 +2,9 @@
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  outputFileTracingIncludes: {
+    "/api/reports/**": ["./node_modules/ffmpeg-static/**"]
+  },
   images: {
     remotePatterns: [
       {
@@ -12,7 +15,7 @@ const nextConfig = {
     ]
   },
   experimental: {
-    serverComponentsExternalPackages: ["sharp"],
+    serverComponentsExternalPackages: ["sharp", "ffmpeg-static"],
     staleTimes: {
       dynamic: 30,
       static: 180
