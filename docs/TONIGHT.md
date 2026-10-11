@@ -75,7 +75,7 @@ Plus the notifications push feature earlier in the night:
 ### Non-blocking for codebase — do before App Store submission
 
 1. **Git history purge.** Old commits still contain the leaked password
-   (REMOVED-CREDENTIAL) in docs/STORE_DISCLOSURES.md history. The credential
+   in docs/STORE_DISCLOSURES.md history. The credential
    is dead, but a curious visitor to the public repo can see the string.
    Fix: git filter-repo or BFG, then force-push. Rewrites all hashes.
    Do this deliberately, last before submission.
