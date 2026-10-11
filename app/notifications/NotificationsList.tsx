@@ -15,6 +15,7 @@ export type NotificationItem = {
   created_at: string;
   read_at: string | null;
   actor_handle: string | null;
+  target_slug: string | null;
 };
 
 function kindLabel(kind: string): string {
@@ -54,9 +55,9 @@ function timeAgo(iso: string): string {
  * - On mount: POST /api/notifications/read { all: true } to clear the
  *   badge, then call refreshNotifications() so the count updates now
  *   instead of waiting for the next 30s poll.
- * - Tap a row: navigate. target_type tells us whether to send to
- *   /r/[id] or into the space chat. The target_id is the message or
- *   report id.
+ * - Tap a row: navigate. report -> /r/[id]. community_message -> the
+ *   space chat via the community slug resolved server-side. If the slug
+ *   is missing (message deleted, community gone), fall back to /inbox.
  * - Rows already read at load are still rendered (faded), so a user
  *   opening the page twice does not lose context.
  */
@@ -105,7 +106,10 @@ export function NotificationsList({
       return `/r/${item.target_id}`;
     }
     if (item.target_type === "community_message") {
-      return `/inbox`;
+      if (item.target_slug) {
+        return `/c/${item.target_slug}/chat`;
+      }
+      return "/inbox";
     }
     return "/";
   }

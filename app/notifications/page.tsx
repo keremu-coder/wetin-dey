@@ -15,6 +15,7 @@ type Row = {
   created_at: string;
   read_at: string | null;
   actor_handle: string | null;
+  target_slug: string | null;
 };
 
 export default async function NotificationsPage() {
@@ -27,7 +28,7 @@ export default async function NotificationsPage() {
           href="/"
           className="inline-flex items-center gap-1 font-mono text-[0.7rem] uppercase tracking-widest text-faint transition-colors hover:text-accent"
         >
-          ← Back to feed
+          Back to feed
         </Link>
         <div className="mt-6 rounded-2xl border border-border bg-surface p-8 text-center">
           <div className="text-[2.5rem]">🔔</div>
@@ -53,7 +54,7 @@ export default async function NotificationsPage() {
     .order("created_at", { ascending: false })
     .limit(50);
 
-  const list = (rows ?? []) as Omit<Row, "actor_handle">[];
+  const list = (rows ?? []) as Omit<Row, "actor_handle" | "target_slug">[];
 
   const actorIds = Array.from(
     new Set(list.map((r) => r.actor_id).filter((id): id is string => !!id))
@@ -70,9 +71,52 @@ export default async function NotificationsPage() {
     }
   }
 
+  // Resolve the community slug for community_message notifications so a tap
+  // lands in the right space instead of the generic /inbox fallback.
+  const messageIds = Array.from(
+    new Set(
+      list
+        .filter((r) => r.target_type === "community_message")
+        .map((r) => r.target_id)
+    )
+  );
+
+  const slugByMessage = new Map<string, string>();
+  if (messageIds.length > 0) {
+    const { data: msgs } = await db
+      .from("community_messages")
+      .select("id, community_id")
+      .in("id", messageIds);
+
+    const communityIds = Array.from(
+      new Set((msgs ?? []).map((m) => m.community_id).filter(Boolean))
+    );
+
+    if (communityIds.length > 0) {
+      const { data: communities } = await db
+        .from("communities")
+        .select("id, slug")
+        .in("id", communityIds);
+
+      const slugByCommunity = new Map<string, string>();
+      for (const c of communities ?? []) {
+        slugByCommunity.set(c.id, c.slug);
+      }
+
+      for (const m of msgs ?? []) {
+        const slug = slugByCommunity.get(m.community_id);
+        if (slug) slugByMessage.set(m.id, slug);
+      }
+    }
+  }
+
   const items: Row[] = list.map((r) => ({
     ...r,
-    actor_handle: r.actor_id ? handleMap.get(r.actor_id) ?? null : null
+    actor_handle: r.actor_id ? handleMap.get(r.actor_id) ?? null : null,
+    target_slug:
+      r.target_type === "community_message"
+        ? slugByMessage.get(r.target_id) ?? null
+        : null
   }));
 
   return (
@@ -81,7 +125,7 @@ export default async function NotificationsPage() {
         href="/"
         className="inline-flex items-center gap-1 font-mono text-[0.7rem] uppercase tracking-widest text-faint transition-colors hover:text-accent"
       >
-        ← Back to feed
+        Back to feed
       </Link>
 
       <div className="mt-4 mb-5">
