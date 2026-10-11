@@ -361,6 +361,14 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // No evidence → hold for review. Matches the SPEC rule
+  // "every report requires evidence". The row still gets created,
+  // but it stays out of the public feed until a moderator clears it.
+  if (!evidenceUrl && !evidenceLink) {
+    held = true;
+    console.warn("[reports] no evidence — holding for review");
+  }
+
   const dedupe_hash = hashDedupe({
     category,
     agency_canonical: agency_raw,
