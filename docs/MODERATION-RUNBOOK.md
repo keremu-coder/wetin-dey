@@ -151,11 +151,9 @@ Retention: permanent. Never delete rows from `moderation_actions` or
 
 ## What "Disputed" means
 
-Currently `Disputed` is a label. A report marked Disputed is still
-visible. This is a known gap — see `docs/REMEDIATION-LOG.md`. A future
-change will hide the body while preserving the URL and the record. Until
-then, use Disputed as an informational label and rely on manual removal
-if the defamation risk is severe.
+The disputed state is enforced in the report page. A report with status `disputed` shows a prominent banner at the top of the page and a link to the published right-of-reply response below. The body stays visible by design — Wetin Dey is a host, not a publisher, and the response is the corrective, not removal.
+
+Do not hide disputed content unless it also violates the 24-hour removal categories in the SLA table above. If a dispute contains an imminent threat, CSAM, or doxxing, apply the normal removal action; "disputed" does not shield it.
 
 ## When to contact a lawyer
 
