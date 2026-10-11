@@ -42,8 +42,7 @@ export default function PrivacyPage() {
           <p>
             <strong>Anonymous activity:</strong> a random session identifier
             stored in a signed HTTP-only cookie. No phone number. No email
-            address. No IP address logged for anonymous reports, comments, or
-            messages.
+            address. Our application does not log IP addresses for anonymous reports, comments, or messages.
           </p>
           <p className="mt-2">
             <strong>Optional account recovery:</strong> you may attach an email

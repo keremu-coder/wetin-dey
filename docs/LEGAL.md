@@ -3,7 +3,7 @@
 > **Status: draft for lawyer review.** These are plain-language drafts
 > written for a Nigerian anonymous civic-reporting platform. Hand to a
 > Nigerian lawyer familiar with the Cybercrimes Act 2015, the Criminal
-> Code Act, the Penal Code, and the NDPR before wider launch.
+> Code Act, the Penal Code, and the Nigeria Data Protection Act 2023 before wider launch.
 >
 > Owner: Wetin Dey. Last updated: 2026-10-08.
 
@@ -31,7 +31,7 @@ Nigerian citizens. Reports are submitted by members of the public and are
 
 **Anonymous reports, comments, and messages:** a random session
 identifier stored in a signed HTTP-only cookie. No phone number. No
-email address. No IP address logged for anonymous activity.
+email address. Our application does not log IP addresses for anonymous activity.
 
 **Optional account recovery:** you may voluntarily attach an email
 address or phone number to your session for account recovery. This is
@@ -78,9 +78,9 @@ session, use the recovery code you were shown when you first signed up.
 
 We do not sell your data. We do not run ads on the Talk Am civic feed.
 
-### Your rights (NDPR)
+### Your rights (NDPA 2023)
 
-Under the Nigeria Data Protection Regulation you have the right to:
+Under the Nigeria Data Protection Act 2023 you have the right to:
 
 - Access the personal data we hold about you
 - Correct inaccurate data
@@ -224,7 +224,7 @@ violence are not.
 
 - Support: support@wetindey.app
 - Takedown requests: support@wetindey.app (subject: "Takedown")
-- Data protection: support@wetindey.app (subject: "NDPR")
+- Data protection: support@wetindey.app (subject: "NDPA")
 
 ---
 

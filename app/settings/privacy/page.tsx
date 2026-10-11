@@ -28,7 +28,7 @@ export default async function PrivacyPage() {
             What we collect
           </p>
           <ul className="mt-3 space-y-2 text-[0.8125rem] leading-relaxed text-muted">
-            <li>• Anonymous reports: nothing. No IP address. No phone. No email.</li>
+            <li>• Anonymous reports: nothing. Our application does not log IP addresses. No phone. No email.</li>
             <li>• Named accounts: email and a hashed password, so you can sign in.</li>
             <li>• Uploaded photos: EXIF/GPS metadata stripped before upload.</li>
           </ul>
@@ -39,7 +39,7 @@ export default async function PrivacyPage() {
             What we never collect
           </p>
           <ul className="mt-3 space-y-2 text-[0.8125rem] leading-relaxed text-muted">
-            <li>• No IP address tied to anonymous reports</li>
+            <li>• No IP addresses logged by our application for anonymous reports</li>
             <li>• No phone numbers</li>
             <li>• No device fingerprints</li>
             <li>• No third-party analytics</li>

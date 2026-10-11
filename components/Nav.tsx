@@ -495,8 +495,7 @@ export function SiteFooter() {
     <footer className="mx-auto mt-8 max-w-2xl px-4 pb-28">
       <div className="border-t border-border pt-6">
         <p className="text-[0.8125rem] leading-relaxed text-muted">
-          Wetin Dey na community. Anonymous if you want. No court judgment — na
-          talk.
+          Wetin Dey na community. Anonymous if you want. Talk your mind.
         </p>
         <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-[0.8125rem] text-faint">
           <Link href="/terms" className="transition-colors hover:text-accent">

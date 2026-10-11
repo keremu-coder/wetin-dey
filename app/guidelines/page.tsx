@@ -134,7 +134,7 @@ export default function GuidelinesPage() {
           </h2>
           <ul className="ml-5 list-disc space-y-1.5">
             <li>
-              No phone number. No email. No IP logged for anonymous reports.
+              No phone number. No email. Our application does not log IP addresses for anonymous reports.
             </li>
             <li>
               If you add an email or phone for account recovery, that stays
