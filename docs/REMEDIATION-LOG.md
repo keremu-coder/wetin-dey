@@ -1,3 +1,5 @@
+> Note: commit hashes in this document reference the pre-2026-10-11 git history. That history was rewritten on 2026-10-11 to remove dead credentials. To find the equivalent commit, search the current history by message text instead of by hash.
+
 # Security remediation log
 
 Session: 2026-10-11, post-pentest. Every commit below is verified live on

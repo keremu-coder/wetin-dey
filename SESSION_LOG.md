@@ -1,3 +1,5 @@
+> Note: commit hashes in this document reference the pre-2026-10-11 git history. That history was rewritten on 2026-10-11 to remove dead credentials. To find the equivalent commit, search the current history by message text instead of by hash.
+
 # Session log
 
 Newest at top. One line per session. Add before starting a new session.
