@@ -26,20 +26,7 @@ const nextConfig = {
     // 'unsafe-inline' is still required because Next injects a small
     // inline hydration script. Replacing that with nonces is a
     // separate project (needs a middleware rewrite).
-    const csp = [
-      "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' https://vercel.live",
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-      "font-src 'self' https://fonts.gstatic.com data:",
-      "img-src 'self' data: blob: https:",
-      "media-src 'self' blob: https:",
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.groq.com https://api.telegram.org https://vercel.live",
-      "frame-src https://vercel.live",
-      "frame-ancestors 'none'",
-      "base-uri 'self'",
-      "form-action 'self'",
-      "object-src 'none'"
-    ].join("; ");
+    // CSP is set by middleware.ts (needs a per-request nonce).
 
     const permissions = [
       "camera=(self)",
@@ -54,7 +41,6 @@ const nextConfig = {
       {
         source: "/:path*",
         headers: [
-          { key: "Content-Security-Policy", value: csp },
           {
             key: "Strict-Transport-Security",
             value: "max-age=31536000; includeSubDomains; preload"

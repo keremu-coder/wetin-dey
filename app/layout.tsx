@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import nextDynamic from "next/dynamic";
+import { headers } from "next/headers";
 import { Nav, SiteFooter } from "@/components/Nav";
 import { LiveStateProvider } from "@/components/LiveStateProvider";
 import { InstallPrompt } from "@/components/InstallPrompt";
@@ -72,6 +73,7 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const nonce = headers().get("x-csp-nonce") ?? undefined;
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseHost = supabaseUrl
     ? (() => {
@@ -86,7 +88,10 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script
+          nonce={nonce}
+          dangerouslySetInnerHTML={{ __html: themeScript }}
+        />
 
         {/*
           Next.js emits the apple-* PWA meta tag from metadata.appleWebApp.
