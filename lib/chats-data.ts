@@ -1,4 +1,5 @@
 import "server-only";
+import { unstable_cache } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getBlockedIds } from "@/lib/blocks";
 import { computePresence } from "@/lib/presence";
@@ -56,7 +57,7 @@ const SIGNAL_FOR_PRESENCE: Record<string, "ready" | "away" | "dnd" | "offline"> 
 
 const emptyResult = { data: [] as never[], error: null as null | { message: string } };
 
-export async function getChatsHome(
+async function getChatsHomeInner(
   sessionId: string | null
 ): Promise<{ chats: ChatItem[]; suggestions: SuggestionItem[] }> {
   const db = createServiceClient();
@@ -239,3 +240,9 @@ export async function getChatsHome(
 
   return { chats, suggestions };
 }
+
+export const getChatsHome = unstable_cache(
+  getChatsHomeInner,
+  ["chats-home-v1"],
+  { revalidate: 15 }
+);
