@@ -31,6 +31,27 @@ const config: Config = {
           DEFAULT: "var(--color-gold)",
           soft: "var(--color-gold-soft)"
         },
+        surface2: "var(--color-surface-2)",
+        surface3: "var(--color-surface-3)",
+        warn: {
+          DEFAULT: "var(--color-warn)",
+          tint: "var(--color-warn-tint)",
+          ink: "var(--color-warn-ink)"
+        },
+        primary: {
+          DEFAULT: "var(--color-accent)",
+          tint: "var(--color-primary-tint)",
+          ink: "var(--color-primary-ink)"
+        },
+        dangerInk: "var(--color-danger-ink)",
+        dangerTint: "var(--color-danger-tint)",
+        leaf: "var(--color-leaf)",
+        danfo: "var(--color-danfo)",
+        zobo: "var(--color-zobo)",
+        adire: "var(--color-adire)",
+        clay: "var(--color-clay)",
+        plum: "var(--color-plum)",
+        lagoon: "var(--color-lagoon)",
         border: {
           DEFAULT: "var(--color-border)",
           strong: "var(--color-border-strong)"
