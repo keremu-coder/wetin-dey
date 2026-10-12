@@ -65,7 +65,7 @@ function SignalBadge({ signal }: { signal?: ChatSignal }) {
   if (signal === "quiet" || signal === "offline") {
     return (
       <span className="flex w-5 shrink-0 items-center justify-center" aria-hidden>
-        <span className="h-[8px] w-[8px] rounded-full bg-surface3" />
+        <span className="h-[9px] w-[9px] rounded-full bg-[#8B9A91] dark:bg-[#6B7A70]" />
       </span>
     );
   }
@@ -94,16 +94,16 @@ export function ChatRow({
   return (
     <Link
       href={href}
-      className="group relative flex h-[68px] items-center gap-3 px-5 transition-colors active:bg-surface2"
+      className="group relative flex h-[76px] items-center gap-3.5 px-5 transition-colors active:bg-surface2"
       style={{ WebkitTapHighlightColor: "transparent" }}
     >
       <div className="shrink-0">
         {avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={avatarUrl} alt="" className="h-12 w-12 rounded-full object-cover" />
+          <img src={avatarUrl} alt="" className="h-[54px] w-[54px] rounded-full object-cover" />
         ) : emoji ? (
           <div
-            className="flex h-12 w-12 items-center justify-center rounded-full text-white shadow-sm"
+            className="flex h-[54px] w-[54px] items-center justify-center rounded-full text-white shadow-sm"
             style={{ background: pickTile(seed), fontSize: 22 }}
           >
             {emoji}
@@ -115,7 +115,7 @@ export function ChatRow({
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2">
           <p className="min-w-0 flex-1 truncate text-[1.0625rem] font-bold leading-[1.375rem] text-ink">{name}</p>
-          <span className={`shrink-0 text-[0.8125rem] leading-[1.125rem] ${hasUnread ? "font-semibold text-primary-ink" : "font-normal text-faint"}`}>
+          <span className={`shrink-0 text-[0.75rem] leading-[1.125rem] ${hasUnread ? "font-semibold text-primary-ink" : "font-normal text-faint"}`}>
             {timestamp}
           </span>
         </div>
@@ -151,7 +151,7 @@ export function ChatRow({
       {!isLast ? (
         <span
           aria-hidden
-          className="pointer-events-none absolute bottom-0 left-[100px] right-5 h-px bg-surface3 transition-opacity group-active:opacity-0"
+          className="pointer-events-none absolute bottom-0 left-[86px] right-5 h-px bg-surface3 transition-opacity group-active:opacity-0"
         />
       ) : null}
     </Link>

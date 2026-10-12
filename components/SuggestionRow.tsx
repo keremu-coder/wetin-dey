@@ -66,7 +66,7 @@ export function SuggestionRow({ href, name, seed, emoji, meta, isLast }: Suggest
   }
 
   return (
-    <div className="relative flex h-[68px] items-center gap-3.5 px-5" style={{ WebkitTapHighlightColor: "transparent" }}>
+    <div className="relative flex h-[76px] items-center gap-3.5 px-5" style={{ WebkitTapHighlightColor: "transparent" }}>
       <Link href={href} className="flex min-w-0 flex-1 items-center gap-3.5">
         <div
           className="flex h-[54px] w-[54px] shrink-0 items-center justify-center rounded-full text-white shadow-sm"
