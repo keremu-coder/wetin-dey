@@ -21,7 +21,7 @@ const SLIDES: Slide[] = [
   {
     icon: "👥",
     title: "Spaces — for your people",
-    body: "Family group, church cell, estate security, old-classmates. Invite with a link, chat with voice or text, see status lines like BBM. This is where Nigerian life actually happens.",
+    body: "Family group, church cell, estate security, old-classmates. Invite with a link, chat with voice or text, see status lines like  This is where Nigerian life actually happens.",
     accent: "Voice-first · Group chat · Invite by link"
   },
   {

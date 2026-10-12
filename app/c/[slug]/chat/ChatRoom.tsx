@@ -32,7 +32,7 @@ import {
   type MessageParent
 } from "@/lib/chat";
 import { presenceFromLastSeen } from "@/components/PresenceDot";
-import { DEFAULT_FONT_ID } from "@/lib/bbm-fonts";
+import { DEFAULT_FONT_ID } from "@/lib/fonts-registry";
 import { DEFAULT_TEXT_COLOR_ID } from "@/lib/text-colors";
 import {
   BroadcastBanner,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { unlockAudio } from "@/lib/bbm-sound";
+import { unlockAudio } from "@/lib/chat-sound";
 
 export function AudioUnlocker() {
   useEffect(() => {

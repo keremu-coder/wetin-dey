@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { BBM_FONTS, DEFAULT_FONT_ID, getFontById } from "@/lib/bbm-fonts";
+import { BBM_FONTS, DEFAULT_FONT_ID, getFontById } from "@/lib/fonts-registry";
 
 export default function FontSettingsPage() {
   const [currentFont, setCurrentFont] = useState<string>(DEFAULT_FONT_ID);
@@ -111,7 +111,7 @@ export default function FontSettingsPage() {
         </h1>
         <p className="mt-1 text-[0.875rem] text-muted">
           Pick the font your messages show up in — for everyone who reads them.
-          Like BBM.
+         
         </p>
       </header>
 

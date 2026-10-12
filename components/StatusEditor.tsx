@@ -91,7 +91,7 @@ export function StatusEditor({ sessionId }: { sessionId: string }) {
 
       <p className="mt-1 text-[0.75rem] text-muted">
         Shows under your name everywhere — chat, profile, member lists. Like
-        BBM.
+        
       </p>
 
       {error ? (

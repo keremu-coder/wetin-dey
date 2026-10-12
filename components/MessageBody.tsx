@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import { getFontById } from "@/lib/bbm-fonts";
+import { getFontById } from "@/lib/fonts-registry";
 import { getTextColor } from "@/lib/text-colors";
 
 type Segment =

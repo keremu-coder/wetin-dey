@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { isValidFontId, DEFAULT_FONT_ID } from "@/lib/bbm-fonts";
+import { isValidFontId, DEFAULT_FONT_ID } from "@/lib/fonts-registry";
 
 function sb() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

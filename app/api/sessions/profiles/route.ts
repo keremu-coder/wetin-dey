@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { isValidFontId, DEFAULT_FONT_ID } from "@/lib/bbm-fonts";
+import { isValidFontId, DEFAULT_FONT_ID } from "@/lib/fonts-registry";
 
 export const runtime = "nodejs";
 

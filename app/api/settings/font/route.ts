@@ -5,7 +5,7 @@ import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sameOrigin } from "@/lib/rate-limit";
 import { assertCanWrite } from "@/lib/guards";
-import { isValidFontId, DEFAULT_FONT_ID } from "@/lib/bbm-fonts";
+import { isValidFontId, DEFAULT_FONT_ID } from "@/lib/fonts-registry";
 
 /**
  * GET: Public read of a session's font preference by query param.

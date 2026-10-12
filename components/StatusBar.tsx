@@ -195,7 +195,7 @@ export function StatusBar() {
             </h2>
             <p className="mt-1 text-[0.8125rem] leading-relaxed text-muted">
               What people see under your name — availability + a short line.
-              Like BBM.
+             
             </p>
 
             <p className="mt-5 mb-2 font-mono text-[0.65rem] uppercase tracking-wider text-faint">
