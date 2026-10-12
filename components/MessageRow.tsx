@@ -360,7 +360,7 @@ export function MessageRow({
                       onToggleReactions(null);
                       onToggleBlock(m.author_handle);
                     }}
-                    className="flex h-7 items-center rounded-full px-2 text-[0.7rem] font-semibold text-danger transition-colors hover:bg-danger-soft"
+                    className="flex h-7 items-center rounded-full px-2 text-[0.7rem] font-medium text-faint transition-colors hover:bg-ink/10 hover:text-danger"
                   >
                     Block
                   </button>
