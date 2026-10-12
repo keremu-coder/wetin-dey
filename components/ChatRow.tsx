@@ -5,6 +5,8 @@ import Link from "next/link";
 type ChatRowProps = {
   href: string;
   name: string;
+  seed: string;
+  emoji?: string | null;
   avatarUrl?: string | null;
   isPerson?: boolean;
   availability?: "R" | "A" | "D" | null;
@@ -19,6 +21,29 @@ type ChatRowProps = {
   isLast?: boolean;
 };
 
+const TILES = [
+  "var(--color-leaf)",
+  "var(--color-adire)",
+  "var(--color-zobo)",
+  "var(--color-clay)",
+  "var(--color-plum)",
+  "var(--color-lagoon)"
+];
+
+function pickTile(seed: string): string {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
+  return TILES[Math.abs(h) % TILES.length];
+}
+
+function initials(name: string): string {
+  const clean = name.replace(/[^\p{L}\p{N}\s]/gu, "").trim();
+  const parts = clean.split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
 const AVAILABILITY_STYLE: Record<"R" | "A" | "D", { bg: string; label: string }> = {
   R: { bg: "var(--color-accent)", label: "Available" },
   A: { bg: "var(--color-warn)", label: "Away" },
@@ -31,22 +56,16 @@ const RECEIPT_STYLE = {
   read: "bg-primary text-white"
 } as const;
 
-function initials(name: string): string {
-  const clean = name.replace(/[^\p{L}\p{N}\s]/gu, "").trim();
-  const parts = clean.split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[1][0]).toUpperCase();
-}
-
 export function ChatRow({
-  href, name, avatarUrl, isPerson, availability,
+  href, name, seed, emoji, avatarUrl, isPerson, availability,
   preview, previewPrefix, previewLive, voice, receipt,
   timestamp, unread = 0, muted, isLast
 }: ChatRowProps) {
   const hasUnread = unread > 0 && !muted;
   const isMutedUnread = unread > 0 && muted;
   const avail = isPerson && availability ? AVAILABILITY_STYLE[availability] : null;
+  const tile = pickTile(seed);
+  const glyph = emoji ? emoji : initials(name);
 
   return (
     <Link
@@ -57,13 +76,18 @@ export function ChatRow({
       <div className="relative shrink-0">
         {avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={avatarUrl} alt="" className="h-[50px] w-[50px] rounded-full object-cover" />
+          <img src={avatarUrl} alt="" className="h-[54px] w-[54px] rounded-full object-cover" />
         ) : (
           <div
-            className="flex h-[50px] w-[50px] items-center justify-center rounded-full bg-primary-tint text-[0.9375rem] font-semibold text-primary-ink"
-            style={{ fontFamily: "var(--font-space-grotesk), system-ui, sans-serif" }}
+            className="flex h-[54px] w-[54px] items-center justify-center rounded-full text-white shadow-sm"
+            style={{
+              background: emoji ? tile : tile,
+              fontFamily: emoji ? undefined : "var(--font-space-grotesk), system-ui, sans-serif",
+              fontSize: emoji ? 26 : 16,
+              fontWeight: emoji ? undefined : 700
+            }}
           >
-            {initials(name)}
+            {glyph}
           </div>
         )}
         {avail ? (
@@ -79,7 +103,7 @@ export function ChatRow({
 
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2">
-          <p className="min-w-0 flex-1 truncate text-[1.0625rem] font-semibold leading-[1.375rem] text-ink">{name}</p>
+          <p className="min-w-0 flex-1 truncate text-[1.0625rem] font-bold leading-[1.375rem] text-ink">{name}</p>
           <span className={`shrink-0 text-[0.8125rem] leading-[1.125rem] ${hasUnread ? "font-semibold text-primary-ink" : "font-normal text-faint"}`}>
             {timestamp}
           </span>
@@ -119,7 +143,7 @@ export function ChatRow({
       {!isLast ? (
         <span
           aria-hidden
-          className="pointer-events-none absolute bottom-0 left-[82px] right-5 h-px bg-surface3 transition-opacity group-active:opacity-0"
+          className="pointer-events-none absolute bottom-0 left-[86px] right-5 h-px bg-surface3 transition-opacity group-active:opacity-0"
         />
       ) : null}
     </Link>

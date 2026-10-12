@@ -10,6 +10,7 @@ export type ChatItem = {
   name: string;
   seed: string;
   avatarUrl: string | null;
+  emoji?: string | null;
   preview: string;
   previewPrefix?: string;
   voice?: boolean;
@@ -20,7 +21,7 @@ export type ChatItem = {
   receipt?: "sent" | "delivered" | "read";
 };
 
-export type SuggestionItem = { id: string; slug: string; name: string; meta: string };
+export type SuggestionItem = { id: string; slug: string; name: string; emoji?: string | null; meta: string };
 
 type Db = ReturnType<typeof createServiceClient>;
 
@@ -104,7 +105,7 @@ export async function getChatsHome(
 
       if (joinedIds.length > 0) {
         const { data: communities } = await db
-          .from("communities").select("id, slug, name, avatar_url").in("id", joinedIds);
+          .from("communities").select("id, slug, name, avatar_url, emoji").in("id", joinedIds);
 
         let mq = db
           .from("community_messages")
@@ -136,6 +137,7 @@ export async function getChatsHome(
             name: c.name,
             seed: c.slug,
             avatarUrl: c.avatar_url ?? null,
+            emoji: (c.emoji as string | null) ?? null,
             preview: m ? (m.audio_url ? "Voice note" : (m.body ?? "").slice(0, 100)) : "No messages yet. Say hello.",
             previewPrefix: m ? `@${handles.get(m.session_id) ?? "Anonymous"}: ` : undefined,
             voice: !!m?.audio_url,
@@ -217,7 +219,7 @@ export async function getChatsHome(
   try {
     let sq = db
       .from("communities")
-      .select("id, slug, name, member_count")
+      .select("id, slug, name, member_count, emoji")
       .eq("is_public", true)
       .order("member_count", { ascending: false })
       .limit(3);
