@@ -120,7 +120,7 @@ export function ChatRow({
           </span>
         </div>
         <div className="mt-1 flex items-center gap-2">
-          <p className={`flex min-w-0 flex-1 items-center gap-1.5 text-[0.9375rem] leading-[1.25rem] ${previewLive ? "text-primary-ink font-medium" : hasUnread ? "text-ink" : "text-muted"}`}>
+          <p className={`flex min-w-0 flex-1 items-center gap-1.5 text-[0.875rem] leading-[1.25rem] ${previewLive ? "text-primary-ink font-medium" : hasUnread ? "text-ink" : "text-muted"}`}>
             <SignalBadge signal={signal} />
             {receipt ? (
               <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full ${RECEIPT_STYLE[receipt]}`} aria-label={receipt}>

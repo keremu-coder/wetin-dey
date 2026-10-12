@@ -81,7 +81,7 @@ export function SuggestionRow({ href, name, seed, emoji, meta, isLast }: Suggest
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-[1.0625rem] font-bold leading-[1.375rem] text-ink">{name}</p>
-          <p className="mt-1 truncate text-[0.9375rem] leading-[1.25rem] text-muted">{meta}</p>
+          <p className="mt-1 truncate text-[0.875rem] leading-[1.25rem] text-muted">{meta}</p>
         </div>
       </Link>
 
