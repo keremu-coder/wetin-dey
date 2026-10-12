@@ -34,6 +34,9 @@ const config: CapacitorConfig = {
     limitsNavigationsToAppBoundDomains: false
   },
   android: {
+    // Required for @capacitor-community/background-geolocation on Capacitor 8.
+    // Without it, Android halts location updates after ~5 minutes in background.
+    useLegacyBridge: true,
     backgroundColor: "#0a0a0a",
     allowMixedContent: false,
     captureInput: true,

@@ -2,7 +2,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
-import { sameOrigin } from "@/lib/rate-limit";
+import { sameOrigin, checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 import { assertNotBanned } from "@/lib/guards";
 import { sendPushToSessions } from "@/lib/push-server";
 
@@ -25,6 +25,19 @@ export async function POST(req: NextRequest) {
     if (!sid) return NextResponse.json({ error: "no session" }, { status: 401 });
     const denied = await assertNotBanned(sid);
     if (denied) return denied;
+
+    // Radar is high-signal: cap at 20 sends per hour per session.
+    const limit = await checkRateLimit(sid, {
+      key: "radar_send",
+      limit: 20,
+      windowMs: 60 * 60 * 1000
+    }, { ip: getRequestIp(req) });
+    if (!limit.ok) {
+      return NextResponse.json(
+        { error: "Too many signals. Wait and try again." },
+        { status: 429 }
+      );
+    }
 
     const body = (await req.json()) as {
       recipients?: unknown;
