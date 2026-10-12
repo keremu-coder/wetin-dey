@@ -101,7 +101,7 @@ export function Nav() {
       rows: [
         { href: "/search", icon: "🔍", label: "Search", hint: "People, spaces, reports" },
         { href: "/communities", icon: "🧭", label: "Explore spaces", hint: "Public communities to join" },
-        { href: "/radar", icon: "📡", label: "Radar", hint: "Signals around your area" },
+        { href: "/radar", icon: "📡", label: "Radar", hint: "Private signals to your Circle" },
         { href: "/explore", icon: "🌊", label: "See the pattern", hint: "The full civic archive" }
       ]
     },

@@ -37,7 +37,7 @@ export function RouteWarmup() {
       if (et === "slow-2g" || et === "2g") return;
     }
 
-    const routes = ["/", "/talk", "/radar", "/inbox", "/communities", "/me"];
+    const routes = ["/", "/talk", "/inbox", "/communities", "/me"];
 
     const run = () => {
       for (const r of routes) {
