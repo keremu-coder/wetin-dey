@@ -8,6 +8,7 @@
 import {
   Figtree,
   Bricolage_Grotesque,
+  Fraunces,
   JetBrains_Mono,
   Caveat,
   Pacifico,
@@ -23,9 +24,9 @@ export const inter = Figtree({
   display: "swap"
 });
 
-export const spaceGrotesk = Bricolage_Grotesque({
+export const spaceGrotesk = Fraunces({
   subsets: ["latin"],
-  weight: ["500", "600", "700"],
+  weight: ["600", "700"],
   variable: "--font-space-grotesk",
   display: "swap"
 });
