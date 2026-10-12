@@ -7,6 +7,10 @@
     {
       "path": "/api/archive/export",
       "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/radar/sweep",
+      "schedule": "*/15 * * * *"
     }
   ]
 }
