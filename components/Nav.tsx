@@ -357,6 +357,24 @@ export function Nav() {
                   Appearance & sounds
                 </p>
                 <Link
+                  href="/settings/font"
+                  onClick={() => setDrawerOpen(false)}
+                  className={`group flex items-center gap-3 px-5 py-3.5 transition-colors ${
+                    pathname === "/settings/font"
+                      ? "bg-ink/[0.04]"
+                      : "hover:bg-ink/5"
+                  }`}
+                >
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-ink/5 text-[1.15rem]">
+                    <span>F</span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className={`truncate text-[0.9375rem] font-semibold leading-tight ${pathname === "/settings/font" ? "text-accent" : "text-ink"}`}>Message font</p>
+                    <p className="mt-0.5 truncate text-[0.75rem] text-muted">Pick your message font</p>
+                  </div>
+                  <span className="shrink-0 text-faint">&gt;</span>
+                </Link>
+                <Link
                   href="/settings/textcolor"
                   onClick={() => setDrawerOpen(false)}
                   className={`group flex items-center gap-3 px-5 py-3.5 transition-colors ${
@@ -422,7 +440,7 @@ export function Nav() {
               </div>
 
               {me ? (
-                <div className="pt-4 pb-6">
+                <div className="mt-4 border-t border-border pt-4 pb-6">
                   {!signOutConfirm ? (
                     <button
                       type="button"
