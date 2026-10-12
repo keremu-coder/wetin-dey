@@ -122,13 +122,6 @@ export function ChatRow({
         <div className="mt-1 flex items-center gap-2">
           <p className={`flex min-w-0 flex-1 items-center gap-1.5 text-[0.875rem] leading-[1.25rem] ${previewLive ? "text-primary-ink font-medium" : hasUnread ? "text-ink" : "text-muted"}`}>
             <SignalBadge signal={signal} />
-            {receipt ? (
-              <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full ${RECEIPT_STYLE[receipt]}`} aria-label={receipt}>
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                  <path d="M5 12.5 9.5 17 19 7" />
-                </svg>
-              </span>
-            ) : null}
             {voice ? (
               <svg className="shrink-0" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <rect x="9" y="3" width="6" height="11" rx="3" />

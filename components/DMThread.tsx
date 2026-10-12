@@ -408,11 +408,11 @@ export function DMThread({
                     <div
                       className={`rounded-2xl px-3.5 py-2 ${
                         mine
-                          ? "bg-accent text-white"
-                          : "bg-surface text-ink border border-border"
+                          ? "bg-surface2 text-ink"
+                          : "bg-surface text-ink"
                       }`}
                     >
-                      <p className="whitespace-pre-wrap break-words text-[0.9375rem] leading-snug">
+                      <p className="whitespace-pre-wrap break-words text-[0.9375rem] font-normal leading-[1.5]">
                         {m.body}
                       </p>
                     </div>
