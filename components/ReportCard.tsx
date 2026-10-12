@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { formatNaira, nearestState } from "@/lib/constants";
 import type { Report } from "@/lib/types";
+import { Alama } from "@/components/Alama";
 import { ReviewedFlag } from "./ReviewedFlag";
 import { StatusBadge } from "./StatusBadge";
 import { PostActions } from "./PostActions";
@@ -74,16 +75,14 @@ export function ReportCard({
       <div className="p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <div
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${avatarBg} text-[0.95rem] font-semibold text-white shadow-sm`}
-            >
-              {avatarLetter}
+            <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full shadow-sm">
+              <Alama seed={handleRaw || report.id} size={40} title={authorLabel} />
             </div>
             <div className="min-w-0">
               <p className="truncate text-[0.875rem] font-medium text-ink">
                 {authorLabel}
               </p>
-              <p className="font-mono text-[0.7rem] uppercase tracking-wide text-faint">
+              <p className="text-[0.75rem] text-faint">
                 {timeAgo(report.created_at)} · {report.state}
                 {report.lga ? ` · ${report.lga}` : ""}
               </p>
