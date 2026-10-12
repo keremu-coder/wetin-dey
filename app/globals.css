@@ -43,7 +43,10 @@ html {
   --color-ink: #14201A;
   --color-muted: #4A5A51;
   --color-faint: #526155;
-  --color-accent: #0A6B43;
+  --color-accent: #1E2F5C;
+  --color-signal: #0A6B43;
+  --color-signal-soft: #D9EDE1;
+  --color-signal-ink: #08543A;
   --color-accent-soft: #D9EDE1;
   --color-accent-deep: #08543A;
   --color-danger: #B3243B;
@@ -66,7 +69,10 @@ html {
   --color-ink: #EDF2EE;
   --color-muted: #A7B5AC;
   --color-faint: #8B9A91;
-  --color-accent: #4CCB8E;
+  --color-accent: #4A64B8;
+  --color-signal: #4CCB8E;
+  --color-signal-soft: #153A2B;
+  --color-signal-ink: #7EE0B0;
   --color-accent-soft: #153A2B;
   --color-accent-deep: #7EE0B0;
   --color-danger: #FF8A98;
