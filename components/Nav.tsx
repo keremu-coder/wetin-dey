@@ -194,7 +194,7 @@ export function Nav() {
           <div className="mx-auto flex max-w-2xl items-center justify-between gap-2 px-5 py-3">
             <Link href="/" className="flex items-center gap-2">
               <span style={{ color: "var(--brand-ink)" }}>
-                <WetinMark size={26} title="Wetin Dey" />
+                <WetinMark size={30} title="Wetin Dey" />
               </span>
               <span className="font-serif text-[1.5rem] font-semibold leading-none tracking-tight text-ink">
                 Wetin Dey
@@ -266,7 +266,7 @@ export function Nav() {
               className="relative shrink-0 px-5 pb-5"
               style={{
                 paddingTop: "calc(1.5rem + env(safe-area-inset-top, 0px))",
-                background: `linear-gradient(135deg, ${gradient} 0%, #052e1f 100%)`
+                background: `linear-gradient(135deg, var(--brand-ink) 0%, var(--brand-ink-deep) 100%)`
               }}
             >
               <button

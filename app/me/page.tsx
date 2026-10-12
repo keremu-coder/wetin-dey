@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Alama } from "@/components/Alama";
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -89,8 +90,8 @@ export default async function MePage({
     <main className="mx-auto max-w-2xl px-4 py-6 pb-28">
       <div className="mb-6 rounded-2xl border border-border bg-surface p-4">
         <div className="flex items-center gap-4">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-accent text-[1.6rem] font-semibold text-white">
-            {profile.handle.charAt(0).toUpperCase()}
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full">
+            <Alama seed={profile.id} size={64} title={`@${profile.handle}`} />
           </div>
           <div className="min-w-0 flex-1">
             <h1 className="font-serif text-[1.35rem] font-semibold text-ink">
@@ -119,7 +120,7 @@ export default async function MePage({
       <div className="mt-8 text-center">
         <Link
           href="/settings"
-          className="text-[0.8125rem] font-medium text-accent hover:underline"
+          className="text-[0.8125rem] font-medium text-brand hover:underline"
         >
           Settings →
         </Link>
