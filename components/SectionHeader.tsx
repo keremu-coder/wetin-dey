@@ -14,7 +14,7 @@ export function SectionHeader({ title, action }: SectionHeaderProps) {
       {action ? (
         <Link
           href={action.href}
-          className="-mr-3 flex h-11 items-center px-3 text-[0.8125rem] font-semibold leading-[1.125rem] text-primary-ink"
+          className="-mr-3 flex h-11 items-center px-3 text-[0.8125rem] font-semibold leading-[1.125rem] text-brand"
         >
           {action.label}
         </Link>

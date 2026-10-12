@@ -255,7 +255,7 @@ export function Nav() {
                           <div
                             className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[1.15rem] ${
                               row.tone === "accent"
-                                ? "bg-accent-soft"
+                                ? "bg-brand-tint"
                                 : "bg-ink/5"
                             }`}
                           >
@@ -269,7 +269,7 @@ export function Nav() {
                           <div className="min-w-0 flex-1">
                             <p
                               className={`truncate text-[0.9375rem] font-semibold leading-tight ${
-                                active ? "text-accent" : "text-ink"
+                                active ? "text-brand" : "text-ink"
                               }`}
                             >
                               {row.label}
@@ -378,22 +378,22 @@ export function SiteFooter() {
           Wetin Dey na community. Anonymous if you want. Talk your mind.
         </p>
         <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-[0.8125rem] text-faint">
-          <Link href="/terms" className="transition-colors hover:text-accent">
+          <Link href="/terms" className="transition-colors hover:text-brand">
             Terms
           </Link>
-          <Link href="/privacy" className="transition-colors hover:text-accent">
+          <Link href="/privacy" className="transition-colors hover:text-brand">
             Privacy
           </Link>
           <Link
             href="/guidelines"
-            className="transition-colors hover:text-accent"
+            className="transition-colors hover:text-brand"
           >
             Guidelines
           </Link>
-          <Link href="/takedown" className="transition-colors hover:text-accent">
+          <Link href="/takedown" className="transition-colors hover:text-brand">
             Takedown
           </Link>
-          <Link href="/support" className="transition-colors hover:text-accent">
+          <Link href="/support" className="transition-colors hover:text-brand">
             Support
           </Link>
           <span className="ml-auto font-mono text-[0.7rem] text-faint">

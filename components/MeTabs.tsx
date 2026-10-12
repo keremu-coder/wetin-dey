@@ -70,7 +70,7 @@ export function MeTabs({
               onClick={() => switchTab(t.id)}
               className={`flex flex-1 flex-col items-center gap-0.5 border-b-2 px-3 py-3 text-center transition-colors ${
                 active
-                  ? "border-accent text-ink"
+                  ? "border-brand text-ink"
                   : "border-transparent text-muted hover:text-ink"
               }`}
             >
@@ -96,7 +96,7 @@ export function MeTabs({
               </p>
               <Link
                 href="/communities/new"
-                className="mt-4 inline-block rounded-xl bg-accent px-4 py-2 text-[0.8125rem] font-semibold text-white"
+                className="mt-4 inline-block rounded-xl bg-brand px-4 py-2 text-[0.8125rem] font-semibold text-white"
               >
                 Create a space
               </Link>
@@ -202,7 +202,7 @@ export function MeTabs({
               <p className="empty-state-text">When you post, e go show here.</p>
               <Link
                 href="/submit"
-                className="mt-4 inline-block rounded-xl bg-accent px-4 py-2 text-[0.8125rem] font-semibold text-white"
+                className="mt-4 inline-block rounded-xl bg-brand px-4 py-2 text-[0.8125rem] font-semibold text-white"
               >
                 Write a post
               </Link>
