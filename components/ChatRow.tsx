@@ -54,18 +54,19 @@ const RECEIPT_STYLE = {
   read: "bg-primary text-white"
 } as const;
 
-function SignalBadge({ signal }: { signal?: ChatSignal }) {
+/**
+ * Signal badge sits on the bottom-right corner of the avatar so it never
+ * shifts the text column. Quiet and offline are silent (no badge) to keep
+ * the list clean.
+ */
+function SignalCorner({ signal }: { signal?: ChatSignal }) {
   if (signal === "live") {
     return (
-      <span className="flex w-5 shrink-0 items-center justify-center" aria-label="Active now">
+      <span
+        aria-label="Active now"
+        className="absolute -bottom-0.5 -right-0.5 flex h-[18px] w-[18px] items-center justify-center rounded-full bg-paper ring-2 ring-paper"
+      >
         <span className="dey-pulse h-[10px] w-[10px] rounded-full bg-signal" />
-      </span>
-    );
-  }
-  if (signal === "quiet" || signal === "offline") {
-    return (
-      <span className="flex w-5 shrink-0 items-center justify-center" aria-hidden>
-        <span className="h-[9px] w-[9px] rounded-full bg-[#8B9A91] dark:bg-[#6B7A70]" />
       </span>
     );
   }
@@ -74,14 +75,14 @@ function SignalBadge({ signal }: { signal?: ChatSignal }) {
     return (
       <span
         aria-label={s.label}
-        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold leading-none text-white"
+        className="absolute -bottom-0.5 -right-0.5 flex h-[18px] w-[18px] items-center justify-center rounded-full text-[10px] font-bold leading-none text-white ring-2 ring-paper"
         style={{ background: s.bg }}
       >
         {s.letter}
       </span>
     );
   }
-  return <span className="w-5 shrink-0" aria-hidden />;
+  return null;
 }
 
 export function ChatRow({
@@ -97,7 +98,7 @@ export function ChatRow({
       className="group relative flex h-[76px] items-center gap-3.5 px-5 transition-colors active:bg-surface2"
       style={{ WebkitTapHighlightColor: "transparent" }}
     >
-      <div className="shrink-0">
+      <div className="relative shrink-0">
         {avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={avatarUrl} alt="" className="h-[54px] w-[54px] rounded-full object-cover" />
@@ -109,9 +110,11 @@ export function ChatRow({
             {emoji}
           </div>
         ) : (
-          <Alama seed={seed} size={48} />
+          <Alama seed={seed} size={54} />
         )}
+        <SignalCorner signal={signal} />
       </div>
+
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 items-baseline gap-2">
           <p className="min-w-0 flex-1 truncate text-[1.0625rem] font-bold leading-[1.375rem] text-ink">{name}</p>
@@ -121,7 +124,6 @@ export function ChatRow({
         </div>
         <div className="mt-1 flex min-w-0 items-center gap-2">
           <p className={`flex min-w-0 flex-1 items-center gap-1.5 text-[0.875rem] leading-[1.25rem] ${previewLive ? "text-primary-ink font-medium" : hasUnread ? "text-ink" : "text-muted"}`}>
-            <SignalBadge signal={signal} />
             {voice ? (
               <svg className="shrink-0" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <rect x="9" y="3" width="6" height="11" rx="3" />
@@ -151,7 +153,7 @@ export function ChatRow({
       {!isLast ? (
         <span
           aria-hidden
-          className="pointer-events-none absolute bottom-0 left-[86px] right-5 h-px bg-surface3 transition-opacity group-active:opacity-0"
+          className="pointer-events-none absolute bottom-0 left-[88px] right-5 h-px bg-surface3 transition-opacity group-active:opacity-0"
         />
       ) : null}
     </Link>
