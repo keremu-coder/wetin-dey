@@ -42,14 +42,6 @@ export default async function SecurityPage() {
         <div className="rounded-2xl border border-border bg-surface px-4 py-4">
           <div className="flex items-center gap-3">
             <span className="text-[1.25rem] text-warm-deep">📱</span>
-            <div className="flex-1">
-              <p className="text-[0.9375rem] font-medium text-ink">
-                Two-factor authentication
-              </p>
-              <p className="text-[0.75rem] text-muted">
-                Coming soon. Adds an extra step at sign-in.
-              </p>
-            </div>
             <span className="rounded-full bg-ink/5 px-2 py-0.5 text-[0.65rem] font-medium uppercase tracking-wider text-faint">
               Soon
             </span>

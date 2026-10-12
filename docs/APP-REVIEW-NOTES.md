@@ -23,7 +23,7 @@ Wetin Dey is a Nigerian community platform with two surfaces:
 
 **Native features in the iOS build (Capacitor shell):**
 
-- Haptics on every action (BBM-style tap feedback)
+- Haptics on every action (tactile tap feedback)
 - Native share sheet
 - Native status bar theming (light/dark follows the app theme)
 - Native splash screen, no white flash
@@ -31,9 +31,9 @@ Wetin Dey is a Nigerian community platform with two surfaces:
 - Edge-swipe-to-go-back gesture
 - Swipe-right-to-reply on chat messages
 
-Native push notifications are not enabled in this build. The APNs
-entitlement and server wiring are on the roadmap but not shipped. Web
-push works in browsers.
+Native push notifications are enabled on Android via Firebase Cloud
+Messaging. iOS push (APNs) is on the roadmap but not shipped. Web push
+works in browsers.
 
 **Account deletion:** in-app at Settings → Account → Delete account,
 and on the web at /delete-account. Deletes the auth user first; refuses
@@ -81,10 +81,6 @@ must be answered before the app is usable.
 - **Supabase** — database, storage, authentication.
 - **Vercel** — hosting and scheduled tasks.
 
-A user-initiated "forward to agency" action is not yet shipped. Reports
-currently have no in-app route to EFCC, ICPC, or NPF. This is a v2
-feature.
-
 **No tracking, no ads, no IDFA.** No analytics SDKs installed.
 
 **Languages:** English and Nigerian Pidgin.
@@ -122,9 +118,7 @@ To rotate it:
     3. Update App Store Connect → App Review Information → Sign-in
        required → password field
 
-Never commit the password to this file or any tracked file. The previous
-version of this document contained a plaintext password. That commit is
-scheduled for removal in the git history purge before submission.
+Never commit the password to this file or any tracked file.
 
 ## Optional context paragraph (if Apple asks for more)
 
