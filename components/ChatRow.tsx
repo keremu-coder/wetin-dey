@@ -112,9 +112,6 @@ export function ChatRow({
           <Alama seed={seed} size={48} />
         )}
       </div>
-
-      <SignalBadge signal={signal} />
-
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2">
           <p className="min-w-0 flex-1 truncate text-[1.0625rem] font-bold leading-[1.375rem] text-ink">{name}</p>
@@ -124,6 +121,7 @@ export function ChatRow({
         </div>
         <div className="mt-1 flex items-center gap-2">
           <p className={`flex min-w-0 flex-1 items-center gap-1.5 text-[0.9375rem] leading-[1.25rem] ${previewLive ? "text-primary-ink font-medium" : hasUnread ? "text-ink" : "text-muted"}`}>
+            <SignalBadge signal={signal} />
             {receipt ? (
               <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full ${RECEIPT_STYLE[receipt]}`} aria-label={receipt}>
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
