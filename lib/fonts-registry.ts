@@ -1,12 +1,12 @@
-// lib/bbm-fonts.ts
-// BBM-style font registry. Every user picks one font.
+// lib/fonts-registry.ts
+// Classic font registry. Every user picks one font.
 // Their messages render in that font for everyone who reads them.
 //
 // Each font's `family` value references a CSS variable declared by
 // lib/fonts.ts (via next/font). The fallback chain still works if the
 // variable somehow isn't defined.
 
-export type BbmFont = {
+export type FontDef = {
   id: string;
   label: string;
   family: string;
@@ -17,7 +17,7 @@ export type BbmFont = {
 
 export const DEFAULT_FONT_ID = "inter";
 
-export const BBM_FONTS: BbmFont[] = [
+export const FONTS: FontDef[] = [
   {
     id: "inter",
     label: "Inter",
@@ -75,11 +75,11 @@ export const BBM_FONTS: BbmFont[] = [
   }
 ];
 
-const FONT_MAP: Record<string, BbmFont> = Object.fromEntries(
-  BBM_FONTS.map((f) => [f.id, f])
+const FONT_MAP: Record<string, FontDef> = Object.fromEntries(
+  FONTS.map((f) => [f.id, f])
 );
 
-export function getFontById(id: string | null | undefined): BbmFont {
+export function getFontById(id: string | null | undefined): FontDef {
   if (!id) return FONT_MAP[DEFAULT_FONT_ID];
   return FONT_MAP[id] ?? FONT_MAP[DEFAULT_FONT_ID];
 }

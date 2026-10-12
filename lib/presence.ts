@@ -1,9 +1,9 @@
-// BBM-style presence. Two inputs:
+// Classic presence. Two inputs:
 //   1. availability — a manual override the user picked (green/red/etc.)
 //   2. last_seen_at — how recently they pinged (fallback when availability=auto)
 //
 // Result is a single presence state with a color, a label, and a rank so we
-// can sort "available first" like BBM did.
+// can sort "available first" classic chat apps did.
 
 export type AvailabilityId =
   | "auto"
@@ -93,7 +93,7 @@ export function presenceDef(state: PresenceState): PresenceDef {
 }
 
 /**
- * Format for a BBM-style secondary line: "Available - Life is a party"
+ * Format for a Classic secondary line: "Available - Life is a party"
  * If there's no status, just shows the availability label.
  */
 export function presenceLine(
@@ -107,7 +107,7 @@ export function presenceLine(
   return label;
 }
 
-/** A tiny "last seen" hint under the presence line, like BBM's timestamp. */
+/** A tiny "last seen" hint under the presence line, like classic messengers's timestamp. */
 export function lastSeenHint(lastSeenAt: string | null | undefined): string {
   if (!lastSeenAt) return "";
   const diff = Date.now() - new Date(lastSeenAt).getTime();

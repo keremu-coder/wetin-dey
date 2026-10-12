@@ -1,5 +1,5 @@
 // lib/status.ts
-// BBM-style status line. A short, low-pressure mood line under every handle.
+// Classic status line. A short, low-pressure mood line under every handle.
 
 export const STATUS_MAX_LENGTH = 60;
 export const STATUS_MIN_LENGTH = 1;

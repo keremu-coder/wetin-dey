@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { BBM_FONTS, DEFAULT_FONT_ID, getFontById } from "@/lib/fonts-registry";
+import { FONTS, DEFAULT_FONT_ID, getFontById } from "@/lib/fonts-registry";
 
 export default function FontSettingsPage() {
   const [currentFont, setCurrentFont] = useState<string>(DEFAULT_FONT_ID);
@@ -149,7 +149,7 @@ export default function FontSettingsPage() {
       ) : null}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {BBM_FONTS.map((font) => {
+        {FONTS.map((font) => {
           const selected = font.id === currentFont;
           const isSaving = saving === font.id;
           const justSaved = saved === font.id;

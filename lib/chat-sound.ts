@@ -84,15 +84,15 @@ function playTones(
   }
 }
 
-/** Standard BBM two-tone ping. */
-export function playBbmPing(): void {
+/** Standard two-tone ping. */
+export function playPing(): void {
   playTones([
     { freq: 1046.5, start: 0, duration: 0.09, gain: 0.14 },
     { freq: 1568.0, start: 0.09, duration: 0.14, gain: 0.16 }
   ]);
 }
 
-/** BBM mention ping — three ascending tones. */
+/** Mention ping — three ascending tones. */
 export function playMentionPing(): void {
   playTones([
     { freq: 698.46, start: 0, duration: 0.08, gain: 0.12 },

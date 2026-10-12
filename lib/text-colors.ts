@@ -1,5 +1,5 @@
 // lib/text-colors.ts
-// Text color registry — mirrors lib/bbm-fonts.ts.
+// Text color registry — mirrors lib/fonts-registry.ts.
 // Colors use the v3 Nigerian palette so nothing clashes.
 // Each color has a light and dark hex; rendering uses CSS
 // variables so theme switches are automatic.

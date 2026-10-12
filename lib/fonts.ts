@@ -2,7 +2,7 @@
 // font, hashes it, and serves it from /_next/static/media. No runtime
 // request to fonts.googleapis.com.
 //
-// Every font exposes a CSS variable that lib/bbm-fonts.ts and
+// Every font exposes a CSS variable that lib/fonts-registry.ts and
 // tailwind.config.ts reference.
 
 import {

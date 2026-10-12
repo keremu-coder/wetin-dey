@@ -1,4 +1,4 @@
-// Broadcast voice notes — BBM-Broadcast mechanic, one voice note to a
+// Broadcast voice notes — Broadcast mechanic, one voice note to a
 // whole Space. Only owners/admins can send. Everyone hears it.
 
 export const BROADCAST_MAX_SECONDS = 60;
