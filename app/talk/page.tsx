@@ -135,11 +135,11 @@ export default async function TalkAmPage({
 
       <Link
         href={initialTab === "community" ? "/submit?tab=community" : "/submit?tab=talk"}
-        className="mt-10 flex min-h-[52px] items-center justify-center rounded-2xl bg-accent px-5 font-serif text-[1.05rem] font-semibold text-white shadow-button transition-all hover:bg-accent-deep hover:shadow-card"
+        aria-label={initialTab === "community" ? "Post to Community" : "Report Wetin Happen"}
+        className="fixed bottom-[88px] right-5 z-30 flex h-14 w-14 items-center justify-center rounded-full text-white transition-transform active:scale-95"
+        style={{ background: "var(--brand-ink)", boxShadow: "var(--shadow-2)" }}
       >
-        {initialTab === "community"
-          ? "Post to Community"
-          : "Report Wetin Happen"}
+        <WetinMark size={26} title="" />
       </Link>
     </main>
   );
