@@ -4,9 +4,19 @@ import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sameOrigin } from "@/lib/rate-limit";
 import { assertNotBanned } from "@/lib/guards";
+import { sendPushToSessions } from "@/lib/push-server";
 
 const TYPES = ["safe","home","on_way","need_help","call_me","police_stop"] as const;
 type SignalType = typeof TYPES[number];
+
+const PUSH_COPY: Record<SignalType, { title: string; body: string }> = {
+  safe:         { title: "\u2713 I dey safe",       body: "Let you know say e don land" },
+  home:         { title: "\u2302 I don reach house",  body: "Dey house now" },
+  on_way:       { title: "\u2192 On the way",          body: "Coming now" },
+  need_help:    { title: "\u26A0 I need help",         body: "Urgent \u2014 share the location" },
+  call_me:      { title: "\u260E Call me",              body: "Ping, no text needed" },
+  police_stop:  { title: "\u26A0 Police stop",          body: "Urgent \u2014 stay close" }
+};
 
 export async function POST(req: NextRequest) {
   try {
@@ -64,6 +74,23 @@ export async function POST(req: NextRequest) {
 
     const { data: inserted, error } = await db.from("radar_signals").insert(rows).select("id");
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // Push to each recipient. Fires concurrently. Fails silently so a
+    // missing token never blocks the signal itself.
+    try {
+      const senderRes = await db.from("sessions").select("handle").eq("id", sid).maybeSingle();
+      const senderHandle = senderRes.data?.handle ?? "Someone";
+      const copy = PUSH_COPY[type as SignalType];
+      const firstId = (inserted?.[0] as { id?: string } | undefined)?.id ?? String(Date.now());
+      await sendPushToSessions(allowedIds, {
+        title: copy.title,
+        body: "@" + senderHandle + " \u2014 " + copy.body,
+        tag: "radar-" + firstId,
+        url: "/radar"
+      });
+    } catch (e) {
+      console.error("[radar/send] push failed:", e);
+    }
 
     return NextResponse.json({ ok: true, count: inserted?.length ?? 0 });
   } catch (err) {
