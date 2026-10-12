@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { ThemeToggle } from "./ThemeToggle";
 import { getWhoAmI, type WhoAmI } from "@/lib/whoami-cache";
 import { useLiveUnread, useLiveNotificationsUnread } from "./LiveStateProvider";
+import { Alama } from "./Alama";
 
 type Row = {
   href: string;
@@ -255,8 +256,8 @@ export function Nav() {
                   className="flex items-center gap-3"
                   onClick={() => setDrawerOpen(false)}
                 >
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-white/20 text-[1.4rem] font-semibold text-white ring-2 ring-white/30 backdrop-blur">
-                    {me.handle.charAt(0).toUpperCase()}
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full ring-2 ring-white/30">
+                    <Alama seed={me.id} size={56} title={`@${me.handle}`} />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-serif text-[1.15rem] font-semibold text-white">
