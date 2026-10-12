@@ -7,7 +7,8 @@ import {
   actualMime,
   extFromType
 } from "@/lib/voice-recorder";
-import { BlockButton } from "./BlockButton";
+import { BlockButton } from "./BlockButton";
+import { MessageBody } from "./MessageBody";
 
 // Lazy-loaded â€” the flag sheet is only shown when the user taps report.
 const FlagSheet = nextDynamic(
@@ -23,6 +24,8 @@ type Comment = {
   transcript: string | null;
   parent_id: string | null;
   author_handle: string | null;
+  author_color: string | null;
+  author_font: string | null;
   upvotes: number;
   downvotes: number;
   score: number;
@@ -321,9 +324,14 @@ export function CommentThread({ reportId }: { reportId: string }) {
               ) : null}
 
               {c.body && c.body !== "(voice note)" ? (
-                <p className="mt-2 text-[0.9375rem] leading-relaxed text-ink/90">
-                  {c.body}
-                </p>
+                <div className="mt-2">
+                  <MessageBody
+                    body={c.body}
+                    isOwn={false}
+                    fontId={c.author_font}
+                    colorId={c.author_color}
+                  />
+                </div>
               ) : null}
 
               <div className="mt-3 flex flex-wrap items-center gap-2">

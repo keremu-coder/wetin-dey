@@ -60,12 +60,16 @@ export async function GET(
     );
 
     let handleMap = new Map<string, string>();
+    let colorMap = new Map<string, string | null>();
+    let fontMap = new Map<string, string | null>();
     if (sessionIds.length > 0) {
       const { data: profiles } = await db
         .from("sessions")
-        .select("id, handle")
+        .select("id, handle, text_color, font_preference")
         .in("id", sessionIds);
       handleMap = new Map((profiles ?? []).map((p) => [p.id, p.handle]));
+      colorMap = new Map((profiles ?? []).map((p) => [p.id, (p as { text_color?: string | null }).text_color ?? null]));
+      fontMap = new Map((profiles ?? []).map((p) => [p.id, (p as { font_preference?: string | null }).font_preference ?? null]));
     }
 
     const comments = (data ?? []).map((c) => ({
@@ -76,6 +80,8 @@ export async function GET(
       transcript: c.transcript,
       parent_id: c.parent_id,
       author_handle: handleMap.get(c.session_id) ?? null,
+      author_color: colorMap.get(c.session_id) ?? null,
+      author_font: fontMap.get(c.session_id) ?? null,
       upvotes: c.upvotes ?? 0,
       downvotes: c.downvotes ?? 0,
       score: (c.upvotes ?? 0) - (c.downvotes ?? 0)
@@ -302,6 +308,8 @@ export async function POST(
         transcript: data.transcript,
         parent_id: data.parent_id,
         author_handle: profile.handle,
+        author_color: (profile as { text_color?: string | null }).text_color ?? null,
+        author_font: (profile as { font_preference?: string | null }).font_preference ?? null,
         upvotes: 0,
         downvotes: 0,
         score: 0
