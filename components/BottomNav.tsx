@@ -76,8 +76,8 @@ export function BottomNav() {
           const active = isActive(href);
           return (
             <Link key={href} href={href} prefetch onMouseEnter={() => router.prefetch(href)} onTouchStart={() => router.prefetch(href)} onFocus={() => router.prefetch(href)} className="flex min-h-[72px] flex-col items-center justify-center gap-1 py-2" aria-current={active ? "page" : undefined}>
-              <span className="flex h-8 items-center justify-center rounded-2xl px-4 transition-colors" style={{ background: active ? "var(--color-primary-tint)" : "transparent" }}>
-                <span style={{ color: active ? "var(--color-primary-ink)" : "var(--color-faint)" }}>
+              <span className="flex h-8 items-center justify-center rounded-2xl px-4 transition-colors" style={{ background: active ? "var(--brand-ink-tint)" : "transparent" }}>
+                <span style={{ color: active ? "var(--brand-ink)" : "var(--color-faint)" }}>
                   <Icon />
                 </span>
               </span>
