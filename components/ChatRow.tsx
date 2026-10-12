@@ -55,18 +55,21 @@ const RECEIPT_STYLE = {
 } as const;
 
 /**
- * Signal badge sits on the bottom-right corner of the avatar so it never
- * shifts the text column. Quiet and offline are silent (no badge) to keep
- * the list clean.
+ * Signal badge sits in its own column between the avatar and the text
+ * block. Both name and preview start after it, so they line up cleanly.
  */
-function SignalCorner({ signal }: { signal?: ChatSignal }) {
+function SignalBadge({ signal }: { signal?: ChatSignal }) {
   if (signal === "live") {
     return (
-      <span
-        aria-label="Active now"
-        className="absolute -bottom-0.5 -right-0.5 flex h-[18px] w-[18px] items-center justify-center rounded-full bg-paper ring-2 ring-paper"
-      >
+      <span className="flex w-5 shrink-0 items-center justify-center" aria-label="Active now">
         <span className="dey-pulse h-[10px] w-[10px] rounded-full bg-signal" />
+      </span>
+    );
+  }
+  if (signal === "quiet" || signal === "offline") {
+    return (
+      <span className="flex w-5 shrink-0 items-center justify-center" aria-hidden>
+        <span className="h-[9px] w-[9px] rounded-full bg-[#8B9A91] dark:bg-[#6B7A70]" />
       </span>
     );
   }
@@ -75,14 +78,14 @@ function SignalCorner({ signal }: { signal?: ChatSignal }) {
     return (
       <span
         aria-label={s.label}
-        className="absolute -bottom-0.5 -right-0.5 flex h-[18px] w-[18px] items-center justify-center rounded-full text-[10px] font-bold leading-none text-white ring-2 ring-paper"
+        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold leading-none text-white"
         style={{ background: s.bg }}
       >
         {s.letter}
       </span>
     );
   }
-  return null;
+  return <span className="w-5 shrink-0" aria-hidden />;
 }
 
 export function ChatRow({
@@ -95,10 +98,10 @@ export function ChatRow({
   return (
     <Link
       href={href}
-      className="group relative flex h-[76px] items-center gap-3.5 px-5 transition-colors active:bg-surface2"
+      className="group relative flex h-[76px] items-center gap-3 px-5 transition-colors active:bg-surface2"
       style={{ WebkitTapHighlightColor: "transparent" }}
     >
-      <div className="relative shrink-0">
+      <div className="shrink-0">
         {avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={avatarUrl} alt="" className="h-[54px] w-[54px] rounded-full object-cover" />
@@ -112,8 +115,9 @@ export function ChatRow({
         ) : (
           <Alama seed={seed} size={54} />
         )}
-        <SignalCorner signal={signal} />
       </div>
+
+      <SignalBadge signal={signal} />
 
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 items-baseline gap-2">
@@ -153,7 +157,7 @@ export function ChatRow({
       {!isLast ? (
         <span
           aria-hidden
-          className="pointer-events-none absolute bottom-0 left-[88px] right-5 h-px bg-surface3 transition-opacity group-active:opacity-0"
+          className="pointer-events-none absolute bottom-0 left-[100px] right-5 h-px bg-surface3 transition-opacity group-active:opacity-0"
         />
       ) : null}
     </Link>
