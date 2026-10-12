@@ -61,8 +61,8 @@ html {
 /* DARK THEME */
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --color-paper: #0B100E;
-  --color-surface: #151D19;
+  --color-paper: #000000;
+  --color-surface: #0A0A0A;
   --color-ink: #EDF2EE;
   --color-muted: #A7B5AC;
   --color-faint: #8B9A91;
@@ -75,8 +75,8 @@ html {
   --color-gold-soft: #3A2F0C;
   --color-border: rgba(237, 242, 238, 0.08);
   --color-border-strong: rgba(237, 242, 238, 0.14);
-  --color-chat-bg: #0B100E;
-  --color-chat-hover: rgba(237, 242, 238, 0.04);
+  --color-chat-bg: #000000;
+  --color-chat-hover: rgba(255, 255, 255, 0.05);
   --color-msg-body: #D9E2DC;
   --color-msg-meta: #8B9A91;
 }
@@ -432,8 +432,8 @@ html.native button {
   --ease-move: cubic-bezier(0.4, 0, 0.2, 1);
 }
 :root[data-theme="dark"] {
-  --color-surface-2: #1E2924;
-  --color-surface-3: #29362F;
+  --color-surface-2: #141414;
+  --color-surface-3: #1F1F1F;
   --color-primary-tint: #153A2B;
   --color-primary-ink: #7EE0B0;
   --color-warn: #F7C437;
