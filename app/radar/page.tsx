@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Alama } from "@/components/Alama";
 import { RadarAlarm } from "@/components/RadarAlarm";
+import { useBackgroundRadar } from "@/lib/use-background-radar";
 
 type Signal = "safe" | "home" | "on_way" | "need_help" | "call_me" | "police_stop";
 
@@ -98,6 +99,9 @@ export default function RadarPage() {
   const hasActiveShare = mine.some(
     (m) => m.location_sharing && !m.location_stopped
   );
+
+  // Native-only: keeps Android location flowing when the app is backgrounded.
+  useBackgroundRadar(hasActiveShare);
 
   useEffect(() => {
     if (!hasActiveShare) {

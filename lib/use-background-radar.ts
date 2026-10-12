@@ -3,26 +3,45 @@
 import { useEffect, useRef } from "react";
 import { isNativePlatform } from "@/lib/native";
 
+type BgLocation = {
+  latitude: number;
+  longitude: number;
+  accuracy: number;
+  time: number;
+};
+
+type BgError = { code: string; message: string };
+
+type WatcherOptions = {
+  backgroundMessage?: string;
+  backgroundTitle?: string;
+  requestPermissions?: boolean;
+  stale?: boolean;
+  distanceFilter?: number;
+};
+
+type BgGeo = {
+  addWatcher(
+    options: WatcherOptions,
+    callback: (location: BgLocation | null, error: BgError | null) => void
+  ): Promise<string>;
+  removeWatcher(options: { id: string }): Promise<void>;
+};
+
 /**
  * Android foreground-service location watcher for Radar.
  *
+ * Loaded through Capacitor's registerPlugin proxy because the community
+ * plugin has no bundled JS entrypoint — it lives only as a native
+ * plugin registered at app launch.
+ *
  * Only active when:
  *   - running inside the Capacitor native shell (not web)
- *   - the caller passes active = true (they have an open need_help /
- *     police_stop signal with location_sharing on)
- *
- * On Android, this fires a foreground service notification so the OS
- * keeps location flowing while the app is backgrounded or the screen is
- * locked. On iOS, the same plugin uses CLLocationManager background mode
- * (Info.plist must include location in UIBackgroundModes).
- *
- * Coordinates are throttled to ~30s before posting to /api/radar/update-location,
- * matching the server-side API cadence.
+ *   - the caller passes active = true
  */
 export function useBackgroundRadar(active: boolean) {
   const watcherIdRef = useRef<string | null>(null);
   const lastPostRef = useRef<number>(0);
-  const stoppedRef = useRef(false);
 
   useEffect(() => {
     if (!active) return;
@@ -33,10 +52,11 @@ export function useBackgroundRadar(active: boolean) {
 
     (async () => {
       try {
-        const mod = await import("@capacitor-community/background-geolocation");
+        const core = await import("@capacitor/core");
+        const bg = core.registerPlugin<BgGeo>("BackgroundGeolocation");
         if (cancelled) return;
 
-        const id = await mod.BackgroundGeolocation.addWatcher(
+        const id = await bg.addWatcher(
           {
             backgroundMessage: "Sharing your location with your Circle",
             backgroundTitle: "Wetin Dey Radar active",
@@ -45,7 +65,7 @@ export function useBackgroundRadar(active: boolean) {
             distanceFilter: 10
           },
           async (location, error) => {
-            if (cancelled || stoppedRef.current) return;
+            if (cancelled) return;
             if (error) {
               if (error.code === "NOT_AUTHORIZED") {
                 console.warn("[radar/bg] location permission denied");
@@ -72,7 +92,7 @@ export function useBackgroundRadar(active: boolean) {
         );
 
         if (cancelled) {
-          await mod.BackgroundGeolocation.removeWatcher({ id });
+          await bg.removeWatcher({ id });
           return;
         }
         watcherIdRef.current = id;
@@ -86,8 +106,11 @@ export function useBackgroundRadar(active: boolean) {
       const id = watcherIdRef.current;
       watcherIdRef.current = null;
       if (id) {
-        void import("@capacitor-community/background-geolocation")
-          .then((mod) => mod.BackgroundGeolocation.removeWatcher({ id }))
+        void import("@capacitor/core")
+          .then(async (core) => {
+            const bg = core.registerPlugin<BgGeo>("BackgroundGeolocation");
+            await bg.removeWatcher({ id });
+          })
           .catch(() => {});
       }
     };
