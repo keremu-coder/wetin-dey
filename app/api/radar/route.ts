@@ -14,9 +14,9 @@ export async function GET() {
     if (!sid) return NextResponse.json({ error: "no session" }, { status: 401 });
     const db = createServiceClient();
 
-    const [inboxRes, contactsRes] = await Promise.all([
+    const [inboxRes, contactsRes, mineRes] = await Promise.all([
       db.from("radar_signals")
-        .select("id, sender_id, signal_type, note, lat, lng, location_sharing, location_stopped, acknowledged_at, created_at")
+        .select("id, sender_id, signal_type, note, lat, lng, location_sharing, location_stopped, acknowledged_at, created_at, location_updated_at")
         .eq("recipient_id", sid)
         .is("acknowledged_at", null)
         .order("created_at", { ascending: false })
@@ -25,7 +25,14 @@ export async function GET() {
         .select("contact_id, created_at")
         .eq("owner_id", sid)
         .order("created_at", { ascending: false })
-        .limit(200)
+        .limit(200),
+      db.from("radar_signals")
+        .select("id, signal_type, note, lat, lng, location_sharing, location_stopped, created_at, location_updated_at")
+        .eq("sender_id", sid)
+        .eq("location_sharing", true)
+        .eq("location_stopped", false)
+        .order("created_at", { ascending: false })
+        .limit(20)
     ]);
 
     const signals = inboxRes.data ?? [];
@@ -43,6 +50,7 @@ export async function GET() {
 
     return NextResponse.json({
       inbox: signals.map((s) => ({ ...s, sender: people.get(s.sender_id as string) ?? null })),
+      mine: mineRes.data ?? [],
       contacts: contactIds.map((id) => ({ id, ...(people.get(id) ?? { handle: null, display_name: null, avatar_url: null }) }))
     });
   } catch (err) {

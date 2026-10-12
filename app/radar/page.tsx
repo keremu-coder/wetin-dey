@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Alama } from "@/components/Alama";
+import { RadarAlarm } from "@/components/RadarAlarm";
 
 type Signal = "safe" | "home" | "on_way" | "need_help" | "call_me" | "police_stop";
 
@@ -9,9 +10,9 @@ const SIGNAL_LABELS: Record<Signal, { label: string; hint: string; icon: string 
   safe: { label: "I'm safe", hint: "Let them know you landed", icon: "\u2713" },
   home: { label: "I'm home", hint: "Dey house now", icon: "\u2302" },
   on_way: { label: "On the way", hint: "Coming now", icon: "\u2192" },
-  need_help: { label: "Need help", hint: "Urgent. Sends location.", icon: "!" },
+  need_help: { label: "Need help", hint: "Urgent. Shares live location.", icon: "!" },
   call_me: { label: "Call me", hint: "Ping, no text needed", icon: "\u260E" },
-  police_stop: { label: "Police stop", hint: "Urgent. Shares location.", icon: "\u26A0" }
+  police_stop: { label: "Police stop", hint: "Urgent. Shares live location.", icon: "\u26A0" }
 };
 
 type InboxItem = {
@@ -24,7 +25,20 @@ type InboxItem = {
   location_sharing: boolean;
   location_stopped: boolean;
   created_at: string;
+  location_updated_at: string | null;
   sender: { handle: string; display_name: string | null; avatar_url: string | null } | null;
+};
+
+type MineItem = {
+  id: string;
+  signal_type: Signal;
+  note: string | null;
+  lat: number | null;
+  lng: number | null;
+  location_sharing: boolean;
+  location_stopped: boolean;
+  created_at: string;
+  location_updated_at: string | null;
 };
 
 type Contact = {
@@ -51,12 +65,16 @@ function urgency(type: Signal): "danger" | "warn" | "info" {
 
 export default function RadarPage() {
   const [inbox, setInbox] = useState<InboxItem[]>([]);
+  const [mine, setMine] = useState<MineItem[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [error, setError] = useState("");
   const [addHandle, setAddHandle] = useState("");
   const [sending, setSending] = useState<Signal | null>(null);
   const [picking, setPicking] = useState<Signal | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [alarmSilenced, setAlarmSilenced] = useState(false);
+
+  const liveWatchRef = useRef<number | null>(null);
 
   async function load() {
     try {
@@ -64,15 +82,55 @@ export default function RadarPage() {
       if (!r.ok) { setError("Could not load"); return; }
       const j = await r.json();
       setInbox(j.inbox ?? []);
+      setMine(j.mine ?? []);
       setContacts(j.contacts ?? []);
     } catch { setError("Network error"); }
   }
 
   useEffect(() => {
-    load();
+    void load();
     const t = setInterval(load, 30000);
     return () => clearInterval(t);
   }, []);
+
+  // Sender-side live location watcher. Fires while I have an active danger
+  // signal with location_sharing on and location_stopped off.
+  const hasActiveShare = mine.some(
+    (m) => m.location_sharing && !m.location_stopped
+  );
+
+  useEffect(() => {
+    if (!hasActiveShare) {
+      if (liveWatchRef.current) { clearInterval(liveWatchRef.current); liveWatchRef.current = null; }
+      return;
+    }
+    let cancelled = false;
+    async function push() {
+      if (cancelled) return;
+      try {
+        const pos = await new Promise<GeolocationPosition>((res, rej) =>
+          navigator.geolocation.getCurrentPosition(res, rej, { timeout: 8000 })
+        );
+        await fetch("/api/radar/update-location", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+        });
+      } catch { /* no signal, try again next tick */ }
+    }
+    void push();
+    liveWatchRef.current = window.setInterval(push, 30000);
+    return () => {
+      cancelled = true;
+      if (liveWatchRef.current) { clearInterval(liveWatchRef.current); liveWatchRef.current = null; }
+    };
+  }, [hasActiveShare]);
+
+  // Alarm fires when the recipient has an unacknowledged danger signal.
+  const alarmItem = inbox.find(
+    (s) => s.signal_type === "need_help" || s.signal_type === "police_stop" || s.signal_type === "call_me"
+  );
+  const alarmActive = !!alarmItem && !alarmSilenced;
 
   async function send(type: Signal, recipients: string[]) {
     let lat: number | null = null;
@@ -95,6 +153,7 @@ export default function RadarPage() {
       });
       if (!r.ok) { const j = await r.json().catch(() => ({})); setError(j?.error ?? "Could not send"); return; }
       setPicking(null); setSelected(new Set());
+      await load();
     } catch { setError("Network error"); }
     finally { setSending(null); }
   }
@@ -107,6 +166,18 @@ export default function RadarPage() {
         body: JSON.stringify({ id, stopLocation })
       });
       setInbox((prev) => prev.filter((s) => s.id !== id));
+      setAlarmSilenced(false);
+    } catch { setError("Network error"); }
+  }
+
+  async function stopMine(id: string) {
+    try {
+      await fetch("/api/radar/ack", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id, stopLocation: true })
+      });
+      setMine((prev) => prev.filter((m) => m.id !== id));
     } catch { setError("Network error"); }
   }
 
@@ -145,7 +216,13 @@ export default function RadarPage() {
 
   return (
     <main className="mx-auto max-w-2xl px-5 py-6 pb-32">
-      <header className="mb-6">
+      <RadarAlarm
+        active={alarmActive}
+        urgency={alarmItem ? urgency(alarmItem.signal_type) : "info"}
+        onSilence={() => setAlarmSilenced(true)}
+      />
+
+      <header className="mb-6 pt-2">
         <h1 className="font-serif text-[2rem] font-semibold leading-tight text-ink">Radar</h1>
         <p className="mt-1 text-[0.9375rem] leading-relaxed text-muted">
           Send a private signal to your Circle. Like a call, but quieter.
@@ -154,6 +231,36 @@ export default function RadarPage() {
 
       {error ? <p className="mb-4 rounded-xl bg-danger-soft px-3 py-2 text-[0.8125rem] text-danger">{error}</p> : null}
 
+      {mine.length > 0 ? (
+        <section className="mb-8">
+          <h2 className="mb-3 text-[0.8125rem] font-semibold uppercase tracking-wider text-faint">Your active signals</h2>
+          <div className="space-y-3">
+            {mine.map((m) => (
+              <div key={m.id} className="rounded-2xl border border-brand/40 bg-brand-tint p-4">
+                <div className="flex items-start gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand text-[1.2rem] text-white" aria-hidden>
+                    {SIGNAL_LABELS[m.signal_type].icon}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[1rem] font-bold text-ink">{SIGNAL_LABELS[m.signal_type].label}</p>
+                    <p className="mt-1 text-[0.8125rem] text-ink/75">
+                      Sharing location - {timeAgo(m.location_updated_at ?? m.created_at)}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void stopMine(m.id)}
+                    className="shrink-0 rounded-full bg-brand px-3.5 py-2 text-[0.8125rem] font-semibold text-white"
+                  >
+                    I&apos;m safe
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       {inbox.length > 0 ? (
         <section className="mb-8">
           <h2 className="mb-3 text-[0.8125rem] font-semibold uppercase tracking-wider text-faint">Waiting for you</h2>
@@ -161,6 +268,7 @@ export default function RadarPage() {
             {inbox.map((s) => {
               const u = urgency(s.signal_type);
               const bg = u === "danger" ? "bg-danger-soft border-danger/40" : u === "warn" ? "bg-warn-tint border-warn/50" : "bg-surface border-border";
+              const live = s.location_sharing && !s.location_stopped && s.lat && s.lng;
               return (
                 <div key={s.id} className={"rounded-2xl border p-4 " + bg}>
                   <div className="flex items-start gap-3">
@@ -178,10 +286,8 @@ export default function RadarPage() {
                       </p>
                       {s.note ? <p className="mt-1 text-[0.9375rem] text-ink/85">{s.note}</p> : null}
                       <p className="mt-1 text-[0.75rem] text-muted">
-                        {timeAgo(s.created_at)}
-                        {s.location_sharing && !s.location_stopped && s.lat && s.lng
-                          ? " - location sharing"
-                          : ""}
+                        {timeAgo(s.location_updated_at ?? s.created_at)}
+                        {live ? " - live location" : ""}
                       </p>
                     </div>
                   </div>
@@ -189,11 +295,11 @@ export default function RadarPage() {
                     <button
                       type="button"
                       onClick={() => ack(s.id, u === "danger")}
-                      className="flex-1 rounded-full bg-primary px-4 py-2.5 text-[0.9375rem] font-semibold text-white"
+                      className="flex-1 rounded-full bg-brand px-4 py-2.5 text-[0.9375rem] font-semibold text-white"
                     >
                       I see it
                     </button>
-                    {s.location_sharing && !s.location_stopped && s.lat && s.lng ? (
+                    {live ? (
                       <a
                         href={"https://www.google.com/maps?q=" + s.lat + "," + s.lng}
                         target="_blank"
