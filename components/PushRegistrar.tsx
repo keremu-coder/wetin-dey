@@ -60,6 +60,10 @@ export function PushRegistrar() {
 
     if (nativePlatform) {
       if (!nativePushEnabled) return;
+      // iOS native push needs an APNs Auth Key uploaded to Firebase.
+      // Until that's done the permission prompt leads nowhere, which is
+      // worse than no prompt. Gate iOS off here; remove once APNs is wired.
+      if (nativePlatform === 'ios') return;
       let cancelled = false;
       const cleanups: Array<() => void | Promise<void>> = [];
 
