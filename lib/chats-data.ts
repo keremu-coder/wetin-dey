@@ -2,6 +2,7 @@ import "server-only";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getBlockedIds } from "@/lib/blocks";
 import { computePresence } from "@/lib/presence";
+import { canSeePhoto } from "@/lib/photo-visibility";
 
 export type ChatItem = {
   key: string;
@@ -105,7 +106,7 @@ export async function getChatsHome(
       ? db.from("community_reads").select("community_id, last_read_at").eq("session_id", sessionId).in("community_id", joinedIds)
       : Promise.resolve(emptyResult),
     otherIds.length > 0
-      ? db.from("sessions").select("id, handle, display_name, avatar_url, availability, last_seen_at, hide_presence").in("id", otherIds)
+      ? db.from("sessions").select("id, handle, display_name, avatar_url, availability, last_seen_at, hide_presence, photo_visibility").in("id", otherIds)
       : Promise.resolve(emptyResult),
     threadIds.length > 0
       ? db.from("dm_messages").select("thread_id, sender_id, body, created_at, held, read_at, delivered").in("thread_id", threadIds).order("created_at", { ascending: false }).limit(threadIds.length * 8)
@@ -165,8 +166,19 @@ export async function getChatsHome(
     });
   }
 
+  // Follow graph for photo visibility on DM avatars
+  const myFollowingSet = new Set<string>();
+  if (sessionId && otherIds.length > 0) {
+    const { data: followRows } = await db
+      .from("follows")
+      .select("followed_session_id")
+      .eq("follower_session_id", sessionId)
+      .in("followed_session_id", otherIds);
+    for (const f of (followRows ?? []) as Array<{ followed_session_id: string }>) myFollowingSet.add(f.followed_session_id);
+  }
+
   // ── BUILD DMs ──
-  type Person = { id: string; handle: string; display_name: string | null; avatar_url: string | null; availability: string | null; last_seen_at: string | null; hide_presence: boolean | null };
+  type Person = { id: string; handle: string; display_name: string | null; avatar_url: string | null; availability: string | null; last_seen_at: string | null; hide_presence: boolean | null; photo_visibility?: string | null };
   const people = new Map<string, Person>();
   for (const s of (dmSessionsRes.data ?? []) as Person[]) people.set(s.id, s);
 
@@ -195,7 +207,12 @@ export async function getChatsHome(
       href: `/inbox/${t.id}`,
       name: p?.display_name || p?.handle || "Anonymous",
       seed: otherId,
-      avatarUrl: p?.avatar_url ?? null,
+      avatarUrl: canSeePhoto({
+        viewerId: sessionId,
+        targetId: otherId,
+        visibility: (p?.photo_visibility as "private" | "followers" | "public" | null | undefined) ?? "private",
+        isFollowing: myFollowingSet.has(otherId)
+      }) ? (p?.avatar_url ?? null) : null,
       preview: (m.body ?? "").slice(0, 100),
       timestamp: timeShort(m.created_at),
       sortTime: new Date(m.created_at).getTime(),
