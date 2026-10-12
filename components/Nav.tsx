@@ -109,7 +109,7 @@ export function Nav() {
           label: "Browse spaces",
           hint: "Public communities to join"
         },
-        {
+        { href: "/radar", icon: "\u{1F4E1}", label: "Radar", hint: "Signals around your area" }, { href: "/submit", icon: "\u{1F4E2}", label: "Report something", hint: "Anonymous, takes a minute" }, {
           href: "/explore",
           icon: "🌍",
           label: "See the pattern",
@@ -186,7 +186,7 @@ export function Nav() {
     <>
       {!hideNav ? (
         <header
-          className="sticky top-0 z-40 border-b border-border bg-paper/90 backdrop-blur-md"
+          className="sticky top-0 z-40 bg-paper/90 backdrop-blur-md"
           style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
         >
           <div className="mx-auto flex max-w-2xl items-center justify-between gap-2 px-5 py-3">
@@ -216,7 +216,7 @@ export function Nav() {
                   <path d="M13.73 21a2 2 0 0 1-3.46 0" />
                 </svg>
                 {notificationsUnread > 0 ? (
-                  <span className="absolute right-1.5 top-1.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-accent px-1 font-mono text-[0.55rem] font-bold text-white">
+                  <span className="absolute right-1.5 top-1.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-accent px-1 text-[0.6875rem] font-semibold text-white">
                     {notificationsUnread > 9 ? "9+" : notificationsUnread}
                   </span>
                 ) : null}
@@ -240,7 +240,7 @@ export function Nav() {
                   <line x1="4" y1="16" x2="20" y2="16" />
                 </svg>
                 {unreadDMs > 0 ? (
-                  <span className="absolute right-1.5 top-1.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-danger px-1 font-mono text-[0.55rem] font-bold text-white">
+                  <span className="absolute right-1.5 top-1.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-accent px-1 text-[0.6875rem] font-semibold text-white">
                     {unreadDMs > 9 ? "9+" : unreadDMs}
                   </span>
                 ) : null}
@@ -298,7 +298,7 @@ export function Nav() {
             <div className="flex-1 overflow-y-auto">
               {sections.map((section) => (
                 <div key={section.title} className="pt-4">
-                  <p className="px-5 pb-2 font-mono text-[0.62rem] uppercase tracking-widest text-faint">
+                  <p className="px-5 pb-2 text-[0.8125rem] font-medium text-faint">
                     {section.title}
                   </p>
                   <div>
@@ -322,7 +322,7 @@ export function Nav() {
                           >
                             <span>{row.icon}</span>
                             {row.badge ? (
-                              <span className="absolute -right-1 -top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-danger px-1 font-mono text-[0.55rem] font-bold text-white">
+                              <span className="absolute -right-1 -top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-accent px-1 text-[0.6875rem] font-semibold text-white">
                                 {row.badge > 9 ? "9+" : row.badge}
                               </span>
                             ) : null}
@@ -352,7 +352,7 @@ export function Nav() {
               ))}
 
               <div className="pt-4">
-                <p className="px-5 pb-2 font-mono text-[0.62rem] uppercase tracking-widest text-faint">
+                <p className="px-5 pb-2 text-[0.8125rem] font-medium text-faint">
                   Appearance & sounds
                 </p>
                 <Link
