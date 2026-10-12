@@ -1,24 +1,41 @@
-export type AlamaShape = 0 | 1 | 2 | 3 | 4 | 5;
-export type AlamaPattern = 0 | 1 | 2 | 3;
 export type AlamaRarity = "common" | "uncommon" | "rare" | "legendary";
 
 export type Alama = {
-  shape: AlamaShape;
-  pattern: AlamaPattern;
-  bg: string;
-  fg: string;
+  skin: number;
+  attire: number;
+  headwear: number;
+  expression: number;
+  accessory: number;
+  aura: number;
+  bg: number;
+  skinColor: string;
+  attireColor: string;
+  headwearColor: string;
+  bgColor: string;
+  bgColor2: string;
+  accessoryColor: string;
+  auraColor: string;
   rarity: AlamaRarity;
 };
 
-// One palette. Muted. Nigerian. Never a rainbow.
-const PALETTE = [
-  "#0A6B43", // leaf
-  "#2B4A9E", // adire
-  "#A3203A", // zobo
-  "#A8501F", // clay
-  "#6A2E73", // plum
-  "#0F6A73"  // lagoon
-] as const;
+// Five Nigerian skin tones, light to deep.
+const SKIN_COLORS = ["#E8B88A", "#C68642", "#8D5524", "#5C3317", "#3D2817"];
+
+// Cloth palette — leaf, adire, zobo, clay, plum, lagoon.
+const CLOTH_COLORS = ["#0A6B43", "#2B4A9E", "#A3203A", "#A8501F", "#6A2E73", "#0F6A73"];
+
+// Background gradient pairs.
+const BG_COLORS: [string, string][] = [
+  ["#0E0E0E", "#1F1F1F"], // obsidian
+  ["#0A1F14", "#124028"], // deep leaf
+  ["#0F1A33", "#1B3060"], // deep adire
+  ["#2A0A10", "#4A1A24"], // deep zobo
+  ["#F0E8D8", "#DDD0B0"], // warm cream
+  ["#1C0E24", "#331D42"]  // deep plum
+];
+
+const GOLD = "#D4AF37";
+const BRONZE = "#B87333";
 
 function hash32(s: string): number {
   let h = 2166136261;
@@ -31,38 +48,69 @@ function hash32(s: string): number {
 
 export function alamaFrom(seed: string): Alama {
   const h = hash32(seed || "anonymous");
-  const shape = (h % 6) as AlamaShape;
-  const pattern = ((h >>> 4) % 4) as AlamaPattern;
-  const bg = PALETTE[(h >>> 8) % 6];
-  let fg = PALETTE[(h >>> 12) % 6];
-  if (fg === bg) fg = PALETTE[((h >>> 12) + 1) % 6];
 
-  let rarity: AlamaRarity = "common";
-  if (shape === 1 && pattern === 2) rarity = "legendary";      // Adire Hex + diagonal
-  else if (shape === 5 && pattern === 3) rarity = "legendary"; // Naija Star + ring
-  else if (shape === 4 && pattern === 1) rarity = "rare";      // Shield + dots
-  else if (shape === 2 && pattern === 3) rarity = "rare";      // Uli Petal + ring
-  else if (pattern === 0) rarity = "common";
-  else rarity = "uncommon";
+  const skin = h % 5;
+  const attire = (h >>> 3) % 3;
+  const headwearRoll = (h >>> 6) % 4;
+  const expression = (h >>> 9) % 3;
+  const accessory = (h >>> 12) % 4;
+  const bg = (h >>> 15) % 6;
 
-  return { shape, pattern, bg, fg, rarity };
+  // Rarity band. Not a lottery — composition-based.
+  // Legendary only fires when the geometry cooperates (crown + full aura).
+  const roll = (h >>> 20) % 1000;
+  let rarity: AlamaRarity;
+  let aura: number;
+  if (roll < 15) {
+    rarity = "legendary";
+    aura = 3;
+  } else if (roll < 90) {
+    rarity = "rare";
+    aura = 2;
+  } else if (roll < 280) {
+    rarity = "uncommon";
+    aura = 1;
+  } else {
+    rarity = "common";
+    aura = 0;
+  }
+
+  const finalHeadwear = rarity === "legendary" ? 3 : headwearRoll;
+
+  const skinColor = SKIN_COLORS[skin];
+  const attireColor = CLOTH_COLORS[(h >>> 22) % 6];
+  const headwearColor = finalHeadwear === 3 ? GOLD : CLOTH_COLORS[(h >>> 25) % 6];
+  const [bgColor, bgColor2] = BG_COLORS[bg];
+  const accessoryColor = rarity === "common" ? "#E0D5BD" : GOLD;
+  const auraColor = aura === 0 ? "transparent" : aura === 1 ? BRONZE : GOLD;
+
+  return {
+    skin, attire, headwear: finalHeadwear, expression, accessory, aura, bg,
+    skinColor, attireColor, headwearColor, bgColor, bgColor2, accessoryColor, auraColor,
+    rarity
+  };
 }
 
-// 100x100 viewBox. Every shape sits inside r=48 so nothing clips.
-export const SHAPE_PATH: Record<AlamaShape, string> = {
-  0: "M50 4 A46 46 0 1 1 49.99 4 Z",                                        // Circle — universal
-  1: "M50 4 L92 27 L92 73 L50 96 L8 73 L8 27 Z",                             // Adire Hex
-  2: "M50 4 C72 4 96 28 96 50 C96 72 72 96 50 96 C28 96 4 72 4 50 C4 28 28 4 50 4 Z", // Uli Petal
-  3: "M50 4 L96 50 L50 96 L4 50 Z",                                          // Aya Diamond
-  4: "M50 4 L92 22 L92 58 Q92 86 50 96 Q8 86 8 58 L8 22 Z",                  // Hausa Shield
-  5: "M50 4 L60 38 L96 38 L67 58 L77 92 L50 72 L23 92 L33 58 L4 38 L40 38 Z" // Naija Star
+// SVG shape data — all drawn on a 100x100 viewBox.
+
+// Shoulders. Attire covers the neck and lower chest.
+export const ATTIRE_PATH: Record<number, string> = {
+  0: "M14 100 Q14 70 50 70 Q86 70 86 100 Z",               // Agbada — wide draped
+  1: "M22 100 Q22 76 50 76 Q78 76 78 100 Z",               // Kaftan — straight collar
+  2: "M18 100 Q18 74 50 74 Q82 74 82 100 Z"                // Buba — soft rounded
 };
 
-export const SHAPE_LABEL: Record<AlamaShape, string> = {
-  0: "Circle",
-  1: "Adire Hex",
-  2: "Uli Petal",
-  3: "Aya Diamond",
-  4: "Hausa Shield",
-  5: "Naija Star"
+// Headwear. Sits above the head (head top is around y=22).
+export const HEADWEAR_PATH: Record<number, string> = {
+  0: "M31 27 L69 27 L68 30 L32 30 Z",                       // Bare — subtle headband
+  1: "M28 28 Q26 6 50 6 Q74 6 72 28 Q72 30 68 30 L32 30 Q28 30 28 28 Z", // Gele
+  2: "M31 27 Q31 12 50 12 Q69 12 69 27 Z",                  // Fila
+  3: "M30 27 L36 13 L42 20 L50 8 L58 20 L64 13 L70 27 Z"    // Crown
+};
+
+export const RARITY_LABEL: Record<AlamaRarity, string> = {
+  common: "Common",
+  uncommon: "Uncommon",
+  rare: "Rare",
+  legendary: "Legendary"
 };
