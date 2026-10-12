@@ -160,7 +160,7 @@ export function SwipeBack() {
           strokeWidth="2.4"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="text-accent"
+          className="text-brand"
         >
           <polyline points="15 18 9 12 15 6" />
         </svg>

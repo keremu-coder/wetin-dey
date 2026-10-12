@@ -49,7 +49,7 @@ export default async function DMSettingsPage() {
             <strong className="text-ink">Blocked users can&apos;t message.</strong>{" "}
             If you block someone (or they block you), DMs between you stop
             working both ways. You can manage blocks in{" "}
-            <Link href="/settings/blocked" className="text-accent underline">
+            <Link href="/settings/blocked" className="text-brand underline">
               Settings → Blocked users
             </Link>
             .

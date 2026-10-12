@@ -103,7 +103,7 @@ export function StatusEditor({ sessionId }: { sessionId: string }) {
           type="button"
           onClick={save}
           disabled={loading || saving || !dirty}
-          className="rounded-xl bg-accent px-4 py-2 text-[0.8125rem] font-semibold text-white transition-colors hover:bg-accent-deep disabled:opacity-40"
+          className="rounded-xl bg-brand px-4 py-2 text-[0.8125rem] font-semibold text-white transition-colors hover:bg-brand-soft disabled:opacity-40"
         >
           {saving ? "Saving…" : saved ? "Saved ✓" : "Save"}
         </button>

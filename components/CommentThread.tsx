@@ -330,7 +330,7 @@ export function CommentThread({ reportId }: { reportId: string }) {
                 <button
                   type="button"
                   onClick={() => vote(c.id, "up")}
-                  className="inline-flex items-center gap-1 rounded-full bg-ink/5 px-2.5 py-1 text-[0.75rem] text-muted transition-colors hover:bg-accent-soft hover:text-accent-deep"
+                  className="inline-flex items-center gap-1 rounded-full bg-ink/5 px-2.5 py-1 text-[0.75rem] text-muted transition-colors hover:bg-brand-tint hover:text-brand"
                 >
                   👍 {c.upvotes ?? 0}
                 </button>
@@ -408,7 +408,7 @@ export function CommentThread({ reportId }: { reportId: string }) {
                       type="button"
                       onClick={() => submitReply(c.id)}
                       disabled={replyBusy || !replyBody.trim()}
-                      className="rounded-lg bg-accent px-3 py-1.5 text-[0.75rem] font-semibold text-white transition-all hover:bg-accent-deep disabled:opacity-50"
+                      className="rounded-lg bg-brand px-3 py-1.5 text-[0.75rem] font-semibold text-white transition-all hover:bg-brand-soft disabled:opacity-50"
                     >
                       {replyBusy ? "…" : "Reply"}
                     </button>
@@ -432,7 +432,7 @@ export function CommentThread({ reportId }: { reportId: string }) {
 
       <div className="mb-6 rounded-2xl border border-border bg-surface p-4 shadow-card">
         {audioPreviewUrl ? (
-          <div className="mb-3 flex items-center gap-3 rounded-xl bg-accent-soft p-3">
+          <div className="mb-3 flex items-center gap-3 rounded-xl bg-brand-tint p-3">
             <audio src={audioPreviewUrl} controls className="h-8 flex-1" />
             <button
               type="button"
@@ -461,7 +461,7 @@ export function CommentThread({ reportId }: { reportId: string }) {
             <button
               type="button"
               onClick={startRecording}
-              className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-[0.875rem] font-medium text-white shadow-button transition-all hover:bg-accent-deep"
+              className="inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-[0.875rem] font-medium text-white shadow-button transition-all hover:bg-brand-soft"
             >
               🎙️ Record voice
             </button>
@@ -481,7 +481,7 @@ export function CommentThread({ reportId }: { reportId: string }) {
             type="button"
             onClick={submit}
             disabled={busy || recording}
-            className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-[0.875rem] font-medium text-white shadow-button transition-all hover:bg-accent-deep disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-[0.875rem] font-medium text-white shadow-button transition-all hover:bg-brand-soft disabled:opacity-60"
           >
             {busy ? "Dey send…" : "Send"}
           </button>

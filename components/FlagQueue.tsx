@@ -144,7 +144,7 @@ function FlagCard({ flag }: { flag: FlagRow }) {
       {flag.target_href ? (
         <Link
           href={flag.target_href}
-          className="mt-2 inline-block text-[0.75rem] font-medium text-accent hover:underline"
+          className="mt-2 inline-block text-[0.75rem] font-medium text-brand hover:underline"
         >
           Open target →
         </Link>
@@ -200,7 +200,7 @@ function FlagCard({ flag }: { flag: FlagRow }) {
             type="button"
             onClick={() => act("remove")}
             disabled={busy != null}
-            className="rounded-lg bg-accent px-3 py-2 text-[0.8125rem] font-semibold text-white transition-colors hover:bg-accent-deep disabled:opacity-50"
+            className="rounded-lg bg-brand px-3 py-2 text-[0.8125rem] font-semibold text-white transition-colors hover:bg-brand-soft disabled:opacity-50"
           >
             {busy === "remove" ? "Removing…" : "Remove content"}
           </button>

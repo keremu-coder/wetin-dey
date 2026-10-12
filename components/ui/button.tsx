@@ -9,7 +9,7 @@ export function Button({
   variant?: "primary" | "ghost" | "danger" | "outline";
 }) {
   const styles = {
-    primary: "bg-accent text-white hover:opacity-90",
+    primary: "bg-brand text-white hover:opacity-90",
     ghost: "bg-transparent text-ink hover:bg-black/5",
     danger: "bg-red-800 text-white hover:opacity-90",
     outline: "border border-ink/20 bg-white hover:bg-black/5"

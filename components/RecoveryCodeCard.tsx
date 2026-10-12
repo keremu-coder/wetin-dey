@@ -91,7 +91,7 @@ export function RecoveryCodeCard() {
 
       {code ? (
         <>
-          <div className="mt-4 flex items-center gap-2 rounded-xl border-2 border-dashed border-accent/40 bg-accent-soft/30 px-3 py-3">
+          <div className="mt-4 flex items-center gap-2 rounded-xl border-2 border-dashed border-brand/40 bg-brand-tint/30 px-3 py-3">
             <code
               className={`flex-1 truncate font-mono text-[1.05rem] font-bold tracking-wider text-ink ${
                 revealed ? "" : "blur-[6px] select-none"
@@ -109,7 +109,7 @@ export function RecoveryCodeCard() {
             <button
               type="button"
               onClick={copy}
-              className="shrink-0 rounded-lg bg-accent px-2.5 py-1.5 text-[0.7rem] font-semibold text-white transition-colors hover:bg-accent-deep"
+              className="shrink-0 rounded-lg bg-brand px-2.5 py-1.5 text-[0.7rem] font-semibold text-white transition-colors hover:bg-brand-soft"
             >
               {copied ? "Copied" : "Copy"}
             </button>
@@ -184,7 +184,7 @@ export function RecoveryCodeCard() {
             type="button"
             onClick={regenerate}
             disabled={busy}
-            className="mt-3 w-full rounded-xl bg-accent py-3 text-[0.875rem] font-semibold text-white transition-colors hover:bg-accent-deep disabled:opacity-50"
+            className="mt-3 w-full rounded-xl bg-brand py-3 text-[0.875rem] font-semibold text-white transition-colors hover:bg-brand-soft disabled:opacity-50"
           >
             {busy ? "Generating…" : "Generate my recovery code"}
           </button>

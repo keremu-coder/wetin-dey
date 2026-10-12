@@ -74,7 +74,7 @@ export function StatusStrip() {
             <Link
               key={p.handle}
               href={`/u/${encodeURIComponent(p.handle)}`}
-              className="flex w-[10.5rem] shrink-0 flex-col gap-2 rounded-2xl border border-border bg-surface p-3 transition-colors hover:border-accent/50"
+              className="flex w-[10.5rem] shrink-0 flex-col gap-2 rounded-2xl border border-border bg-surface p-3 transition-colors hover:border-brand/50"
             >
               <div className="flex items-center gap-2">
                 <div className="relative shrink-0">

@@ -49,7 +49,7 @@ export default async function FollowingPage() {
           </p>
           <Link
             href="/search"
-            className="mt-4 inline-block rounded-xl bg-accent px-4 py-2 text-[0.8125rem] font-semibold text-white"
+            className="mt-4 inline-block rounded-xl bg-brand px-4 py-2 text-[0.8125rem] font-semibold text-white"
           >
             Find people
           </Link>
@@ -64,7 +64,7 @@ export default async function FollowingPage() {
                 i !== 0 ? "border-t border-border" : ""
               }`}
             >
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent text-[1.05rem] font-semibold text-white">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand text-[1.05rem] font-semibold text-white">
                 {p.handle.charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">

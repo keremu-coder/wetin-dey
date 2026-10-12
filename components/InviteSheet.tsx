@@ -86,7 +86,7 @@ export function InviteSheet({
         <button
           type="button"
           onClick={copy}
-          className="rounded-lg bg-accent px-3 py-1.5 text-[0.75rem] font-semibold text-white transition-colors hover:bg-accent-deep"
+          className="rounded-lg bg-brand px-3 py-1.5 text-[0.75rem] font-semibold text-white transition-colors hover:bg-brand-soft"
         >
           {copied ? "Copied ✓" : "Copy"}
         </button>
@@ -96,7 +96,7 @@ export function InviteSheet({
         <button
           type="button"
           onClick={whatsapp}
-          className="flex flex-col items-center gap-2 rounded-xl border border-border bg-paper p-3 transition-colors hover:border-accent"
+          className="flex flex-col items-center gap-2 rounded-xl border border-border bg-paper p-3 transition-colors hover:border-brand"
         >
           <span className="text-2xl">💬</span>
           <span className="text-[0.7rem] font-medium text-ink">
@@ -106,7 +106,7 @@ export function InviteSheet({
         <button
           type="button"
           onClick={twitter}
-          className="flex flex-col items-center gap-2 rounded-xl border border-border bg-paper p-3 transition-colors hover:border-accent"
+          className="flex flex-col items-center gap-2 rounded-xl border border-border bg-paper p-3 transition-colors hover:border-brand"
         >
           <span className="text-2xl">𝕏</span>
           <span className="text-[0.7rem] font-medium text-ink">
@@ -116,7 +116,7 @@ export function InviteSheet({
         <button
           type="button"
           onClick={nativeShare}
-          className="flex flex-col items-center gap-2 rounded-xl border border-border bg-paper p-3 transition-colors hover:border-accent"
+          className="flex flex-col items-center gap-2 rounded-xl border border-border bg-paper p-3 transition-colors hover:border-brand"
         >
           <span className="text-2xl">📤</span>
           <span className="text-[0.7rem] font-medium text-ink">More</span>

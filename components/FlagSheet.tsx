@@ -97,7 +97,7 @@ export function FlagSheet({
           <button
             type="button"
             onClick={onClose}
-            className="mt-5 w-full rounded-xl bg-accent py-3 text-[0.9375rem] font-semibold text-white transition-colors hover:bg-accent-deep"
+            className="mt-5 w-full rounded-xl bg-brand py-3 text-[0.9375rem] font-semibold text-white transition-colors hover:bg-brand-soft"
           >
             Close
           </button>
@@ -120,14 +120,14 @@ export function FlagSheet({
                 onClick={() => setReason(r.id)}
                 className={`flex w-full items-start gap-3 rounded-xl border p-3 text-left transition-colors ${
                   reason === r.id
-                    ? "border-accent bg-accent-soft"
+                    ? "border-brand bg-brand-tint"
                     : "border-border bg-paper hover:border-border-strong"
                 }`}
               >
                 <span
                   className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
                     reason === r.id
-                      ? "border-accent bg-accent"
+                      ? "border-brand bg-brand"
                       : "border-border-strong"
                   }`}
                 >

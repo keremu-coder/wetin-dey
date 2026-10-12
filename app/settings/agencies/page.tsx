@@ -50,7 +50,7 @@ export default async function AgenciesPage() {
           </p>
           <Link
             href="/submit?tab=talk"
-            className="mt-4 inline-block rounded-xl bg-accent px-4 py-2 text-[0.8125rem] font-semibold text-white"
+            className="mt-4 inline-block rounded-xl bg-brand px-4 py-2 text-[0.8125rem] font-semibold text-white"
           >
             File your first report
           </Link>

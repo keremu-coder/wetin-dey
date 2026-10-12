@@ -82,7 +82,7 @@ export default function DisclaimerPage() {
             You may also email{" "}
             <a
               href="mailto:support@wetindey.app"
-              className="text-accent underline"
+              className="text-brand underline"
             >
               support@wetindey.app
             </a>{" "}

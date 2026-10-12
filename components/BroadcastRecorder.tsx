@@ -185,7 +185,7 @@ export function BroadcastRecorder({
             <button
               type="button"
               onClick={start}
-              className="flex w-full items-center justify-center gap-3 rounded-2xl bg-accent py-4 font-serif text-[1.05rem] font-semibold text-white transition-colors hover:bg-accent-deep"
+              className="flex w-full items-center justify-center gap-3 rounded-2xl bg-brand py-4 font-serif text-[1.05rem] font-semibold text-white transition-colors hover:bg-brand-soft"
             >
               <svg
                 width="22"
@@ -272,7 +272,7 @@ export function BroadcastRecorder({
             type="button"
             onClick={send}
             disabled={!blob || busy}
-            className="flex-1 rounded-xl bg-accent py-3 text-[0.875rem] font-semibold text-white transition-colors hover:bg-accent-deep disabled:opacity-40"
+            className="flex-1 rounded-xl bg-brand py-3 text-[0.875rem] font-semibold text-white transition-colors hover:bg-brand-soft disabled:opacity-40"
           >
             {busy ? "Sending…" : "Send to everyone"}
           </button>

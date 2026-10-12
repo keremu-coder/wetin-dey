@@ -195,7 +195,7 @@ export default function PrivacyPage() {
           </ul>
           <p className="mt-2">
             Because reports are never deleted (see the{" "}
-            <Link href="/terms" className="text-accent underline">
+            <Link href="/terms" className="text-brand underline">
               Terms
             </Link>
             ), deleting your account removes your identifying information from
@@ -211,7 +211,7 @@ export default function PrivacyPage() {
             Questions or requests:{" "}
             <a
               href="mailto:support@wetindey.app"
-              className="text-accent underline"
+              className="text-brand underline"
             >
               support@wetindey.app
             </a>

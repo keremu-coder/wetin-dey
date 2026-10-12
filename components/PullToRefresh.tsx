@@ -176,7 +176,7 @@ export function PullToRefresh({ children }: { children: React.ReactNode }) {
                 strokeWidth="2.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="text-accent"
+                className="text-brand"
                 style={{
                   transform: `rotate(${progress * 180}deg)`,
                   transition: "transform 150ms ease-out"

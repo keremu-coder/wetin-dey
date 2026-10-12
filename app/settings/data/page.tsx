@@ -72,7 +72,7 @@ export default async function DataPage() {
           </p>
           <a
             href="mailto:support@wetindey.app?subject=Data export request"
-            className="mt-3 inline-block rounded-xl bg-accent px-4 py-2 text-[0.8125rem] font-semibold text-white transition-colors hover:bg-accent-deep"
+            className="mt-3 inline-block rounded-xl bg-brand px-4 py-2 text-[0.8125rem] font-semibold text-white transition-colors hover:bg-brand-soft"
           >
             Request export
           </a>

@@ -297,7 +297,7 @@ export function ReportForm({
               <span
                 className={`inline-flex items-center rounded-full border px-3.5 py-1.5 text-[0.8125rem] transition-all ${
                   postType === t.value
-                    ? "border-accent bg-accent text-white"
+                    ? "border-brand bg-brand text-white"
                     : "border-border-strong bg-surface text-ink hover:bg-ink/5"
                 }`}
               >
@@ -333,7 +333,7 @@ export function ReportForm({
               <label
                 className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3.5 transition-colors ${
                   targetType === "public"
-                    ? "border-accent bg-accent-soft/40"
+                    ? "border-brand bg-brand-tint/60"
                     : "border-border-strong hover:bg-ink/5"
                 }`}
               >
@@ -397,7 +397,7 @@ export function ReportForm({
                     defaultChecked={c === "other"}
                     className="peer sr-only"
                   />
-                  <span className="inline-flex items-center rounded-full border border-border-strong bg-surface px-3.5 py-1.5 text-[0.8125rem] text-ink transition-all peer-checked:border-accent peer-checked:bg-accent peer-checked:text-white">
+                  <span className="inline-flex items-center rounded-full border border-border-strong bg-surface px-3.5 py-1.5 text-[0.8125rem] text-ink transition-all peer-checked:border-brand peer-checked:bg-brand peer-checked:text-white">
                     {CATEGORY_LABELS[c]}
                   </span>
                 </label>
@@ -541,7 +541,7 @@ export function ReportForm({
               className="!p-2 file:mr-3 file:rounded-lg file:border-0 file:bg-ink/5 file:px-3 file:py-1.5 file:text-[0.8125rem] file:font-medium file:text-ink hover:file:bg-ink/10"
             />
             {evidenceKind && evidenceFile ? (
-              <p className="mt-2 text-[0.75rem] text-accent-deep">
+              <p className="mt-2 text-[0.75rem] text-brand">
                 ✓ {evidenceKind} attached —{" "}
                 {Math.round(evidenceFile.size / 1024)} KB
               </p>
@@ -556,7 +556,7 @@ export function ReportForm({
               <button
                 type="button"
                 onClick={startTestimony}
-                className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-[0.875rem] font-medium text-white shadow-button transition-all hover:bg-accent-deep"
+                className="inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-[0.875rem] font-medium text-white shadow-button transition-all hover:bg-brand-soft"
               >
                 🎙️ Record your account
               </button>
@@ -571,7 +571,7 @@ export function ReportForm({
               </button>
             ) : null}
             {testimonyFile ? (
-              <div className="mt-2 flex items-center gap-3 rounded-xl border border-accent/30 bg-accent-soft/40 p-3">
+              <div className="mt-2 flex items-center gap-3 rounded-xl border border-brand/30 bg-brand-tint/60 p-3">
                 <audio
                   src={testimonyUrl ?? undefined}
                   controls
@@ -620,7 +620,7 @@ export function ReportForm({
         </div>
       )}
 
-      <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-border bg-surface p-4 transition-colors hover:border-accent/40">
+      <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-border bg-surface p-4 transition-colors hover:border-brand/40">
         <input
           type="checkbox"
           name="anonymous"
@@ -645,7 +645,7 @@ export function ReportForm({
       <button
         type="submit"
         disabled={busy || (requiresEvidence && !hasEvidence)}
-        className="w-full rounded-2xl bg-accent px-5 py-4 font-serif text-[1.05rem] font-semibold text-white shadow-button transition-all hover:bg-accent-deep disabled:cursor-not-allowed disabled:opacity-60"
+        className="w-full rounded-2xl bg-brand px-5 py-4 font-serif text-[1.05rem] font-semibold text-white shadow-button transition-all hover:bg-brand-soft disabled:cursor-not-allowed disabled:opacity-60"
       >
         {busy
           ? "Dey post am…"

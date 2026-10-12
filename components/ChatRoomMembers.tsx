@@ -86,7 +86,7 @@ export function ChatRoomMembers({
               onClose();
               onOpenInvite();
             }}
-            className="mb-2 flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-3 py-2.5 text-[0.8125rem] font-semibold text-white transition-colors hover:bg-accent-deep"
+            className="mb-2 flex w-full items-center justify-center gap-2 rounded-xl bg-brand px-3 py-2.5 text-[0.8125rem] font-semibold text-white transition-colors hover:bg-brand-soft"
           >
             <svg
               width="16"
@@ -171,7 +171,7 @@ export function ChatRoomMembers({
               type="button"
               onClick={() => onAutocorrectChange(!autocorrectOn)}
               className={`relative h-6 w-11 rounded-full transition-colors ${
-                autocorrectOn ? "bg-accent" : "bg-ink/10"
+                autocorrectOn ? "bg-brand" : "bg-ink/10"
               }`}
             >
               <span

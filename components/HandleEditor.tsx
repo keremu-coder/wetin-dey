@@ -166,7 +166,7 @@ export function HandleEditor({ initialHandle }: { initialHandle: string }) {
       ) : null}
 
       {saved ? (
-        <p className="mt-3 rounded-xl bg-accent-soft px-3 py-2 text-[0.8125rem] font-medium text-accent-deep">
+        <p className="mt-3 rounded-xl bg-brand-tint px-3 py-2 text-[0.8125rem] font-medium text-brand">
           ✓ Handle updated to @{loaded.handle}
         </p>
       ) : null}
@@ -175,7 +175,7 @@ export function HandleEditor({ initialHandle }: { initialHandle: string }) {
         type="button"
         onClick={submit}
         disabled={!canSubmit}
-        className="mt-4 w-full rounded-xl bg-accent py-3 text-[0.875rem] font-semibold text-white transition-colors hover:bg-accent-deep disabled:opacity-40"
+        className="mt-4 w-full rounded-xl bg-brand py-3 text-[0.875rem] font-semibold text-white transition-colors hover:bg-brand-soft disabled:opacity-40"
       >
         {busy
           ? "Saving…"

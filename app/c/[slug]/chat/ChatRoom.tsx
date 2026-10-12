@@ -705,7 +705,7 @@ export function ChatRoom({
       <main className="mx-auto max-w-2xl px-4 py-10 pb-24">
         <Link
           href={`/c/${slug}`}
-          className="font-mono text-[0.7rem] uppercase tracking-widest text-faint hover:text-accent"
+          className="font-mono text-[0.7rem] uppercase tracking-widest text-faint hover:text-brand"
         >
           ← Back to space
         </Link>
@@ -713,7 +713,7 @@ export function ChatRoom({
           <div className="empty-state-icon">💬</div>
           <p className="empty-state-title">Join {name} to enter the chat</p>
           <p className="empty-state-text">
-            <Link href={`/c/${slug}`} className="text-accent underline">
+            <Link href={`/c/${slug}`} className="text-brand underline">
               Go back to the space
             </Link>{" "}
             and tap Join.
@@ -744,7 +744,7 @@ export function ChatRoom({
       />
 
       {showInviteBanner ? (
-        <div className="flex items-center gap-3 border-b border-border bg-accent-soft px-3 py-2">
+        <div className="flex items-center gap-3 border-b border-border bg-brand-tint px-3 py-2">
           <span className="text-[1.1rem]">👋</span>
           <p className="min-w-0 flex-1 text-[0.8125rem] text-ink">
             {members.length === 1
@@ -755,7 +755,7 @@ export function ChatRoom({
           <button
             type="button"
             onClick={() => setInviteOpen(true)}
-            className="shrink-0 rounded-lg bg-accent px-3 py-1.5 text-[0.75rem] font-semibold text-white transition-colors hover:bg-accent-deep"
+            className="shrink-0 rounded-lg bg-brand px-3 py-1.5 text-[0.75rem] font-semibold text-white transition-colors hover:bg-brand-soft"
           >
             Invite
           </button>
@@ -830,14 +830,14 @@ export function ChatRoom({
       </div>
 
       {showEnableBanner && !recording ? (
-        <div className="flex items-center gap-3 border-t border-border bg-accent-soft px-3 py-2">
+        <div className="flex items-center gap-3 border-t border-border bg-brand-tint px-3 py-2">
           <span className="text-[1.1rem]">🔔</span>
           <p className="min-w-0 flex-1 text-[0.8125rem] text-ink">
             Turn on notifications so you know when someone replies.
           </p>
           <Link
             href="/settings/sounds"
-            className="shrink-0 rounded-lg bg-accent px-3 py-1.5 text-[0.75rem] font-semibold text-white transition-colors hover:bg-accent-deep"
+            className="shrink-0 rounded-lg bg-brand px-3 py-1.5 text-[0.75rem] font-semibold text-white transition-colors hover:bg-brand-soft"
           >
             Open settings
           </Link>

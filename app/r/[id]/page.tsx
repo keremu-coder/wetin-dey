@@ -27,7 +27,7 @@ function EvidenceBlock(report: {
   const tier = report.evidence_tier ?? "unverified";
   const tierColor =
     tier === "strong"
-      ? "text-accent-deep border-accent/30 bg-accent-soft/40"
+      ? "text-brand border-brand/30 bg-brand-tint/60"
       : tier === "medium"
         ? "text-warm-deep border-warm/30 bg-warm-soft/40"
         : "text-faint border-border bg-ink/5";
@@ -93,7 +93,7 @@ function EvidenceBlock(report: {
             href={report.evidence_link}
             target="_blank"
             rel="noopener noreferrer"
-            className="block break-all rounded-xl bg-ink/5 p-3 text-[0.875rem] text-accent underline"
+            className="block break-all rounded-xl bg-ink/5 p-3 text-[0.875rem] text-brand underline"
           >
             {report.evidence_link}
           </a>
@@ -105,7 +105,7 @@ function EvidenceBlock(report: {
 
 function tierBadgeClass(tier: string): string {
   if (tier === "strong") {
-    return "bg-accent-soft text-accent-deep border-accent/30";
+    return "bg-brand-tint text-brand border-brand/30";
   }
   if (tier === "medium") {
     return "bg-warm-soft text-warm-deep border-warm/30";
@@ -143,7 +143,7 @@ function DisputedBanner({ hasResponse }: { hasResponse: boolean }) {
             {hasResponse ? (
               <>
                 The official response is published further down —{" "}
-                <a href="#replies" className="font-medium text-accent underline">
+                <a href="#replies" className="font-medium text-brand underline">
                   read the response
                 </a>
                 .
@@ -205,7 +205,7 @@ export default async function ReportPage({
       <main className="mx-auto max-w-2xl px-4 py-6 pb-24">
         <Link
           href="/"
-          className="inline-flex items-center gap-1 font-mono text-[0.7rem] uppercase tracking-widest text-faint transition-colors hover:text-accent"
+          className="inline-flex items-center gap-1 font-mono text-[0.7rem] uppercase tracking-widest text-faint transition-colors hover:text-brand"
         >
           ← Back to feed
         </Link>
@@ -217,7 +217,7 @@ export default async function ReportPage({
           <p className="mt-2 text-[0.875rem] leading-relaxed text-muted">
             You won&apos;t see their posts or comments. Manage your blocked
             list in{" "}
-            <Link href="/settings/blocked" className="text-accent underline">
+            <Link href="/settings/blocked" className="text-brand underline">
               Settings → Blocked users
             </Link>
             .
@@ -232,7 +232,7 @@ export default async function ReportPage({
       <main className="mx-auto max-w-2xl px-4 py-6 pb-24">
         <Link
           href="/"
-          className="font-mono text-[0.7rem] uppercase tracking-widest text-faint hover:text-accent"
+          className="font-mono text-[0.7rem] uppercase tracking-widest text-faint hover:text-brand"
         >
           ← Back to feed
         </Link>
@@ -279,7 +279,7 @@ export default async function ReportPage({
     <main className="mx-auto max-w-2xl px-4 py-6 pb-24">
       <Link
         href="/"
-        className="inline-flex items-center gap-1 font-mono text-[0.7rem] uppercase tracking-widest text-faint transition-colors hover:text-accent"
+        className="inline-flex items-center gap-1 font-mono text-[0.7rem] uppercase tracking-widest text-faint transition-colors hover:text-brand"
       >
         ← Back to feed
       </Link>
@@ -399,7 +399,7 @@ export default async function ReportPage({
           this is false, submit a reply below or{" "}
           <Link
             href={`/takedown?post=${report.id}`}
-            className="underline hover:text-accent"
+            className="underline hover:text-brand"
           >
             request a takedown
           </Link>

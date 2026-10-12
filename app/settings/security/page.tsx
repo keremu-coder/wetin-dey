@@ -66,7 +66,7 @@ export default async function SecurityPage() {
       <p className="mt-8 text-[0.75rem] text-faint">
         If you suspect someone has access to your account, change your password
         immediately and contact{" "}
-        <a href="mailto:support@wetindey.app" className="underline hover:text-accent">
+        <a href="mailto:support@wetindey.app" className="underline hover:text-brand">
           support@wetindey.app
         </a>
         .

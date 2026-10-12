@@ -65,7 +65,7 @@ export default function ResetPasswordPage() {
       <div className="mb-8">
         <Link
           href="/signin"
-          className="font-mono text-[0.7rem] uppercase tracking-widest text-faint hover:text-accent"
+          className="font-mono text-[0.7rem] uppercase tracking-widest text-faint hover:text-brand"
         >
           ← Back to sign in
         </Link>
@@ -75,8 +75,8 @@ export default function ResetPasswordPage() {
       </div>
 
       {done ? (
-        <div className="rounded-2xl border border-accent/30 bg-accent-soft/40 p-5">
-          <p className="font-serif text-[1.1rem] font-semibold text-accent-deep">
+        <div className="rounded-2xl border border-brand/30 bg-brand-tint/60 p-5">
+          <p className="font-serif text-[1.1rem] font-semibold text-brand">
             Password don change ✅
           </p>
           <p className="mt-2 text-[0.9375rem] leading-relaxed text-ink/85">

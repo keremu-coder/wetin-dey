@@ -125,7 +125,7 @@ export function DMComposer({
         <button
           type="submit"
           disabled={busy || !body.trim()}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent text-white transition-transform hover:bg-accent-deep active:scale-90 disabled:opacity-30"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand text-white transition-transform hover:bg-brand-soft active:scale-90 disabled:opacity-30"
           aria-label="Send"
         >
           <svg

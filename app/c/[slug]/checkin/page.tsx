@@ -190,7 +190,7 @@ export default function CheckinPage({
       <main className="mx-auto max-w-2xl px-4 py-10 pb-24">
         <Link
           href={`/c/${slug}`}
-          className="font-mono text-[0.7rem] uppercase tracking-widest text-faint hover:text-accent"
+          className="font-mono text-[0.7rem] uppercase tracking-widest text-faint hover:text-brand"
         >
           ← Back to space
         </Link>
@@ -207,7 +207,7 @@ export default function CheckinPage({
     <main className="mx-auto max-w-2xl px-4 py-6 pb-28">
       <Link
         href={`/c/${slug}`}
-        className="font-mono text-[0.7rem] uppercase tracking-widest text-faint hover:text-accent"
+        className="font-mono text-[0.7rem] uppercase tracking-widest text-faint hover:text-brand"
       >
         ← {data.community.name}
       </Link>
@@ -237,7 +237,7 @@ export default function CheckinPage({
           <button
             type="button"
             onClick={() => setShowStartSheet(true)}
-            className="mt-5 w-full rounded-2xl bg-accent px-5 py-3.5 font-serif text-[1rem] font-semibold text-white transition-colors hover:bg-accent-deep"
+            className="mt-5 w-full rounded-2xl bg-brand px-5 py-3.5 font-serif text-[1rem] font-semibold text-white transition-colors hover:bg-brand-soft"
           >
             Start check-in
           </button>
@@ -295,7 +295,7 @@ export default function CheckinPage({
                     setNote(data.my_response!.note ?? "");
                     setShowNote(false);
                   }}
-                  className="mt-3 text-[0.75rem] font-medium text-accent hover:underline"
+                  className="mt-3 text-[0.75rem] font-medium text-brand hover:underline"
                 >
                   Change my reply
                 </button>
@@ -310,7 +310,7 @@ export default function CheckinPage({
                     type="button"
                     onClick={() => respond("safe")}
                     disabled={busy}
-                    className="flex flex-col items-center gap-1 rounded-2xl border-2 border-accent/40 bg-accent-soft py-4 transition-colors hover:border-accent disabled:opacity-50"
+                    className="flex flex-col items-center gap-1 rounded-2xl border-2 border-brand/40 bg-brand-tint py-4 transition-colors hover:border-brand disabled:opacity-50"
                   >
                     <span className="text-[1.75rem]">✅</span>
                     <span className="text-[0.8125rem] font-semibold text-ink">
@@ -344,7 +344,7 @@ export default function CheckinPage({
                 <button
                   type="button"
                   onClick={() => setShowNote((v) => !v)}
-                  className="mt-3 w-full text-center text-[0.7rem] font-medium text-accent hover:underline"
+                  className="mt-3 w-full text-center text-[0.7rem] font-medium text-brand hover:underline"
                 >
                   {showNote ? "Hide note" : "Add a note (optional)"}
                 </button>
@@ -453,7 +453,7 @@ export default function CheckinPage({
             <button
               type="button"
               onClick={() => setShowStartSheet(true)}
-              className="text-[0.75rem] font-medium text-accent hover:underline"
+              className="text-[0.75rem] font-medium text-brand hover:underline"
             >
               Start a new check-in (replaces this one)
             </button>
@@ -516,7 +516,7 @@ export default function CheckinPage({
                 type="button"
                 onClick={startCheckin}
                 disabled={ownerBusy}
-                className="flex-1 rounded-xl bg-accent py-3 text-[0.875rem] font-semibold text-white transition-colors hover:bg-accent-deep disabled:opacity-50"
+                className="flex-1 rounded-xl bg-brand py-3 text-[0.875rem] font-semibold text-white transition-colors hover:bg-brand-soft disabled:opacity-50"
               >
                 {ownerBusy ? "Starting…" : "Send to everyone"}
               </button>

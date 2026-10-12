@@ -109,7 +109,7 @@ export default function SoundSettingsPage() {
     <main className="mx-auto max-w-3xl px-4 py-6 pb-28">
       <Link
         href="/settings"
-        className="font-mono text-[0.7rem] uppercase tracking-widest text-faint hover:text-accent"
+        className="font-mono text-[0.7rem] uppercase tracking-widest text-faint hover:text-brand"
       >
         ← Settings
       </Link>
@@ -137,13 +137,13 @@ export default function SoundSettingsPage() {
                 type="button"
                 onClick={() => pickProfile(id)}
                 className={`card flex items-start gap-3 p-4 text-left transition-colors ${
-                  selected ? "!border-accent" : "hover:!border-border-strong"
+                  selected ? "!border-brand" : "hover:!border-border-strong"
                 }`}
               >
                 <span
                   className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
                     selected
-                      ? "border-accent bg-accent"
+                      ? "border-brand bg-brand"
                       : "border-border-strong"
                   }`}
                 >
@@ -157,7 +157,7 @@ export default function SoundSettingsPage() {
                       {p.label}
                     </p>
                     {id === "bbm" ? (
-                      <span className="rounded-full bg-accent-soft px-2 py-0.5 font-mono text-[0.6rem] uppercase tracking-wider text-accent-deep">
+                      <span className="rounded-full bg-brand-tint px-2 py-0.5 font-mono text-[0.6rem] uppercase tracking-wider text-brand">
                         Default
                       </span>
                     ) : null}
@@ -252,7 +252,7 @@ export default function SoundSettingsPage() {
                   onClick={togglePush}
                   disabled={pushBusy}
                   className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
-                    prefs.browserNotifications ? "bg-accent" : "bg-ink/10"
+                    prefs.browserNotifications ? "bg-brand" : "bg-ink/10"
                   } ${pushBusy ? "opacity-50" : ""}`}
                 >
                   <span
@@ -269,7 +269,7 @@ export default function SoundSettingsPage() {
                 <button
                   type="button"
                   onClick={askNotifications}
-                  className="mt-3 rounded-xl bg-accent px-4 py-2 text-[0.8125rem] font-semibold text-white transition-colors hover:bg-accent-deep"
+                  className="mt-3 rounded-xl bg-brand px-4 py-2 text-[0.8125rem] font-semibold text-white transition-colors hover:bg-brand-soft"
                 >
                   Allow notifications
                 </button>
@@ -283,7 +283,7 @@ export default function SoundSettingsPage() {
               ) : null}
 
               {pushMsg ? (
-                <p className="mt-3 rounded-xl bg-accent-soft px-3 py-2 text-[0.75rem] text-accent-deep">
+                <p className="mt-3 rounded-xl bg-brand-tint px-3 py-2 text-[0.75rem] text-brand">
                   {pushMsg}
                 </p>
               ) : null}
@@ -322,7 +322,7 @@ function Row({
 }) {
   return (
     <div className="flex items-center gap-3 border-b border-border px-4 py-4 last:border-b-0">
-      <span className="text-[1.1rem] text-accent-deep">{icon}</span>
+      <span className="text-[1.1rem] text-brand">{icon}</span>
       <div className="min-w-0 flex-1">
         <p className="text-[0.9375rem] font-medium text-ink">{label}</p>
         <p className="text-[0.75rem] text-muted">{hint}</p>
@@ -340,7 +340,7 @@ function Row({
         type="button"
         onClick={() => onChange(!value)}
         className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
-          value ? "bg-accent" : "bg-ink/10"
+          value ? "bg-brand" : "bg-ink/10"
         }`}
       >
         <span

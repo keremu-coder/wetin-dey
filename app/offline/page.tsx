@@ -19,7 +19,7 @@ export default function OfflinePage() {
       <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
         <Link
           href="/"
-          className="rounded-2xl bg-accent px-5 py-3 font-serif text-[0.9375rem] font-semibold text-white shadow-button transition-colors hover:bg-accent-deep"
+          className="rounded-2xl bg-brand px-5 py-3 font-serif text-[0.9375rem] font-semibold text-white shadow-button transition-colors hover:bg-brand-soft"
         >
           Try home again
         </Link>

@@ -169,7 +169,7 @@ export default async function InboxPage() {
                     </p>
                     <span
                       className={`shrink-0 font-mono text-[0.65rem] ${
-                        hasUnread ? "text-accent font-semibold" : "text-faint"
+                        hasUnread ? "text-brand font-semibold" : "text-faint"
                       }`}
                     >
                       {timeAgoShort(t.last_message_at)}
@@ -185,7 +185,7 @@ export default async function InboxPage() {
                       {t.last_body ?? "No messages yet"}
                     </p>
                     {hasUnread ? (
-                      <span className="shrink-0 rounded-full bg-accent px-2 py-0.5 font-mono text-[0.65rem] font-bold text-white">
+                      <span className="shrink-0 rounded-full bg-brand px-2 py-0.5 font-mono text-[0.65rem] font-bold text-white">
                         {t.unread}
                       </span>
                     ) : null}

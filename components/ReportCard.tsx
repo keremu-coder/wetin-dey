@@ -93,7 +93,7 @@ export function ReportCard({
         </div>
 
         <Link href={postUrl} className="mt-4 block">
-          <h3 className="font-serif text-[1.35rem] font-semibold leading-tight text-ink transition-colors group-hover:text-accent">
+          <h3 className="font-serif text-[1.35rem] font-semibold leading-tight text-ink transition-colors group-hover:text-brand">
             {title}
           </h3>
         </Link>
@@ -111,7 +111,7 @@ export function ReportCard({
           ) : null}
           <Link
             href={`/?category=${encodeURIComponent(report.category)}`}
-            className="rounded-full bg-ink/5 px-2.5 py-1 text-[0.7rem] capitalize text-muted transition-colors hover:bg-accent-soft hover:text-accent-deep"
+            className="rounded-full bg-ink/5 px-2.5 py-1 text-[0.7rem] capitalize text-muted transition-colors hover:bg-brand-tint hover:text-brand"
           >
             {report.category}
           </Link>
@@ -181,7 +181,7 @@ export function HomeFeed({
           type="button"
           className={`rounded-full px-4 py-2 text-[0.875rem] font-medium transition-all ${
             tab === "near"
-              ? "bg-accent text-white shadow-button"
+              ? "bg-brand text-white shadow-button"
               : "border border-border-strong bg-surface text-ink hover:bg-ink/5"
           }`}
           onClick={() => setTab("near")}
@@ -192,7 +192,7 @@ export function HomeFeed({
           type="button"
           className={`rounded-full px-4 py-2 text-[0.875rem] font-medium transition-all ${
             tab === "all"
-              ? "bg-accent text-white shadow-button"
+              ? "bg-brand text-white shadow-button"
               : "border border-border-strong bg-surface text-ink hover:bg-ink/5"
           }`}
           onClick={() => setTab("all")}
@@ -204,12 +204,12 @@ export function HomeFeed({
       {filters.category ? (
         <div className="mb-4 flex items-center gap-2">
           <span className="text-[0.8125rem] text-muted">Showing category:</span>
-          <span className="rounded-full bg-accent-soft px-3 py-1 text-[0.75rem] font-medium capitalize text-accent-deep">
+          <span className="rounded-full bg-brand-tint px-3 py-1 text-[0.75rem] font-medium capitalize text-brand">
             {filters.category}
           </span>
           <a
             href="/"
-            className="text-[0.75rem] text-faint underline hover:text-accent"
+            className="text-[0.75rem] text-faint underline hover:text-brand"
           >
             clear
           </a>

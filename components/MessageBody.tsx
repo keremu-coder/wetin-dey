@@ -62,7 +62,7 @@ export function MessageBody({
     <p
       className={`whitespace-pre-wrap break-words leading-[1.4] ${
         mentionsMe && !isOwn
-          ? "rounded-md bg-accent-soft/60 px-1.5 py-0.5 -mx-1.5 -my-0.5"
+          ? "rounded-md bg-brand-tint/60 px-1.5 py-0.5 -mx-1.5 -my-0.5"
           : ""
       }`}
       style={{
@@ -80,7 +80,7 @@ export function MessageBody({
               className={`rounded px-1 py-0.5 font-medium transition-colors ${
                 isOwn
                   ? "bg-white/20 text-white hover:bg-white/30"
-                  : "bg-accent-soft text-accent-deep hover:bg-accent/20"
+                  : "bg-brand-tint text-brand hover:bg-brand/20"
               }`}
               style={{ fontFamily: "'Inter', system-ui, sans-serif" }}
               onClick={(e) => e.stopPropagation()}
@@ -100,7 +100,7 @@ export function MessageBody({
               className={`break-all underline transition-colors ${
                 isOwn
                   ? "text-white/90 hover:text-white"
-                  : "text-accent hover:text-accent-deep"
+                  : "text-brand hover:text-brand"
               }`}
               onClick={(e) => e.stopPropagation()}
             >

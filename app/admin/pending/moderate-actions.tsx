@@ -88,7 +88,7 @@ export function ModerateActions({
         type="button"
         onClick={() => act("approve")}
         disabled={busy != null}
-        className="flex-1 rounded-lg bg-accent py-2 text-[0.8125rem] font-semibold text-white transition-colors hover:bg-accent-deep disabled:opacity-50"
+        className="flex-1 rounded-lg bg-brand py-2 text-[0.8125rem] font-semibold text-white transition-colors hover:bg-brand-soft disabled:opacity-50"
       >
         {busy === "approve" ? "Approving…" : "✓ Approve"}
       </button>

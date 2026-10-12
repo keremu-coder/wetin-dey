@@ -59,7 +59,7 @@ export default function DeleteAccountPage() {
       <div className="mb-8">
         <Link
           href="/settings"
-          className="font-mono text-[0.7rem] uppercase tracking-widest text-faint hover:text-accent"
+          className="font-mono text-[0.7rem] uppercase tracking-widest text-faint hover:text-brand"
         >
           ← Back to settings
         </Link>

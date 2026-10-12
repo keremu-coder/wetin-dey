@@ -90,7 +90,7 @@ function ToastView({ toast }: { toast: ToastData }) {
     toast.kind === "error"
       ? "border-danger/40 bg-danger-soft text-danger"
       : toast.kind === "success"
-        ? "border-accent/40 bg-accent-soft text-accent-deep"
+        ? "border-brand/40 bg-brand-tint text-brand"
         : "border-border bg-surface text-ink";
 
   return (

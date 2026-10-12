@@ -114,7 +114,7 @@ export default async function CommunitiesPage() {
         </div>
         <Link
           href="/communities/new"
-          className="shrink-0 rounded-full bg-accent px-4 py-2 text-[0.8125rem] font-semibold text-white transition-colors hover:bg-accent-deep"
+          className="shrink-0 rounded-full bg-brand px-4 py-2 text-[0.8125rem] font-semibold text-white transition-colors hover:bg-brand-soft"
         >
           + Create
         </Link>
@@ -178,7 +178,7 @@ export default async function CommunitiesPage() {
           </p>
           <Link
             href="/communities/new"
-            className="mt-5 inline-flex min-h-[52px] items-center justify-center gap-2 rounded-2xl bg-accent px-5 font-serif text-[1.05rem] font-semibold text-white transition-colors hover:bg-accent-deep"
+            className="mt-5 inline-flex min-h-[52px] items-center justify-center gap-2 rounded-2xl bg-brand px-5 font-serif text-[1.05rem] font-semibold text-white transition-colors hover:bg-brand-soft"
           >
             Create a space
           </Link>

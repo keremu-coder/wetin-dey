@@ -288,7 +288,7 @@ export function DMThread({
       >
         <Link
           href="/inbox"
-          className="flex h-10 w-10 items-center justify-center rounded-full text-accent transition-colors hover:bg-ink/5"
+          className="flex h-10 w-10 items-center justify-center rounded-full text-brand transition-colors hover:bg-ink/5"
           aria-label="Back to inbox"
         >
           <svg
@@ -423,7 +423,7 @@ export function DMThread({
                     >
                       <span>{timeAgoShort(m.created_at)}</span>
                       {isLastMine && lastMineSeen ? (
-                        <span className="text-accent">· Seen</span>
+                        <span className="text-brand">· Seen</span>
                       ) : null}
                     </p>
                   </div>

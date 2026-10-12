@@ -39,7 +39,7 @@ export function FilterWarning({
         <button
           type="button"
           onClick={onClose}
-          className="mt-5 w-full rounded-xl bg-accent py-3 text-[0.875rem] font-semibold text-white transition-colors hover:bg-accent-deep"
+          className="mt-5 w-full rounded-xl bg-brand py-3 text-[0.875rem] font-semibold text-white transition-colors hover:bg-brand-soft"
         >
           Got it
         </button>

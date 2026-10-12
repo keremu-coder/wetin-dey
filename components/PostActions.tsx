@@ -154,8 +154,8 @@ export function PostActions({
               onClick={() => vote("me_too")}
               className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[0.75rem] font-medium transition-colors ${
                 myVote === "me_too"
-                  ? "bg-accent text-white"
-                  : "bg-ink/5 text-muted hover:bg-accent-soft hover:text-accent-deep"
+                  ? "bg-brand text-white"
+                  : "bg-ink/5 text-muted hover:bg-brand-tint hover:text-brand"
               }`}
             >
               ✋ Me too · {meToo}
@@ -179,8 +179,8 @@ export function PostActions({
               onClick={() => vote("up")}
               className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[0.75rem] font-medium transition-colors ${
                 myVote === "up"
-                  ? "bg-accent text-white"
-                  : "bg-ink/5 text-muted hover:bg-accent-soft hover:text-accent-deep"
+                  ? "bg-brand text-white"
+                  : "bg-ink/5 text-muted hover:bg-brand-tint hover:text-brand"
               }`}
             >
               👍 {upvotes}

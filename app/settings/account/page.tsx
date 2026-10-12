@@ -64,7 +64,7 @@ export default async function AccountPage() {
 
         <Link
           href="/settings/handle"
-          className="flex items-center gap-3 rounded-2xl border border-border bg-surface p-5 transition-colors hover:border-accent/50"
+          className="flex items-center gap-3 rounded-2xl border border-border bg-surface p-5 transition-colors hover:border-brand/50"
         >
           <div className="min-w-0 flex-1">
             <p className="font-mono text-[0.7rem] uppercase tracking-wider text-faint">
@@ -92,7 +92,7 @@ export default async function AccountPage() {
           {hasEmail ? (
             <p className="mt-1 text-[0.8125rem] text-muted">
               {emailVerified ? (
-                <span className="text-accent-deep">✓ Verified</span>
+                <span className="text-brand">✓ Verified</span>
               ) : (
                 <span className="text-danger">
                   Not verified — check your inbox for the link
@@ -123,7 +123,7 @@ export default async function AccountPage() {
         Need to change your email? Contact{" "}
         <a
           href="mailto:support@wetindey.app"
-          className="underline hover:text-accent"
+          className="underline hover:text-brand"
         >
           support@wetindey.app
         </a>

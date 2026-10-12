@@ -39,7 +39,7 @@ export default function TakedownPage() {
       <div className="mb-6">
         <Link
           href="/"
-          className="font-mono text-[0.7rem] uppercase tracking-widest text-faint hover:text-accent"
+          className="font-mono text-[0.7rem] uppercase tracking-widest text-faint hover:text-brand"
         >
           ← Back
         </Link>
@@ -55,8 +55,8 @@ export default function TakedownPage() {
       </div>
 
       {sent ? (
-        <div className="rounded-2xl border border-accent/30 bg-accent-soft/40 p-5">
-          <p className="font-serif text-[1.1rem] font-semibold text-accent-deep">
+        <div className="rounded-2xl border border-brand/30 bg-brand-tint/60 p-5">
+          <p className="font-serif text-[1.1rem] font-semibold text-brand">
             Dispute received
           </p>
           <p className="mt-2 text-[0.9375rem] leading-relaxed text-ink/85">
@@ -214,7 +214,7 @@ export default function TakedownPage() {
             creates an immediate safety risk, email{" "}
             <a
               href="mailto:support@wetindey.app?subject=URGENT"
-              className="text-accent underline"
+              className="text-brand underline"
             >
               support@wetindey.app
             </a>{" "}

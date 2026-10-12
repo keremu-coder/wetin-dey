@@ -113,7 +113,7 @@ export function SpaceAvatarUploader({
           type="button"
           onClick={pick}
           disabled={busy}
-          className="rounded-lg bg-accent px-3 py-1.5 text-[0.7rem] font-semibold text-white transition-colors hover:bg-accent-deep disabled:opacity-50"
+          className="rounded-lg bg-brand px-3 py-1.5 text-[0.7rem] font-semibold text-white transition-colors hover:bg-brand-soft disabled:opacity-50"
         >
           {busy ? "…" : preview ? "Replace" : "Upload"}
         </button>

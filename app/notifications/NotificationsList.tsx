@@ -141,12 +141,12 @@ export function NotificationsList({
             onClick={() => router.push(hrefFor(item))}
             className={`flex w-full items-start gap-3 px-3.5 py-3 text-left transition-colors hover:bg-ink/5 ${
               i !== 0 ? "border-t border-border" : ""
-            } ${unread ? "bg-accent/[0.04]" : ""}`}
+            } ${unread ? "bg-brand/[0.04]" : ""}`}
           >
             <div
               className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[1rem] ${
                 unread
-                  ? "bg-accent text-white"
+                  ? "bg-brand text-white"
                   : "bg-ink/5 text-muted"
               }`}
               aria-hidden
@@ -176,7 +176,7 @@ export function NotificationsList({
 
             {unread ? (
               <span
-                className="mt-2 h-2 w-2 shrink-0 rounded-full bg-accent"
+                className="mt-2 h-2 w-2 shrink-0 rounded-full bg-brand"
                 aria-hidden
               />
             ) : null}

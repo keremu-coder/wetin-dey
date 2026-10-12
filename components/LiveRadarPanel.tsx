@@ -203,7 +203,7 @@ export function LiveRadarPanel() {
         <button
           type="button"
           onClick={requestLocation}
-          className="mt-5 rounded-2xl bg-accent px-6 py-3 font-serif text-[1rem] font-semibold text-white transition-colors hover:bg-accent-deep"
+          className="mt-5 rounded-2xl bg-brand px-6 py-3 font-serif text-[1rem] font-semibold text-white transition-colors hover:bg-brand-soft"
         >
           Turn on my location
         </button>
@@ -232,7 +232,7 @@ export function LiveRadarPanel() {
         <button
           type="button"
           onClick={requestLocation}
-          className="mt-4 rounded-xl bg-accent px-4 py-2 text-[0.8125rem] font-semibold text-white"
+          className="mt-4 rounded-xl bg-brand px-4 py-2 text-[0.8125rem] font-semibold text-white"
         >
           Try again
         </button>
@@ -252,7 +252,7 @@ export function LiveRadarPanel() {
             const busy = submitting === s.id;
             const toneClasses =
               s.tone === "positive"
-                ? "border-accent/30 bg-accent-soft hover:border-accent"
+                ? "border-brand/30 bg-brand-tint hover:border-brand"
                 : s.tone === "negative"
                   ? "border-danger/30 bg-danger-soft hover:border-danger"
                   : "border-gold/30 bg-gold-soft hover:border-gold";
@@ -284,7 +284,7 @@ export function LiveRadarPanel() {
         </div>
 
         {message ? (
-          <p className="mt-3 rounded-xl bg-accent-soft px-3 py-2 text-center text-[0.8125rem] font-medium text-accent-deep">
+          <p className="mt-3 rounded-xl bg-brand-tint px-3 py-2 text-center text-[0.8125rem] font-medium text-brand">
             {message}
           </p>
         ) : null}

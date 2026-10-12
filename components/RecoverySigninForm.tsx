@@ -90,7 +90,7 @@ export function RecoverySigninForm() {
       <button
         type="submit"
         disabled={busy || !complete}
-        className="mt-4 w-full rounded-xl bg-accent py-3.5 text-[0.9375rem] font-semibold text-white transition-colors hover:bg-accent-deep disabled:opacity-40"
+        className="mt-4 w-full rounded-xl bg-brand py-3.5 text-[0.9375rem] font-semibold text-white transition-colors hover:bg-brand-soft disabled:opacity-40"
       >
         {busy ? "Signing in…" : "Sign in"}
       </button>

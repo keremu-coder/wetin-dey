@@ -17,7 +17,7 @@ export function Tabs({
           type="button"
           onClick={() => onChange(t.id)}
           className={`rounded-full px-4 py-2 text-sm ${
-            value === t.id ? "bg-accent text-white" : "bg-white text-ink border border-ink/15"
+            value === t.id ? "bg-brand text-white" : "bg-white text-ink border border-ink/15"
           }`}
         >
           {t.label}

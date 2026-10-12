@@ -171,7 +171,7 @@ export default async function SettingsPage() {
         className="mb-6 block rounded-2xl border border-border bg-surface p-4 transition-colors hover:border-border-strong"
       >
         <div className="flex items-center gap-3">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent text-[1.4rem] font-semibold text-white">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-brand text-[1.4rem] font-semibold text-white">
             {profile.handle.charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">
@@ -197,7 +197,7 @@ export default async function SettingsPage() {
             </p>
           </div>
           <div className="text-right">
-            <p className="font-serif text-[1.75rem] font-semibold leading-none text-accent">
+            <p className="font-serif text-[1.75rem] font-semibold leading-none text-brand">
               {anonymityScore}%
             </p>
             <p className="mt-0.5 font-mono text-[0.65rem] uppercase tracking-wider text-faint">
@@ -207,7 +207,7 @@ export default async function SettingsPage() {
         </div>
         <div className="mt-3 h-2 overflow-hidden rounded-full bg-ink/5">
           <div
-            className="h-full rounded-full bg-accent transition-all"
+            className="h-full rounded-full bg-brand transition-all"
             style={{ width: `${anonymityScore}%` }}
           />
         </div>
@@ -331,13 +331,13 @@ export default async function SettingsPage() {
       ))}
 
       <div className="mt-8 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[0.75rem] text-faint">
-        <Link href="/terms" className="hover:text-accent">
+        <Link href="/terms" className="hover:text-brand">
           Terms
         </Link>
-        <Link href="/privacy" className="hover:text-accent">
+        <Link href="/privacy" className="hover:text-brand">
           Privacy
         </Link>
-        <Link href="/guidelines" className="hover:text-accent">
+        <Link href="/guidelines" className="hover:text-brand">
           Guidelines
         </Link>
         <span className="font-mono">Wetin Dey · v1.0</span>

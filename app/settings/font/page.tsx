@@ -100,7 +100,7 @@ export default function FontSettingsPage() {
     <main className="mx-auto max-w-3xl px-4 py-6 pb-28">
       <Link
         href="/settings"
-        className="font-mono text-[0.7rem] uppercase tracking-widest text-faint hover:text-accent"
+        className="font-mono text-[0.7rem] uppercase tracking-widest text-faint hover:text-brand"
       >
         ← Settings
       </Link>
@@ -162,7 +162,7 @@ export default function FontSettingsPage() {
               disabled={loading || isSaving}
               className={`card flex flex-col gap-2 p-4 text-left transition-colors ${
                 selected
-                  ? "!border-accent"
+                  ? "!border-brand"
                   : "hover:!border-border-strong"
               }`}
             >
@@ -182,11 +182,11 @@ export default function FontSettingsPage() {
                   {font.label}
                 </p>
                 {justSaved ? (
-                  <span className="font-mono text-[0.6875rem] font-medium text-accent">
+                  <span className="font-mono text-[0.6875rem] font-medium text-brand">
                     ✓ Saved
                   </span>
                 ) : selected ? (
-                  <span className="font-mono text-[0.6875rem] font-medium text-accent">
+                  <span className="font-mono text-[0.6875rem] font-medium text-brand">
                     ✓ Selected
                   </span>
                 ) : isSaving ? (

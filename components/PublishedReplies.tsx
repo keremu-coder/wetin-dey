@@ -47,7 +47,7 @@ export function PublishedReplies({ replies }: { replies: PublishedReply[] }) {
               <p className="text-[0.875rem] font-semibold text-ink">
                 {r.submitter_name}
               </p>
-              <span className="rounded-full bg-accent-soft px-2 py-0.5 font-mono text-[0.65rem] uppercase tracking-wider text-accent-deep">
+              <span className="rounded-full bg-brand-tint px-2 py-0.5 font-mono text-[0.65rem] uppercase tracking-wider text-brand">
                 ✓ Verified
               </span>
             </div>

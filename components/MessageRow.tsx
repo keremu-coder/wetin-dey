@@ -183,11 +183,11 @@ export function MessageRow({
               <div className="chat-msg-header">
                 <Link
                   href={`/u/${encodeURIComponent(m.author_handle)}`}
-                  className="chat-msg-author transition-colors hover:text-accent"
+                  className="chat-msg-author transition-colors hover:text-brand"
                 >
                   {m.author_handle}
                   {isMe ? (
-                    <span className="ml-1.5 text-[0.7rem] font-normal text-accent">
+                    <span className="ml-1.5 text-[0.7rem] font-normal text-brand">
                       you
                     </span>
                   ) : null}
@@ -207,9 +207,9 @@ export function MessageRow({
           ) : null}
 
           {m.parent ? (
-            <div className="mb-1.5 flex max-w-full items-stretch gap-2 overflow-hidden rounded-lg border-l-2 border-accent bg-ink/[0.04] px-2.5 py-1.5">
+            <div className="mb-1.5 flex max-w-full items-stretch gap-2 overflow-hidden rounded-lg border-l-2 border-brand bg-ink/[0.04] px-2.5 py-1.5">
               <div className="min-w-0 flex-1">
-                <p className="truncate font-mono text-[0.65rem] font-medium uppercase tracking-wider text-accent-deep">
+                <p className="truncate font-mono text-[0.65rem] font-medium uppercase tracking-wider text-brand">
                   {m.parent.author_handle}
                 </p>
                 <p className="mt-0.5 line-clamp-2 text-[0.75rem] leading-snug text-muted">
@@ -261,7 +261,7 @@ export function MessageRow({
                   key={r.emoji}
                   type="button"
                   onClick={() => onReact(m.id, r.emoji)}
-                  className="rounded-full border border-border bg-surface px-2 py-0.5 text-[0.7rem] text-ink transition-colors hover:border-accent"
+                  className="rounded-full border border-border bg-surface px-2 py-0.5 text-[0.7rem] text-ink transition-colors hover:border-brand"
                 >
                   {r.emoji} {r.count}
                 </button>

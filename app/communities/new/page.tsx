@@ -119,7 +119,7 @@ export default function NewCommunityPage() {
                 key={idea.slug}
                 type="button"
                 onClick={() => applyStarter(idea)}
-                className="flex items-center gap-2 rounded-xl border border-border bg-surface p-3 text-left transition-colors hover:border-accent"
+                className="flex items-center gap-2 rounded-xl border border-border bg-surface p-3 text-left transition-colors hover:border-brand"
               >
                 <span className="text-[1.35rem]">{idea.emoji}</span>
                 <span className="truncate text-[0.8125rem] font-medium text-ink">
@@ -226,7 +226,7 @@ export default function NewCommunityPage() {
               onClick={() => setIsPublic(true)}
               className={`rounded-xl border px-4 py-3 text-left transition-colors ${
                 isPublic
-                  ? "border-accent bg-accent-soft/40"
+                  ? "border-brand bg-brand-tint/60"
                   : "border-border-strong hover:bg-ink/5"
               }`}
             >
@@ -242,7 +242,7 @@ export default function NewCommunityPage() {
               onClick={() => setIsPublic(false)}
               className={`rounded-xl border px-4 py-3 text-left transition-colors ${
                 !isPublic
-                  ? "border-accent bg-accent-soft/40"
+                  ? "border-brand bg-brand-tint/60"
                   : "border-border-strong hover:bg-ink/5"
               }`}
             >
@@ -265,7 +265,7 @@ export default function NewCommunityPage() {
         <button
           type="submit"
           disabled={!canSubmit}
-          className="w-full rounded-2xl bg-accent px-5 py-4 font-serif text-[1.05rem] font-semibold text-white shadow-button transition-all hover:bg-accent-deep disabled:cursor-not-allowed disabled:opacity-60"
+          className="w-full rounded-2xl bg-brand px-5 py-4 font-serif text-[1.05rem] font-semibold text-white shadow-button transition-all hover:bg-brand-soft disabled:cursor-not-allowed disabled:opacity-60"
         >
           {busy ? "Creating…" : "Create space"}
         </button>

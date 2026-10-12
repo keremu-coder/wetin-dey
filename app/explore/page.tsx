@@ -79,7 +79,7 @@ export default async function ExplorePage({
     <main className="mx-auto max-w-2xl px-4 py-6 pb-24">
       <Link
         href="/"
-        className="inline-flex items-center gap-1 font-mono text-[0.7rem] uppercase tracking-widest text-faint transition-colors hover:text-accent"
+        className="inline-flex items-center gap-1 font-mono text-[0.7rem] uppercase tracking-widest text-faint transition-colors hover:text-brand"
       >
         ← Back to feed
       </Link>
@@ -167,7 +167,7 @@ export default async function ExplorePage({
         </div>
         <button
           type="submit"
-          className="mt-4 w-full rounded-xl bg-accent py-3 text-[0.875rem] font-semibold text-white transition-colors hover:bg-accent-deep"
+          className="mt-4 w-full rounded-xl bg-brand py-3 text-[0.875rem] font-semibold text-white transition-colors hover:bg-brand-soft"
         >
           Filter
         </button>
@@ -203,7 +203,7 @@ export default async function ExplorePage({
             <p className="font-mono text-[0.65rem] uppercase tracking-wider text-faint">
               Resolved
             </p>
-            <p className="mt-1 font-serif text-[1.75rem] font-semibold leading-tight text-accent-deep">
+            <p className="mt-1 font-serif text-[1.75rem] font-semibold leading-tight text-brand">
               {pct}%
             </p>
           </div>

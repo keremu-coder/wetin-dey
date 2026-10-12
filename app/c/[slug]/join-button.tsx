@@ -47,7 +47,7 @@ export function CommunityJoinButton({
       className={`rounded-xl px-4 py-2 text-[0.8125rem] font-semibold transition-colors disabled:opacity-60 ${
         member
           ? "border border-border-strong bg-surface text-ink hover:bg-ink/5"
-          : "bg-accent text-white hover:bg-accent-deep"
+          : "bg-brand text-white hover:bg-brand-soft"
       }`}
     >
       {busy ? "…" : member ? "Leave" : "Join"}

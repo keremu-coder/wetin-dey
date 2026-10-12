@@ -150,7 +150,7 @@ export function StatusBar() {
       <button
         type="button"
         onClick={openSheet}
-        className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-border bg-surface p-3.5 text-left transition-colors hover:border-accent/50"
+        className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-border bg-surface p-3.5 text-left transition-colors hover:border-brand/50"
       >
         <div className="relative shrink-0">
           <div
@@ -216,7 +216,7 @@ export function StatusBar() {
                     onClick={() => setDraftAvailability(c.id)}
                     className={`flex items-center gap-2 rounded-xl border p-3 text-left transition-colors ${
                       selected
-                        ? "border-accent bg-accent-soft/40"
+                        ? "border-brand bg-brand-tint/60"
                         : "border-border-strong hover:bg-ink/5"
                     }`}
                   >
@@ -273,7 +273,7 @@ export function StatusBar() {
                 type="button"
                 onClick={save}
                 disabled={saving}
-                className="rounded-xl bg-accent px-5 py-3 text-[0.875rem] font-semibold text-white transition-colors hover:bg-accent-deep disabled:opacity-50"
+                className="rounded-xl bg-brand px-5 py-3 text-[0.875rem] font-semibold text-white transition-colors hover:bg-brand-soft disabled:opacity-50"
               >
                 {saving ? "Saving…" : "Save"}
               </button>

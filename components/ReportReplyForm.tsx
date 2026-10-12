@@ -70,7 +70,7 @@ export function ReportReplyForm({
             <button
               type="button"
               onClick={onClose}
-              className="mt-5 w-full rounded-xl bg-accent py-3 text-[0.9375rem] font-semibold text-white transition-colors hover:bg-accent-deep"
+              className="mt-5 w-full rounded-xl bg-brand py-3 text-[0.9375rem] font-semibold text-white transition-colors hover:bg-brand-soft"
             >
               Close
             </button>
@@ -162,7 +162,7 @@ export function ReportReplyForm({
                   contact.trim().length < 5 ||
                   body.trim().length < MIN_BODY
                 }
-                className="flex-1 rounded-xl bg-accent py-3 text-[0.875rem] font-semibold text-white transition-colors hover:bg-accent-deep disabled:opacity-40"
+                className="flex-1 rounded-xl bg-brand py-3 text-[0.875rem] font-semibold text-white transition-colors hover:bg-brand-soft disabled:opacity-40"
               >
                 {busy ? "Submitting…" : "Submit response"}
               </button>

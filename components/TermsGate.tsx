@@ -130,14 +130,14 @@ export function TermsGate() {
 
         <ul className="mt-4 space-y-2 text-[0.875rem] leading-relaxed text-ink/90">
           <li className="flex items-start gap-2">
-            <span className="mt-1 text-accent">·</span>
+            <span className="mt-1 text-brand">·</span>
             <span>
               <strong>No threats, doxxing, or hate.</strong> Content that
               breaks these rules is removed within 24 hours.
             </span>
           </li>
           <li className="flex items-start gap-2">
-            <span className="mt-1 text-accent">·</span>
+            <span className="mt-1 text-brand">·</span>
             <span>
               <strong>No attacks on religion, ethnicity, or politics.</strong>{" "}
               Criticism of officials acting in their official capacity is
@@ -145,7 +145,7 @@ export function TermsGate() {
             </span>
           </li>
           <li className="flex items-start gap-2">
-            <span className="mt-1 text-accent">·</span>
+            <span className="mt-1 text-brand">·</span>
             <span>
               <strong>Abusive users are ejected.</strong> Reports of abuse go
               to a moderator, not the other person.

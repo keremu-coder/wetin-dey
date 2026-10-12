@@ -81,7 +81,7 @@ export function DailyPrompt() {
   return (
     <section className="mb-6 rounded-2xl border border-border bg-surface p-5">
       <div className="flex items-center justify-between">
-        <p className="font-mono text-[0.65rem] uppercase tracking-wider text-accent">
+        <p className="font-mono text-[0.65rem] uppercase tracking-wider text-brand">
           Today's question
         </p>
         <p className="font-mono text-[0.65rem] text-faint">
@@ -125,7 +125,7 @@ export function DailyPrompt() {
                 type="button"
                 onClick={submit}
                 disabled={busy || !draft.trim()}
-                className="rounded-lg bg-accent px-4 py-1.5 text-[0.75rem] font-semibold text-white transition-colors hover:bg-accent-deep disabled:opacity-40"
+                className="rounded-lg bg-brand px-4 py-1.5 text-[0.75rem] font-semibold text-white transition-colors hover:bg-brand-soft disabled:opacity-40"
               >
                 {busy ? "Sending…" : "Answer"}
               </button>
@@ -136,7 +136,7 @@ export function DailyPrompt() {
           ) : null}
         </div>
       ) : (
-        <div className="mt-4 rounded-xl border border-accent/20 bg-accent-soft/40 p-3">
+        <div className="mt-4 rounded-xl border border-brand/20 bg-brand-tint/60 p-3">
           <p className="text-[0.9375rem] leading-relaxed text-ink">
             {myAnswer!.body}
           </p>
@@ -150,7 +150,7 @@ export function DailyPrompt() {
                 setDraft(myAnswer!.body);
                 setEditing(true);
               }}
-              className="text-[0.7rem] font-medium text-accent hover:underline"
+              className="text-[0.7rem] font-medium text-brand hover:underline"
             >
               Edit
             </button>

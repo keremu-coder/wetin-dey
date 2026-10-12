@@ -62,7 +62,7 @@ export function FollowButton({
         className={`inline-flex items-center rounded-full px-3 py-1 text-[0.75rem] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
           following
             ? "border border-border-strong bg-surface text-ink hover:bg-ink/5"
-            : "bg-accent text-white hover:bg-accent-deep"
+            : "bg-brand text-white hover:bg-brand-soft"
         }`}
       >
         {busy ? "…" : following ? "Following" : "Follow"}
@@ -78,7 +78,7 @@ export function FollowButton({
       className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-[0.875rem] font-medium transition-all ${
         following
           ? "border border-border-strong bg-surface text-ink hover:bg-ink/5"
-          : "bg-accent text-white shadow-button hover:bg-accent-deep"
+          : "bg-brand text-white shadow-button hover:bg-brand-soft"
       } disabled:cursor-not-allowed disabled:opacity-60`}
     >
       {busy ? "…" : following ? "Following" : "Follow"}

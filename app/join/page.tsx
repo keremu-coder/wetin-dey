@@ -92,8 +92,8 @@ export default function JoinPage() {
       </div>
 
       <form onSubmit={onSubmit} className="space-y-5">
-        <div className="rounded-2xl border border-accent/25 bg-accent-soft/60 p-4">
-          <p className="text-[0.8125rem] leading-relaxed text-accent-deep">
+        <div className="rounded-2xl border border-brand/25 bg-brand-tint/60 p-4">
+          <p className="text-[0.8125rem] leading-relaxed text-brand">
             <strong className="font-semibold">Named account:</strong> You get a
             profile, followers, and people fit follow your posts. Your handle
             shows on everything you post publicly — you can still post
@@ -189,11 +189,11 @@ export default function JoinPage() {
           />
           <span className="text-[0.875rem] leading-relaxed text-ink">
             I agree to the{" "}
-            <Link href="/terms" className="text-accent underline">
+            <Link href="/terms" className="text-brand underline">
               Terms of Use
             </Link>{" "}
             and{" "}
-            <Link href="/guidelines" className="text-accent underline">
+            <Link href="/guidelines" className="text-brand underline">
               Community Guidelines
             </Link>
             .

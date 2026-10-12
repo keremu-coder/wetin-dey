@@ -157,7 +157,7 @@ export default function GuidelinesPage() {
           </h2>
           <p>
             Open the report page and submit a dispute via the{" "}
-            <Link href="/takedown" className="text-accent underline">
+            <Link href="/takedown" className="text-brand underline">
               takedown form
             </Link>
             . If your response is verified, it appears attached to the report
@@ -175,7 +175,7 @@ export default function GuidelinesPage() {
             email{" "}
             <a
               href="mailto:support@wetindey.app?subject=URGENT"
-              className="text-accent underline"
+              className="text-brand underline"
             >
               support@wetindey.app
             </a>{" "}
@@ -189,19 +189,19 @@ export default function GuidelinesPage() {
           </h2>
           <p>
             See the{" "}
-            <Link href="/terms" className="text-accent underline">
+            <Link href="/terms" className="text-brand underline">
               Terms of Use
             </Link>
             ,{" "}
-            <Link href="/privacy" className="text-accent underline">
+            <Link href="/privacy" className="text-brand underline">
               Privacy Policy
             </Link>
             ,{" "}
-            <Link href="/disclaimer" className="text-accent underline">
+            <Link href="/disclaimer" className="text-brand underline">
               Disclaimer
             </Link>
             , and{" "}
-            <Link href="/takedown" className="text-accent underline">
+            <Link href="/takedown" className="text-brand underline">
               Takedown &amp; Dispute
             </Link>{" "}
             pages for the full legal text.

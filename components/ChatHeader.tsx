@@ -26,7 +26,7 @@ export function ChatHeader({
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <Link
           href={`/c/${slug}`}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-accent transition-colors hover:bg-ink/5"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-brand transition-colors hover:bg-ink/5"
           aria-label="Back"
         >
           <svg

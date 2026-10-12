@@ -36,7 +36,7 @@ export default function RouteError({
         <button
           type="button"
           onClick={reset}
-          className="rounded-full bg-accent px-5 py-2.5 text-[0.9375rem] font-semibold text-white transition-colors hover:bg-accent-deep"
+          className="rounded-full bg-brand px-5 py-2.5 text-[0.9375rem] font-semibold text-white transition-colors hover:bg-brand-soft"
         >
           Try again
         </button>

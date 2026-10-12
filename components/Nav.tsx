@@ -155,7 +155,7 @@ export function Nav() {
                   <path d="M13.73 21a2 2 0 0 1-3.46 0" />
                 </svg>
                 {notificationsUnread > 0 ? (
-                  <span className="absolute right-1.5 top-1.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-accent px-1 text-[0.6875rem] font-semibold text-white">
+                  <span className="absolute right-1.5 top-1.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-brand px-1 text-[0.6875rem] font-semibold text-white">
                     {notificationsUnread > 9 ? "9+" : notificationsUnread}
                   </span>
                 ) : null}
@@ -179,7 +179,7 @@ export function Nav() {
                   <line x1="4" y1="16" x2="20" y2="16" />
                 </svg>
                 {unreadDMs > 0 ? (
-                  <span className="absolute right-1.5 top-1.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-accent px-1 text-[0.6875rem] font-semibold text-white">
+                  <span className="absolute right-1.5 top-1.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-brand px-1 text-[0.6875rem] font-semibold text-white">
                     {unreadDMs > 9 ? "9+" : unreadDMs}
                   </span>
                 ) : null}
@@ -261,7 +261,7 @@ export function Nav() {
                           >
                             <span>{row.icon}</span>
                             {row.badge ? (
-                              <span className="absolute -right-1 -top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-accent px-1 text-[0.6875rem] font-semibold text-white">
+                              <span className="absolute -right-1 -top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-brand px-1 text-[0.6875rem] font-semibold text-white">
                                 {row.badge > 9 ? "9+" : row.badge}
                               </span>
                             ) : null}

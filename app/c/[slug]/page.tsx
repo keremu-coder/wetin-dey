@@ -36,7 +36,7 @@ export default async function CommunityPage({
       <main className="mx-auto max-w-2xl px-4 py-10 pb-24">
         <Link
           href="/communities"
-          className="font-mono text-[0.7rem] uppercase tracking-widest text-faint hover:text-accent"
+          className="font-mono text-[0.7rem] uppercase tracking-widest text-faint hover:text-brand"
         >
           ← All spaces
         </Link>
@@ -105,7 +105,7 @@ export default async function CommunityPage({
     <main className="mx-auto max-w-2xl px-4 py-6 pb-24">
       <Link
         href="/communities"
-        className="font-mono text-[0.7rem] uppercase tracking-widest text-faint hover:text-accent"
+        className="font-mono text-[0.7rem] uppercase tracking-widest text-faint hover:text-brand"
       >
         ← All spaces
       </Link>
@@ -167,7 +167,7 @@ export default async function CommunityPage({
         {member || isOwner ? (
           <Link
             href={`/c/${community.slug}/chat`}
-            className="mt-5 flex min-h-[56px] items-center justify-center gap-2 rounded-2xl bg-accent px-5 font-serif text-[1.05rem] font-semibold text-white shadow-button transition-all hover:bg-accent-deep"
+            className="mt-5 flex min-h-[56px] items-center justify-center gap-2 rounded-2xl bg-brand px-5 font-serif text-[1.05rem] font-semibold text-white shadow-button transition-all hover:bg-brand-soft"
           >
             💬 Enter live chat
           </Link>
@@ -194,7 +194,7 @@ export default async function CommunityPage({
         ) : (
           <Link
             href={`/c/${community.slug}/checkin`}
-            className="mt-3 flex items-center gap-3 rounded-2xl border border-border bg-paper p-3.5 transition-colors hover:border-accent"
+            className="mt-3 flex items-center gap-3 rounded-2xl border border-border bg-paper p-3.5 transition-colors hover:border-brand"
           >
             <span className="text-[1.4rem]">🛡️</span>
             <div className="min-w-0 flex-1">

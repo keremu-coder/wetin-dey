@@ -155,7 +155,7 @@ export default function TermsPage() {
             Questions:{" "}
             <a
               href="mailto:support@wetindey.app"
-              className="text-accent underline"
+              className="text-brand underline"
             >
               support@wetindey.app
             </a>

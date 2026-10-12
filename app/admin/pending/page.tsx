@@ -312,7 +312,7 @@ export default async function AdminPendingPage() {
                       {r.target_type ?? "public"}
                     </span>
                     {r.evidence_type ? (
-                      <span className="rounded-full bg-accent-soft px-2 py-0.5 font-mono text-[0.65rem] text-accent-deep">
+                      <span className="rounded-full bg-brand-tint px-2 py-0.5 font-mono text-[0.65rem] text-brand">
                         {r.evidence_type}
                       </span>
                     ) : (
@@ -329,7 +329,7 @@ export default async function AdminPendingPage() {
 
                   <Link
                     href={`/r/${r.id}`}
-                    className="mt-3 inline-block text-[0.75rem] font-medium text-accent hover:underline"
+                    className="mt-3 inline-block text-[0.75rem] font-medium text-brand hover:underline"
                   >
                     View full report →
                   </Link>
@@ -383,7 +383,7 @@ export default async function AdminPendingPage() {
 
                 <Link
                   href={`/r/${r.report_id}`}
-                  className="mt-3 inline-block text-[0.75rem] font-medium text-accent hover:underline"
+                  className="mt-3 inline-block text-[0.75rem] font-medium text-brand hover:underline"
                 >
                   View report →
                 </Link>

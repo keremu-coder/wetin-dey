@@ -121,7 +121,7 @@ export function InstallPrompt() {
 function Step({ n, text }: { n: string; text: string }) {
   return (
     <div className="flex items-start gap-3">
-      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent font-mono text-[0.7rem] font-bold text-white">
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand font-mono text-[0.7rem] font-bold text-white">
         {n}
       </span>
       <p className="pt-0.5 text-[0.875rem] leading-snug text-ink">{text}</p>

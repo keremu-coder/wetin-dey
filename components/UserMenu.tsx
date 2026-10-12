@@ -33,7 +33,7 @@ export function UserMenu() {
     return (
       <Link
         href="/signin"
-        className="rounded-xl bg-accent px-3 py-2 text-[0.8125rem] font-medium text-white shadow-button transition-all hover:bg-accent-deep sm:px-4"
+        className="rounded-xl bg-brand px-3 py-2 text-[0.8125rem] font-medium text-white shadow-button transition-all hover:bg-brand-soft sm:px-4"
       >
         Sign in
       </Link>
@@ -47,7 +47,7 @@ export function UserMenu() {
         onClick={() => setOpen((v) => !v)}
         className="flex items-center gap-2 rounded-lg px-2 py-2 text-muted transition-colors hover:bg-ink/5 hover:text-ink"
       >
-        <span className="inline-block h-2 w-2 rounded-full bg-accent" />
+        <span className="inline-block h-2 w-2 rounded-full bg-brand" />
         <span className="max-w-[90px] truncate text-[0.8125rem]">
           @{me.handle}
         </span>

@@ -68,7 +68,7 @@ export function FamilyCheckinPanel() {
         </p>
         <Link
           href="/communities/new"
-          className="mt-5 inline-block rounded-xl bg-accent px-5 py-2.5 text-[0.8125rem] font-semibold text-white transition-colors hover:bg-accent-deep"
+          className="mt-5 inline-block rounded-xl bg-brand px-5 py-2.5 text-[0.8125rem] font-semibold text-white transition-colors hover:bg-brand-soft"
         >
           Create a space
         </Link>
@@ -120,7 +120,7 @@ export function FamilyCheckinPanel() {
                       &ldquo;{s.reason}&rdquo;
                     </p>
                   ) : null}
-                  <p className="mt-1.5 text-[0.7rem] font-medium text-accent">
+                  <p className="mt-1.5 text-[0.7rem] font-medium text-brand">
                     Open check-in →
                   </p>
                 </div>
@@ -165,7 +165,7 @@ export function FamilyCheckinPanel() {
                     {s.total_members === 1 ? "" : "s"} · no active check-in
                   </p>
                 </div>
-                <span className="shrink-0 text-[0.7rem] font-medium text-accent">
+                <span className="shrink-0 text-[0.7rem] font-medium text-brand">
                   Start →
                 </span>
               </Link>

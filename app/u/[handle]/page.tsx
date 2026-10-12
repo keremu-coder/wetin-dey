@@ -342,7 +342,7 @@ export default async function ProfilePage({
       <div className="mb-4 flex items-center justify-between gap-3">
         <Link
           href="/"
-          className="flex h-10 w-10 items-center justify-center rounded-full text-accent transition-colors hover:bg-ink/5"
+          className="flex h-10 w-10 items-center justify-center rounded-full text-brand transition-colors hover:bg-ink/5"
           aria-label="Back"
         >
           <svg
@@ -407,7 +407,7 @@ export default async function ProfilePage({
                 @{handle}
               </h1>
               {profile.handle_kind === "named" ? (
-                <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[0.7rem] font-medium text-accent-deep">
+                <span className="rounded-full bg-brand-tint px-2.5 py-1 text-[0.7rem] font-medium text-brand">
                   Named
                 </span>
               ) : (
@@ -471,7 +471,7 @@ export default async function ProfilePage({
               href={t.href}
               className={`flex flex-1 flex-col items-center gap-0.5 border-b-2 px-3 py-3 text-center transition-colors ${
                 active
-                  ? "border-accent text-ink"
+                  ? "border-brand text-ink"
                   : "border-transparent text-muted hover:text-ink"
               }`}
             >
@@ -514,7 +514,7 @@ export default async function ProfilePage({
                         <ReviewedFlag reviewed={r.reviewed} />
                       </div>
                       <Link href={`/r/${r.id}`} className="mt-3 block">
-                        <h3 className="font-serif text-[1.2rem] font-semibold leading-tight text-ink transition-colors group-hover:text-accent">
+                        <h3 className="font-serif text-[1.2rem] font-semibold leading-tight text-ink transition-colors group-hover:text-brand">
                           {title}
                         </h3>
                       </Link>

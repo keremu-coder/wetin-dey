@@ -74,7 +74,7 @@ export default function SearchPage() {
                 i !== 0 ? "border-t border-border" : ""
               }`}
             >
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent text-[1.05rem] font-semibold text-white">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand text-[1.05rem] font-semibold text-white">
                 {u.handle.charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">

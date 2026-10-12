@@ -105,7 +105,7 @@ export default function DeleteAccountPublicPage() {
             Email{" "}
             <a
               href="mailto:support@wetindey.app?subject=Delete%20my%20account"
-              className="text-accent underline"
+              className="text-brand underline"
             >
               support@wetindey.app
             </a>{" "}
@@ -136,7 +136,7 @@ export default function DeleteAccountPublicPage() {
           <p>
             After deletion, we keep no email address, phone number, or handle
             linked to your account. See the{" "}
-            <Link href="/privacy" className="text-accent underline">
+            <Link href="/privacy" className="text-brand underline">
               Privacy Policy
             </Link>{" "}
             for full details on what we do and do not retain.
@@ -151,7 +151,7 @@ export default function DeleteAccountPublicPage() {
             Contact{" "}
             <a
               href="mailto:support@wetindey.app"
-              className="text-accent underline"
+              className="text-brand underline"
             >
               support@wetindey.app
             </a>

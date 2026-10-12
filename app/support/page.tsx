@@ -21,12 +21,12 @@ export default function SupportPage() {
 
       <div className="space-y-3">
         <div className="rounded-2xl border border-border bg-surface p-5 shadow-card">
-          <p className="text-[0.8125rem] font-semibold uppercase tracking-wide text-accent">
+          <p className="text-[0.8125rem] font-semibold uppercase tracking-wide text-brand">
             Email
           </p>
           <a
             href="mailto:support@wetindey.app"
-            className="mt-1 block text-[1rem] font-medium text-ink hover:text-accent"
+            className="mt-1 block text-[1rem] font-medium text-ink hover:text-brand"
           >
             support@wetindey.app
           </a>

@@ -57,14 +57,14 @@ export function DMPolicyForm({
         disabled={busy}
         className={`flex w-full items-start gap-3 rounded-2xl border p-4 text-left transition-colors ${
           policy === "everyone"
-            ? "border-accent bg-accent-soft/40"
+            ? "border-brand bg-brand-tint/60"
             : "border-border-strong hover:bg-ink/5"
         } disabled:opacity-60`}
       >
         <span
           className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
             policy === "everyone"
-              ? "border-accent bg-accent"
+              ? "border-brand bg-brand"
               : "border-border-strong"
           }`}
         >
@@ -88,14 +88,14 @@ export function DMPolicyForm({
         disabled={busy}
         className={`flex w-full items-start gap-3 rounded-2xl border p-4 text-left transition-colors ${
           policy === "following"
-            ? "border-accent bg-accent-soft/40"
+            ? "border-brand bg-brand-tint/60"
             : "border-border-strong hover:bg-ink/5"
         } disabled:opacity-60`}
       >
         <span
           className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
             policy === "following"
-              ? "border-accent bg-accent"
+              ? "border-brand bg-brand"
               : "border-border-strong"
           }`}
         >
@@ -115,7 +115,7 @@ export function DMPolicyForm({
       </button>
 
       {saved ? (
-        <p className="mt-2 text-center text-[0.75rem] font-medium text-accent-deep">
+        <p className="mt-2 text-center text-[0.75rem] font-medium text-brand">
           ✓ Saved
         </p>
       ) : null}

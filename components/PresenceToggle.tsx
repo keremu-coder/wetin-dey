@@ -61,7 +61,7 @@ export function PresenceToggle({ initial }: { initial: boolean }) {
           disabled={busy}
           aria-pressed={on}
           className={`relative h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-60 ${
-            on ? "bg-accent" : "bg-ink/10"
+            on ? "bg-brand" : "bg-ink/10"
           }`}
         >
           <span
@@ -73,7 +73,7 @@ export function PresenceToggle({ initial }: { initial: boolean }) {
       </div>
 
       {savedAt ? (
-        <p className="mt-3 text-[0.75rem] font-medium text-accent-deep">
+        <p className="mt-3 text-[0.75rem] font-medium text-brand">
           ✓ Saved
         </p>
       ) : null}
