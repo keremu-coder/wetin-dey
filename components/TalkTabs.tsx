@@ -48,7 +48,7 @@ export function TalkTabs({
           onClick={() => switchTab("civic")}
           className={`border-b-2 px-4 py-3 font-serif text-[1.05rem] font-semibold transition-colors ${
             !isCommunity
-              ? "border-accent text-ink"
+              ? "border-brand text-ink"
               : "border-transparent text-muted hover:text-ink"
           }`}
         >
@@ -59,7 +59,7 @@ export function TalkTabs({
           onClick={() => switchTab("community")}
           className={`border-b-2 px-4 py-3 font-serif text-[1.05rem] font-semibold transition-colors ${
             isCommunity
-              ? "border-accent text-ink"
+              ? "border-brand text-ink"
               : "border-transparent text-muted hover:text-ink"
           }`}
         >

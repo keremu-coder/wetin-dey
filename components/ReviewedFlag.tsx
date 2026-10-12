@@ -1,7 +1,7 @@
 export function ReviewedFlag({ reviewed }: { reviewed: boolean }) {
   if (reviewed) {
     return (
-      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-accent-soft px-2.5 py-1 text-[0.7rem] font-medium text-accent-deep">
+      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-brand-tint px-2.5 py-1 text-[0.7rem] font-medium text-brand">
         <svg
           viewBox="0 0 12 12"
           className="h-3 w-3"
