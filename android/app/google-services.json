@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1021050254126",
+    "project_id": "wetin-dey-21afb",
+    "storage_bucket": "wetin-dey-21afb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1021050254126:android:ead8e5c83e514fd66c80bf",
+        "android_client_info": {
+          "package_name": "com.wetindey.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAeqtTD5VAMwtl04AQpNICdEdMSxJc4d_g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
