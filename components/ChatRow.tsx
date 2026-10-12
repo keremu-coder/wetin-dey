@@ -113,13 +113,13 @@ export function ChatRow({
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <div className="flex items-baseline gap-2">
+        <div className="flex min-w-0 items-baseline gap-2">
           <p className="min-w-0 flex-1 truncate text-[1.0625rem] font-bold leading-[1.375rem] text-ink">{name}</p>
           <span className={`shrink-0 text-[0.75rem] leading-[1.125rem] ${hasUnread ? "font-semibold text-primary-ink" : "font-normal text-faint"}`}>
             {timestamp}
           </span>
         </div>
-        <div className="mt-1 flex items-center gap-2">
+        <div className="mt-1 flex min-w-0 items-center gap-2">
           <p className={`flex min-w-0 flex-1 items-center gap-1.5 text-[0.875rem] leading-[1.25rem] ${previewLive ? "text-primary-ink font-medium" : hasUnread ? "text-ink" : "text-muted"}`}>
             <SignalBadge signal={signal} />
             {voice ? (
