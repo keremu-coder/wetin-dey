@@ -33,6 +33,7 @@ import {
 } from "@/lib/chat";
 import { presenceFromLastSeen } from "@/components/PresenceDot";
 import { DEFAULT_FONT_ID } from "@/lib/bbm-fonts";
+import { DEFAULT_TEXT_COLOR_ID } from "@/lib/text-colors";
 import {
   BroadcastBanner,
   type Broadcast
@@ -76,6 +77,7 @@ export function ChatRoom({
   initialMe,
   initialMySessionId,
   initialFonts,
+  initialColors,
   initialStatuses
 }: {
   slug: string;
@@ -89,6 +91,7 @@ export function ChatRoom({
   initialMe: string | null;
   initialMySessionId: string | null;
   initialFonts: Record<string, string>;
+  initialColors: Record<string, string>;
   initialStatuses: Record<string, string>;
 }) {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
@@ -120,6 +123,8 @@ export function ChatRoom({
   } | null>(null);
   const [fontByHandle, setFontByHandle] =
     useState<Record<string, string>>(initialFonts);
+  const [colorByHandle] =
+    useState<Record<string, string>>(initialColors);
   const [statusByHandle, setStatusByHandle] =
     useState<Record<string, string>>(initialStatuses);
   const [composerMode, setComposerMode] = useState<"voice" | "text">("voice");
@@ -786,6 +791,8 @@ export function ChatRoom({
                 const prev = idx > 0 ? arr[idx - 1] : null;
                 const fontId =
                   fontByHandle[m.author_handle] || DEFAULT_FONT_ID;
+                const colorId =
+                  colorByHandle[m.author_handle] || DEFAULT_TEXT_COLOR_ID;
                 const status = statusByHandle[m.author_handle];
                 const mentionsMe =
                   me && m.body ? containsMentionOf(m.body, me) : false;
@@ -796,6 +803,7 @@ export function ChatRoom({
                     prev={prev}
                     me={me}
                     fontId={fontId}
+                    colorId={colorId}
                     status={status}
                     mentionsMe={mentionsMe}
                     openReactionsFor={openReactionsFor}

@@ -30,6 +30,7 @@ export type MessageRowProps = {
   prev: Message | null;
   me: string | null;
   fontId: string;
+  colorId?: string;
   status: string | undefined;
   mentionsMe: boolean;
   openReactionsFor: string | null;
@@ -49,6 +50,7 @@ export function MessageRow({
   prev,
   me,
   fontId,
+  colorId,
   status,
   mentionsMe,
   openReactionsFor,
@@ -229,6 +231,7 @@ export function MessageRow({
               isOwn={isMe}
               mentionsMe={mentionsMe}
               fontId={fontId}
+              colorId={colorId}
             />
           ) : null}
 

@@ -454,3 +454,25 @@ html.native button {
   --shadow-nav: none;
   --scrim: rgba(0,0,0,.6);
 }
+
+/* === TEXT COLOR TOKENS === */
+:root, :root[data-theme="light"] {
+  --tc-ink-light: #14201A;
+  --tc-leaf-light: #0A6B43;
+  --tc-adire-light: #2B4A9E;
+  --tc-zobo-light: #A3203A;
+  --tc-clay-light: #A8501F;
+  --tc-plum-light: #6A2E73;
+  --tc-lagoon-light: #0F6A73;
+  --tc-gold-light: #7A5200;
+}
+:root[data-theme="dark"] {
+  --tc-ink-light: #EDF2EE;
+  --tc-leaf-light: #4CCB8E;
+  --tc-adire-light: #7EA6FF;
+  --tc-zobo-light: #FF8A98;
+  --tc-clay-light: #E89056;
+  --tc-plum-light: #C287CB;
+  --tc-lagoon-light: #4DB8C0;
+  --tc-gold-light: #F7D26B;
+}

@@ -115,6 +115,7 @@ export default async function ChatPage({
       handle: string;
       last_seen_at: string | null;
       font_preference: string | null;
+      text_color: string | null;
       status_line: string | null;
     }
   >();
@@ -122,7 +123,7 @@ export default async function ChatPage({
   if (allSessionIds.length > 0) {
     const { data: profiles } = await db
       .from("sessions")
-      .select("id, handle, last_seen_at, font_preference, status_line")
+      .select("id, handle, last_seen_at, font_preference, text_color, status_line")
       .in("id", allSessionIds);
 
     for (const p of profiles ?? []) {
@@ -130,6 +131,7 @@ export default async function ChatPage({
         handle: p.handle,
         last_seen_at: p.last_seen_at ?? null,
         font_preference: p.font_preference ?? null,
+        text_color: p.text_color ?? null,
         status_line: p.status_line ?? null
       });
     }
@@ -194,10 +196,14 @@ export default async function ChatPage({
 
   // Build font + status maps so ChatRoom doesn't fetch them
   const initialFonts: Record<string, string> = {};
+  const initialColors: Record<string, string> = {};
   const initialStatuses: Record<string, string> = {};
   for (const [id, p] of profilesMap.entries()) {
     if (p.font_preference) {
       initialFonts[p.handle] = p.font_preference;
+    }
+    if (p.text_color) {
+      initialColors[p.handle] = p.text_color;
     }
     if (p.status_line) {
       initialStatuses[p.handle] = p.status_line;
@@ -217,6 +223,7 @@ export default async function ChatPage({
       initialMe={myProfile?.handle ?? null}
       initialMySessionId={sessionId ?? null}
       initialFonts={initialFonts}
+      initialColors={initialColors}
       initialStatuses={initialStatuses}
     />
   );

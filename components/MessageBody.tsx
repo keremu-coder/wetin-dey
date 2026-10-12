@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import { getFontById } from "@/lib/bbm-fonts";
+import { getTextColor } from "@/lib/text-colors";
 
 type Segment =
   | { type: "text"; value: string }
@@ -40,15 +41,18 @@ export function MessageBody({
   body,
   isOwn,
   mentionsMe,
-  fontId
+  fontId,
+  colorId
 }: {
   body: string;
   isOwn: boolean;
   mentionsMe?: boolean;
   fontId?: string | null;
+  colorId?: string | null;
 }) {
   const segments = useMemo(() => parseMessage(body), [body]);
   const font = getFontById(fontId);
+  const color = getTextColor(colorId);
 
   const fontSize = font.sizeAdjust
     ? `calc(0.9375rem * ${font.sizeAdjust})`
@@ -61,7 +65,11 @@ export function MessageBody({
           ? "rounded-md bg-accent-soft/60 px-1.5 py-0.5 -mx-1.5 -my-0.5"
           : ""
       }`}
-      style={{ fontFamily: font.family, fontSize }}
+      style={{
+        fontFamily: font.family,
+        fontSize,
+        color: isOwn ? undefined : `var(--tc-${color.id}-light)`
+      }}
     >
       {segments.map((seg, i) => {
         if (seg.type === "mention") {
