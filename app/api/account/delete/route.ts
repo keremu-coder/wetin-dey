@@ -227,7 +227,14 @@ export async function POST(req: NextRequest) {
     await db.from("checkin_requests").delete().eq("session_id", sessionId);
     await db.from("checkin_responses").delete().eq("session_id", sessionId);
     await db.from("content_flags").delete().eq("session_id", sessionId);
-    await db.from("radar_signals").delete().eq("session_id", sessionId);
+    await db.from("notifications").delete().eq("session_id", sessionId);
+    await db.from("flags").delete().eq("session_id", sessionId);
+    await db.from("me_toos").delete().eq("session_id", sessionId);
+    // Radar signals — new schema keys off sender/recipient, not session_id.
+    await db.from("radar_signals").delete().eq("sender_id", sessionId);
+    await db.from("radar_signals").delete().eq("recipient_id", sessionId);
+    await db.from("radar_contacts").delete().eq("owner_id", sessionId);
+    await db.from("radar_contacts").delete().eq("contact_id", sessionId);
     await db
       .from("community_members")
       .delete()
