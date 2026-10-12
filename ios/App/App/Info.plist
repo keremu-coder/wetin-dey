@@ -88,5 +88,7 @@
   <key>NSLocationWhenInUseUsageDescription</key>
   <string>Wetin Dey uses your location for Radar — a map of nearby civic signals. Location is rounded to about 1 km and never stored as precise coordinates.</string>
 
+  <key>ITSAppUsesNonExemptEncryption</key>
+  <false/>
 </dict>
 </plist>

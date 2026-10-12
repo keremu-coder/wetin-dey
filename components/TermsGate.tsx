@@ -14,8 +14,8 @@ const ACCEPTED_KEY = "wetindey:terms-accepted:v1";
  * accepted once, then navigates around the app). Otherwise we ask
  * /api/accept-terms (GET) and show the modal if needed.
  *
- * Fail-open: if the check errors, we do NOT block (the app is more
- * important than the modal).
+ * Fail-closed: if we cannot confirm acceptance (network error or a
+ * non-ok response), we show the modal. Consent is required, not optional.
  */
 export function TermsGate() {
   const [checking, setChecking] = useState(true);
@@ -40,26 +40,28 @@ export function TermsGate() {
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (cancelled) return;
-        if (!d) {
+        // No session yet: no consent to record. Let them through.
+        if (!d || d.has_session !== true) {
           setChecking(false);
           return;
         }
-
-        const accepted =
-          d.has_session === true && d.accepted === true;
-        if (accepted) {
+        // Fail-closed: only skip the modal on a definitive yes.
+        if (d.accepted === true) {
           try {
             window.sessionStorage.setItem(ACCEPTED_KEY, "1");
           } catch {
             /* ignore */
           }
+          setNeedsConsent(false);
+        } else {
+          setNeedsConsent(true);
         }
-
-        setNeedsConsent(d.has_session === true && d.accepted === false);
         setChecking(false);
       })
       .catch(() => {
         if (cancelled) return;
+        // Fail-closed: network error means we cannot verify. Show the modal.
+        setNeedsConsent(true);
         setChecking(false);
       });
 
@@ -154,11 +156,11 @@ export function TermsGate() {
         <div className="mt-5 space-y-2 text-[0.8125rem]">
           <p>
             Read the full{" "}
-            <Link href="/terms" className="text-accent underline">
+            <Link href="/terms" className="text-brand underline">
               Terms of Use
             </Link>{" "}
             and{" "}
-            <Link href="/guidelines" className="text-accent underline">
+            <Link href="/guidelines" className="text-brand underline">
               Community Guidelines
             </Link>
             .
@@ -175,7 +177,7 @@ export function TermsGate() {
           type="button"
           onClick={accept}
           disabled={busy}
-          className="mt-5 w-full rounded-2xl bg-accent py-3.5 font-serif text-[1rem] font-semibold text-white shadow-button transition-all hover:bg-accent-deep disabled:opacity-60"
+          className="mt-5 w-full rounded-2xl bg-brand py-3.5 font-serif text-[1rem] font-semibold text-white shadow-button transition-all hover:bg-brand-soft disabled:opacity-60"
         >
           {busy ? "Saving…" : "I agree"}
         </button>
