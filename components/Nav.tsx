@@ -220,32 +220,7 @@ export function Nav() {
                     {notificationsUnread > 9 ? "9+" : notificationsUnread}
                   </span>
                 ) : null}
-              </Link>
-              <button
-                type="button"
-                onClick={() => setDrawerOpen(true)}
-                className="relative flex h-10 w-10 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5"
-                aria-label="Open menu"
-              >
-                <svg
-                  width="22"
-                  height="22"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                >
-                  <line x1="4" y1="8" x2="20" y2="8" />
-                  <line x1="4" y1="16" x2="20" y2="16" />
-                </svg>
-                {unreadDMs > 0 ? (
-                  <span className="absolute right-1.5 top-1.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-accent px-1 text-[0.6875rem] font-semibold text-white">
-                    {unreadDMs > 9 ? "9+" : unreadDMs}
-                  </span>
-                ) : null}
-              </button>
-            </div>
+              </Link></div>
           </div>
         </header>
       ) : null}

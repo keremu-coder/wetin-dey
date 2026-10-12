@@ -35,10 +35,9 @@ export default async function HomePage() {
                 key={c.key}
                 href={c.href}
                 name={c.name}
-                seed={c.seed}
                 avatarUrl={c.avatarUrl}
                 isPerson={c.kind === "dm"}
-                presenceColor={c.presenceColor}
+                availability={c.availability}
                 preview={c.preview}
                 previewPrefix={c.previewPrefix}
                 voice={c.voice}
@@ -79,7 +78,6 @@ export default async function HomePage() {
                 key={s.id}
                 href={`/c/${s.slug}`}
                 name={s.name}
-                seed={s.slug}
                 meta={s.meta}
                 isLast={i === suggestions.length - 1}
               />

@@ -7,30 +7,21 @@ import { useRouter } from "next/navigation";
 type SuggestionRowProps = {
   href: string;
   name: string;
-  seed: string;
   meta: string;
   isLast?: boolean;
 };
 
-const TILE_COLORS = ["#0A6B43", "#2B4A9E", "#A3203A", "#A8501F", "#6A2E73", "#0F6A73"];
-
-function pickTile(seed: string): string {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
-  return TILE_COLORS[Math.abs(h) % TILE_COLORS.length];
-}
-
 function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
+  const clean = name.replace(/[^\p{L}\p{N}\s]/gu, "").trim();
+  const parts = clean.split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "?";
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
-export function SuggestionRow({ href, name, seed, meta, isLast }: SuggestionRowProps) {
+export function SuggestionRow({ href, name, meta, isLast }: SuggestionRowProps) {
   const router = useRouter();
   const [state, setState] = useState<"idle" | "busy" | "joined">("idle");
-  const tile = pickTile(seed);
   const slug = href.replace(/^\/c\//, "").split("/")[0];
 
   async function join() {
@@ -56,17 +47,17 @@ export function SuggestionRow({ href, name, seed, meta, isLast }: SuggestionRowP
   }
 
   return (
-    <div className="relative flex h-[72px] items-center gap-3 px-5" style={{ WebkitTapHighlightColor: "transparent" }}>
-      <Link href={href} className="flex min-w-0 flex-1 items-center gap-3">
+    <div className="relative flex h-[68px] items-center gap-3.5 px-5" style={{ WebkitTapHighlightColor: "transparent" }}>
+      <Link href={href} className="flex min-w-0 flex-1 items-center gap-3.5">
         <div
-          className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-3xl text-[1rem] font-bold text-white"
-          style={{ background: tile, fontFamily: "var(--font-space-grotesk), system-ui, sans-serif" }}
+          className="flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-full bg-primary-tint text-[0.9375rem] font-semibold text-primary-ink"
+          style={{ fontFamily: "var(--font-space-grotesk), system-ui, sans-serif" }}
         >
           {initials(name)}
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-[1.0625rem] font-semibold leading-[1.375rem] text-ink">{name}</p>
-          <p className="mt-0.5 truncate text-[0.9375rem] leading-[1.25rem] text-muted">{meta}</p>
+          <p className="mt-1 truncate text-[0.9375rem] leading-[1.25rem] text-muted">{meta}</p>
         </div>
       </Link>
 
@@ -83,7 +74,7 @@ export function SuggestionRow({ href, name, seed, meta, isLast }: SuggestionRowP
       </button>
 
       {!isLast ? (
-        <span aria-hidden className="pointer-events-none absolute bottom-0 left-[84px] right-5 h-px bg-surface3" />
+        <span aria-hidden className="pointer-events-none absolute bottom-0 left-[82px] right-5 h-px bg-surface3" />
       ) : null}
     </div>
   );

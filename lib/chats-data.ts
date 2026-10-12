@@ -16,7 +16,7 @@ export type ChatItem = {
   timestamp: string;
   sortTime: number;
   unread: number;
-  presenceColor?: string;
+  availability?: "R" | "A" | "D" | null;
   receipt?: "sent" | "delivered" | "read";
 };
 
@@ -39,14 +39,14 @@ function timeShort(date: string): string {
 }
 
 // Presence colours from the v3 tokens. No red: red means danger only.
-const PRESENCE_COLOR: Record<string, string | undefined> = {
-  available: "var(--color-accent)",
-  away: "var(--color-warn)",
-  meeting: "var(--color-warn)",
-  driving: "var(--color-adire)",
-  busy: "var(--color-clay)",
-  sleeping: "var(--color-plum)",
-  offline: undefined
+const AVAILABILITY_LETTER: Record<string, "R" | "A" | "D" | null> = {
+  available: "R",
+  away: "A",
+  meeting: "A",
+  driving: "D",
+  busy: "D",
+  sleeping: "A",
+  offline: null
 };
 
 async function spaceUnread(db: Db, sessionId: string, ids: string[], blocked: string[]) {
@@ -202,7 +202,7 @@ export async function getChatsHome(
             timestamp: timeShort(m.created_at),
             sortTime: new Date(m.created_at).getTime(),
             unread: unreadBy.get(t.id) ?? 0,
-            presenceColor: p?.hide_presence ? undefined : PRESENCE_COLOR[state],
+            availability: p?.hide_presence ? null : (AVAILABILITY_LETTER[state] ?? null),
             receipt: fromMe ? (m.read_at ? "read" : m.delivered === false ? "sent" : "delivered") : undefined
           });
         }
