@@ -23,8 +23,7 @@ type ResolvedHandle =
   | { status: "redirect"; to: string }
   | { status: "none" };
 
-const resolveHandle = unstable_cache(
-  async (raw: string): Promise<ResolvedHandle> => {
+async function resolveHandle(raw: string): Promise<ResolvedHandle> {
     const db = createServiceClient();
     const cleaned = raw.trim().toLowerCase();
 
@@ -32,10 +31,11 @@ const resolveHandle = unstable_cache(
       .from("sessions")
       .select("id, handle")
       .eq("handle_lower", cleaned)
-      .maybeSingle();
+      .limit(1);
 
-    if (direct?.handle) {
-      return { status: "ok", handle: direct.handle, profile_id: direct.id };
+    const directRow = Array.isArray(direct) ? direct[0] : direct;
+    if (directRow?.handle) {
+      return { status: "ok", handle: directRow.handle, profile_id: directRow.id };
     }
 
     const { data: candidates } = await db
@@ -55,10 +55,7 @@ const resolveHandle = unstable_cache(
     }
 
     return { status: "none" };
-  },
-  ["resolve-handle-v2"],
-  { revalidate: 300 }
-);
+}
 
 const getProfileBundle = unstable_cache(
   async (handle: string) => {
