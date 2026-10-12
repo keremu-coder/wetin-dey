@@ -476,3 +476,22 @@ html.native button {
   --tc-lagoon-light: #4DB8C0;
   --tc-gold-light: #F7D26B;
 }
+
+/* === WETIN BRAND TOKENS (Adire Indigo) === */
+:root, :root[data-theme="light"] {
+  --brand-ink: #1E2F5C;
+  --brand-ink-soft: #2A4180;
+  --brand-ink-deep: #162545;
+  --brand-ink-tint: #E4E9F5;
+  --brand-on-ink: #FFFFFF;
+  --danger-hot: #E53935;
+}
+:root[data-theme="dark"] {
+  --brand-ink: #4A64B8;
+  --brand-ink-soft: #5C77C9;
+  --brand-ink-deep: #3A5099;
+  --brand-ink-tint: #1A2340;
+  --brand-on-ink: #FFFFFF;
+  --danger-hot: #FF5A56;
+}
+

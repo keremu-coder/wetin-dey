@@ -31,6 +31,14 @@ const config: Config = {
           DEFAULT: "var(--color-gold)",
           soft: "var(--color-gold-soft)"
         },
+        brand: {
+          DEFAULT: "var(--brand-ink)",
+          soft: "var(--brand-ink-soft)",
+          deep: "var(--brand-ink-deep)",
+          tint: "var(--brand-ink-tint)",
+          on: "var(--brand-on-ink)"
+        },
+        dangerHot: "var(--danger-hot)",
         surface2: "var(--color-surface-2)",
         surface3: "var(--color-surface-3)",
         warn: {
