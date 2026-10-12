@@ -68,7 +68,7 @@ export function MessageBody({
       style={{
         fontFamily: font.family,
         fontSize,
-        color: isOwn ? undefined : `var(--tc-${color.id}-light)`
+        color: `var(--tc-${color.id}-light)`
       }}
     >
       {segments.map((seg, i) => {
