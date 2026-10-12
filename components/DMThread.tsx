@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { getBrowserClient } from "@/lib/supabase/client";
 import { timeAgoShort } from "@/lib/dm";
+import { makeCid } from "@/lib/chat";
 import {
   playProfile,
   unlockAudio,
@@ -29,6 +30,9 @@ type Message = {
   filter_level: string;
   read_at: string | null;
   created_at: string;
+  _cid?: string;
+  _pending?: boolean;
+  _failed?: boolean;
 };
 
 const DEFAULT_PREFS: SoundPrefs = {
@@ -80,6 +84,57 @@ export function DMThread({
   const lastMarkRef = useRef<number>(0);
   const scrollDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prefsRef = useRef<SoundPrefs>(DEFAULT_PREFS);
+
+  function insertOptimistic(text: string): string {
+    const cid = makeCid();
+    const optimistic: Message = {
+      id: cid,
+      sender_id: mySessionId,
+      body: text,
+      held: false,
+      filter_level: "ok",
+      read_at: null,
+      created_at: new Date().toISOString(),
+      _cid: cid,
+      _pending: true
+    };
+    setMessages((prev) => [...prev, optimistic]);
+    return cid;
+  }
+
+  function resolveOptimistic(cid: string, real: Message) {
+    setMessages((prev) =>
+      prev.map((m) => (m._cid === cid ? { ...real, _cid: cid, _pending: false, _failed: false } : m))
+    );
+  }
+
+  function failOptimistic(cid: string) {
+    setMessages((prev) =>
+      prev.map((m) => (m._cid === cid ? { ...m, _pending: false, _failed: true } : m))
+    );
+  }
+
+  async function retryOptimistic(cid: string, text: string) {
+    setMessages((prev) => prev.map((m) => (m._cid === cid ? { ...m, _pending: true, _failed: false } : m)));
+    try {
+      const res = await fetch(`/api/dm/threads/${threadId}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ body: text })
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        if (json?.blocked) { discardOptimistic(cid); setBlockReason(json.reason ?? "That message contains contact info."); }
+        else failOptimistic(cid);
+        return;
+      }
+      resolveOptimistic(cid, json.message as Message);
+    } catch { failOptimistic(cid); }
+  }
+
+  function discardOptimistic(cid: string) {
+    setMessages((prev) => prev.filter((m) => m._cid !== cid));
+  }
 
   // Load sound prefs and subscribe to changes
   useEffect(() => {
@@ -398,7 +453,7 @@ export function DMThread({
 
             {messages.map((m) => {
               const mine = m.sender_id === mySessionId;
-              const isLastMine = mine && m.id === lastMine?.id;
+              const isLastMine = mine && !m._cid && m.id === lastMine?.id;
               return (
                 <div
                   key={m.id}
@@ -421,11 +476,17 @@ export function DMThread({
                         mine ? "justify-end" : ""
                       }`}
                     >
-                      <span>{timeAgoShort(m.created_at)}</span>
+                      <span>{m._pending ? "Sending" : m._failed ? "Failed" : timeAgoShort(m.created_at)}</span>
                       {isLastMine && lastMineSeen ? (
                         <span className="text-brand">· Seen</span>
                       ) : null}
                     </p>
+                    {m._failed ? (
+                      <div className="mt-1 flex items-center gap-2 justify-end">
+                        <button type="button" onClick={() => void retryOptimistic(m._cid!, m.body)} className="rounded-lg bg-danger px-2.5 py-1 text-[0.7rem] font-semibold text-white">Retry</button>
+                        <button type="button" onClick={() => discardOptimistic(m._cid!)} className="text-[0.7rem] text-faint hover:text-ink">Discard</button>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               );
@@ -436,10 +497,10 @@ export function DMThread({
 
       <DMComposer
         threadId={threadId}
-        onSent={(m) => {
-          setMessages((prev) => [...prev, m as Message]);
-        }}
-        onBlocked={(reason) => setBlockReason(reason)}
+        onStart={(text) => insertOptimistic(text)}
+        onSuccess={(cid, m) => resolveOptimistic(cid, m)}
+        onFail={(cid) => failOptimistic(cid)}
+        onBlocked={(reason, cid) => { discardOptimistic(cid); setBlockReason(reason); }}
       />
 
       {error ? (

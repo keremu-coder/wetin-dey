@@ -23,34 +23,37 @@ const DEFAULT_PREFS: SoundPrefs = {
   browserNotifications: true
 };
 
+type SentMessage = {
+  id: string;
+  sender_id: string;
+  body: string;
+  created_at: string;
+  held: boolean;
+  filter_level: string;
+  read_at: string | null;
+};
+
 export function DMComposer({
   threadId,
-  onSent,
+  onStart,
+  onSuccess,
+  onFail,
   onBlocked
 }: {
   threadId: string;
-  onSent: (message: {
-    id: string;
-    sender_id: string;
-    body: string;
-    created_at: string;
-    held: boolean;
-    filter_level: string;
-  }) => void;
-  onBlocked: (reason: string) => void;
+  onStart: (text: string) => string;
+  onSuccess: (cid: string, message: SentMessage) => void;
+  onFail: (cid: string) => void;
+  onBlocked: (reason: string, cid: string) => void;
 }) {
   const [body, setBody] = useState("");
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [prefs, setPrefs] = useState<SoundPrefs>(DEFAULT_PREFS);
   const prefsRef = useRef<SoundPrefs>(DEFAULT_PREFS);
 
   useEffect(() => {
     const initial = loadPrefs();
-    setPrefs(initial);
     prefsRef.current = initial;
     const unsub = subscribePrefs((p) => {
-      setPrefs(p);
       prefsRef.current = p;
     });
     return unsub;
@@ -59,17 +62,20 @@ export function DMComposer({
   async function send(e: React.FormEvent) {
     e.preventDefault();
     const text = body.trim();
-    if (!text || busy) return;
+    if (!text) return;
 
     unlockAudio();
 
-    // Send sound + haptic fire BEFORE the network call so they feel instant.
+    // Sound + haptic fire BEFORE the network call so they feel instant.
     const p = prefsRef.current;
     if (p.send) playProfile(p.profile, "send");
     if (p.vibrate) vibrate(20);
 
-    setBusy(true);
     setError("");
+    setBody("");
+
+    // Optimistic message — appears in the thread immediately.
+    const cid = onStart(text);
 
     try {
       const res = await fetch(`/api/dm/threads/${threadId}/messages`, {
@@ -81,20 +87,18 @@ export function DMComposer({
 
       if (!res.ok) {
         if (json?.blocked) {
-          onBlocked(json.reason ?? "That message contains contact info.");
+          onBlocked(json.reason ?? "That message contains contact info.", cid);
         } else {
+          onFail(cid);
           setError(json?.error ?? "Could not send");
         }
-        setBusy(false);
         return;
       }
 
-      onSent(json.message);
-      setBody("");
+      onSuccess(cid, json.message as SentMessage);
     } catch {
+      onFail(cid);
       setError("Network error");
-    } finally {
-      setBusy(false);
     }
   }
 
@@ -124,7 +128,7 @@ export function DMComposer({
         />
         <button
           type="submit"
-          disabled={busy || !body.trim()}
+          disabled={!body.trim()}
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand text-white transition-transform hover:bg-brand-soft active:scale-90 disabled:opacity-30"
           aria-label="Send"
         >
