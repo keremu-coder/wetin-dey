@@ -6,7 +6,7 @@
 // tailwind.config.ts reference.
 
 import {
-  Figtree,
+  Inter,
   Bricolage_Grotesque,
   Fraunces,
   JetBrains_Mono,
@@ -17,7 +17,7 @@ import {
   Playfair_Display
 } from "next/font/google";
 
-export const inter = Figtree({
+export const inter = Inter({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   variable: "--font-inter",
