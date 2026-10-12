@@ -263,6 +263,17 @@ export default async function SettingsPage() {
               <span className="text-faint">&gt;</span>
             </Link>
             <Link
+            href="/settings/photo"
+            className="flex items-center gap-3 border-t border-border px-4 py-4 transition-colors hover:bg-ink/5"
+          >
+            <span className="text-[1.25rem]">P</span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[0.9375rem] font-medium text-ink">Profile photo visibility</p>
+              <p className="mt-0.5 text-[0.75rem] text-muted">Who sees your real photo</p>
+            </div>
+            <span className="text-faint">&gt;</span>
+          </Link>
+          <Link
             href="/settings/sounds"
             className="flex items-center gap-3 border-t border-border px-4 py-4 transition-colors hover:bg-ink/5"
           >
