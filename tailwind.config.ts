@@ -31,11 +31,6 @@ const config: Config = {
           DEFAULT: "var(--color-gold)",
           soft: "var(--color-gold-soft)"
         },
-        signal: {
-          DEFAULT: "var(--color-signal)",
-          soft: "var(--color-signal-soft)",
-          ink: "var(--color-signal-ink)"
-        },
         brand: {
           DEFAULT: "var(--brand-ink)",
           soft: "var(--brand-ink-soft)",

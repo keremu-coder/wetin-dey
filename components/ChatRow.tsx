@@ -43,7 +43,7 @@ function pickTile(seed: string): string {
 }
 
 const SIGNAL_LETTER: Record<"ready" | "away" | "dnd", { bg: string; letter: string; label: string }> = {
-  ready: { bg: "var(--color-signal)", letter: "R", label: "Ready" },
+  ready: { bg: "var(--color-accent)", letter: "R", label: "Ready" },
   away: { bg: "var(--color-warn)", letter: "A", label: "Away" },
   dnd: { bg: "var(--color-clay)", letter: "D", label: "Busy" }
 };
@@ -58,7 +58,7 @@ function SignalBadge({ signal }: { signal?: ChatSignal }) {
   if (signal === "live") {
     return (
       <span className="flex w-5 shrink-0 items-center justify-center" aria-label="Active now">
-        <span className="dey-pulse h-[10px] w-[10px] rounded-full bg-signal" />
+        <span className="dey-pulse h-[10px] w-[10px] rounded-full bg-primary" />
       </span>
     );
   }
