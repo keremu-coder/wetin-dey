@@ -1,173 +1,93 @@
 export const runtime = "nodejs";
-
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
-import { bucketCoord, isValidSignalId } from "@/lib/radar";
-import { checkRateLimit, sameOrigin, getRequestIp } from "@/lib/rate-limit";
-import { assertCanWrite } from "@/lib/guards";
+import { sameOrigin } from "@/lib/rate-limit";
 
-type SignalRow = {
-  id: string;
-  signal_type: string;
-  session_id: string;
-  lat_bucket: number;
-  lng_bucket: number;
-  note: string | null;
-  created_at: string;
-};
+// GET  — my inbox (unacknowledged signals sent to me) + my contacts
+// POST — add a contact by handle (I can signal them)
+// DELETE — remove a contact
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
-    const url = new URL(req.url);
-    const latParam = url.searchParams.get("lat");
-    const lngParam = url.searchParams.get("lng");
-
-    if (!latParam || !lngParam) {
-      return Response.json(
-        { error: "lat and lng required" },
-        { status: 400 }
-      );
-    }
-
-    const lat = Number(latParam);
-    const lng = Number(lngParam);
-    if (
-      Number.isNaN(lat) ||
-      Number.isNaN(lng) ||
-      lat < -90 ||
-      lat > 90 ||
-      lng < -180 ||
-      lng > 180
-    ) {
-      return Response.json({ error: "invalid coords" }, { status: 400 });
-    }
-
-    const latBucket = bucketCoord(lat);
-    const lngBucket = bucketCoord(lng);
-
+    const sid = await getSessionId();
+    if (!sid) return NextResponse.json({ error: "no session" }, { status: 401 });
     const db = createServiceClient();
-    const threeHoursAgo = new Date(
-      Date.now() - 3 * 60 * 60 * 1000
-    ).toISOString();
 
-    const { data, error } = await db
-      .from("radar_signals")
-      .select(
-        "id, signal_type, session_id, lat_bucket, lng_bucket, note, created_at"
-      )
-      .gte("lat_bucket", latBucket - 1)
-      .lte("lat_bucket", latBucket + 1)
-      .gte("lng_bucket", lngBucket - 1)
-      .lte("lng_bucket", lngBucket + 1)
-      .gte("created_at", threeHoursAgo)
-      .order("created_at", { ascending: false })
-      .limit(200);
+    const [inboxRes, contactsRes] = await Promise.all([
+      db.from("radar_signals")
+        .select("id, sender_id, signal_type, note, lat, lng, location_sharing, location_stopped, acknowledged_at, created_at")
+        .eq("recipient_id", sid)
+        .is("acknowledged_at", null)
+        .order("created_at", { ascending: false })
+        .limit(50),
+      db.from("radar_contacts")
+        .select("contact_id, created_at")
+        .eq("owner_id", sid)
+        .order("created_at", { ascending: false })
+        .limit(200)
+    ]);
 
-    if (error) {
-      return Response.json({ error: error.message }, { status: 500 });
+    const signals = inboxRes.data ?? [];
+    const contactIds = (contactsRes.data ?? []).map((r) => r.contact_id as string);
+    const senderIds = Array.from(new Set(signals.map((s) => s.sender_id as string).concat(contactIds)));
+
+    const sessionsRes = senderIds.length > 0
+      ? await db.from("sessions").select("id, handle, display_name, avatar_url").in("id", senderIds)
+      : { data: [] as Array<{ id: string; handle: string; display_name: string | null; avatar_url: string | null }> };
+
+    const people = new Map<string, { handle: string; display_name: string | null; avatar_url: string | null }>();
+    for (const s of (sessionsRes.data ?? []) as Array<{ id: string; handle: string; display_name: string | null; avatar_url: string | null }>) {
+      people.set(s.id, { handle: s.handle, display_name: s.display_name, avatar_url: s.avatar_url });
     }
 
-    return Response.json({
-      signals: (data ?? []) as SignalRow[],
-      center: { latBucket, lngBucket }
+    return NextResponse.json({
+      inbox: signals.map((s) => ({ ...s, sender: people.get(s.sender_id as string) ?? null })),
+      contacts: contactIds.map((id) => ({ id, ...(people.get(id) ?? { handle: null, display_name: null, avatar_url: null }) }))
     });
-  } catch (e) {
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+  } catch (err) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown" }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    if (!sameOrigin(req)) {
-      return Response.json({ error: "bad origin" }, { status: 403 });
-    }
-
-    const sessionId = await getSessionId();
-    if (!sessionId) {
-      return Response.json({ error: "no session" }, { status: 401 });
-    }
-
-    const denied = await assertCanWrite(sessionId);
-    if (denied) return denied;
-
-    const limit = await checkRateLimit(sessionId, {
-      key: "radar_signal",
-      limit: 6,
-      windowMs: 5 * 60 * 1000
-    }, { ip: getRequestIp(req) });
-    if (!limit.ok) {
-      const mins = Math.ceil(limit.retryAfterMs / 60000);
-      return Response.json(
-        {
-          error: `Slow down — try again in ${mins} minute${
-            mins === 1 ? "" : "s"
-          }.`
-        },
-        { status: 429 }
-      );
-    }
-
-    const body = (await req.json()) as {
-      signal_type?: unknown;
-      lat?: unknown;
-      lng?: unknown;
-      note?: unknown;
-    };
-
-    if (!isValidSignalId(body.signal_type)) {
-      return Response.json({ error: "unknown signal" }, { status: 400 });
-    }
-    if (typeof body.lat !== "number" || typeof body.lng !== "number") {
-      return Response.json(
-        { error: "lat and lng required" },
-        { status: 400 }
-      );
-    }
-    if (
-      body.lat < -90 ||
-      body.lat > 90 ||
-      body.lng < -180 ||
-      body.lng > 180
-    ) {
-      return Response.json({ error: "invalid coords" }, { status: 400 });
-    }
-
-    const note =
-      typeof body.note === "string" && body.note.trim().length > 0
-        ? body.note.trim().slice(0, 80)
-        : null;
+    if (!sameOrigin(req)) return NextResponse.json({ error: "bad origin" }, { status: 403 });
+    const sid = await getSessionId();
+    if (!sid) return NextResponse.json({ error: "no session" }, { status: 401 });
+    const body = (await req.json()) as { handle?: unknown };
+    const handle = typeof body?.handle === "string" ? body.handle.replace(/^@/, "").trim().toLowerCase() : "";
+    if (!handle) return NextResponse.json({ error: "handle required" }, { status: 400 });
 
     const db = createServiceClient();
+    const { data: target } = await db.from("sessions").select("id").eq("handle_lower", handle).maybeSingle();
+    if (!target?.id) return NextResponse.json({ error: "no such person" }, { status: 404 });
+    if (target.id === sid) return NextResponse.json({ error: "that's you" }, { status: 400 });
 
-    const { data, error } = await db
-      .from("radar_signals")
-      .insert({
-        session_id: sessionId,
-        signal_type: body.signal_type,
-        lat_bucket: bucketCoord(body.lat),
-        lng_bucket: bucketCoord(body.lng),
-        note
-      })
-      .select(
-        "id, signal_type, session_id, lat_bucket, lng_bucket, note, created_at"
-      )
-      .single();
-
-    if (error) {
-      return Response.json({ error: error.message }, { status: 500 });
-    }
-
-    return Response.json({ ok: true, signal: data });
-  } catch (e) {
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
+    const { error } = await db.from("radar_contacts").upsert(
+      { owner_id: sid, contact_id: target.id },
+      { onConflict: "owner_id,contact_id", ignoreDuplicates: true }
     );
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown" }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    if (!sameOrigin(req)) return NextResponse.json({ error: "bad origin" }, { status: 403 });
+    const sid = await getSessionId();
+    if (!sid) return NextResponse.json({ error: "no session" }, { status: 401 });
+    const body = (await req.json()) as { contactId?: unknown };
+    const cid = typeof body?.contactId === "string" ? body.contactId : null;
+    if (!cid) return NextResponse.json({ error: "contactId required" }, { status: 400 });
+    const db = createServiceClient();
+    const { error } = await db.from("radar_contacts").delete().eq("owner_id", sid).eq("contact_id", cid);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown" }, { status: 500 });
   }
 }
