@@ -17,7 +17,7 @@ export type ChatItem = {
   timestamp: string;
   sortTime: number;
   unread: number;
-  availability?: "R" | "A" | "D" | null;
+  signal?: "ready" | "away" | "dnd" | "offline" | "live" | "quiet";
   receipt?: "sent" | "delivered" | "read";
 };
 
@@ -40,14 +40,14 @@ function timeShort(date: string): string {
 }
 
 // Presence colours from the v3 tokens. No red: red means danger only.
-const AVAILABILITY_LETTER: Record<string, "R" | "A" | "D" | null> = {
-  available: "R",
-  away: "A",
-  meeting: "A",
-  driving: "D",
-  busy: "D",
-  sleeping: "A",
-  offline: null
+const SIGNAL_FOR_PRESENCE: Record<string, "ready" | "away" | "dnd" | "offline"> = {
+  available: "ready",
+  away: "away",
+  meeting: "away",
+  sleeping: "away",
+  driving: "dnd",
+  busy: "dnd",
+  offline: "offline"
 };
 
 async function spaceUnread(db: Db, sessionId: string, ids: string[], blocked: string[]) {
@@ -143,7 +143,8 @@ export async function getChatsHome(
             voice: !!m?.audio_url,
             timestamp: m ? timeShort(m.created_at) : "",
             sortTime: m ? new Date(m.created_at).getTime() : 0,
-            unread: unreadBy.get(c.id) ?? 0
+            unread: unreadBy.get(c.id) ?? 0,
+            signal: m && Date.now() - new Date(m.created_at).getTime() < 15 * 60 * 1000 ? "live" as const : "quiet" as const
           });
         }
       }
@@ -204,7 +205,7 @@ export async function getChatsHome(
             timestamp: timeShort(m.created_at),
             sortTime: new Date(m.created_at).getTime(),
             unread: unreadBy.get(t.id) ?? 0,
-            availability: p?.hide_presence ? null : (AVAILABILITY_LETTER[state] ?? null),
+            signal: p?.hide_presence ? "offline" as const : (SIGNAL_FOR_PRESENCE[state] ?? "offline" as const),
             receipt: fromMe ? (m.read_at ? "read" : m.delivered === false ? "sent" : "delivered") : undefined
           });
         }

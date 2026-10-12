@@ -1,6 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import { Alama } from "@/components/Alama";
+
+export type ChatSignal =
+  | "ready"
+  | "away"
+  | "dnd"
+  | "offline"
+  | "live"
+  | "quiet";
 
 type ChatRowProps = {
   href: string;
@@ -8,8 +17,7 @@ type ChatRowProps = {
   seed: string;
   emoji?: string | null;
   avatarUrl?: string | null;
-  isPerson?: boolean;
-  availability?: "R" | "A" | "D" | null;
+  signal?: ChatSignal;
   preview: string;
   previewPrefix?: string;
   previewLive?: boolean;
@@ -25,9 +33,7 @@ const TILES = [
   "var(--color-leaf)",
   "var(--color-adire)",
   "var(--color-zobo)",
-  "var(--color-clay)",
-  "var(--color-plum)",
-  "var(--color-lagoon)"
+  "var(--color-clay)"
 ];
 
 function pickTile(seed: string): string {
@@ -36,18 +42,10 @@ function pickTile(seed: string): string {
   return TILES[Math.abs(h) % TILES.length];
 }
 
-function initials(name: string): string {
-  const clean = name.replace(/[^\p{L}\p{N}\s]/gu, "").trim();
-  const parts = clean.split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[1][0]).toUpperCase();
-}
-
-const AVAILABILITY_STYLE: Record<"R" | "A" | "D", { bg: string; label: string }> = {
-  R: { bg: "var(--color-accent)", label: "Available" },
-  A: { bg: "var(--color-warn)", label: "Away" },
-  D: { bg: "var(--color-clay)", label: "Do not disturb" }
+const SIGNAL_LETTER: Record<"ready" | "away" | "dnd", { bg: string; letter: string; label: string }> = {
+  ready: { bg: "var(--color-accent)", letter: "R", label: "Ready" },
+  away: { bg: "var(--color-warn)", letter: "A", label: "Away" },
+  dnd: { bg: "var(--color-clay)", letter: "D", label: "Busy" }
 };
 
 const RECEIPT_STYLE = {
@@ -56,50 +54,66 @@ const RECEIPT_STYLE = {
   read: "bg-primary text-white"
 } as const;
 
+function SignalBadge({ signal }: { signal?: ChatSignal }) {
+  if (signal === "live") {
+    return (
+      <span className="flex w-5 shrink-0 items-center justify-center" aria-label="Active now">
+        <span className="dey-pulse h-[10px] w-[10px] rounded-full bg-primary" />
+      </span>
+    );
+  }
+  if (signal === "quiet" || signal === "offline") {
+    return (
+      <span className="flex w-5 shrink-0 items-center justify-center" aria-hidden>
+        <span className="h-[8px] w-[8px] rounded-full bg-surface3" />
+      </span>
+    );
+  }
+  if (signal === "ready" || signal === "away" || signal === "dnd") {
+    const s = SIGNAL_LETTER[signal];
+    return (
+      <span
+        aria-label={s.label}
+        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold leading-none text-white"
+        style={{ background: s.bg }}
+      >
+        {s.letter}
+      </span>
+    );
+  }
+  return <span className="w-5 shrink-0" aria-hidden />;
+}
+
 export function ChatRow({
-  href, name, seed, emoji, avatarUrl, isPerson, availability,
+  href, name, seed, emoji, avatarUrl, signal,
   preview, previewPrefix, previewLive, voice, receipt,
   timestamp, unread = 0, muted, isLast
 }: ChatRowProps) {
   const hasUnread = unread > 0 && !muted;
-  const isMutedUnread = unread > 0 && muted;
-  const avail = isPerson && availability ? AVAILABILITY_STYLE[availability] : null;
-  const tile = pickTile(seed);
-  const glyph = emoji ? emoji : initials(name);
 
   return (
     <Link
       href={href}
-      className="group relative flex h-[68px] items-center gap-3.5 px-5 transition-colors active:bg-surface2"
+      className="group relative flex h-[68px] items-center gap-3 px-5 transition-colors active:bg-surface2"
       style={{ WebkitTapHighlightColor: "transparent" }}
     >
-      <div className="relative shrink-0">
+      <div className="shrink-0">
         {avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={avatarUrl} alt="" className="h-[54px] w-[54px] rounded-full object-cover" />
-        ) : (
+          <img src={avatarUrl} alt="" className="h-12 w-12 rounded-full object-cover" />
+        ) : emoji ? (
           <div
-            className="flex h-[54px] w-[54px] items-center justify-center rounded-full text-white shadow-sm"
-            style={{
-              background: emoji ? tile : tile,
-              fontFamily: emoji ? undefined : "var(--font-space-grotesk), system-ui, sans-serif",
-              fontSize: emoji ? 26 : 16,
-              fontWeight: emoji ? undefined : 700
-            }}
+            className="flex h-12 w-12 items-center justify-center rounded-full text-white shadow-sm"
+            style={{ background: pickTile(seed), fontSize: 22 }}
           >
-            {glyph}
+            {emoji}
           </div>
+        ) : (
+          <Alama seed={seed} size={48} />
         )}
-        {avail ? (
-          <span
-            aria-label={avail.label}
-            className="absolute -bottom-0.5 -right-0.5 flex h-[18px] w-[18px] items-center justify-center rounded-full text-[10px] font-bold leading-none text-white ring-2 ring-paper"
-            style={{ background: avail.bg }}
-          >
-            {availability}
-          </span>
-        ) : null}
       </div>
+
+      <SignalBadge signal={signal} />
 
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2">
@@ -128,12 +142,8 @@ export function ChatRow({
               {preview}
             </span>
           </p>
-          {hasUnread || isMutedUnread ? (
-            <span
-              className={`flex h-[22px] min-w-[22px] shrink-0 items-center justify-center rounded-full px-1.5 text-[0.75rem] font-semibold leading-none ${
-                hasUnread ? "bg-primary text-white" : "bg-surface3 text-muted"
-              }`}
-            >
+          {hasUnread ? (
+            <span className="flex h-[22px] min-w-[22px] shrink-0 items-center justify-center rounded-full bg-primary px-1.5 text-[0.75rem] font-semibold leading-none text-white">
               {unread > 99 ? "99+" : unread}
             </span>
           ) : null}
@@ -143,7 +153,7 @@ export function ChatRow({
       {!isLast ? (
         <span
           aria-hidden
-          className="pointer-events-none absolute bottom-0 left-[86px] right-5 h-px bg-surface3 transition-opacity group-active:opacity-0"
+          className="pointer-events-none absolute bottom-0 left-[100px] right-5 h-px bg-surface3 transition-opacity group-active:opacity-0"
         />
       ) : null}
     </Link>

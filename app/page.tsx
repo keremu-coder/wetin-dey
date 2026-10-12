@@ -38,8 +38,7 @@ export default async function HomePage() {
                 seed={c.seed}
                 emoji={c.emoji}
                 avatarUrl={c.avatarUrl}
-                isPerson={c.kind === "dm"}
-                availability={c.availability}
+                signal={c.signal}
                 preview={c.preview}
                 previewPrefix={c.previewPrefix}
                 voice={c.voice}
