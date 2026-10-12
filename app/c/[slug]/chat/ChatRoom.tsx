@@ -142,7 +142,6 @@ export function ChatRoom({
   >("default");
   const [showEnableBanner, setShowEnableBanner] = useState(false);
   const [blockedHandles, setBlockedHandles] = useState<Set<string>>(new Set());
-  const [openBlockFor, setOpenBlockFor] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<Message | null>(null);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -807,19 +806,10 @@ export function ChatRoom({
                     status={status}
                     mentionsMe={mentionsMe}
                     openReactionsFor={openReactionsFor}
-                    openBlockFor={openBlockFor}
                     onReact={react}
                     onReply={setReplyTo}
                     onReport={(id, label) => setFlagTarget({ id, label })}
                     onToggleReactions={setOpenReactionsFor}
-                    onToggleBlock={setOpenBlockFor}
-                    onBlocked={(h) => {
-                      setBlockedHandles((prevSet) => {
-                        const next = new Set(prevSet);
-                        next.add(h);
-                        return next;
-                      });
-                    }}
                     onRetry={retryFailed}
                     onDiscard={dismissFailed}
                   />

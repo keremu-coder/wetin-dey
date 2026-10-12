@@ -13,7 +13,6 @@ import {
 import { MessageBody } from "./MessageBody";
 import { PresenceDot, presenceFromLastSeen } from "./PresenceDot";
 import { StatusLine } from "./StatusLine";
-import { BlockButton } from "./BlockButton";
 
 const VoiceNotePlayer = nextDynamic(() =>
   import("./VoiceNotePlayer").then((m) => m.VoiceNotePlayer)
@@ -35,13 +34,10 @@ export type MessageRowProps = {
   status: string | undefined;
   mentionsMe: boolean;
   openReactionsFor: string | null;
-  openBlockFor: string | null;
   onReact: (messageId: string, emoji: string) => void;
   onReply: (m: Message) => void;
   onReport: (id: string, label: string) => void;
   onToggleReactions: (id: string | null) => void;
-  onToggleBlock: (handle: string | null) => void;
-  onBlocked: (handle: string) => void;
   onRetry: (cid: string) => void;
   onDiscard: (cid: string) => void;
 };
@@ -55,13 +51,10 @@ export function MessageRow({
   status,
   mentionsMe,
   openReactionsFor,
-  openBlockFor,
   onReact,
   onReply,
   onReport,
   onToggleReactions,
-  onToggleBlock,
-  onBlocked,
   onRetry,
   onDiscard
 }: MessageRowProps) {
@@ -168,14 +161,7 @@ export function MessageRow({
   const letter = m.author_handle.charAt(0).toUpperCase();
   const presence = presenceFromLastSeen(m.author_last_seen);
 
-  const timeLabel = m._pending
-    ? "Sending"
-    : m._failed
-      ? "Failed"
-      : timeWithDate(m.created_at);
-
   const showReactions = openReactionsFor === m.id;
-  const showBlock = !isMe && openBlockFor === m.author_handle;
 
   return (
     <div>
@@ -188,18 +174,17 @@ export function MessageRow({
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
         style={{ touchAction: "pan-y" }}
-        className={`relative chat-row message-in ${isMe ? "chat-row-own" : ""} ${m._pending ? "opacity-70" : ""}`}
+        className={`chat-msg message-in ${
+          isGroupStart ? "chat-msg-group-start" : ""
+        } ${m._pending ? "opacity-70" : ""} ${showReactions ? "chat-msg-open" : ""}`}
       >
-        {!isMe && isGroupStart ? (
+        {isGroupStart ? (
           <Link
             href={`/u/${encodeURIComponent(m.author_handle)}`}
-            className="chat-row-avatar relative"
+            className="relative shrink-0"
             aria-label={`View @${m.author_handle}`}
           >
-            <div
-              className="flex h-8 w-8 items-center justify-center rounded-full text-[0.8125rem] font-bold text-white"
-              style={{ background: bg }}
-            >
+            <div className="chat-msg-avatar" style={{ background: bg }}>
               {letter}
             </div>
             <span className="absolute -bottom-0.5 -right-0.5">
@@ -207,18 +192,32 @@ export function MessageRow({
             </span>
           </Link>
         ) : (
-          <div className="chat-row-spacer" />
+          <div className="chat-msg-avatar-spacer" />
         )}
 
-        <div className={`chat-bubble ${isMe ? "chat-bubble-own" : "chat-bubble-other"}`}>
-          {!isMe && isGroupStart ? (
+        <div className="chat-msg-body">
+          {isGroupStart ? (
             <>
-              <Link
-                href={`/u/${encodeURIComponent(m.author_handle)}`}
-                className="chat-bubble-author"
-              >
-                {m.author_handle}
-              </Link>
+              <div className="chat-msg-header">
+                <Link
+                  href={`/u/${encodeURIComponent(m.author_handle)}`}
+                  className="chat-msg-author transition-colors hover:text-brand"
+                >
+                  {m.author_handle}
+                  {isMe ? (
+                    <span className="ml-1.5 text-[0.7rem] font-normal text-brand">
+                      you
+                    </span>
+                  ) : null}
+                </Link>
+                <span className="chat-msg-timestamp">
+                  {m._pending
+                    ? "Sending"
+                    : m._failed
+                      ? "Failed"
+                      : timeWithDate(m.created_at)}
+                </span>
+              </div>
               {status ? (
                 <StatusLine status={status} className="mb-1 !text-[0.75rem]" />
               ) : null}
@@ -226,18 +225,12 @@ export function MessageRow({
           ) : null}
 
           {m.parent ? (
-            <div
-              className={`mb-1.5 flex max-w-full items-stretch gap-2 overflow-hidden rounded-lg border-l-2 px-2.5 py-1.5 ${isMe ? "border-white/60 bg-white/10" : "border-brand bg-ink/[0.04]"}`}
-            >
+            <div className="mb-1.5 flex max-w-full items-stretch gap-2 overflow-hidden rounded-lg border-l-2 border-brand bg-ink/[0.04] px-2.5 py-1.5">
               <div className="min-w-0 flex-1">
-                <p
-                  className={`truncate text-[0.7rem] font-semibold ${isMe ? "text-white/90" : "text-brand"}`}
-                >
+                <p className="truncate text-[0.7rem] font-semibold text-brand">
                   {m.parent.author_handle}
                 </p>
-                <p
-                  className={`mt-0.5 line-clamp-2 text-[0.75rem] leading-snug ${isMe ? "text-white/80" : "text-muted"}`}
-                >
+                <p className="mt-0.5 line-clamp-2 text-[0.75rem] leading-snug text-muted">
                   {m.parent.body && m.parent.body.trim()
                     ? m.parent.body
                     : m.parent.audio_url
@@ -272,7 +265,7 @@ export function MessageRow({
               <button
                 type="button"
                 onClick={() => onDiscard(m._cid!)}
-                className={`text-[0.7rem] ${isMe ? "text-white/70 hover:text-white" : "text-faint hover:text-ink"}`}
+                className="text-[0.7rem] text-faint hover:text-ink"
               >
                 Discard
               </button>
@@ -286,38 +279,19 @@ export function MessageRow({
                   key={r.emoji}
                   type="button"
                   onClick={() => onReact(m.id, r.emoji)}
-                  className={`rounded-full border px-2 py-0.5 text-[0.7rem] transition-colors ${isMe ? "border-white/30 bg-white/10 text-white hover:bg-white/20" : "border-border bg-surface text-ink hover:border-brand"}`}
+                  className="rounded-full border border-border bg-surface px-2 py-0.5 text-[0.7rem] text-ink transition-colors hover:border-brand"
                 >
                   {r.emoji} {r.count}
                 </button>
               ))}
             </div>
           ) : null}
-
-          <span className={`chat-bubble-meta ${isMe ? "text-white/80" : "text-faint"}`}>
-            {timeLabel}
-            {isMe && !m._pending && !m._failed ? (
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden
-              >
-                <path d="M5 12.5 9.5 17 19 7" />
-              </svg>
-            ) : null}
-          </span>
         </div>
 
         {showReactions ? (
           <>
             <div className="fixed inset-0 z-30" onClick={() => onToggleReactions(null)} />
-            <div className={`absolute z-40 mt-1 flex items-center gap-1 rounded-full border border-border bg-surface p-1.5 shadow-card-hover ${isMe ? "left-3" : "right-3"}`}>
+            <div className="absolute right-3 top-full z-40 mt-1 flex items-center gap-1 rounded-full border border-border bg-surface p-1.5 shadow-card-hover">
               {QUICK_EMOJI.map((e) => (
                 <button
                   key={e}
@@ -343,45 +317,17 @@ export function MessageRow({
                 Reply
               </button>
               {!isMe ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onToggleReactions(null);
-                      onReport(m.id, `@${m.author_handle}`);
-                    }}
-                    className="flex h-7 items-center rounded-full px-2 text-[0.7rem] font-semibold text-danger transition-colors hover:bg-danger-soft"
-                  >
-                    Report
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onToggleReactions(null);
-                      onToggleBlock(m.author_handle);
-                    }}
-                    className="flex h-7 items-center rounded-full px-2 text-[0.7rem] font-medium text-faint transition-colors hover:bg-ink/10 hover:text-danger"
-                  >
-                    Block
-                  </button>
-                </>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onToggleReactions(null);
+                    onReport(m.id, `@${m.author_handle}`);
+                  }}
+                  className="flex h-7 items-center rounded-full px-2 text-[0.7rem] font-semibold text-danger transition-colors hover:bg-danger-soft"
+                >
+                  Report
+                </button>
               ) : null}
-            </div>
-          </>
-        ) : null}
-
-        {showBlock ? (
-          <>
-            <div className="fixed inset-0 z-30" onClick={() => onToggleBlock(null)} />
-            <div className={`absolute z-40 mt-1 w-56 rounded-xl border border-border bg-surface p-2 shadow-card-hover ${isMe ? "left-3" : "right-3"}`}>
-              <BlockButton
-                handle={m.author_handle}
-                className="block w-full rounded-lg px-3 py-2 text-left text-[0.8125rem] text-danger hover:bg-danger-soft"
-                onBlocked={(h) => {
-                  onToggleBlock(null);
-                  onBlocked(h);
-                }}
-              />
             </div>
           </>
         ) : null}
