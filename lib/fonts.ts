@@ -4,9 +4,9 @@
 //
 // latin-ext is required on Figtree and Fraunces so Yoruba (ọ ẹ ṣ) and
 // Igbo (ị ụ) dot-below letters render from the font itself instead of
-// falling back to system fonts. The five decorative fonts only ship
-// when a user explicitly picks them in Message font settings, so they
-// are preload:false to keep every other page lighter.
+// falling back to system fonts. The decorative fonts only ship when a
+// user explicitly picks them in Message font settings, so they are
+// preload:false to keep every other page lighter.
 
 import {
   Figtree,
@@ -15,8 +15,7 @@ import {
   Caveat,
   Pacifico,
   Permanent_Marker,
-  Bebas_Neue,
-  Playfair_Display
+  Bebas_Neue
 } from "next/font/google";
 
 // Figtree — body text. Exposes --font-inter for back-compat with
@@ -46,8 +45,8 @@ export const jetbrainsMono = JetBrains_Mono({
   display: "swap"
 });
 
-// Five decorative fonts. Only loaded when a user picks them in
-// Message font settings, so they are not preloaded.
+// Decorative fonts. Only loaded when a user picks them in Message font
+// settings, so they are not preloaded.
 export const caveat = Caveat({
   subsets: ["latin"],
   weight: ["400", "700"],
@@ -80,14 +79,6 @@ export const bebasNeue = Bebas_Neue({
   display: "swap"
 });
 
-export const playfairDisplay = Playfair_Display({
-  subsets: ["latin"],
-  weight: ["400", "700"],
-  variable: "--font-playfair-display",
-  preload: false,
-  display: "swap"
-});
-
 export const FONT_VARIABLE_CLASSES = [
   inter.variable,
   spaceGrotesk.variable,
@@ -95,6 +86,5 @@ export const FONT_VARIABLE_CLASSES = [
   caveat.variable,
   pacifico.variable,
   permanentMarker.variable,
-  bebasNeue.variable,
-  playfairDisplay.variable
+  bebasNeue.variable
 ].join(" ");

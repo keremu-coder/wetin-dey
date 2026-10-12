@@ -1,6 +1,6 @@
 // lib/fonts-registry.ts
-// Classic font registry. Every user picks one font.
-// Their messages render in that font for everyone who reads them.
+// Font registry. Every user picks one font. Their messages render in
+// that font for everyone who reads them.
 //
 // Each font's `family` value references a CSS variable declared by
 // lib/fonts.ts (via next/font). The fallback chain still works if the
@@ -20,19 +20,19 @@ export const DEFAULT_FONT_ID = "inter";
 export const FONTS: FontDef[] = [
   {
     id: "inter",
-    label: "Inter",
+    label: "Figtree",
     family: "var(--font-inter), system-ui, -apple-system, sans-serif",
     sample: "Wetin dey happen?"
   },
   {
     id: "space-grotesk",
-    label: "Space Grotesk",
+    label: "Fraunces",
     family: "var(--font-space-grotesk), system-ui, sans-serif",
     sample: "Wetin dey happen?"
   },
   {
     id: "jetbrains-mono",
-    label: "JetBrains Mono",
+    label: "Mono",
     family: "var(--font-jetbrains-mono), Menlo, monospace",
     sample: "Wetin dey happen?"
   },
@@ -66,12 +66,6 @@ export const FONTS: FontDef[] = [
     family: "var(--font-bebas-neue), Impact, sans-serif",
     sample: "WETIN DEY HAPPEN?",
     sizeAdjust: 1.2
-  },
-  {
-    id: "playfair-display",
-    label: "Playfair Display",
-    family: "var(--font-playfair-display), Georgia, serif",
-    sample: "Wetin dey happen?"
   }
 ];
 
