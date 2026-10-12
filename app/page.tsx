@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { StatusBar } from "@/components/StatusBar";
-import { StatusStrip } from "@/components/StatusStrip";
 import { getSessionId } from "@/lib/session";
 import { getBlockedIds } from "@/lib/blocks";
 import { createServiceClient } from "@/lib/supabase/server";
+import { ChatRow } from "@/components/ChatRow";
+import { SectionHeader } from "@/components/SectionHeader";
+import { SuggestionRow } from "@/components/SuggestionRow";
 
 export const dynamic = "force-dynamic";
 
@@ -56,22 +57,6 @@ function timeShort(date: string): string {
     day: "numeric",
     timeZone: TZ
   });
-}
-
-function spaceGradient(seed: string): string {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
-  const palettes = [
-    "linear-gradient(135deg, #1F7A4D 0%, #14532d 100%)",
-    "linear-gradient(135deg, #C0392B 0%, #7f1d1d 100%)",
-    "linear-gradient(135deg, #7C3AED 0%, #4c1d95 100%)",
-    "linear-gradient(135deg, #0E7490 0%, #164e63 100%)",
-    "linear-gradient(135deg, #D97706 0%, #92400e 100%)",
-    "linear-gradient(135deg, #BE185D 0%, #831843 100%)",
-    "linear-gradient(135deg, #4D7C0F 0%, #365314 100%)",
-    "linear-gradient(135deg, #A16207 0%, #713f12 100%)"
-  ];
-  return palettes[Math.abs(h) % palettes.length];
 }
 
 export default async function HomePage() {
@@ -188,190 +173,96 @@ export default async function HomePage() {
   const showSuggested = suggestedSpaces.length > 0;
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-4 pb-6">
-      <StatusBar />
-      <StatusStrip />
-
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <h1 className="font-serif text-[1.4rem] font-semibold leading-tight text-ink">
-          Spaces
-        </h1>
-        <div className="flex items-center gap-1">
-          <Link
-            href="/communities"
-            className="flex h-9 w-9 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5"
-            aria-label="Explore public spaces"
-            title="Explore public spaces"
-          >
-            <span className="text-[1.15rem]">🧭</span>
-          </Link>
-          <Link
-            href="/communities/new"
-            className="flex h-9 items-center justify-center rounded-full bg-accent px-3.5 text-[0.8125rem] font-semibold text-white transition-colors hover:bg-accent-deep"
-          >
-            + New
-          </Link>
-        </div>
+    <main className="mx-auto max-w-2xl pb-24">
+      <div className="px-5 pb-3 pt-2">
+        <Link
+          href="/search"
+          className="flex h-12 items-center gap-3 rounded-3xl bg-surface2 px-4 text-[1rem] leading-[1.5rem] text-muted"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <circle cx="11" cy="11" r="7" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <span>Search spaces and people</span>
+        </Link>
       </div>
 
-      {!hasSpaces ? (
-        <div className="rounded-2xl border border-border bg-surface p-6">
-          <div className="text-center">
-            <div className="text-[2.5rem]">💬</div>
-            <p className="mt-3 font-serif text-[1.15rem] font-semibold text-ink">
-              Join a space or start your own
-            </p>
-            <p className="mt-1 text-[0.875rem] leading-relaxed text-muted">
-              A space is a group chat — family, church cell, estate security,
-              or your friends. Like WhatsApp, but no phone number needed.
-            </p>
+      {hasSpaces ? (
+        <>
+          <SectionHeader
+            title="Chats"
+            action={{ label: "New space", href: "/communities/new" }}
+          />
+          <div>
+            {spaces.map((s, i) => {
+              const last = lastMessages.get(s.id);
+              const preview = last
+                ? last.audio_url
+                  ? "Voice note"
+                  : (last.body ?? "").slice(0, 100)
+                : "No messages yet. Say hello.";
+              const time = last ? timeShort(last.created_at) : "";
+              const prefix = last ? `@${last.sender_handle}: ` : undefined;
+              return (
+                <ChatRow
+                  key={s.id}
+                  href={`/c/${s.slug}/chat`}
+                  name={s.name}
+                  seed={s.slug}
+                  avatarUrl={s.avatar_url}
+                  preview={preview}
+                  previewPrefix={prefix}
+                  timestamp={time}
+                  isLast={i === spaces.length - 1}
+                />
+              );
+            })}
           </div>
-
+        </>
+      ) : (
+        <div className="mx-auto max-w-[280px] px-5 pt-8 text-center">
+          <div className="mx-auto mb-4 flex h-28 w-28 items-center justify-center rounded-3xl bg-primary-tint">
+            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-primary-ink" aria-hidden>
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+          </div>
+          <p className="text-[1.0625rem] font-semibold leading-[1.375rem] text-ink">
+            Your people dey here
+          </p>
+          <p className="mt-2 text-[1rem] leading-[1.5rem] text-muted">
+            Join a space or start one for your family, church cell, estate or friends. Send voice notes, share news, no phone number needed.
+          </p>
           <Link
             href="/communities/new"
-            className="mt-5 flex min-h-[52px] items-center justify-center gap-2 rounded-2xl bg-accent px-5 font-serif text-[1.05rem] font-semibold text-white transition-colors hover:bg-accent-deep"
+            className="mt-6 flex h-12 items-center justify-center rounded-full bg-primary px-6 text-[1rem] font-semibold text-white"
           >
-            👥 Create your first space
+            Start a space
           </Link>
           <Link
-            href="/communities"
-            className="mt-2 flex min-h-[52px] items-center justify-center gap-2 rounded-2xl border border-border-strong bg-surface px-5 font-serif text-[1.05rem] font-semibold text-ink transition-colors hover:bg-ink/5"
+            href="/join"
+            className="mt-2 flex h-11 items-center justify-center text-[0.9375rem] font-semibold text-primary-ink"
           >
-            🧭 Browse public spaces
+            I have an invite link
           </Link>
-        </div>
-      ) : (
-        <div className="overflow-hidden rounded-2xl border border-border bg-surface">
-          {spaces.map((s, i) => {
-            const last = lastMessages.get(s.id);
-            const preview = last
-              ? last.audio_url
-                ? "🎤 Voice note"
-                : (last.body ?? "").slice(0, 100)
-              : "No messages yet";
-            const time = last ? timeShort(last.created_at) : "";
-            const gradient = spaceGradient(s.slug);
-
-            return (
-              <Link
-                key={s.id}
-                href={`/c/${s.slug}/chat`}
-                className={`flex items-center gap-3 px-3.5 py-3 transition-colors hover:bg-ink/5 ${
-                  i !== 0 ? "border-t border-border" : ""
-                }`}
-              >
-                <div className="relative shrink-0">
-                  {s.avatar_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={s.avatar_url}
-                      alt={s.name}
-                      className="h-12 w-12 rounded-full border border-border object-cover shadow-sm"
-                    />
-                  ) : (
-                    <div
-                      className="flex h-12 w-12 items-center justify-center rounded-full text-[1.35rem] shadow-sm"
-                      style={{ background: gradient }}
-                    >
-                      <span style={{ filter: "saturate(1.2)" }}>{s.emoji}</span>
-                    </div>
-                  )}
-                  <span
-                    className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-accent ring-2 ring-surface"
-                    aria-hidden
-                  />
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <p className="truncate text-[0.9375rem] font-semibold text-ink">
-                      {s.name}
-                    </p>
-                    <span className="shrink-0 font-mono text-[0.68rem] text-faint">
-                      {time}
-                    </span>
-                  </div>
-                  <div className="mt-0.5 flex items-center gap-1.5">
-                    {last ? (
-                      <span className="shrink-0 font-mono text-[0.7rem] text-muted">
-                        @{last.sender_handle}:
-                      </span>
-                    ) : null}
-                    <p className="truncate text-[0.8125rem] text-muted">
-                      {preview}
-                    </p>
-                  </div>
-                  <p className="mt-0.5 font-mono text-[0.6rem] uppercase tracking-wider text-faint">
-                    {s.member_count} member{s.member_count === 1 ? "" : "s"}
-                  </p>
-                </div>
-              </Link>
-            );
-          })}
         </div>
       )}
 
       {showSuggested ? (
-        <section className="mt-8">
-          <div className="mb-3 flex items-baseline justify-between">
-            <h2 className="font-serif text-[1.05rem] font-semibold text-ink">
-              Spaces you might like
-            </h2>
-            <Link
-              href="/communities"
-              className="text-[0.8125rem] font-medium text-accent hover:underline"
-            >
-              See all
-            </Link>
+        <>
+          <SectionHeader title="Spaces you might like" />
+          <div>
+            {suggestedSpaces.map((s, i) => (
+              <SuggestionRow
+                key={s.id}
+                href={`/c/${s.slug}`}
+                name={s.name}
+                seed={s.slug}
+                meta={`${s.member_count} member${s.member_count === 1 ? "" : "s"}`}
+                isLast={i === suggestedSpaces.length - 1}
+              />
+            ))}
           </div>
-          <div className="overflow-hidden rounded-2xl border border-border bg-surface">
-            {suggestedSpaces.map((s, i) => {
-              const gradient = spaceGradient(s.slug);
-              return (
-                <Link
-                  key={s.id}
-                  href={`/c/${s.slug}`}
-                  className={`flex items-center gap-3 px-3.5 py-3 transition-colors hover:bg-ink/5 ${
-                    i !== 0 ? "border-t border-border" : ""
-                  }`}
-                >
-                  <div className="shrink-0">
-                    {s.avatar_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={s.avatar_url}
-                        alt={s.name}
-                        className="h-11 w-11 rounded-full border border-border object-cover"
-                      />
-                    ) : (
-                      <div
-                        className="flex h-11 w-11 items-center justify-center rounded-full text-[1.2rem]"
-                        style={{ background: gradient }}
-                      >
-                        <span style={{ filter: "saturate(1.2)" }}>
-                          {s.emoji}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[0.9375rem] font-semibold text-ink">
-                      {s.name}
-                    </p>
-                    <p className="mt-0.5 font-mono text-[0.6rem] uppercase tracking-wider text-faint">
-                      {s.member_count} member{s.member_count === 1 ? "" : "s"}
-                    </p>
-                  </div>
-
-                  <span className="shrink-0 rounded-full border border-accent/40 bg-accent-soft px-3 py-1 text-[0.7rem] font-semibold text-accent-deep">
-                    View
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
-        </section>
+        </>
       ) : null}
     </main>
   );
