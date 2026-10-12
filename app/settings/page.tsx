@@ -248,6 +248,21 @@ export default async function SettingsPage() {
             <span className="text-faint">›</span>
           </Link>
           <Link
+              href="/settings/textcolor"
+              className="flex items-center gap-3 border-t border-border px-4 py-4 transition-colors hover:bg-ink/5"
+            >
+              <span className={`text-[1.25rem] ${iconClass}`}>T</span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[0.9375rem] font-medium text-ink">
+                  Text color
+                </p>
+                <p className="mt-0.5 text-[0.75rem] text-muted">
+                  Pick your message color
+                </p>
+              </div>
+              <span className="text-faint">&gt;</span>
+            </Link>
+            <Link
             href="/settings/sounds"
             className="flex items-center gap-3 border-t border-border px-4 py-4 transition-colors hover:bg-ink/5"
           >
