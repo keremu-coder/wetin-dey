@@ -40,6 +40,7 @@ type MineItem = {
   location_stopped: boolean;
   created_at: string;
   location_updated_at: string | null;
+  expires_at: string | null;
 };
 
 type Contact = {
@@ -250,6 +251,11 @@ export default function RadarPage() {
                     <p className="mt-1 text-[0.8125rem] text-ink/75">
                       Sharing location - {timeAgo(m.location_updated_at ?? m.created_at)}
                     </p>
+                      {m.expires_at ? (
+                        <p className="mt-0.5 text-[0.8125rem] text-ink/60">
+                          Auto-stops at {new Date(m.expires_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                        </p>
+                      ) : null}
                   </div>
                   <button
                     type="button"

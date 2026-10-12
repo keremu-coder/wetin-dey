@@ -27,7 +27,7 @@ export async function GET() {
         .order("created_at", { ascending: false })
         .limit(200),
       db.from("radar_signals")
-        .select("id, signal_type, note, lat, lng, location_sharing, location_stopped, created_at, location_updated_at")
+        .select("id, signal_type, note, lat, lng, location_sharing, location_stopped, created_at, location_updated_at, expires_at")
         .eq("sender_id", sid)
         .eq("location_sharing", true)
         .eq("location_stopped", false)
