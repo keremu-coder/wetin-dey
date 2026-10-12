@@ -48,7 +48,8 @@ export function ChatComposer({
   onBodyAutocorrected,
   onSubmit
 }: ChatComposerProps) {
-  return (    <form
+  return (
+    <form
       onSubmit={(e) => {
         const pid = replyTo?.id ?? null;
         onSubmit(e, pid);
@@ -60,16 +61,16 @@ export function ChatComposer({
       ) : null}
 
       {replyTo ? (
-        <div className="mb-1.5 flex items-start gap-2 rounded-xl border-l-2 border-accent bg-ink/[0.04] px-2.5 py-1.5">
+        <div className="mb-1.5 flex items-start gap-2 rounded-xl border-l-2 border-brand bg-ink/[0.04] px-2.5 py-1.5">
           <div className="min-w-0 flex-1">
-            <p className="truncate font-mono text-[0.65rem] font-medium uppercase tracking-wider text-accent-deep">
-              Replying to {replyTo.author_handle}
+            <p className="truncate text-[0.75rem] font-semibold text-brand">
+              Replying to @{replyTo.author_handle}
             </p>
-            <p className="mt-0.5 line-clamp-1 text-[0.75rem] leading-snug text-muted">
+            <p className="mt-0.5 line-clamp-1 text-[0.8125rem] leading-snug text-muted">
               {replyTo.body && replyTo.body.trim()
                 ? replyTo.body
                 : replyTo.audio_url
-                  ? "🎤 Voice note"
+                  ? "Voice note"
                   : "(empty)"}
             </p>
           </div>
@@ -103,8 +104,8 @@ export function ChatComposer({
             <span className="font-medium text-ink line-through">
               {suggestion.original}
             </span>{" "}
-            →{" "}
-            <span className="font-medium text-accent-deep">
+            {"\u2192"}{" "}
+            <span className="font-semibold text-brand">
               {suggestion.suggested}
             </span>
             ?
@@ -112,7 +113,7 @@ export function ChatComposer({
           <button
             type="button"
             onClick={onApplySuggestion}
-            className="rounded-md bg-accent px-2 py-0.5 text-[0.7rem] font-semibold text-white"
+            className="rounded-md bg-brand px-2 py-0.5 text-[0.7rem] font-semibold text-white"
           >
             Fix
           </button>
@@ -121,7 +122,7 @@ export function ChatComposer({
             onClick={onDismissSuggestion}
             className="text-faint hover:text-ink"
           >
-            ✕
+            {"\u2715"}
           </button>
         </div>
       ) : null}
@@ -129,9 +130,12 @@ export function ChatComposer({
       {recording ? (
         <div className="flex items-center gap-3 rounded-full border border-danger bg-danger-soft px-3 py-2">
           <span className="flex h-8 w-8 shrink-0 animate-pulse items-center justify-center rounded-full bg-danger text-white">
-            ●
+            {"\u25CF"}
           </span>
-          <span className="flex-1 font-mono text-[0.9375rem] font-medium text-danger">
+          <span
+            className="flex-1 text-[0.9375rem] font-semibold text-danger"
+            style={{ fontVariantNumeric: "tabular-nums" }}
+          >
             {String(Math.floor(recordSeconds / 60)).padStart(2, "0")}:
             {String(recordSeconds % 60).padStart(2, "0")}
             <span className="ml-2 text-[0.75rem] font-normal">/ 00:30</span>
@@ -146,7 +150,7 @@ export function ChatComposer({
           <button
             type="button"
             onClick={onStopVoice}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent text-white transition-transform hover:bg-accent-deep active:scale-90"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand text-white transition-transform hover:bg-brand-soft active:scale-90"
             aria-label="Send voice note"
           >
             <svg
@@ -193,7 +197,7 @@ export function ChatComposer({
           <button
             type="button"
             onClick={onStartVoice}
-            className="flex h-14 flex-1 items-center justify-center gap-3 rounded-full bg-accent text-white transition-transform hover:bg-accent-deep active:scale-[0.98]"
+            className="flex h-14 flex-1 items-center justify-center gap-3 rounded-full bg-brand text-white transition-transform hover:bg-brand-soft active:scale-[0.98]"
             aria-label="Tap to record voice note"
           >
             <svg
@@ -266,7 +270,7 @@ export function ChatComposer({
           <button
             type="submit"
             disabled={!body.trim()}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent text-white transition-transform hover:bg-accent-deep active:scale-90 disabled:opacity-30"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand text-white transition-transform hover:bg-brand-soft active:scale-90 disabled:opacity-30"
             aria-label="Send"
           >
             <svg
