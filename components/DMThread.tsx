@@ -19,6 +19,7 @@ import { notifyFeedback } from "@/lib/haptics";
 import { useToast } from "./Toast";
 import { useLiveRefreshUnread } from "./LiveStateProvider";
 import { FilterWarning } from "./FilterWarning";
+import { MessageBody } from "./MessageBody";
 import { DMComposer } from "./DMComposer";
 import { FlagSheet } from "./FlagSheet";
 
@@ -65,11 +66,19 @@ export function DMThread({
   threadId,
   mySessionId,
   otherHandle,
+  myColor,
+  myFont,
+  otherColor,
+  otherFont,
   initialMessages
 }: {
   threadId: string;
   mySessionId: string;
   otherHandle: string;
+  myColor?: string | null;
+  myFont?: string | null;
+  otherColor?: string | null;
+  otherFont?: string | null;
   initialMessages: Message[];
 }) {
   const toast = useToast();
@@ -467,9 +476,12 @@ export function DMThread({
                           : "bg-surface text-ink"
                       }`}
                     >
-                      <p className="whitespace-pre-wrap break-words text-[0.9375rem] font-normal leading-[1.5]">
-                        {m.body}
-                      </p>
+                      <MessageBody
+                        body={m.body}
+                        isOwn={mine}
+                        fontId={mine ? myFont : otherFont}
+                        colorId={mine ? myColor : otherColor}
+                      />
                     </div>
                     <p
                       className={`mt-0.5 flex items-center gap-1 text-[0.65rem] text-faint ${

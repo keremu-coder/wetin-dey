@@ -32,11 +32,16 @@ export default async function DMThreadPage({
   const otherId =
     thread.session_a === sessionId ? thread.session_b : thread.session_a;
 
-  const [otherProfileRes, messagesRes] = await Promise.all([
+  const [otherProfileRes, myProfileRes, messagesRes] = await Promise.all([
     db
       .from("sessions")
-      .select("handle")
+      .select("handle, text_color, font_preference")
       .eq("id", otherId)
+      .maybeSingle(),
+    db
+      .from("sessions")
+      .select("text_color, font_preference")
+      .eq("id", sessionId)
       .maybeSingle(),
     db
       .from("dm_messages")
@@ -49,6 +54,10 @@ export default async function DMThreadPage({
   ]);
 
   const otherHandle = otherProfileRes.data?.handle ?? "Anonymous";
+  const otherColor = otherProfileRes.data?.text_color ?? null;
+  const otherFont = otherProfileRes.data?.font_preference ?? null;
+  const myColor = myProfileRes.data?.text_color ?? null;
+  const myFont = myProfileRes.data?.font_preference ?? null;
 
   const messages = (messagesRes.data ?? []).filter((m) => {
     if (!m.held) return true;
@@ -69,6 +78,10 @@ export default async function DMThreadPage({
       threadId={thread.id}
       mySessionId={sessionId}
       otherHandle={otherHandle}
+      myColor={myColor}
+      myFont={myFont}
+      otherColor={otherColor}
+      otherFont={otherFont}
       initialMessages={messages.map((m) => ({
         id: m.id,
         sender_id: m.sender_id,
