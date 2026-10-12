@@ -43,7 +43,7 @@ function EvidenceBlock(report: {
             {label}
           </p>
         </div>
-        <span className="font-mono text-[0.7rem] uppercase tracking-wider opacity-80">
+        <span className="text-[0.75rem] font-medium opacity-80">
           {tier}
         </span>
       </div>
@@ -205,7 +205,7 @@ export default async function ReportPage({
       <main className="mx-auto max-w-2xl px-4 py-6 pb-24">
         <Link
           href="/"
-          className="inline-flex items-center gap-1 font-mono text-[0.7rem] uppercase tracking-widest text-faint transition-colors hover:text-brand"
+          className="inline-flex items-center gap-1 text-[0.8125rem] font-medium text-faint transition-colors hover:text-brand"
         >
           ← Back to feed
         </Link>
@@ -232,7 +232,7 @@ export default async function ReportPage({
       <main className="mx-auto max-w-2xl px-4 py-6 pb-24">
         <Link
           href="/"
-          className="font-mono text-[0.7rem] uppercase tracking-widest text-faint hover:text-brand"
+          className="text-[0.8125rem] font-medium text-faint hover:text-brand"
         >
           ← Back to feed
         </Link>
@@ -279,7 +279,7 @@ export default async function ReportPage({
     <main className="mx-auto max-w-2xl px-4 py-6 pb-24">
       <Link
         href="/"
-        className="inline-flex items-center gap-1 font-mono text-[0.7rem] uppercase tracking-widest text-faint transition-colors hover:text-brand"
+        className="inline-flex items-center gap-1 text-[0.8125rem] font-medium text-faint transition-colors hover:text-brand"
       >
         ← Back to feed
       </Link>
@@ -304,7 +304,7 @@ export default async function ReportPage({
           </h1>
           <ReviewedFlag reviewed={report.reviewed && !held} />
         </div>
-        <p className="mt-1 font-mono text-[0.7rem] uppercase tracking-wide text-faint">
+        <p className="mt-1 text-[0.75rem] text-faint">
           {report.state}
           {report.lga ? ` · ${report.lga}` : ""} · {report.category}
         </p>
@@ -322,7 +322,7 @@ export default async function ReportPage({
 
       {report.summary_pidgin ? (
         <div className="mb-5 rounded-2xl border border-border bg-surface p-5">
-          <p className="mb-2 font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+          <p className="mb-2 text-[0.8125rem] font-medium text-faint">
             Summary
           </p>
           <p className="text-[0.9375rem] leading-relaxed text-ink">
@@ -337,7 +337,7 @@ export default async function ReportPage({
       ) : null}
 
       <article className="mb-5 rounded-2xl border border-border bg-surface p-5">
-        <p className="mb-2 font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+        <p className="mb-2 text-[0.8125rem] font-medium text-faint">
           Original report
         </p>
         <p className="whitespace-pre-wrap text-[0.9375rem] leading-relaxed text-ink/90">
@@ -359,7 +359,7 @@ export default async function ReportPage({
             {formatNaira(report.amount_kobo)}
           </span>
         ) : null}
-        <span className="font-mono text-[0.7rem] text-faint">
+        <span className="text-[0.75rem] text-faint">
           {new Date(report.created_at).toLocaleDateString("en-NG", {
             month: "long",
             day: "numeric",
