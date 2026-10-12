@@ -133,6 +133,13 @@ export function ChatRow({
               {preview}
             </span>
           </p>
+          {receipt ? (
+            <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full ${RECEIPT_STYLE[receipt]}`} aria-label={receipt}>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M5 12.5 9.5 17 19 7" />
+              </svg>
+            </span>
+          ) : null}
           {hasUnread ? (
             <span className="flex h-[22px] min-w-[22px] shrink-0 items-center justify-center rounded-full bg-primary px-1.5 text-[0.75rem] font-semibold leading-none text-white">
               {unread > 99 ? "99+" : unread}
