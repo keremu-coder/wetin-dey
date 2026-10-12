@@ -11,6 +11,7 @@ import { StatusLine } from "@/components/StatusLine";
 import { StartDMButton } from "@/components/StartDMButton";
 import { ProfileActions } from "@/components/ProfileActions";
 import { UnblockButton } from "@/components/UnblockButton";
+import { Alama } from "@/components/Alama";
 import { formatNaira } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
@@ -389,10 +390,8 @@ export default async function ProfilePage({
 
       <section className="rounded-2xl border border-border bg-surface p-6 shadow-card">
         <div className="flex items-start gap-4">
-          <div
-            className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-full ${avatarBg} text-2xl font-semibold text-white shadow-sm`}
-          >
-            {avatarLetter}
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full shadow-sm">
+            <Alama seed={profile.id} size={64} title={`@${handle}`} />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
