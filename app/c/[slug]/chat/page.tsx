@@ -102,6 +102,7 @@ export default async function ChatPage({
   // Unique session ids from messages, members, and reply parents
   const allSessionIds = Array.from(
     new Set([
+      ...(sessionId ? [sessionId] : []),
       ...rawMessages.map((m) => m.session_id),
       ...memberRows.map((m) => m.session_id),
       ...parentRows.map((p) => p.session_id)
