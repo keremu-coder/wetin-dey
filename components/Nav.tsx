@@ -7,6 +7,7 @@ import { ThemeToggle } from "./ThemeToggle";
 import { getWhoAmI, type WhoAmI } from "@/lib/whoami-cache";
 import { useLiveUnread, useLiveNotificationsUnread } from "./LiveStateProvider";
 import { Alama } from "./Alama";
+import { WetinMark } from "./WetinMark";
 
 type Row = {
   href: string;
@@ -191,7 +192,10 @@ export function Nav() {
           style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
         >
           <div className="mx-auto flex max-w-2xl items-center justify-between gap-2 px-5 py-3">
-            <Link href="/" className="flex items-center gap-1.5">
+            <Link href="/" className="flex items-center gap-2">
+              <span style={{ color: "var(--brand-ink)" }}>
+                <WetinMark size={26} title="Wetin Dey" />
+              </span>
               <span className="font-serif text-[1.5rem] font-semibold leading-none tracking-tight text-ink">
                 Wetin Dey
               </span>
