@@ -45,7 +45,8 @@ function Mouth({ expression, color }: { expression: number; color: string }) {
 
 export function Alama({ seed, size = 48, title }: AlamaProps) {
   const a = alamaFrom(seed);
-  const uid = seed.replace(/[^a-zA-Z0-9]/g, "").slice(0, 12) || "anon";
+  const safeSeed = typeof seed === "string" && seed.length > 0 ? seed : "anon";
+  const uid = safeSeed.replace(/[^a-zA-Z0-9]/g, "").slice(0, 12) || "anon";
   const bgId = `al-bg-${uid}`;
   const auraId = `al-aura-${uid}`;
   const clipId = `al-clip-${uid}`;
