@@ -82,7 +82,10 @@ export async function POST(req: NextRequest) {
       note,
       lat: needsLocation ? lat : null,
       lng: needsLocation ? lng : null,
-      location_sharing: needsLocation
+      location_sharing: needsLocation,
+      expires_at: needsLocation
+        ? new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString()
+        : null
     }));
 
     const { data: inserted, error } = await db.from("radar_signals").insert(rows).select("id");
