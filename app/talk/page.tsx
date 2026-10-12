@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { WetinMark } from "@/components/WetinMark";
 import { redirect } from "next/navigation";
 import { unstable_cache } from "next/cache";
 import { TalkTabs } from "@/components/TalkTabs";
