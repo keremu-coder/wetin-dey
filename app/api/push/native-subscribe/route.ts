@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
       );
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Server error" }, { status: 500 });
     }
 
     return NextResponse.json({ ok: true });
@@ -97,7 +97,7 @@ export async function DELETE(req: NextRequest) {
       .eq("session_id", sessionId);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Server error" }, { status: 500 });
     }
 
     return NextResponse.json({ ok: true });

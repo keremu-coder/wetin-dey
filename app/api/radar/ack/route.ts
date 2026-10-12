@@ -23,9 +23,9 @@ export async function POST(req: NextRequest) {
     if (stopLocation) patch.location_stopped = true;
 
     const { error } = await db.from("radar_signals").update(patch).eq("id", id).eq("recipient_id", sid);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ error: "Server error" }, { status: 500 });
     return NextResponse.json({ ok: true });
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown" }, { status: 500 });
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

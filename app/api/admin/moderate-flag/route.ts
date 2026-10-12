@@ -211,7 +211,7 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (flagErr) {
-      return Response.json({ error: flagErr.message }, { status: 500 });
+      return Response.json({ error: "Server error" }, { status: 500 });
     }
     if (!flag) {
       return Response.json({ error: "flag not found" }, { status: 404 });
@@ -246,7 +246,7 @@ export async function POST(req: NextRequest) {
         .update({ status: newStatus })
         .eq("id", flag.id);
       if (error) {
-        return Response.json({ error: error.message }, { status: 500 });
+        return Response.json({ error: "Server error" }, { status: 500 });
       }
 
       return Response.json({
@@ -264,7 +264,7 @@ export async function POST(req: NextRequest) {
         .update({ status: newStatus })
         .eq("id", flag.id);
       if (error) {
-        return Response.json({ error: error.message }, { status: 500 });
+        return Response.json({ error: "Server error" }, { status: 500 });
       }
       if (!hid) {
         console.warn(
@@ -304,7 +304,7 @@ export async function POST(req: NextRequest) {
         .eq("id", authorId);
 
       if (banErr) {
-        return Response.json({ error: banErr.message }, { status: 500 });
+        return Response.json({ error: "Server error" }, { status: 500 });
       }
 
       await hideTarget(db, flag.target_type, flag.target_id);
@@ -314,7 +314,7 @@ export async function POST(req: NextRequest) {
         .update({ status: newStatus })
         .eq("id", flag.id);
       if (error) {
-        return Response.json({ error: error.message }, { status: 500 });
+        return Response.json({ error: "Server error" }, { status: 500 });
       }
 
       return Response.json({ ok: true, action, status: newStatus });

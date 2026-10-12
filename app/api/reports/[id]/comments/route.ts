@@ -52,7 +52,7 @@ export async function GET(
     const { data, error } = await q;
 
     if (error) {
-      return Response.json({ error: error.message }, { status: 500 });
+      return Response.json({ error: "Server error" }, { status: 500 });
     }
 
     const sessionIds = Array.from(
@@ -255,7 +255,7 @@ export async function POST(
     if (error) {
       console.error("[comments POST] insert:", error);
       return Response.json(
-        { error: "Insert: " + error.message },
+        { error: "Server error" },
         { status: 500 }
       );
     }

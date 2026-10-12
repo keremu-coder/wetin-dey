@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (sessErr) {
-      return Response.json({ error: sessErr.message }, { status: 500 });
+      return Response.json({ error: "Server error" }, { status: 500 });
     }
     if (!session) {
       return Response.json({ error: "Session not found." }, { status: 404 });

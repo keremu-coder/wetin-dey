@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
   if (authErr || !authData?.user) {
     console.error("[join] createUser failed:", authErr?.message ?? "unknown");
     return Response.json(
-      { error: authErr?.message ?? "Could not create account." },
+      { error: "Could not create account." },
       { status: 500 }
     );
   }

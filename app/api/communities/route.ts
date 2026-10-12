@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
   }
 
   const { data, error } = await query;
-  if (error) return Response.json({ error: error.message }, { status: 500 });
+  if (error) return Response.json({ error: "Server error" }, { status: 500 });
   return Response.json({ communities: data ?? [] });
 }
 
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return Response.json({ error: "Server error" }, { status: 500 });
   }
 
   await db.from("community_members").insert({

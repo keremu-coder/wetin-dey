@@ -149,7 +149,7 @@ export async function POST(req: NextRequest) {
       .eq("id", sessionId);
 
     if (updateErr) {
-      return Response.json({ error: updateErr.message }, { status: 500 });
+      return Response.json({ error: "Server error" }, { status: 500 });
     }
 
     return Response.json({ ok: true, handle: check.normalized });

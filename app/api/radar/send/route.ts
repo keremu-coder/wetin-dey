@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
     }));
 
     const { data: inserted, error } = await db.from("radar_signals").insert(rows).select("id");
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ error: "Server error" }, { status: 500 });
 
     // Push to each recipient. Fires concurrently. Fails silently so a
     // missing token never blocks the signal itself.
@@ -94,6 +94,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, count: inserted?.length ?? 0 });
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown" }, { status: 500 });
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

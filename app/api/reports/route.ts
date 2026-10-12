@@ -428,7 +428,7 @@ export async function POST(req: NextRequest) {
       return jsonError("slow down — too many posts this hour", 429);
     }
     console.error("INSERT FAILED:", error);
-    return jsonError("DB error: " + error.message, 500);
+    return jsonError("Server error", 500);
   }
 
   if (postType === "report_am") {

@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
       .maybeSingle();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Server error" }, { status: 500 });
     }
 
     const color = isValidTextColorId(data?.text_color)
@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ color });
   } catch (err) {
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Unknown error" },
+      { error: "Server error" },
       { status: 500 }
     );
   }
@@ -72,13 +72,13 @@ export async function POST(req: NextRequest) {
       .eq("id", sessionId);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Server error" }, { status: 500 });
     }
 
     return NextResponse.json({ ok: true, color });
   } catch (err) {
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Unknown error" },
+      { error: "Server error" },
       { status: 500 }
     );
   }

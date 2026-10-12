@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
       .maybeSingle();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Server error" }, { status: 500 });
     }
     return NextResponse.json({
       status_line: data?.status_line ?? null,
@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
     });
   } catch (err) {
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Unknown error" },
+      { error: "Server error" },
       { status: 500 }
     );
   }
@@ -119,12 +119,12 @@ export async function POST(req: NextRequest) {
       .eq("id", sessionId);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Server error" }, { status: 500 });
     }
     return NextResponse.json({ ok: true, ...update });
   } catch (err) {
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Unknown error" },
+      { error: "Server error" },
       { status: 500 }
     );
   }

@@ -105,7 +105,7 @@ export async function GET(
     const { data: messages, error } = await q;
 
     if (error) {
-      return Response.json({ error: error.message }, { status: 500 });
+      return Response.json({ error: "Server error" }, { status: 500 });
     }
 
     const ordered = (messages ?? []).reverse();
@@ -373,7 +373,7 @@ export async function POST(
       .single();
 
     if (error) {
-      return Response.json({ error: error.message }, { status: 500 });
+      return Response.json({ error: "Server error" }, { status: 500 });
     }
 
     if (!hidden) {

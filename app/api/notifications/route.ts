@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
 
     const { data: rows, error } = await q;
     if (error) {
-      return Response.json({ error: error.message }, { status: 500 });
+      return Response.json({ error: "Server error" }, { status: 500 });
     }
 
     const list = rows ?? [];

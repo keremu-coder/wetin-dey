@@ -35,7 +35,7 @@ export async function GET(req: Request) {
       .in("handle", handles);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Server error" }, { status: 500 });
     }
 
     const fonts: Record<string, string> = {};
@@ -53,7 +53,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ fonts });
   } catch (err) {
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Unknown error" },
+      { error: "Server error" },
       { status: 500 }
     );
   }

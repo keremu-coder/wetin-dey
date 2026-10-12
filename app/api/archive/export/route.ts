@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
         .range(from, from + PAGE_SIZE - 1);
 
       if (error) {
-        return Response.json({ error: error.message }, { status: 500 });
+        return Response.json({ error: "Server error" }, { status: 500 });
       }
       if (!data || data.length === 0) break;
       all.push(...data);

@@ -14,7 +14,7 @@ export async function GET(
     .select("*")
     .eq("slug", params.slug)
     .maybeSingle();
-  if (error) return Response.json({ error: error.message }, { status: 500 });
+  if (error) return Response.json({ error: "Server error" }, { status: 500 });
   if (!data) return Response.json({ error: "not found" }, { status: 404 });
   return Response.json({ community: data });
 }

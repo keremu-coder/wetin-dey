@@ -43,7 +43,7 @@ export async function POST(
       .is("read_at", null);
 
     if (error) {
-      return Response.json({ error: error.message }, { status: 500 });
+      return Response.json({ error: "Server error" }, { status: 500 });
     }
 
     return Response.json({ ok: true });

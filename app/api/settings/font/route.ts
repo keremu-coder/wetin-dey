@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
       .maybeSingle();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Server error" }, { status: 500 });
     }
 
     const font = isValidFontId(data?.font_preference)
@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ font });
   } catch (err) {
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Unknown error" },
+      { error: "Server error" },
       { status: 500 }
     );
   }
@@ -76,13 +76,13 @@ export async function POST(req: NextRequest) {
       .eq("id", sessionId);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Server error" }, { status: 500 });
     }
 
     return NextResponse.json({ ok: true, font });
   } catch (err) {
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Unknown error" },
+      { error: "Server error" },
       { status: 500 }
     );
   }

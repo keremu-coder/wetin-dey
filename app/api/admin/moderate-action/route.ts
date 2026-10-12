@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
           .update({ held: false, reviewed: true })
           .eq("id", body.target_id);
         if (error) {
-          return Response.json({ error: error.message }, { status: 500 });
+          return Response.json({ error: "Server error" }, { status: 500 });
         }
       } else {
         // Rejection: keep held, but note the reason
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
           })
           .eq("id", body.target_id);
         if (error) {
-          return Response.json({ error: error.message }, { status: 500 });
+          return Response.json({ error: "Server error" }, { status: 500 });
         }
       }
     } else {
@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
           })
           .eq("id", body.target_id);
         if (error) {
-          return Response.json({ error: error.message }, { status: 500 });
+          return Response.json({ error: "Server error" }, { status: 500 });
         }
       } else {
         const reason =
@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
           })
           .eq("id", body.target_id);
         if (error) {
-          return Response.json({ error: error.message }, { status: 500 });
+          return Response.json({ error: "Server error" }, { status: 500 });
         }
       }
     }

@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
       .eq("id", sessionId);
 
     if (updErr) {
-      return Response.json({ error: updErr.message }, { status: 500 });
+      return Response.json({ error: "Server error" }, { status: 500 });
     }
 
     return Response.json({ ok: true });

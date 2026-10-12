@@ -21,7 +21,7 @@ export async function GET() {
       .order("created_at", { ascending: false });
 
     if (error) {
-      return Response.json({ error: error.message }, { status: 500 });
+      return Response.json({ error: "Server error" }, { status: 500 });
     }
 
     const ids = (rows ?? []).map((r) => r.blocked_session_id);
@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (targetErr) {
-      return Response.json({ error: targetErr.message }, { status: 500 });
+      return Response.json({ error: "Server error" }, { status: 500 });
     }
     if (!target) {
       return Response.json({ error: "User not found." }, { status: 404 });
@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
         .eq("blocked_session_id", target.id);
 
       if (error) {
-        return Response.json({ error: error.message }, { status: 500 });
+        return Response.json({ error: "Server error" }, { status: 500 });
       }
       return Response.json({ ok: true, action: "unblock" });
     }
@@ -137,7 +137,7 @@ export async function POST(req: NextRequest) {
       );
 
     if (error) {
-      return Response.json({ error: error.message }, { status: 500 });
+      return Response.json({ error: "Server error" }, { status: 500 });
     }
 
     return Response.json({ ok: true, action: "block" });

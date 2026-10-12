@@ -14,11 +14,11 @@ export async function GET() {
     if (!sid) return NextResponse.json({ error: "no session" }, { status: 401 });
     const db = createServiceClient();
     const { data, error } = await db.from("sessions").select("photo_visibility").eq("id", sid).maybeSingle();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ error: "Server error" }, { status: 500 });
     const v = (data?.photo_visibility as Tier) ?? "private";
     return NextResponse.json({ visibility: VALID.includes(v) ? v : "private" });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : "Unknown" }, { status: 500 });
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
 
@@ -36,9 +36,9 @@ export async function POST(req: NextRequest) {
     }
     const db = createServiceClient();
     const { error } = await db.from("sessions").update({ photo_visibility: v }).eq("id", sid);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ error: "Server error" }, { status: 500 });
     return NextResponse.json({ ok: true, visibility: v });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : "Unknown" }, { status: 500 });
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

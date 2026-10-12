@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
   const { data, error } = await query;
 
   if (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return Response.json({ error: "Server error" }, { status: 500 });
   }
 
   // Strip id — client only needs handle + counts

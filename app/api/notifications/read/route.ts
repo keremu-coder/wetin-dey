@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
 
     const { error } = await q;
     if (error) {
-      return Response.json({ error: error.message }, { status: 500 });
+      return Response.json({ error: "Server error" }, { status: 500 });
     }
 
     return Response.json({ ok: true });

@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
         followed_session_id: target.id
       });
     if (error && !String(error.message).toLowerCase().includes("duplicate")) {
-      return Response.json({ error: error.message }, { status: 500 });
+      return Response.json({ error: "Server error" }, { status: 500 });
     }
   } else {
     const { error } = await db
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
       .delete()
       .eq("follower_session_id", sessionId)
       .eq("followed_session_id", target.id);
-    if (error) return Response.json({ error: error.message }, { status: 500 });
+    if (error) return Response.json({ error: "Server error" }, { status: 500 });
   }
 
   const { count: followerCount } = await db

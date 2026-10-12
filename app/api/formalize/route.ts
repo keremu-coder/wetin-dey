@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
 
   if (updateErr) {
     return Response.json(
-      { ok: false, error: "db update failed: " + updateErr.message },
+      { ok: false, error: "Could not save. Try again." },
       { status: 500 }
     );
   }

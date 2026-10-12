@@ -46,7 +46,7 @@ export async function GET() {
       contacts: contactIds.map((id) => ({ id, ...(people.get(id) ?? { handle: null, display_name: null, avatar_url: null }) }))
     });
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown" }, { status: 500 });
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
 
@@ -68,10 +68,10 @@ export async function POST(req: NextRequest) {
       { owner_id: sid, contact_id: target.id },
       { onConflict: "owner_id,contact_id", ignoreDuplicates: true }
     );
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ error: "Server error" }, { status: 500 });
     return NextResponse.json({ ok: true });
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown" }, { status: 500 });
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
 
@@ -85,9 +85,9 @@ export async function DELETE(req: NextRequest) {
     if (!cid) return NextResponse.json({ error: "contactId required" }, { status: 400 });
     const db = createServiceClient();
     const { error } = await db.from("radar_contacts").delete().eq("owner_id", sid).eq("contact_id", cid);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ error: "Server error" }, { status: 500 });
     return NextResponse.json({ ok: true });
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown" }, { status: 500 });
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
