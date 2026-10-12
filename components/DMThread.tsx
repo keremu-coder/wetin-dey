@@ -318,7 +318,7 @@ export function DMThread({
             <p className="truncate text-[0.9375rem] font-semibold text-ink">
               @{otherHandle}
             </p>
-            <p className="truncate font-mono text-[0.65rem] text-faint">
+            <p className="truncate text-[0.65rem] text-faint">
               Private message
             </p>
           </div>

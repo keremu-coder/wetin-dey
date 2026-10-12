@@ -71,7 +71,7 @@ export default async function AgenciesPage() {
                 </p>
                 <p className="text-[0.75rem] text-muted">{a.state}</p>
               </div>
-              <span className="font-mono text-[0.8125rem] text-muted">
+              <span className="text-[0.8125rem] text-muted">
                 {a.count}
               </span>
             </div>

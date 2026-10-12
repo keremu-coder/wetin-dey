@@ -79,7 +79,7 @@ export default async function ExplorePage({
     <main className="mx-auto max-w-2xl px-4 py-6 pb-24">
       <Link
         href="/"
-        className="inline-flex items-center gap-1 font-mono text-[0.7rem] uppercase tracking-widest text-faint transition-colors hover:text-brand"
+        className="inline-flex items-center gap-1 text-[0.7rem] text-faint transition-colors hover:text-brand"
       >
         ← Back to feed
       </Link>
@@ -99,7 +99,7 @@ export default async function ExplorePage({
           <div>
             <label
               htmlFor="filter-state"
-              className="mb-1.5 block font-mono text-[0.65rem] uppercase tracking-wider text-faint"
+              className="mb-1.5 block text-[0.65rem] text-faint"
             >
               State
             </label>
@@ -119,7 +119,7 @@ export default async function ExplorePage({
           <div>
             <label
               htmlFor="filter-category"
-              className="mb-1.5 block font-mono text-[0.65rem] uppercase tracking-wider text-faint"
+              className="mb-1.5 block text-[0.65rem] text-faint"
             >
               Category
             </label>
@@ -139,7 +139,7 @@ export default async function ExplorePage({
           <div>
             <label
               htmlFor="filter-from"
-              className="mb-1.5 block font-mono text-[0.65rem] uppercase tracking-wider text-faint"
+              className="mb-1.5 block text-[0.65rem] text-faint"
             >
               From
             </label>
@@ -153,7 +153,7 @@ export default async function ExplorePage({
           <div>
             <label
               htmlFor="filter-to"
-              className="mb-1.5 block font-mono text-[0.65rem] uppercase tracking-wider text-faint"
+              className="mb-1.5 block text-[0.65rem] text-faint"
             >
               To
             </label>
@@ -175,7 +175,7 @@ export default async function ExplorePage({
 
       <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4">
         <div className="rounded-2xl border border-border bg-surface p-4">
-          <p className="font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+          <p className="text-[0.65rem] text-faint">
             Total reports
           </p>
           <p className="mt-1 font-serif text-[1.75rem] font-semibold leading-tight text-ink">
@@ -183,7 +183,7 @@ export default async function ExplorePage({
           </p>
         </div>
         <div className="rounded-2xl border border-border bg-surface p-4">
-          <p className="font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+          <p className="text-[0.65rem] text-faint">
             Total demanded
           </p>
           <p className="mt-1 font-serif text-[1.75rem] font-semibold leading-tight text-ink">
@@ -191,7 +191,7 @@ export default async function ExplorePage({
           </p>
         </div>
         <div className="rounded-2xl border border-border bg-surface p-4">
-          <p className="font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+          <p className="text-[0.65rem] text-faint">
             This month
           </p>
           <p className="mt-1 font-serif text-[1.75rem] font-semibold leading-tight text-ink">
@@ -200,7 +200,7 @@ export default async function ExplorePage({
         </div>
         {resolved > 0 ? (
           <div className="rounded-2xl border border-border bg-surface p-4">
-            <p className="font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+            <p className="text-[0.65rem] text-faint">
               Resolved
             </p>
             <p className="mt-1 font-serif text-[1.75rem] font-semibold leading-tight text-brand">
@@ -209,7 +209,7 @@ export default async function ExplorePage({
           </div>
         ) : (
           <div className="rounded-2xl border border-border bg-surface p-4">
-            <p className="font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+            <p className="text-[0.65rem] text-faint">
               Awaiting
             </p>
             <p className="mt-1 font-serif text-[1.75rem] font-semibold leading-tight text-warm-deep">

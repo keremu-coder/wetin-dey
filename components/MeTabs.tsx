@@ -77,7 +77,7 @@ export function MeTabs({
               <span className="font-serif text-[0.9375rem] font-semibold">
                 {t.label}
               </span>
-              <span className="font-mono text-[0.7rem] text-faint">
+              <span className="text-[0.7rem] text-faint">
                 {t.count}
               </span>
             </button>
@@ -105,7 +105,7 @@ export function MeTabs({
             <>
               {owned.length > 0 ? (
                 <div className="mb-4">
-                  <p className="mb-2 px-1 font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+                  <p className="mb-2 px-1 text-[0.65rem] text-faint">
                     You own
                   </p>
                   <div className="overflow-hidden rounded-2xl border border-border bg-surface">
@@ -149,7 +149,7 @@ export function MeTabs({
 
               {joined.length > 0 ? (
                 <div>
-                  <p className="mb-2 px-1 font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+                  <p className="mb-2 px-1 text-[0.65rem] text-faint">
                     You joined
                   </p>
                   <div className="overflow-hidden rounded-2xl border border-border bg-surface">
@@ -224,7 +224,7 @@ export function MeTabs({
                     <p className="mt-1 line-clamp-2 text-[0.8125rem] leading-relaxed text-muted">
                       {blurb}
                     </p>
-                    <p className="mt-2 font-mono text-[0.65rem] text-faint">
+                    <p className="mt-2 text-[0.65rem] text-faint">
                       {new Date(p.created_at).toLocaleDateString("en-NG", {
                         month: "short",
                         day: "numeric"

@@ -126,7 +126,7 @@ export default async function CommunitiesPage() {
             <h2 className="font-serif text-[1.15rem] font-semibold text-ink">
               Featured
             </h2>
-            <span className="font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+            <span className="text-[0.65rem] text-faint">
               Pick one. Say hi.
             </span>
           </div>
@@ -155,7 +155,7 @@ export default async function CommunitiesPage() {
                     {f.pitch}
                   </p>
 
-                  <p className="mt-auto pt-3 font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+                  <p className="mt-auto pt-3 text-[0.65rem] text-faint">
                     {members === 0
                       ? "Be the first →"
                       : `${members} member${members === 1 ? "" : "s"} →`}

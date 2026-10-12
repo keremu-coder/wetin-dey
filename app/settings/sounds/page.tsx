@@ -109,7 +109,7 @@ export default function SoundSettingsPage() {
     <main className="mx-auto max-w-3xl px-4 py-6 pb-28">
       <Link
         href="/settings"
-        className="font-mono text-[0.7rem] uppercase tracking-widest text-faint hover:text-brand"
+        className="text-[0.7rem] text-faint hover:text-brand"
       >
         ← Settings
       </Link>
@@ -124,7 +124,7 @@ export default function SoundSettingsPage() {
       </header>
 
       <section className="mb-6">
-        <p className="mb-2 font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+        <p className="mb-2 text-[0.65rem] text-faint">
           Sound profile
         </p>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -157,7 +157,7 @@ export default function SoundSettingsPage() {
                       {p.label}
                     </p>
                     {id === "bbm" ? (
-                      <span className="rounded-full bg-brand-tint px-2 py-0.5 font-mono text-[0.6rem] uppercase tracking-wider text-brand">
+                      <span className="rounded-full bg-brand-tint px-2 py-0.5 text-[0.6rem] text-brand">
                         Default
                       </span>
                     ) : null}
@@ -173,7 +173,7 @@ export default function SoundSettingsPage() {
       </section>
 
       <section className="mb-6">
-        <p className="mb-2 font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+        <p className="mb-2 text-[0.65rem] text-faint">
           When should it play
         </p>
         <div className="overflow-hidden rounded-2xl border border-border bg-surface">
@@ -220,7 +220,7 @@ export default function SoundSettingsPage() {
       </section>
 
       <section className="mb-6">
-        <p className="mb-2 font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+        <p className="mb-2 text-[0.65rem] text-faint">
           Push notifications
         </p>
         <div className="rounded-2xl border border-border bg-surface p-4">

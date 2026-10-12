@@ -233,7 +233,7 @@ export default function RadarPage() {
 
       {mine.length > 0 ? (
         <section className="mb-8">
-          <h2 className="mb-3 text-[0.8125rem] font-semibold uppercase tracking-wider text-faint">Your active signals</h2>
+          <h2 className="mb-3 text-[0.8125rem] font-semibold text-faint">Your active signals</h2>
           <div className="space-y-3">
             {mine.map((m) => (
               <div key={m.id} className="rounded-2xl border border-brand/40 bg-brand-tint p-4">
@@ -263,7 +263,7 @@ export default function RadarPage() {
 
       {inbox.length > 0 ? (
         <section className="mb-8">
-          <h2 className="mb-3 text-[0.8125rem] font-semibold uppercase tracking-wider text-faint">Waiting for you</h2>
+          <h2 className="mb-3 text-[0.8125rem] font-semibold text-faint">Waiting for you</h2>
           <div className="space-y-3">
             {inbox.map((s) => {
               const u = urgency(s.signal_type);
@@ -318,7 +318,7 @@ export default function RadarPage() {
       ) : null}
 
       <section className="mb-8">
-        <h2 className="mb-3 text-[0.8125rem] font-semibold uppercase tracking-wider text-faint">Send a signal</h2>
+        <h2 className="mb-3 text-[0.8125rem] font-semibold text-faint">Send a signal</h2>
         <div className="grid grid-cols-2 gap-3">
           {(Object.keys(SIGNAL_LABELS) as Signal[]).map((key) => {
             const s = SIGNAL_LABELS[key];
@@ -342,7 +342,7 @@ export default function RadarPage() {
       </section>
 
       <section className="mb-8">
-        <h2 className="mb-3 text-[0.8125rem] font-semibold uppercase tracking-wider text-faint">My Circle</h2>
+        <h2 className="mb-3 text-[0.8125rem] font-semibold text-faint">My Circle</h2>
         <div className="flex gap-2">
           <input
             type="text"

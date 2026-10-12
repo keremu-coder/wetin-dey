@@ -290,7 +290,7 @@ export function Nav() {
                 </div>
               ))}
               <div className="border-t border-border pt-4 pb-2">
-                <p className="px-5 pb-2 text-[0.6875rem] font-semibold uppercase tracking-wider text-faint">Theme</p>
+                <p className="px-5 pb-2 text-[0.6875rem] font-semibold text-faint">Theme</p>
                 <div className="px-5 py-2">
                   <ThemeToggle />
                 </div>
@@ -359,7 +359,7 @@ export function Nav() {
                   "calc(0.75rem + env(safe-area-inset-bottom, 0px))"
               }}
             >
-              <p className="text-center font-mono text-[0.65rem] text-faint">
+              <p className="text-center text-[0.65rem] text-faint">
                 Wetin Dey · made in Nigeria 🇳🇬
               </p>
             </div>
@@ -396,7 +396,7 @@ export function SiteFooter() {
           <Link href="/support" className="transition-colors hover:text-brand">
             Support
           </Link>
-          <span className="ml-auto font-mono text-[0.7rem] text-faint">
+          <span className="ml-auto text-[0.7rem] text-faint">
             made in Nigeria 🇳🇬
           </span>
         </div>

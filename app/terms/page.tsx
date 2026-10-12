@@ -21,7 +21,7 @@ export default function TermsPage() {
       </div>
 
       <div className="mb-6 rounded-2xl border border-border bg-surface p-4">
-        <p className="font-mono text-[0.7rem] uppercase tracking-wider text-faint">
+        <p className="text-[0.7rem] text-faint">
           Last updated
         </p>
         <p className="mt-1 text-[0.875rem] text-ink">8 October 2026</p>

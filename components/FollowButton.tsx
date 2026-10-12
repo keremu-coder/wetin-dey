@@ -83,7 +83,7 @@ export function FollowButton({
     >
       {busy ? "…" : following ? "Following" : "Follow"}
       <span
-        className={`font-mono text-[0.75rem] ${
+        className={`text-[0.75rem] ${
           following ? "text-faint" : "text-white/80"
         }`}
       >

@@ -170,7 +170,7 @@ export function NotificationsList({
               ) : null}
             </div>
 
-            <span className="shrink-0 font-mono text-[0.65rem] text-faint">
+            <span className="shrink-0 text-[0.65rem] text-faint">
               {timeAgo(item.created_at)}
             </span>
 

@@ -67,7 +67,7 @@ export default async function NotificationsPage() {
               </p>
               <p className="mt-0.5 text-[0.75rem] text-muted">{item.hint}</p>
             </div>
-            <span className="rounded-full bg-ink/5 px-2 py-0.5 text-[0.65rem] font-medium uppercase tracking-wider text-faint">
+            <span className="rounded-full bg-ink/5 px-2 py-0.5 text-[0.65rem] font-medium text-faint">
               Soon
             </span>
           </div>

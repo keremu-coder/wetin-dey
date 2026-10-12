@@ -190,7 +190,7 @@ export default function CheckinPage({
       <main className="mx-auto max-w-2xl px-4 py-10 pb-24">
         <Link
           href={`/c/${slug}`}
-          className="font-mono text-[0.7rem] uppercase tracking-widest text-faint hover:text-brand"
+          className="text-[0.7rem] text-faint hover:text-brand"
         >
           ← Back to space
         </Link>
@@ -207,7 +207,7 @@ export default function CheckinPage({
     <main className="mx-auto max-w-2xl px-4 py-6 pb-28">
       <Link
         href={`/c/${slug}`}
-        className="font-mono text-[0.7rem] uppercase tracking-widest text-faint hover:text-brand"
+        className="text-[0.7rem] text-faint hover:text-brand"
       >
         ← {data.community.name}
       </Link>
@@ -273,7 +273,7 @@ export default function CheckinPage({
           <div className="mt-4 rounded-2xl border border-border bg-surface p-4">
             {hasResponded ? (
               <>
-                <p className="font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+                <p className="text-[0.65rem] text-faint">
                   Your reply
                 </p>
                 <div className="mt-2 flex items-baseline gap-2">
@@ -302,7 +302,7 @@ export default function CheckinPage({
               </>
             ) : (
               <>
-                <p className="mb-3 text-center font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+                <p className="mb-3 text-center text-[0.65rem] text-faint">
                   Tap to reply
                 </p>
                 <div className="grid grid-cols-3 gap-2">
@@ -370,7 +370,7 @@ export default function CheckinPage({
               <h2 className="font-serif text-[1.1rem] font-semibold text-ink">
                 Answers so far
               </h2>
-              <p className="font-mono text-[0.7rem] text-faint">
+              <p className="text-[0.7rem] text-faint">
                 {data.responses.length}/{data.members.length}
               </p>
             </div>
@@ -397,7 +397,7 @@ export default function CheckinPage({
                         <p className="truncate text-[0.9375rem] font-medium text-ink">
                           @{r.handle}
                         </p>
-                        <span className="shrink-0 font-mono text-[0.65rem] text-faint">
+                        <span className="shrink-0 text-[0.65rem] text-faint">
                           {checkinAge(r.created_at)}
                         </span>
                       </div>
@@ -417,7 +417,7 @@ export default function CheckinPage({
               {pending.length > 0 ? (
                 <>
                   <div className="border-t border-border bg-ink/[0.02] px-4 py-2">
-                    <p className="font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+                    <p className="text-[0.65rem] text-faint">
                       Not yet
                     </p>
                   </div>
@@ -437,7 +437,7 @@ export default function CheckinPage({
                         <p className="min-w-0 flex-1 truncate text-[0.9375rem] text-muted">
                           @{m.handle}
                         </p>
-                        <span className="shrink-0 font-mono text-[0.65rem] text-faint">
+                        <span className="shrink-0 text-[0.65rem] text-faint">
                           ⏳ pending
                         </span>
                       </div>
@@ -487,7 +487,7 @@ export default function CheckinPage({
             </p>
 
             <div className="mt-4">
-              <label className="mb-1.5 block font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+              <label className="mb-1.5 block text-[0.65rem] text-faint">
                 Reason (optional)
               </label>
               <input
@@ -499,7 +499,7 @@ export default function CheckinPage({
                 placeholder="e.g. Flood warning in Lekki"
                 maxLength={CHECKIN_REASON_MAX}
               />
-              <p className="mt-1 text-right font-mono text-[0.65rem] text-faint">
+              <p className="mt-1 text-right text-[0.65rem] text-faint">
                 {reasonDraft.length}/{CHECKIN_REASON_MAX}
               </p>
             </div>

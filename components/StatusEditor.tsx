@@ -71,10 +71,10 @@ export function StatusEditor({ sessionId }: { sessionId: string }) {
   return (
     <div className="rounded-2xl border border-border bg-surface p-5">
       <div className="flex items-center justify-between">
-        <p className="font-mono text-[0.7rem] uppercase tracking-wider text-faint">
+        <p className="text-[0.7rem] text-faint">
           Status line
         </p>
-        <p className="font-mono text-[0.65rem] text-faint">
+        <p className="text-[0.65rem] text-faint">
           {remaining} left
         </p>
       </div>

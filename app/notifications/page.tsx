@@ -26,7 +26,7 @@ export default async function NotificationsPage() {
       <main className="mx-auto max-w-2xl px-4 py-6 pb-24">
         <Link
           href="/"
-          className="inline-flex items-center gap-1 font-mono text-[0.7rem] uppercase tracking-widest text-faint transition-colors hover:text-brand"
+          className="inline-flex items-center gap-1 text-[0.7rem] text-faint transition-colors hover:text-brand"
         >
           Back to feed
         </Link>
@@ -123,7 +123,7 @@ export default async function NotificationsPage() {
     <main className="mx-auto max-w-2xl px-4 py-6 pb-24">
       <Link
         href="/"
-        className="inline-flex items-center gap-1 font-mono text-[0.7rem] uppercase tracking-widest text-faint transition-colors hover:text-brand"
+        className="inline-flex items-center gap-1 text-[0.7rem] text-faint transition-colors hover:text-brand"
       >
         Back to feed
       </Link>

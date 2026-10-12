@@ -268,7 +268,7 @@ export default async function AdminPendingPage() {
                       <p className="text-[0.9375rem] font-semibold text-ink">
                         {r.agency_canonical || r.agency_raw || "Report"}
                       </p>
-                      <p className="mt-0.5 font-mono text-[0.7rem] uppercase tracking-wide text-faint">
+                      <p className="mt-0.5 text-[0.7rem] text-faint">
                         {r.state ?? "?"} · {r.category} ·{" "}
                         {new Date(r.created_at).toLocaleDateString("en-NG", {
                           month: "short",
@@ -277,7 +277,7 @@ export default async function AdminPendingPage() {
                       </p>
                     </div>
                     <span
-                      className={`shrink-0 rounded-full px-2.5 py-1 font-mono text-[0.65rem] font-bold ${
+                      className={`shrink-0 rounded-full px-2.5 py-1 text-[0.65rem] font-bold ${
                         risk >= 80
                           ? "bg-danger text-white"
                           : risk >= 60
@@ -308,20 +308,20 @@ export default async function AdminPendingPage() {
                   ) : null}
 
                   <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <span className="rounded-full bg-ink/5 px-2 py-0.5 font-mono text-[0.65rem] text-muted">
+                    <span className="rounded-full bg-ink/5 px-2 py-0.5 text-[0.65rem] text-muted">
                       {r.target_type ?? "public"}
                     </span>
                     {r.evidence_type ? (
-                      <span className="rounded-full bg-brand-tint px-2 py-0.5 font-mono text-[0.65rem] text-brand">
+                      <span className="rounded-full bg-brand-tint px-2 py-0.5 text-[0.65rem] text-brand">
                         {r.evidence_type}
                       </span>
                     ) : (
-                      <span className="rounded-full bg-danger-soft px-2 py-0.5 font-mono text-[0.65rem] text-danger">
+                      <span className="rounded-full bg-danger-soft px-2 py-0.5 text-[0.65rem] text-danger">
                         no evidence
                       </span>
                     )}
                     {r.amount_kobo != null ? (
-                      <span className="rounded-full bg-warm-soft px-2 py-0.5 font-mono text-[0.65rem] text-warm-deep">
+                      <span className="rounded-full bg-warm-soft px-2 py-0.5 text-[0.65rem] text-warm-deep">
                         {formatNaira(r.amount_kobo)}
                       </span>
                     ) : null}
@@ -367,14 +367,14 @@ export default async function AdminPendingPage() {
                   <p className="text-[0.9375rem] font-semibold text-ink">
                     {r.submitter_name}
                   </p>
-                  <span className="shrink-0 font-mono text-[0.65rem] text-faint">
+                  <span className="shrink-0 text-[0.65rem] text-faint">
                     {new Date(r.created_at).toLocaleDateString("en-NG", {
                       month: "short",
                       day: "numeric"
                     })}
                   </span>
                 </div>
-                <p className="mt-0.5 font-mono text-[0.7rem] text-faint">
+                <p className="mt-0.5 text-[0.7rem] text-faint">
                   {r.submitter_contact}
                 </p>
                 <p className="mt-3 whitespace-pre-wrap text-[0.875rem] leading-relaxed text-ink/90">

@@ -79,7 +79,7 @@ export default function JoinPage() {
   return (
     <main className="mx-auto max-w-xl px-4 py-10">
       <div className="mb-8">
-        <p className="font-mono text-[0.7rem] uppercase tracking-widest text-faint">
+        <p className="text-[0.7rem] text-faint">
           Join Wetin Dey
         </p>
         <h1 className="mt-2 font-serif text-[2rem] font-semibold leading-tight text-ink">

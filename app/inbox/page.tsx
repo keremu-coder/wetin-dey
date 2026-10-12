@@ -168,7 +168,7 @@ export default async function InboxPage() {
                       @{t.other_handle}
                     </p>
                     <span
-                      className={`shrink-0 font-mono text-[0.65rem] ${
+                      className={`shrink-0 text-[0.65rem] ${
                         hasUnread ? "text-brand font-semibold" : "text-faint"
                       }`}
                     >
@@ -185,7 +185,7 @@ export default async function InboxPage() {
                       {t.last_body ?? "No messages yet"}
                     </p>
                     {hasUnread ? (
-                      <span className="shrink-0 rounded-full bg-brand px-2 py-0.5 font-mono text-[0.65rem] font-bold text-white">
+                      <span className="shrink-0 rounded-full bg-brand px-2 py-0.5 text-[0.65rem] font-bold text-white">
                         {t.unread}
                       </span>
                     ) : null}

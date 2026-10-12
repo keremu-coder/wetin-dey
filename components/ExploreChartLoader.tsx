@@ -15,7 +15,7 @@ const ExploreChart = dynamic(
     ssr: false,
     loading: () => (
       <div className="rounded-2xl border border-border bg-surface p-10 text-center">
-        <p className="font-mono text-[0.7rem] uppercase tracking-wider text-faint">
+        <p className="text-[0.7rem] text-faint">
           Loading charts…
         </p>
       </div>

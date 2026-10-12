@@ -80,7 +80,7 @@ export function InviteSheet({
       </p>
 
       <div className="mt-4 flex items-center gap-2 rounded-xl border border-border bg-paper px-3 py-2.5">
-        <span className="flex-1 truncate font-mono text-[0.75rem] text-ink">
+        <span className="flex-1 truncate text-[0.75rem] text-ink">
           {url || "Loading…"}
         </span>
         <button

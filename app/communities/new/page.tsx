@@ -110,7 +110,7 @@ export default function NewCommunityPage() {
 
       {name === "" && slug === "" && description === "" ? (
         <div className="mb-6">
-          <p className="mb-2 px-1 font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+          <p className="mb-2 px-1 text-[0.65rem] text-faint">
             Or start from an idea
           </p>
           <div className="grid grid-cols-2 gap-2">
@@ -211,7 +211,7 @@ export default function NewCommunityPage() {
             rows={3}
             placeholder="What is this space about?"
           />
-          <p className="mt-1 text-right font-mono text-[0.7rem] text-faint">
+          <p className="mt-1 text-right text-[0.7rem] text-faint">
             {description.length}/200
           </p>
         </div>

@@ -130,7 +130,7 @@ export function ReportReplyForm({
                   rows={6}
                   maxLength={MAX_BODY}
                 />
-                <p className="mt-1 text-right font-mono text-[0.65rem] text-faint">
+                <p className="mt-1 text-right text-[0.65rem] text-faint">
                   {body.length}/{MAX_BODY}
                   {body.length < MIN_BODY
                     ? ` · ${MIN_BODY - body.length} more needed`

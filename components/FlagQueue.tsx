@@ -93,13 +93,13 @@ function FlagCard({ flag }: { flag: FlagRow }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-danger-soft px-2.5 py-0.5 font-mono text-[0.65rem] font-semibold uppercase tracking-wider text-danger">
+            <span className="rounded-full bg-danger-soft px-2.5 py-0.5 text-[0.65rem] font-semibold text-danger">
               {reasonLabel[flag.reason] ?? flag.reason}
             </span>
-            <span className="rounded-full bg-ink/5 px-2 py-0.5 font-mono text-[0.65rem] text-muted">
+            <span className="rounded-full bg-ink/5 px-2 py-0.5 text-[0.65rem] text-muted">
               {flag.target_type}
             </span>
-            <span className="font-mono text-[0.65rem] text-faint">
+            <span className="text-[0.65rem] text-faint">
               {new Date(flag.created_at).toLocaleDateString("en-NG", {
                 month: "short",
                 day: "numeric",

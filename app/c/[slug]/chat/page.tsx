@@ -33,7 +33,7 @@ export default async function ChatPage({
       <main className="mx-auto max-w-2xl px-4 py-10 pb-24">
         <Link
           href={`/c/${community.slug}`}
-          className="font-mono text-[0.7rem] uppercase tracking-widest text-faint hover:text-brand"
+          className="text-[0.7rem] text-faint hover:text-brand"
         >
           ← Back to space
         </Link>

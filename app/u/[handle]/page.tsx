@@ -478,7 +478,7 @@ export default async function ProfilePage({
               <span className="font-serif text-[0.9375rem] font-semibold">
                 {t.label}
               </span>
-              <span className="font-mono text-[0.7rem] text-faint">
+              <span className="text-[0.7rem] text-faint">
                 {t.count}
               </span>
             </Link>
@@ -508,7 +508,7 @@ export default async function ProfilePage({
                   >
                     <div className="p-5">
                       <div className="flex items-center justify-between gap-3">
-                        <p className="font-mono text-[0.7rem] uppercase tracking-wide text-faint">
+                        <p className="text-[0.7rem] text-faint">
                           {timeAgo(r.created_at)} · {r.state}
                         </p>
                         <ReviewedFlag reviewed={r.reviewed} />

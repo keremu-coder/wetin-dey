@@ -20,7 +20,7 @@ export default function SubmitPage({
   return (
     <main className="mx-auto max-w-2xl px-4 py-10 pb-24">
       <div className="mb-8">
-        <p className="font-mono text-[0.7rem] uppercase tracking-widest text-faint">
+        <p className="text-[0.7rem] text-faint">
           {communitySlug
             ? `Space: /c/${communitySlug}`
             : tab === "talk"

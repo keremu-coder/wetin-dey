@@ -100,7 +100,7 @@ export default function FontSettingsPage() {
     <main className="mx-auto max-w-3xl px-4 py-6 pb-28">
       <Link
         href="/settings"
-        className="font-mono text-[0.7rem] uppercase tracking-widest text-faint hover:text-brand"
+        className="text-[0.7rem] text-faint hover:text-brand"
       >
         ← Settings
       </Link>
@@ -116,7 +116,7 @@ export default function FontSettingsPage() {
       </header>
 
       <section className="mb-6 rounded-2xl border border-border bg-surface p-4">
-        <label className="mb-2 block font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+        <label className="mb-2 block text-[0.65rem] text-faint">
           Try it out
         </label>
         <input
@@ -126,7 +126,7 @@ export default function FontSettingsPage() {
           placeholder="Type something…"
           maxLength={60}
         />
-        <p className="mt-3 mb-1 font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+        <p className="mt-3 mb-1 text-[0.65rem] text-faint">
           Preview
         </p>
         <p
@@ -178,19 +178,19 @@ export default function FontSettingsPage() {
                 {font.sample}
               </p>
               <div className="flex items-center justify-between">
-                <p className="m-0 font-mono text-[0.6875rem] uppercase tracking-wider text-muted">
+                <p className="m-0 text-[0.6875rem] text-muted">
                   {font.label}
                 </p>
                 {justSaved ? (
-                  <span className="font-mono text-[0.6875rem] font-medium text-brand">
+                  <span className="text-[0.6875rem] font-medium text-brand">
                     ✓ Saved
                   </span>
                 ) : selected ? (
-                  <span className="font-mono text-[0.6875rem] font-medium text-brand">
+                  <span className="text-[0.6875rem] font-medium text-brand">
                     ✓ Selected
                   </span>
                 ) : isSaving ? (
-                  <span className="font-mono text-[0.6875rem] text-faint">
+                  <span className="text-[0.6875rem] text-faint">
                     Saving…
                   </span>
                 ) : null}

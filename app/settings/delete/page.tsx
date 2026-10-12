@@ -59,7 +59,7 @@ export default function DeleteAccountPage() {
       <div className="mb-8">
         <Link
           href="/settings"
-          className="font-mono text-[0.7rem] uppercase tracking-widest text-faint hover:text-brand"
+          className="text-[0.7rem] text-faint hover:text-brand"
         >
           ← Back to settings
         </Link>
@@ -110,7 +110,7 @@ export default function DeleteAccountPage() {
             className="mb-2 block text-[0.8125rem] font-semibold text-ink"
           >
             Type{" "}
-            <code className="rounded bg-ink/5 px-1.5 py-0.5 font-mono text-[0.75rem]">
+            <code className="rounded bg-ink/5 px-1.5 py-0.5 text-[0.75rem]">
               DELETE
             </code>{" "}
             to confirm

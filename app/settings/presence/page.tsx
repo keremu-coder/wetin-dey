@@ -37,7 +37,7 @@ export default async function PresenceSettingsPage() {
       <PresenceToggle initial={initial} />
 
       <div className="mt-6 rounded-2xl border border-border bg-surface p-5">
-        <p className="font-mono text-[0.7rem] uppercase tracking-wider text-faint">
+        <p className="text-[0.7rem] text-faint">
           How it works
         </p>
         <ul className="mt-3 space-y-2 text-[0.8125rem] leading-relaxed text-muted">

@@ -299,7 +299,7 @@ export function CommentThread({ reportId }: { reportId: string }) {
                 <span className="text-[0.875rem] font-medium text-ink">
                   @{handle}
                 </span>
-                <span className="font-mono text-[0.7rem] uppercase text-faint">
+                <span className="text-[0.7rem] text-faint">
                   {timeAgo(c.created_at)}
                 </span>
               </div>

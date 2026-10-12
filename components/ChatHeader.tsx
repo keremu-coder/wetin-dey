@@ -63,7 +63,7 @@ export function ChatHeader({
             <p className="truncate text-[0.9375rem] font-semibold text-ink">
               {name}
             </p>
-            <p className="truncate font-mono text-[0.65rem] text-faint">
+            <p className="truncate text-[0.65rem] text-faint">
               {onlineHandles.length > 0
                 ? onlineHandles.slice(0, 2).join(", ") +
                   (onlineHandles.length > 2

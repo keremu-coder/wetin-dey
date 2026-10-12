@@ -81,10 +81,10 @@ export function DailyPrompt() {
   return (
     <section className="mb-6 rounded-2xl border border-border bg-surface p-5">
       <div className="flex items-center justify-between">
-        <p className="font-mono text-[0.65rem] uppercase tracking-wider text-brand">
+        <p className="text-[0.65rem] text-brand">
           Today's question
         </p>
-        <p className="font-mono text-[0.65rem] text-faint">
+        <p className="text-[0.65rem] text-faint">
           {count} answer{count === 1 ? "" : "s"}
         </p>
       </div>
@@ -105,7 +105,7 @@ export function DailyPrompt() {
             autoFocus={editing}
           />
           <div className="mt-2 flex items-center justify-between">
-            <p className="font-mono text-[0.65rem] text-faint">
+            <p className="text-[0.65rem] text-faint">
               {draft.length}/280
             </p>
             <div className="flex gap-2">

@@ -75,7 +75,7 @@ export function HandleEditor({ initialHandle }: { initialHandle: string }) {
     <div className="rounded-2xl border border-border bg-surface p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="font-mono text-[0.7rem] uppercase tracking-wider text-faint">
+          <p className="text-[0.7rem] text-faint">
             Handle
           </p>
           <p className="mt-1 text-[0.8125rem] leading-relaxed text-muted">
@@ -86,7 +86,7 @@ export function HandleEditor({ initialHandle }: { initialHandle: string }) {
       </div>
 
       <div className="relative mt-4">
-        <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 font-mono text-[1rem] text-faint">
+        <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[1rem] text-faint">
           @
         </span>
         <input
@@ -103,7 +103,7 @@ export function HandleEditor({ initialHandle }: { initialHandle: string }) {
           autoCorrect="off"
           spellCheck={false}
           maxLength={HANDLE_MAX}
-          className="!pl-8 !font-mono !text-[0.9375rem]"
+          className="!pl-8 !!text-[0.9375rem]"
         />
       </div>
 
@@ -121,7 +121,7 @@ export function HandleEditor({ initialHandle }: { initialHandle: string }) {
               ? "Looks good."
               : check.reason}
         </p>
-        <p className="font-mono text-[0.65rem] text-faint">
+        <p className="text-[0.65rem] text-faint">
           {draft.length}/{HANDLE_MAX}
         </p>
       </div>
@@ -150,7 +150,7 @@ export function HandleEditor({ initialHandle }: { initialHandle: string }) {
             {loaded.previous_handles.map((h) => (
               <span
                 key={h}
-                className="rounded-full bg-paper px-2 py-0.5 font-mono text-[0.7rem] text-muted"
+                className="rounded-full bg-paper px-2 py-0.5 text-[0.7rem] text-muted"
               >
                 @{h}
               </span>

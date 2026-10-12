@@ -163,7 +163,7 @@ export function BroadcastRecorder({
         </div>
 
         <div className="mt-4">
-          <label className="mb-1.5 block font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+          <label className="mb-1.5 block text-[0.65rem] text-faint">
             Title (optional)
           </label>
           <input
@@ -175,7 +175,7 @@ export function BroadcastRecorder({
             placeholder="e.g. Estate meeting Sunday 4pm"
             maxLength={BROADCAST_TITLE_MAX}
           />
-          <p className="mt-1 text-right font-mono text-[0.65rem] text-faint">
+          <p className="mt-1 text-right text-[0.65rem] text-faint">
             {title.length}/{BROADCAST_TITLE_MAX}
           </p>
         </div>
@@ -210,7 +210,7 @@ export function BroadcastRecorder({
               <span className="flex h-10 w-10 shrink-0 animate-pulse items-center justify-center rounded-full bg-danger text-white">
                 ●
               </span>
-              <span className="flex-1 font-mono text-[1.05rem] font-medium text-danger">
+              <span className="flex-1 text-[1.05rem] font-medium text-danger">
                 {String(Math.floor(seconds / 60)).padStart(2, "0")}:
                 {String(seconds % 60).padStart(2, "0")}
                 <span className="ml-2 text-[0.75rem] font-normal text-muted">
@@ -239,7 +239,7 @@ export function BroadcastRecorder({
                 />
               </div>
               <div className="mt-2 flex items-center justify-between">
-                <span className="font-mono text-[0.7rem] text-faint">
+                <span className="text-[0.7rem] text-faint">
                   {seconds}s recording
                 </span>
                 <button

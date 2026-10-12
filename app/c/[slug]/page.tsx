@@ -36,7 +36,7 @@ export default async function CommunityPage({
       <main className="mx-auto max-w-2xl px-4 py-10 pb-24">
         <Link
           href="/communities"
-          className="font-mono text-[0.7rem] uppercase tracking-widest text-faint hover:text-brand"
+          className="text-[0.7rem] text-faint hover:text-brand"
         >
           ← All spaces
         </Link>
@@ -57,7 +57,7 @@ export default async function CommunityPage({
             {community.name}
           </p>
 
-          <p className="mt-1 font-mono text-[0.7rem] uppercase tracking-wider text-faint">
+          <p className="mt-1 text-[0.7rem] text-faint">
             🔒 Private space
           </p>
 
@@ -105,7 +105,7 @@ export default async function CommunityPage({
     <main className="mx-auto max-w-2xl px-4 py-6 pb-24">
       <Link
         href="/communities"
-        className="font-mono text-[0.7rem] uppercase tracking-widest text-faint hover:text-brand"
+        className="text-[0.7rem] text-faint hover:text-brand"
       >
         ← All spaces
       </Link>
@@ -130,12 +130,12 @@ export default async function CommunityPage({
                 {community.name}
               </h1>
               {!community.is_public ? (
-                <span className="rounded-full bg-ink/5 px-2 py-0.5 font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+                <span className="rounded-full bg-ink/5 px-2 py-0.5 text-[0.65rem] text-faint">
                   Private
                 </span>
               ) : null}
             </div>
-            <p className="mt-0.5 font-mono text-[0.7rem] text-faint">
+            <p className="mt-0.5 text-[0.7rem] text-faint">
               /c/{community.slug} · {community.member_count} member
               {community.member_count === 1 ? "" : "s"} ·{" "}
               {community.post_count} post

@@ -57,10 +57,10 @@ export function StatusStrip() {
   return (
     <section className="mb-5">
       <div className="mb-2 flex items-baseline justify-between">
-        <p className="font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+        <p className="text-[0.65rem] text-faint">
           Recent updates
         </p>
-        <p className="font-mono text-[0.65rem] text-faint">{people.length}</p>
+        <p className="text-[0.65rem] text-faint">{people.length}</p>
       </div>
       <div className="hide-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
         {people.map((p) => {
@@ -93,7 +93,7 @@ export function StatusStrip() {
                     }}
                   />
                 </div>
-                <p className="min-w-0 flex-1 truncate font-mono text-[0.6rem] uppercase tracking-wider text-faint">
+                <p className="min-w-0 flex-1 truncate text-[0.6rem] text-faint">
                   @{p.handle}
                 </p>
               </div>

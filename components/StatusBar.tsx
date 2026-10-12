@@ -169,7 +169,7 @@ export function StatusBar() {
           />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+          <p className="truncate text-[0.65rem] text-faint">
             @{me.handle}
           </p>
           <p className="mt-0.5 line-clamp-2 text-[0.9375rem] leading-snug text-ink">
@@ -198,7 +198,7 @@ export function StatusBar() {
              
             </p>
 
-            <p className="mt-5 mb-2 font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+            <p className="mt-5 mb-2 text-[0.65rem] text-faint">
               Availability
             </p>
             <div className="grid grid-cols-2 gap-2">
@@ -237,7 +237,7 @@ export function StatusBar() {
               })}
             </div>
 
-            <p className="mt-5 mb-2 font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+            <p className="mt-5 mb-2 text-[0.65rem] text-faint">
               Status line
             </p>
             <textarea
@@ -250,7 +250,7 @@ export function StatusBar() {
               maxLength={STATUS_MAX_LENGTH}
               className="!min-h-[56px] text-[0.9375rem]"
             />
-            <p className="mt-1 text-right font-mono text-[0.65rem] text-faint">
+            <p className="mt-1 text-right text-[0.65rem] text-faint">
               {draftStatus.length}/{STATUS_MAX_LENGTH}
             </p>
 

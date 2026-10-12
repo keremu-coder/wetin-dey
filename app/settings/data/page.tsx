@@ -37,7 +37,7 @@ export default async function DataPage() {
 
       <div className="space-y-4">
         <div className="rounded-2xl border border-border bg-surface p-5">
-          <p className="font-mono text-[0.7rem] uppercase tracking-wider text-faint">
+          <p className="text-[0.7rem] text-faint">
             We hold about you
           </p>
           <ul className="mt-3 space-y-2 text-[0.875rem] text-ink">

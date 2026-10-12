@@ -8,7 +8,7 @@ export default function SupportPage() {
   return (
     <main className="mx-auto max-w-2xl px-4 py-10">
       <div className="mb-8">
-        <p className="font-mono text-[0.7rem] uppercase tracking-widest text-faint">
+        <p className="text-[0.7rem] text-faint">
           Support
         </p>
         <h1 className="mt-2 font-serif text-[2rem] font-semibold leading-tight text-ink">
@@ -21,7 +21,7 @@ export default function SupportPage() {
 
       <div className="space-y-3">
         <div className="rounded-2xl border border-border bg-surface p-5 shadow-card">
-          <p className="text-[0.8125rem] font-semibold uppercase tracking-wide text-brand">
+          <p className="text-[0.8125rem] font-semibold text-brand">
             Email
           </p>
           <a
@@ -33,7 +33,7 @@ export default function SupportPage() {
         </div>
 
         <div className="rounded-2xl border border-border bg-surface p-5 shadow-card">
-          <p className="text-[0.8125rem] font-semibold uppercase tracking-wide text-danger">
+          <p className="text-[0.8125rem] font-semibold text-danger">
             Report harm or abuse
           </p>
           <a

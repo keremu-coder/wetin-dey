@@ -62,10 +62,10 @@ export function BroadcastBanner({
 
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline justify-between gap-2">
-              <p className="font-mono text-[0.65rem] uppercase tracking-wider text-ink/70">
+              <p className="text-[0.65rem] text-ink/70">
                 Broadcast · @{b.author_handle}
               </p>
-              <span className="shrink-0 font-mono text-[0.65rem] text-ink/60">
+              <span className="shrink-0 text-[0.65rem] text-ink/60">
                 {broadcastAge(b.created_at)}
               </span>
             </div>
@@ -100,13 +100,13 @@ export function BroadcastBanner({
               </button>
 
               {b.duration_seconds ? (
-                <span className="font-mono text-[0.7rem] text-ink/60">
+                <span className="text-[0.7rem] text-ink/60">
                   {Math.floor(b.duration_seconds / 60)}:
                   {String(b.duration_seconds % 60).padStart(2, "0")}
                 </span>
               ) : null}
 
-              <span className="font-mono text-[0.7rem] text-ink/60">
+              <span className="text-[0.7rem] text-ink/60">
                 · {broadcastExpiresIn(b.expires_at)}
               </span>
 
@@ -114,7 +114,7 @@ export function BroadcastBanner({
                 <button
                   type="button"
                   onClick={cycle}
-                  className="ml-auto rounded-lg border border-ink/20 bg-paper/60 px-2 py-1 font-mono text-[0.65rem] font-medium text-ink transition-colors hover:bg-paper"
+                  className="ml-auto rounded-lg border border-ink/20 bg-paper/60 px-2 py-1 text-[0.65rem] font-medium text-ink transition-colors hover:bg-paper"
                 >
                   {current + 1}/{broadcasts.length} →
                 </button>

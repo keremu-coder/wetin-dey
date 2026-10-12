@@ -489,7 +489,7 @@ export function ReportForm({
                 ? "Minimum 50 characters."
                 : `${50 - bodyLength} more characters needed.`}
           </p>
-          <p className="font-mono text-[0.7rem] text-faint">
+          <p className="text-[0.7rem] text-faint">
             {bodyLength}/5000
           </p>
         </div>

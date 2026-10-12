@@ -47,11 +47,11 @@ export function PublishedReplies({ replies }: { replies: PublishedReply[] }) {
               <p className="text-[0.875rem] font-semibold text-ink">
                 {r.submitter_name}
               </p>
-              <span className="rounded-full bg-brand-tint px-2 py-0.5 font-mono text-[0.65rem] uppercase tracking-wider text-brand">
+              <span className="rounded-full bg-brand-tint px-2 py-0.5 text-[0.65rem] text-brand">
                 ✓ Verified
               </span>
             </div>
-            <p className="mt-0.5 font-mono text-[0.65rem] text-faint">
+            <p className="mt-0.5 text-[0.65rem] text-faint">
               {formatDate(r.approved_at ?? r.created_at)}
             </p>
             <p className="mt-2 whitespace-pre-wrap break-words text-[0.9375rem] leading-relaxed text-ink/90">

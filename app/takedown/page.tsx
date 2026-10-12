@@ -39,7 +39,7 @@ export default function TakedownPage() {
       <div className="mb-6">
         <Link
           href="/"
-          className="font-mono text-[0.7rem] uppercase tracking-widest text-faint hover:text-brand"
+          className="text-[0.7rem] text-faint hover:text-brand"
         >
           ← Back
         </Link>

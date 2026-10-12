@@ -65,7 +65,7 @@ export function ChatRoomMembers({
             <p className="font-serif text-[1.05rem] font-semibold text-ink">
               Members
             </p>
-            <p className="font-mono text-[0.65rem] text-faint">
+            <p className="text-[0.65rem] text-faint">
               {onlineCount} online · {members.length} total
             </p>
           </div>
@@ -162,7 +162,7 @@ export function ChatRoomMembers({
         ) : null}
 
         <div className="border-b border-border px-4 py-3">
-          <p className="mb-2 font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+          <p className="mb-2 text-[0.65rem] text-faint">
             Chat settings
           </p>
           <div className="flex items-center justify-between py-2">
@@ -219,7 +219,7 @@ function MemberGroup({
 
   return (
     <section className="py-2">
-      <p className="px-4 py-2 font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+      <p className="px-4 py-2 text-[0.65rem] text-faint">
         {label} — {members.length}
       </p>
       {members.length === 0 ? (

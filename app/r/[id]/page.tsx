@@ -39,7 +39,7 @@ function EvidenceBlock(report: {
       >
         <div className="flex items-center gap-2">
           <span className="inline-block h-2 w-2 rounded-full bg-current" />
-          <p className="text-[0.75rem] font-semibold uppercase tracking-wide">
+          <p className="text-[0.75rem] font-semibold">
             {label}
           </p>
         </div>

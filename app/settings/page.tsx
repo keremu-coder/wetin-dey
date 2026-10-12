@@ -200,7 +200,7 @@ export default async function SettingsPage() {
             <p className="font-serif text-[1.75rem] font-semibold leading-none text-brand">
               {anonymityScore}%
             </p>
-            <p className="mt-0.5 font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+            <p className="mt-0.5 text-[0.65rem] text-faint">
               Anonymous
             </p>
           </div>
@@ -225,7 +225,7 @@ export default async function SettingsPage() {
       </div>
 
       <div className="mb-6">
-        <p className="mb-2 px-1 font-mono text-[0.7rem] uppercase tracking-wider text-faint">
+        <p className="mb-2 px-1 text-[0.7rem] text-faint">
           Appearance &amp; sounds
         </p>
         <div className="overflow-hidden rounded-2xl border border-border bg-surface">
@@ -293,7 +293,7 @@ export default async function SettingsPage() {
 
       {sections.map((section) => (
         <div key={section.label} className="mb-6">
-          <p className="mb-2 px-1 font-mono text-[0.7rem] uppercase tracking-wider text-faint">
+          <p className="mb-2 px-1 text-[0.7rem] text-faint">
             {section.label}
           </p>
           <div className="overflow-hidden rounded-2xl border border-border bg-surface">
