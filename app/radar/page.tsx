@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Alama } from "@/components/Alama";
 import { RadarAlarm } from "@/components/RadarAlarm";
 import { useBackgroundRadar } from "@/lib/use-background-radar";
+import { useBatteryExemption } from "@/lib/use-battery-exemption";
 
 type Signal = "safe" | "home" | "on_way" | "need_help" | "call_me" | "police_stop";
 
@@ -103,6 +104,10 @@ export default function RadarPage() {
 
   // Native-only: keeps Android location flowing when the app is backgrounded.
   useBackgroundRadar(hasActiveShare);
+
+  // Android-only: nudges the user to exempt us from Doze so background
+  // location isn't suspended while a signal is live.
+  const battery = useBatteryExemption(hasActiveShare);
 
   useEffect(() => {
     if (!hasActiveShare) {
@@ -239,6 +244,21 @@ export default function RadarPage() {
       {mine.length > 0 ? (
         <section className="mb-8">
           <h2 className="mb-3 text-[0.8125rem] font-semibold text-faint">Your active signals</h2>
+          {battery.needsPrompt ? (
+            <div className="mb-3 rounded-2xl border border-brand/30 bg-brand-tint p-4">
+              <p className="text-[0.9375rem] font-semibold text-ink">Keep sharing in the background</p>
+              <p className="mt-1 text-[0.8125rem] text-ink/75">
+                Android may pause location when the screen is off. Allow Wetin Dey to run without battery limits so your Circle can still see you.
+              </p>
+              <button
+                type="button"
+                onClick={() => void battery.request()}
+                className="mt-3 rounded-full bg-brand px-4 py-2 text-[0.8125rem] font-semibold text-white"
+              >
+                Allow
+              </button>
+            </div>
+          ) : null}
           <div className="space-y-3">
             {mine.map((m) => (
               <div key={m.id} className="rounded-2xl border border-brand/40 bg-brand-tint p-4">
