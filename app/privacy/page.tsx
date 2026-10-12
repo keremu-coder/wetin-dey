@@ -67,9 +67,19 @@ export default function PrivacyPage() {
           </p>
           <p className="mt-2">
             <strong>Coarse location:</strong> when you submit a report or post
-            to Radar, we store the state or LGA you choose, and Radar signals
-            round your coordinates to roughly a 1 km grid. Nothing finer is
-            stored.
+            to Talk Am, we store the state or LGA you choose. Nothing finer is
+            stored for public content.
+          </p>
+          <p className="mt-2">
+            <strong>Precise location (Radar safety signals):</strong> when you
+            send a <em>Need help</em> or <em>Police stop</em> signal on Radar,
+            your device sends precise coordinates. Those coordinates are
+            visible only to the Circle members you selected for that signal.
+            They are never shown on any public page. While the signal is
+            active, your device sends an updated location every 30 seconds.
+            The moment you tap <strong>I&apos;m safe</strong>, updates stop and
+            the location is marked as no longer shared. You can also remove
+            the entire signal by asking us to delete your account.
           </p>
           <p className="mt-2">
             <strong>Presence:</strong> a last-seen timestamp that powers the
@@ -77,8 +87,11 @@ export default function PrivacyPage() {
           </p>
           <p className="mt-2">
             <strong>Push tokens:</strong> if you enable notifications, we store
-            the push subscription your browser issues. Native push (APNs on iOS, FCM on Android) is not enabled in the current build. You
-            can disable this anytime.
+            the push subscription your browser issues, and on Android we store
+            the Firebase Cloud Messaging (FCM) device token so we can deliver
+            native push. iOS native push (APNs) is on the roadmap, not yet
+            shipped. You can disable notifications anytime in your device
+            settings.
           </p>
         </section>
 
@@ -89,9 +102,6 @@ export default function PrivacyPage() {
           <ul className="ml-5 list-disc space-y-1">
             <li>Phone numbers (unless you add one for recovery)</li>
             <li>Email addresses (unless you add one for recovery)</li>
-            <li>
-              Precise location — Radar rounds to about 1 km, nothing finer
-            </li>
             <li>IP addresses for anonymous reports</li>
             <li>
               Tracking pixels, fingerprinting scripts, or third-party analytics
