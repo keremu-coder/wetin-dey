@@ -12,6 +12,7 @@ import { StartDMButton } from "@/components/StartDMButton";
 import { ProfileActions } from "@/components/ProfileActions";
 import { UnblockButton } from "@/components/UnblockButton";
 import { Alama } from "@/components/Alama";
+import { canSeePhoto } from "@/lib/photo-visibility";
 import { formatNaira } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
@@ -65,7 +66,7 @@ const getProfileBundle = unstable_cache(
       db
         .from("sessions")
         .select(
-          "id, handle, handle_kind, bio, status_line, follower_count, following_count, post_count, verified_reporter, created_at"
+          "id, handle, handle_kind, bio, status_line, follower_count, following_count, post_count, verified_reporter, created_at, avatar_url, photo_visibility"
         )
         .eq("handle", handle)
         .maybeSingle(),
@@ -388,7 +389,12 @@ export default async function ProfilePage({
       <section className="rounded-2xl border border-border bg-surface p-6 shadow-card">
         <div className="flex items-start gap-4">
           <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full shadow-sm">
-            <Alama seed={profile.id} size={64} title={`@${handle}`} />
+            {canSeePhoto({ viewerId: mySessionId, targetId: profile.id, visibility: ((profile as { photo_visibility?: string | null }).photo_visibility as "private" | "followers" | "public" | null | undefined) ?? "private", isFollowing }) && (profile as { avatar_url?: string | null }).avatar_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={(profile as { avatar_url?: string | null }).avatar_url!} alt="" className="h-16 w-16 object-cover" />
+            ) : (
+              <Alama seed={profile.id} size={64} title={`@${handle}`} />
+            )}
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
