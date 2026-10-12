@@ -97,87 +97,21 @@ export function Nav() {
 
   const sections: Section[] = [
     {
-      title: "Discover",
+      title: "Main",
       rows: [
-        {
-          href: "/search",
-          icon: "🔎",
-          label: "Search",
-          hint: "People, spaces, reports"
-        },
-        {
-          href: "/communities",
-          icon: "🧭",
-          label: "Browse spaces",
-          hint: "Public communities to join"
-        },
-        { href: "/radar", icon: "\u{1F4E1}", label: "Radar", hint: "Signals around your area" }, { href: "/submit", icon: "\u{1F4E2}", label: "Report something", hint: "Anonymous, takes a minute" }, {
-          href: "/explore",
-          icon: "🌍",
-          label: "See the pattern",
-          hint: "The full civic archive"
-        }
+        { href: "/search", icon: "🔍", label: "Search", hint: "People, spaces, reports" },
+        { href: "/communities", icon: "🧭", label: "Explore spaces", hint: "Public communities to join" },
+        { href: "/radar", icon: "📡", label: "Radar", hint: "Signals around your area" },
+        { href: "/explore", icon: "🌊", label: "See the pattern", hint: "The full civic archive" }
       ]
     },
     {
-      title: "You",
+      title: "Your account",
       rows: [
-        {
-          href: "/me",
-          icon: "👤",
-          label: "My profile",
-          hint: "Your posts, followers, spaces"
-        },
-        {
-          href: "/inbox",
-          icon: "✉️",
-          label: "Inbox",
-          hint:
-            unreadDMs > 0
-              ? `${unreadDMs} new message${unreadDMs === 1 ? "" : "s"}`
-              : "Private messages",
-          badge: unreadDMs > 0 ? unreadDMs : undefined
-        },
-        {
-          href: "/settings",
-          icon: "⚙️",
-          label: "Settings",
-          hint: "Account, privacy, sounds, font"
-        }
-      ]
-    },
-    {
-      title: "Privacy",
-      rows: [
-        {
-          href: "/settings/dm",
-          icon: "🛡️",
-          label: "Direct messages",
-          hint: "Who can start a conversation with you"
-        },
-        {
-          href: "/settings/presence",
-          icon: "👻",
-          label: "Presence",
-          hint: "Hide your online status"
-        },
-        {
-          href: "/settings/blocked",
-          icon: "🚫",
-          label: "Blocked users",
-          hint: "People you no longer see"
-        }
-      ]
-    },
-    {
-      title: "Help",
-      rows: [
-        {
-          href: "/support",
-          icon: "💬",
-          label: "Support",
-          hint: "Report a problem, appeal a flag"
-        }
+        { href: "/me", icon: "👤", label: "My profile", hint: "Your posts, followers, spaces" },
+        { href: "/inbox", icon: "✉️", label: "Inbox", hint: unreadDMs > 0 ? `${unreadDMs} new message${unreadDMs === 1 ? "" : "s"}` : "Private messages", badge: unreadDMs > 0 ? unreadDMs : undefined },
+        { href: "/settings", icon: "⚙️", label: "Settings", hint: "Account, privacy, sounds, font" },
+        { href: "/support", icon: "💬", label: "Help & support", hint: "Report a problem, appeal a flag" }
       ]
     }
   ];
@@ -355,89 +289,8 @@ export function Nav() {
                   </div>
                 </div>
               ))}
-
-              <div className="pt-4">
-                <p className="px-5 pb-2 text-[0.8125rem] font-medium text-faint">
-                  Appearance & sounds
-                </p>
-                <Link
-                  href="/settings/font"
-                  onClick={() => setDrawerOpen(false)}
-                  className={`group flex items-center gap-3 px-5 py-3.5 transition-colors ${
-                    pathname === "/settings/font"
-                      ? "bg-ink/[0.04]"
-                      : "hover:bg-ink/5"
-                  }`}
-                >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-ink/5 text-[1.15rem]">
-                    <span>F</span>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className={`truncate text-[0.9375rem] font-semibold leading-tight ${pathname === "/settings/font" ? "text-accent" : "text-ink"}`}>Message font</p>
-                    <p className="mt-0.5 truncate text-[0.75rem] text-muted">Pick your message font</p>
-                  </div>
-                  <span className="shrink-0 text-faint">&gt;</span>
-                </Link>
-                <Link
-                  href="/settings/textcolor"
-                  onClick={() => setDrawerOpen(false)}
-                  className={`group flex items-center gap-3 px-5 py-3.5 transition-colors ${
-                    pathname === "/settings/textcolor"
-                      ? "bg-ink/[0.04]"
-                      : "hover:bg-ink/5"
-                  }`}
-                >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-ink/5 text-[1.15rem]">
-                    <span>ðŸŽ¨</span>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p
-                      className={`truncate text-[0.9375rem] font-semibold leading-tight ${
-                        pathname === "/settings/textcolor"
-                          ? "text-accent"
-                          : "text-ink"
-                      }`}
-                    >
-                      Text color
-                    </p>
-                    <p className="mt-0.5 truncate text-[0.75rem] text-muted">
-                      Pick your message color
-                    </p>
-                  </div>
-                  <span className="shrink-0 text-faint transition-transform group-hover:translate-x-0.5">
-                    â€º
-                  </span>
-                </Link>
-                <Link
-                  href="/settings/sounds"
-                  onClick={() => setDrawerOpen(false)}
-                  className={`group flex items-center gap-3 px-5 py-3.5 transition-colors ${
-                    pathname === "/settings/sounds"
-                      ? "bg-ink/[0.04]"
-                      : "hover:bg-ink/5"
-                  }`}
-                >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-ink/5 text-[1.15rem]">
-                    <span>🔊</span>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p
-                      className={`truncate text-[0.9375rem] font-semibold leading-tight ${
-                        pathname === "/settings/sounds"
-                          ? "text-accent"
-                          : "text-ink"
-                      }`}
-                    >
-                      Sounds
-                    </p>
-                    <p className="mt-0.5 truncate text-[0.75rem] text-muted">
-                      Pick your message tones
-                    </p>
-                  </div>
-                  <span className="shrink-0 text-faint transition-transform group-hover:translate-x-0.5">
-                    ›
-                  </span>
-                </Link>
+              <div className="border-t border-border pt-4 pb-2">
+                <p className="px-5 pb-2 text-[0.6875rem] font-semibold uppercase tracking-wider text-faint">Theme</p>
                 <div className="px-5 py-2">
                   <ThemeToggle />
                 </div>
