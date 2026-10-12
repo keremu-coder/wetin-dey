@@ -189,34 +189,14 @@ export function Nav() {
           className="sticky top-0 z-40 border-b border-border bg-paper/90 backdrop-blur-md"
           style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
         >
-          <div className="mx-auto flex max-w-2xl items-center justify-between gap-2 px-3 py-3">
+          <div className="mx-auto flex max-w-2xl items-center justify-between gap-2 px-5 py-3">
             <Link href="/" className="flex items-center gap-1.5">
-              <span className="inline-block h-2 w-2 rounded-full bg-accent" />
-              <span className="font-serif text-[1.15rem] font-semibold leading-none tracking-tight text-ink">
+              <span className="font-serif text-[1.5rem] font-semibold leading-none tracking-tight text-ink">
                 Wetin Dey
               </span>
             </Link>
 
             <div className="flex items-center gap-1">
-              <Link
-                href="/search"
-                className="flex h-10 w-10 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5"
-                aria-label="Search"
-              >
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <circle cx="11" cy="11" r="7" />
-                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
-              </Link>
               <Link
                 href="/notifications"
                 className="relative flex h-10 w-10 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5"
@@ -240,12 +220,6 @@ export function Nav() {
                     {notificationsUnread > 9 ? "9+" : notificationsUnread}
                   </span>
                 ) : null}
-              </Link>
-              <Link
-                href="/submit"
-                className="rounded-full bg-accent px-3 py-1.5 text-[0.8125rem] font-semibold text-white transition-all hover:bg-accent-deep"
-              >
-                Post
               </Link>
               <button
                 type="button"
