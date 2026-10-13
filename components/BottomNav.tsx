@@ -34,7 +34,7 @@ function YouIcon() {
   );
 }
 
-const TABS: { href: string; label: string; Icon: () => JSX.Element }[] = [
+const TABS: { href: string; label: string; Icon: () => React.ReactElement }[] = [
   { href: "/", label: "Spaces", Icon: SpacesIcon },
   { href: "/talk", label: "Talk Am", Icon: TalkAmIcon },
   { href: "/me", label: "You", Icon: YouIcon }

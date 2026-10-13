@@ -91,7 +91,7 @@ export function sessionCookieOptions() {
 }
 
 export async function getSessionId(): Promise<string | null> {
-  const jar = cookies();
+  const jar = await cookies();
   return await verifySessionValue(jar.get(COOKIE_NAME)?.value);
 }
 

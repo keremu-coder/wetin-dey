@@ -38,8 +38,9 @@ async function loadOwnedCommunity(slug: string, sessionId: string) {
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { slug: string } }
+  context: { params: Promise<{ slug: string }> }
 ) {
+    const params = await context.params;
   try {
     const sessionId = await getSessionId();
     if (!sessionId) {
@@ -143,8 +144,9 @@ export async function POST(
 
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: { slug: string } }
+  context: { params: Promise<{ slug: string }> }
 ) {
+    const params = await context.params;
   try {
     const sessionId = await getSessionId();
     if (!sessionId) {

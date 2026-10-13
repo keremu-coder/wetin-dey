@@ -31,18 +31,20 @@ const getReviewedCount = unstable_cache(
 
 type Tab = "civic" | "community";
 
-export default async function TalkAmPage({
-  searchParams
-}: {
-  searchParams: {
+export default async function TalkAmPage(props: {
+
+    searchParams: Promise<{
     tab?: string;
     page?: string;
     state?: string;
     category?: string;
     agency?: string;
     status?: string;
-  };
+  }>;
+
 }) {
+  const searchParams = await props.searchParams;
+
   const rawTab = (searchParams.tab ?? "civic").toLowerCase();
 
   if (rawTab === "live") {

@@ -201,13 +201,15 @@ function timeAgo(date: string): string {
   });
 }
 
-export default async function ProfilePage({
-  params,
-  searchParams
-}: {
-  params: { handle: string };
-  searchParams: { tab?: string };
+export default async function ProfilePage(props: {
+
+    params: Promise<{ handle: string }>;
+    searchParams: Promise<{ tab?: string }>;
+
 }) {
+  const params = await props.params;
+  const searchParams = await props.searchParams;
+
   const requested = decodeURIComponent(params.handle).trim().toLowerCase();
   const resolved = await resolveHandle(requested);
 

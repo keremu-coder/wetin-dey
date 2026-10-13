@@ -6,8 +6,9 @@ import { createServiceClient } from "@/lib/supabase/server";
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+    const params = await context.params;
   try {
     const sessionId = await getSessionId();
     if (!sessionId) {

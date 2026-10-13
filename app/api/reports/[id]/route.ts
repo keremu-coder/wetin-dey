@@ -5,8 +5,9 @@ import { stripSession, type Report } from "@/lib/types";
 
 export async function GET(
   _req: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+    const params = await context.params;
   const sessionId = await getSessionId();
   const db = createServiceClient();
   const { data, error } = await db.from("reports").select("*").eq("id", params.id).maybeSingle();

@@ -19,8 +19,9 @@ function extFromMime(mime: string): string {
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { slug: string } }
+  context: { params: Promise<{ slug: string }> }
 ) {
+    const params = await context.params;
   try {
     const db = createServiceClient();
 
@@ -87,8 +88,9 @@ export async function GET(
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { slug: string } }
+  context: { params: Promise<{ slug: string }> }
 ) {
+    const params = await context.params;
   try {
     const sessionId = await getSessionId();
     if (!sessionId) {

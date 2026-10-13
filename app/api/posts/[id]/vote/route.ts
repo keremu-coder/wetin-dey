@@ -8,8 +8,9 @@ import { isBanned, BANNED_MESSAGE } from "@/lib/ban-guard";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+    const params = await context.params;
   const sessionId = await getSessionId();
   if (!sessionId) return Response.json({ error: "no session" }, { status: 401 });
 
@@ -85,8 +86,9 @@ export async function POST(
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+    const params = await context.params;
   const sessionId = await getSessionId();
   const db = createServiceClient();
 

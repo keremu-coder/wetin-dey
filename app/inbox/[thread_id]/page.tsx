@@ -5,11 +5,13 @@ import { DMThread } from "@/components/DMThread";
 
 export const dynamic = "force-dynamic";
 
-export default async function DMThreadPage({
-  params
-}: {
-  params: { thread_id: string };
+export default async function DMThreadPage(props: {
+
+    params: Promise<{ thread_id: string }>;
+
 }) {
+  const params = await props.params;
+
   const sessionId = await getSessionId();
   if (!sessionId) redirect("/signin");
 

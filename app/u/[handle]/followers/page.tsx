@@ -2,10 +2,12 @@ import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-export default function FollowersRedirect({
-  params
-}: {
-  params: { handle: string };
+export default async function FollowersRedirect(props: {
+
+    params: Promise<{ handle: string }>;
+
 }) {
+  const params = await props.params;
+
   redirect(`/u/${encodeURIComponent(params.handle)}?tab=followers`);
 }

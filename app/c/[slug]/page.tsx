@@ -11,11 +11,13 @@ import { InviteButton } from "./invite-button";
 
 export const dynamic = "force-dynamic";
 
-export default async function CommunityPage({
-  params
-}: {
-  params: { slug: string };
+export default async function CommunityPage(props: {
+
+    params: Promise<{ slug: string }>;
+
 }) {
+  const params = await props.params;
+
   const db = createServiceClient();
 
   const { data: community } = await db

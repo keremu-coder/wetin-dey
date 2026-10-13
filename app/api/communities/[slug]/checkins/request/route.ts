@@ -9,8 +9,9 @@ import { assertCanWrite } from "@/lib/guards";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { slug: string } }
+  context: { params: Promise<{ slug: string }> }
 ) {
+    const params = await context.params;
   try {
     const sessionId = await getSessionId();
     if (!sessionId) {

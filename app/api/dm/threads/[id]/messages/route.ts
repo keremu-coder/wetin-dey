@@ -18,8 +18,9 @@ import {
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+    const params = await context.params;
   try {
     if (!sameOrigin(req)) {
       return Response.json({ error: "bad origin" }, { status: 403 });
