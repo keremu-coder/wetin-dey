@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
     const nowIso = new Date().toISOString();
     const { data, error } = await db
       .from("radar_signals")
-      .update({ location_stopped: true })
+      .update({ location_stopped: true, lat: null, lng: null })
       .eq("location_sharing", true)
       .eq("location_stopped", false)
       .lt("expires_at", nowIso)

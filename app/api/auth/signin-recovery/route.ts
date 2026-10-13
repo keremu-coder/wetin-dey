@@ -73,6 +73,7 @@ export async function POST(req: NextRequest) {
       `${COOKIE_NAME}=${cookieValue}`,
       `Path=${opts.path}`,
       `Max-Age=${opts.maxAge}`,
+      "HttpOnly",
       "SameSite=Lax",
       opts.secure ? "Secure" : ""
     ]
