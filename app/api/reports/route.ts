@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
   let q = db
     .from("reports")
     .select(
-      "id, created_at, category, agency_raw, agency_canonical, state, lga, body, amount_kobo, evidence_url, evidence_type, evidence_link, evidence_label, summary_pidgin, summary_english, incident_date, status, reviewed, reviewer_note, formalization_confidence, dedupe_hash, author_handle, post_type, upvotes, downvotes, me_too_count, comment_count, evidence_tier, target_type, community_id, session_id"
+      "id, created_at, category, agency_raw, agency_canonical, state, lga, body, amount_kobo, evidence_url, evidence_type, evidence_link, evidence_label, summary_pidgin, summary_english, incident_date, status, reviewed, author_handle, post_type, upvotes, downvotes, me_too_count, comment_count, evidence_tier, target_type, community_id, session_id"
     )
     .order("created_at", { ascending: false })
     .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
@@ -66,6 +66,7 @@ export async function GET(req: NextRequest) {
   } else {
     q = q
       .in("post_type", ["talk_am", "news", "talent", "rant"])
+      .eq("held", false)
       .is("community_id", null);
   }
 
