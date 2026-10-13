@@ -7,6 +7,7 @@ import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { notifyCommunityMembers } from "@/lib/push-server";
 import { analyzeModeration, moderationReason } from "@/lib/dm-filter";
+import { transcribeAndModerate } from "@/lib/voice-moderation";
 import { isBanned, BANNED_MESSAGE } from "@/lib/ban-guard";
 import { getBlockedIds } from "@/lib/blocks";
 import { createNotification } from "@/lib/notifications";
@@ -267,6 +268,7 @@ export async function POST(
 
     const contentType = req.headers.get("content-type") ?? "";
     let body = "";
+    let voiceHeld = false;
     let audio_url: string | null = null;
     let parentIdRaw: string | null = null;
 
@@ -294,6 +296,25 @@ export async function POST(
             : "webm";
         const path = `chat/${community.id}/${audioId}.${ext}`;
         const buf = Buffer.from(await file.arrayBuffer());
+
+        // Voice moderation — Whisper transcribe + text filter. Best-effort:
+        // fails open so a Groq outage never blocks a legitimate message.
+        try {
+          const voiceMod = await transcribeAndModerate(
+            buf,
+            file.type || "audio/webm"
+          );
+          if (voiceMod.hold) {
+            voiceHeld = true;
+            console.warn(
+              "[chat] voice held for review:",
+              voiceMod.reasons.join(" | ")
+            );
+          }
+        } catch (e) {
+          console.warn("[chat] voice moderation error:", e);
+        }
+
         const up = await db.storage.from("voice-notes").upload(path, buf, {
           contentType: file.type || "audio/webm",
           upsert: false
@@ -343,7 +364,7 @@ export async function POST(
       }
     }
 
-    let hidden = false;
+    let hidden = voiceHeld;
     if (body) {
       const mod = analyzeModeration(body);
       if (mod.hold) {
