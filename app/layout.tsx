@@ -12,7 +12,7 @@ import { RouteProgress } from "@/components/RouteProgress";
 import { AudioUnlock } from "@/components/AudioUnlock";
 import { TermsGate } from "@/components/TermsGate";
 import { AgeGate } from "@/components/AgeGate";
-import { EmailVerificationHandler } from "@/components/EmailVerificationHandler";
+import { EmailVerificationHandler } from "@/components/EmailVerificationHandlerLazy";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { ToastProvider } from "@/components/Toast";
 import { StatusBarTheme } from "@/components/StatusBarTheme";
