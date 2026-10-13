@@ -147,18 +147,23 @@ export function HomeFeed({
 }) {
   const [tab, setTab] = useState<"near" | "all">("near");
   const [nearState, setNearState] = useState<string | null>(filters.state ?? null);
+  const [locating, setLocating] = useState(false);
 
-  useEffect(() => {
+  // Location prompt only fires when the user explicitly taps Near you.
+  // Never auto-request on page load — that is a bad-faith UX pattern.
+  function askForLocation() {
     if (!navigator.geolocation) return;
+    setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const s = nearestState(pos.coords.latitude, pos.coords.longitude);
         setNearState(s);
+        setLocating(false);
       },
-      () => {},
-      { maximumAge: 3_600_000, timeout: 4000, enableHighAccuracy: false }
+      () => { setLocating(false); },
+      { maximumAge: 3_600_000, timeout: 8000, enableHighAccuracy: false }
     );
-  }, []);
+  }
 
   const shown = useMemo(() => {
     if (tab === "all") return reports;
@@ -184,9 +189,12 @@ export function HomeFeed({
               ? "bg-brand text-white shadow-button"
               : "border border-border-strong bg-surface text-ink hover:bg-ink/5"
           }`}
-          onClick={() => setTab("near")}
+          onClick={() => {
+            if (!nearState) askForLocation();
+            setTab("near");
+          }}
         >
-          Near you{nearState ? ` (${nearState})` : ""}
+          {locating ? "Locating…" : `Near you${nearState ? ` (${nearState})` : ""}`}
         </button>
         <button
           type="button"
