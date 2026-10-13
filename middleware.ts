@@ -11,17 +11,22 @@ import { issueSessionCookieValue, sessionCookieOptions, verifySessionValue } fro
  * script-src drops 'unsafe-inline' and uses a nonce + strict-dynamic.
  * style-src keeps 'unsafe-inline' because Next injects an inline style
  * block at boot; that's a lower-severity class of issue.
+ *
+ * Vercel's preview toolbar (vercel.live) is only allowed outside production.
  */
+const IS_PROD = process.env.NODE_ENV === "production";
+const DEV_LIVE = IS_PROD ? "" : " https://vercel.live";
+
 function buildCsp(nonce: string): string {
   return [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://vercel.live`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${DEV_LIVE}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com data:",
     "img-src 'self' data: blob: https://*.supabase.co",
     "media-src 'self' blob: https://*.supabase.co",
-    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.groq.com https://api.telegram.org https://vercel.live",
-    "frame-src https://vercel.live",
+    `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.groq.com https://api.telegram.org${DEV_LIVE}`,
+    `frame-src ${IS_PROD ? "'none'" : "https://vercel.live"}`,
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
@@ -32,9 +37,6 @@ function buildCsp(nonce: string): string {
 export async function middleware(request: NextRequest) {
   const nonce = crypto.randomUUID().replace(/-/g, "");
 
-  // Forward the nonce via request header so app/layout.tsx can pick it up
-  // with headers().get("x-csp-nonce"). Next's own scripts use the same
-  // header and self-nonce automatically.
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-csp-nonce", nonce);
 
