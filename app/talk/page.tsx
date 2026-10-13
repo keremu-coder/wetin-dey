@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { WetinMark } from "@/components/WetinMark";
 import { redirect } from "next/navigation";
 import { unstable_cache } from "next/cache";
@@ -31,17 +32,53 @@ const getReviewedCount = unstable_cache(
 
 type Tab = "civic" | "community";
 
+type TalkSearchParams = {
+  tab?: string;
+  page?: string;
+  state?: string;
+  category?: string;
+  agency?: string;
+  status?: string;
+};
+
+/**
+ * Skeleton shown while TalkData streams in. Mirrors the real page layout
+ * so the swap from skeleton to content has no shift.
+ */
+function TalkSkeleton() {
+  return (
+    <div>
+      <div className="mb-6 flex gap-2 border-b border-border pb-3">
+        <div className="h-5 w-20 animate-pulse rounded bg-skeleton" />
+        <div className="h-5 w-24 animate-pulse rounded bg-skeleton" />
+      </div>
+      <div className="mb-6">
+        <div className="h-8 w-40 animate-pulse rounded-lg bg-skeleton" />
+        <div className="mt-2 h-3.5 w-full animate-pulse rounded bg-skeleton" />
+      </div>
+      <div className="space-y-4">
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            className="rounded-2xl border border-border bg-surface p-5"
+          >
+            <div className="h-3 w-24 animate-pulse rounded bg-skeleton" />
+            <div className="mt-3 h-5 w-3/4 animate-pulse rounded bg-skeleton" />
+            <div className="mt-2 h-3.5 w-full animate-pulse rounded bg-skeleton" />
+            <div className="mt-1.5 h-3.5 w-5/6 animate-pulse rounded bg-skeleton" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Static shell — awaits only searchParams (~5ms) so the browser sees a
+ * painted page instantly. The data-heavy <TalkData> streams in via Suspense.
+ */
 export default async function TalkAmPage(props: {
-
-    searchParams: Promise<{
-    tab?: string;
-    page?: string;
-    state?: string;
-    category?: string;
-    agency?: string;
-    status?: string;
-  }>;
-
+  searchParams: Promise<TalkSearchParams>;
 }) {
   const searchParams = await props.searchParams;
 
@@ -52,6 +89,38 @@ export default async function TalkAmPage(props: {
   }
 
   const initialTab: Tab = rawTab === "community" ? "community" : "civic";
+
+  return (
+    <main className="mx-auto max-w-2xl px-4 py-6 pb-28">
+      <Suspense fallback={<TalkSkeleton />}>
+        <TalkData searchParams={searchParams} initialTab={initialTab} />
+      </Suspense>
+
+      <Link
+        href={
+          initialTab === "community"
+            ? "/submit?tab=community"
+            : "/submit?tab=talk"
+        }
+        aria-label={
+          initialTab === "community" ? "Post to Community" : "Report Wetin Happen"
+        }
+        className="fixed bottom-[88px] right-5 z-30 flex h-14 w-14 items-center justify-center rounded-full text-white transition-transform active:scale-95"
+        style={{ background: "var(--brand-ink)", boxShadow: "var(--shadow-2)" }}
+      >
+        <WetinMark size={26} title="" />
+      </Link>
+    </main>
+  );
+}
+
+async function TalkData({
+  searchParams,
+  initialTab
+}: {
+  searchParams: TalkSearchParams;
+  initialTab: Tab;
+}) {
   const page = Math.max(1, Number(searchParams.page ?? "1") || 1);
 
   const [sessionId, reviewedCount] = await Promise.all([
@@ -119,7 +188,7 @@ export default async function TalkAmPage(props: {
     (r) => stripSession(r) as Report
   );
 
-  // Batch-fetch the viewer's own votes so PostActions doesn't fire one GET per card.
+  // Batch-fetch the viewer own votes so PostActions does not fire one GET per card.
   const reportIds = [...civicReports, ...communityReports].map((r) => r.id);
   if (sessionId && reportIds.length > 0) {
     const { data: voteRows } = await db
@@ -135,29 +204,18 @@ export default async function TalkAmPage(props: {
   }
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-6 pb-28">
-      <TalkTabs
-        civicReports={civicReports}
-        communityReports={communityReports}
-        civicPage={page}
-        communityPage={page}
-        currentHandle={currentHandle}
-        filters={{
-          state: searchParams.state,
-          category: searchParams.category,
-          agency: searchParams.agency
-        }}
-        initialTab={initialTab}
-      />
-
-      <Link
-        href={initialTab === "community" ? "/submit?tab=community" : "/submit?tab=talk"}
-        aria-label={initialTab === "community" ? "Post to Community" : "Report Wetin Happen"}
-        className="fixed bottom-[88px] right-5 z-30 flex h-14 w-14 items-center justify-center rounded-full text-white transition-transform active:scale-95"
-        style={{ background: "var(--brand-ink)", boxShadow: "var(--shadow-2)" }}
-      >
-        <WetinMark size={26} title="" />
-      </Link>
-    </main>
+    <TalkTabs
+      civicReports={civicReports}
+      communityReports={communityReports}
+      civicPage={page}
+      communityPage={page}
+      currentHandle={currentHandle}
+      filters={{
+        state: searchParams.state,
+        category: searchParams.category,
+        agency: searchParams.agency
+      }}
+      initialTab={initialTab}
+    />
   );
 }
