@@ -9,7 +9,7 @@ import { transcribeAndModerate } from "@/lib/voice-moderation";
 import { stripMediaMetadata } from "@/lib/media-strip";
 import { jsonError } from "@/lib/http";
 import { sameOrigin } from "@/lib/rate-limit";
-import { hashDedupe } from "@/lib/rateLimit";
+import { hashDedupe } from "@/lib/rate-limit";
 import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { stripSession, type Report } from "@/lib/types";

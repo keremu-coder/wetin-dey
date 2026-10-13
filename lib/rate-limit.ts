@@ -31,6 +31,30 @@ export type RateLimitResult =
  * single-value fallback. Returns null when neither header is present
  * (local dev, unusual proxies) — callers treat null as "no IP signal".
  */
+export type DedupeInput = {
+  category: string;
+  agency_canonical: string;
+  state: string;
+  lga?: string | null;
+};
+
+/**
+ * Dedupe hash for pattern detection. Two reports about the same agency,
+ * same category, same location, same calendar week produce the same hash.
+ * Deliberately excludes session_id, body text, and exact timestamp.
+ */
+export function hashDedupe(input: DedupeInput): string {
+  const weekBucket = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000));
+  const parts = [
+    input.category.toLowerCase().trim(),
+    input.agency_canonical.toLowerCase().trim(),
+    input.state.toLowerCase().trim(),
+    (input.lga ?? "").toLowerCase().trim(),
+    String(weekBucket)
+  ];
+  return createHash("sha256").update(parts.join("|")).digest("hex").slice(0, 32);
+}
+
 export function getRequestIp(req: Request): string | null {
   const xff = req.headers.get("x-forwarded-for");
   if (xff) {

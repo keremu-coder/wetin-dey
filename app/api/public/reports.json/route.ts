@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { allowPublicFeed } from "@/lib/rateLimit";
+import { checkIpRateLimit } from "@/lib/rate-limit";
 import { jsonError } from "@/lib/http";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { PublicReport } from "@/lib/types";
@@ -15,9 +15,14 @@ export async function OPTIONS() {
 }
 
 export async function GET(req: NextRequest) {
-  const forwarded = req.headers.get("x-forwarded-for");
-  const ip = (forwarded ? forwarded.split(",")[0].trim() : req.ip) || "unknown";
-  if (!allowPublicFeed(ip)) {
+  // IP-scoped rate limit on the public JSON feed. 120 requests per
+  // 15 minutes per IP — generous for real readers, hostile to scrapers.
+  const limit = await checkIpRateLimit(req, {
+    key: "public_reports_json",
+    limit: 120,
+    windowMs: 15 * 60 * 1000
+  });
+  if (!limit.ok) {
     return jsonError("rate limit", 429);
   }
 
