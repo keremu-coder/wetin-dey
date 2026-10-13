@@ -281,6 +281,7 @@ export async function POST(req: NextRequest) {
         status_line_updated_at: null,
         availability: null,
         recovery_code: null,
+        recovery_code_hash: null,
         previous_handles: null,
         dm_policy: "everyone",
         hide_presence: true,

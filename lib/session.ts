@@ -182,15 +182,12 @@ export async function getOrCreateSessionProfile(
   if (existing) {
     // Backfill: if an existing session predates the recovery_code column,
     // generate one now. Same for avatar (it's a nullable column already).
-    if (!existing.recovery_code) {
+    if (!existing.recovery_code_hash) {
       try {
-        const { raw: code, hash: codeHash } = await uniqueRecoveryCode(db);
+        const { hash: codeHash } = await uniqueRecoveryCode(db);
         const { data: updated } = await db
           .from("sessions")
-          .update({
-            recovery_code: code,
-            recovery_code_hash: codeHash
-          })
+          .update({ recovery_code_hash: codeHash })
           .eq("id", sessionId)
           .select("*")
           .single();
@@ -245,8 +242,7 @@ export async function getOrCreateSessionProfile(
     handle = `User_${Date.now().toString().slice(-6)}`;
   }
 
-  const { raw: recovery_code, hash: recovery_code_hash } =
-    await uniqueRecoveryCode(db);
+  const { hash: recovery_code_hash } = await uniqueRecoveryCode(db);
 
   const { data: created, error } = await db
     .from("sessions")
@@ -255,7 +251,6 @@ export async function getOrCreateSessionProfile(
       handle,
       handle_kind: "anonymous",
       auth_provider: "none",
-      recovery_code,
       recovery_code_hash
     })
     .select("*")

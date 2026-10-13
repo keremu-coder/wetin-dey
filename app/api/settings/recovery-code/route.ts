@@ -87,10 +87,7 @@ export async function POST(req: NextRequest) {
 
     const { error } = await db
       .from("sessions")
-      .update({
-        recovery_code: plaintext,
-        recovery_code_hash: codeHash
-      })
+      .update({ recovery_code_hash: codeHash })
       .eq("id", sessionId);
 
     if (error) {
