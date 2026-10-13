@@ -12,3 +12,8 @@ tsconfig.tsbuildinfo
 .env*
 
 android/.idea/
+
+# Signing secrets — never commit
+android/keystore.properties
+*.jks
+*.keystore

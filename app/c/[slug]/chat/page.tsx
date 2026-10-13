@@ -8,11 +8,13 @@ import { ChatRoom } from "./ChatRoom";
 
 export const dynamic = "force-dynamic";
 
-export default async function ChatPage({
-  params
-}: {
-  params: { slug: string };
+export default async function ChatPage(props: {
+
+    params: Promise<{ slug: string }>;
+
 }) {
+  const params = await props.params;
+
   const db = createServiceClient();
 
   const { data: community } = await db

@@ -6,8 +6,9 @@ import { createServiceClient } from "@/lib/supabase/server";
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { slug: string } }
+  context: { params: Promise<{ slug: string }> }
 ) {
+    const params = await context.params;
   const db = createServiceClient();
   const { data, error } = await db
     .from("communities")
@@ -21,8 +22,9 @@ export async function GET(
 
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: { slug: string } }
+  context: { params: Promise<{ slug: string }> }
 ) {
+    const params = await context.params;
   const sessionId = await getSessionId();
   if (!sessionId) return Response.json({ error: "no session" }, { status: 401 });
 

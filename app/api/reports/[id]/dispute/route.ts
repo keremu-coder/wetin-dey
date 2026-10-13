@@ -9,8 +9,9 @@ import { assertCanWrite } from "@/lib/guards";
 
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+    const params = await context.params;
   if (!sameOrigin(req)) return jsonError("origin blocked", 403);
   const sessionId = await getSessionId();
   if (!sessionId) return jsonError("no session", 401);

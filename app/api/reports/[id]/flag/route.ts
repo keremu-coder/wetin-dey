@@ -16,8 +16,9 @@ import { assertNotBanned } from "@/lib/guards";
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+    const params = await context.params;
   try {
     if (!sameOrigin(req)) return jsonError("origin blocked", 403);
 

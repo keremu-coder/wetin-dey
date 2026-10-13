@@ -59,11 +59,13 @@ function avatarColor(seed: string): string {
   return colors[Math.abs(h) % colors.length];
 }
 
-export default function CheckinPage({
-  params
-}: {
-  params: { slug: string };
+export default async function CheckinPage(props: {
+
+    params: Promise<{ slug: string }>;
+
 }) {
+  const params = await props.params;
+
   const { slug } = params;
   const [data, setData] = useState<ApiData | null>(null);
   const [loading, setLoading] = useState(true);

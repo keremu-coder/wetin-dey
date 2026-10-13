@@ -6,8 +6,9 @@ import { createServiceClient } from "@/lib/supabase/server";
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+    const params = await context.params;
   const sessionId = await getSessionId();
   if (!sessionId) return Response.json({ error: "no session" }, { status: 401 });
 

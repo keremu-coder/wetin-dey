@@ -87,11 +87,13 @@ const getMeData = unstable_cache(getMeDataInner, ["me-data-v1"], {
   revalidate: 15
 });
 
-export default async function MePage({
-  searchParams
-}: {
-  searchParams: { tab?: string };
+export default async function MePage(props: {
+
+    searchParams: Promise<{ tab?: string }>;
+
 }) {
+  const searchParams = await props.searchParams;
+
   const profile = await getCurrentProfile();
   if (!profile) redirect("/signin");
 

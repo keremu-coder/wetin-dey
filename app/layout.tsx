@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import nextDynamic from "next/dynamic";
 import { headers } from "next/headers";
 import { Nav, SiteFooter } from "@/components/Nav";
 import { LiveStateProvider } from "@/components/LiveStateProvider";
@@ -20,11 +19,7 @@ import { SwipeBack } from "@/components/SwipeBack";
 import { FONT_VARIABLE_CLASSES } from "@/lib/fonts";
 import "./globals.css";
 
-// Onboarding shows once for new users. Doesn't need to block first paint.
-const Onboarding = nextDynamic(
-  () => import("@/components/Onboarding").then((m) => m.Onboarding),
-  { ssr: false }
-);
+import { Onboarding } from "@/components/OnboardingLazy";
 
 export const metadata: Metadata = {
   title: "Wetin Dey",
@@ -71,12 +66,12 @@ const themeScript = `
 })();
 `;
 
-export default function RootLayout({
+export default async function RootLayout({
   children
 }: {
   children: React.ReactNode;
 }) {
-  const nonce = headers().get("x-csp-nonce") ?? undefined;
+  const nonce = (await headers()).get("x-csp-nonce") ?? undefined;
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseHost = supabaseUrl
     ? (() => {

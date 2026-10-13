@@ -16,8 +16,9 @@ import { buildShareImage } from "@/lib/share-image";
  */
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+    const params = await context.params;
   const db = createServiceClient();
 
   const { data: report } = await db

@@ -158,11 +158,13 @@ function DisputedBanner({ hasResponse }: { hasResponse: boolean }) {
   );
 }
 
-export default async function ReportPage({
-  params
-}: {
-  params: { id: string };
+export default async function ReportPage(props: {
+
+    params: Promise<{ id: string }>;
+
 }) {
+  const params = await props.params;
+
   const db = createServiceClient();
   const { data: report } = await db
     .from("reports")

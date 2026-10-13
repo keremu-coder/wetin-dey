@@ -6,16 +6,18 @@ import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-export default async function ExplorePage({
-  searchParams
-}: {
-  searchParams: {
+export default async function ExplorePage(props: {
+
+    searchParams: Promise<{
     state?: string;
     category?: string;
     from?: string;
     to?: string;
-  };
+  }>;
+
 }) {
+  const searchParams = await props.searchParams;
+
   const db = createServiceClient();
   let q = db.from("reports").select("*").eq("reviewed", true);
   if (searchParams.state) q = q.eq("state", searchParams.state);

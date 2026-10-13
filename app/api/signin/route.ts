@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
   }
 
   const cookieValue = await signSessionId(profile.id);
-  cookies().set(COOKIE_NAME, cookieValue, sessionCookieOptions());
+  (await cookies()).set(COOKIE_NAME, cookieValue, sessionCookieOptions());
 
   return Response.json({ ok: true, handle: profile.handle });
 }

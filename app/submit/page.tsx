@@ -1,19 +1,11 @@
-import nextDynamic from "next/dynamic";
+import { ReportForm } from "@/components/ReportFormLazy";
 
 export const dynamic = "force-dynamic";
 
-// ReportForm is 643 lines and only needed once the user starts typing.
-// Keep it out of the initial submit-page bundle.
-const ReportForm = nextDynamic(
-  () => import("@/components/ReportForm").then((m) => m.ReportForm),
-  { ssr: false }
-);
-
-export default function SubmitPage({
-  searchParams
-}: {
-  searchParams: { tab?: string; c?: string };
+export default async function SubmitPage(props: {
+  searchParams: Promise<{ tab?: string; c?: string }>;
 }) {
+  const searchParams = await props.searchParams;
   const tab = searchParams.tab === "community" ? "community" : "talk";
   const communitySlug = searchParams.c ?? null;
 

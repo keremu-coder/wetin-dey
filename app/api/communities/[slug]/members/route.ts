@@ -7,8 +7,9 @@ import { getBlockedIds } from "@/lib/blocks";
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { slug: string } }
+  context: { params: Promise<{ slug: string }> }
 ) {
+    const params = await context.params;
   try {
     const db = createServiceClient();
 

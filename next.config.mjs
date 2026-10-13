@@ -14,8 +14,8 @@ const nextConfig = {
       }
     ]
   },
+  serverExternalPackages: ["sharp", "ffmpeg-static"],
   experimental: {
-    serverComponentsExternalPackages: ["sharp", "ffmpeg-static"],
     staleTimes: {
       dynamic: 300,
       static: 600
