@@ -124,6 +124,7 @@ export function ReportCard({
           initialUpvotes={upvotes}
           initialDownvotes={downvotes}
           initialMeToo={meToo}
+          initialMyVote={(report as unknown as { my_vote?: "up" | "down" | "me_too" | null }).my_vote ?? null}
           commentCount={commentCount}
           evidenceLink={evidenceLink}
           postUrl={postUrl}

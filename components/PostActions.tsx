@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { FlagSheet } from "./FlagSheet";
 import { useToast } from "./Toast";
@@ -16,6 +16,7 @@ type Props = {
   initialUpvotes: number;
   initialDownvotes: number;
   initialMeToo: number;
+  initialMyVote: "up" | "down" | "me_too" | null;
   commentCount: number;
   evidenceLink?: string | null;
   postUrl: string;
@@ -46,6 +47,7 @@ export function PostActions({
   initialUpvotes,
   initialDownvotes,
   initialMeToo,
+  initialMyVote,
   commentCount,
   evidenceLink,
   postUrl
@@ -55,23 +57,10 @@ export function PostActions({
   const [upvotes, setUpvotes] = useState(initialUpvotes);
   const [downvotes, setDownvotes] = useState(initialDownvotes);
   const [meToo, setMeToo] = useState(initialMeToo);
-  const [myVote, setMyVote] = useState<"up" | "down" | "me_too" | null>(null);
+  const [myVote, setMyVote] = useState<"up" | "down" | "me_too" | null>(initialMyVote);
   const [menuOpen, setMenuOpen] = useState(false);
   const [flagOpen, setFlagOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    fetch(`/api/posts/${postId}/vote`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (!d) return;
-        setUpvotes(d.upvotes ?? 0);
-        setDownvotes(d.downvotes ?? 0);
-        setMeToo(d.me_too ?? 0);
-        setMyVote(d.my_vote ?? null);
-      })
-      .catch(() => {});
-  }, [postId]);
 
   function fullUrl(): string {
     return typeof window !== "undefined"

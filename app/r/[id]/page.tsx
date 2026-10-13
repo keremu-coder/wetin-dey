@@ -272,6 +272,16 @@ export default async function ReportPage({
   const upvotes = (report as { upvotes?: number }).upvotes ?? 0;
   const downvotes = (report as { downvotes?: number }).downvotes ?? 0;
   const meToo = (report as { me_too_count?: number }).me_too_count ?? 0;
+  let myVote: "up" | "down" | "me_too" | null = null;
+  if (sessionId) {
+    const { data: voteRow } = await db
+      .from("post_votes")
+      .select("vote")
+      .eq("post_id", report.id)
+      .eq("session_id", sessionId)
+      .maybeSingle();
+    myVote = (voteRow?.vote as "up" | "down" | "me_too" | null) ?? null;
+  }
   const commentCount =
     (report as { comment_count?: number }).comment_count ?? 0;
 
@@ -378,6 +388,7 @@ export default async function ReportPage({
           initialUpvotes={upvotes}
           initialDownvotes={downvotes}
           initialMeToo={meToo}
+          initialMyVote={myVote}
           commentCount={commentCount}
           evidenceLink={report.evidence_link}
           postUrl={postUrl}

@@ -117,6 +117,21 @@ export default async function TalkAmPage({
     (r) => stripSession(r) as Report
   );
 
+  // Batch-fetch the viewer's own votes so PostActions doesn't fire one GET per card.
+  const reportIds = [...civicReports, ...communityReports].map((r) => r.id);
+  if (sessionId && reportIds.length > 0) {
+    const { data: voteRows } = await db
+      .from("post_votes")
+      .select("post_id, vote")
+      .eq("session_id", sessionId)
+      .in("post_id", reportIds);
+    const voteMap = new Map<string, string>();
+    for (const v of voteRows ?? []) voteMap.set(v.post_id, v.vote);
+    const attach = (r: Report) => ({ ...r, my_vote: voteMap.get(r.id) ?? null });
+    civicReports.forEach((r, i) => { civicReports[i] = attach(r); });
+    communityReports.forEach((r, i) => { communityReports[i] = attach(r); });
+  }
+
   return (
     <main className="mx-auto max-w-2xl px-4 py-6 pb-28">
       <TalkTabs
