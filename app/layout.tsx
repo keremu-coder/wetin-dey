@@ -9,6 +9,7 @@ import { NativeNetworkMonitor } from "@/components/NativeNetworkMonitor";
 import { BottomNav } from "@/components/BottomNav";
 import { RouteWarmup } from "@/components/RouteWarmup";
 import { RouteRefresh } from "@/components/RouteRefresh";
+import { RouteProgress } from "@/components/RouteProgress";
 import { TermsGate } from "@/components/TermsGate";
 import { AgeGate } from "@/components/AgeGate";
 import { EmailVerificationHandler } from "@/components/EmailVerificationHandler";
@@ -122,6 +123,7 @@ export default function RootLayout({
             <NativeNetworkMonitor />
             <RouteWarmup />
             <RouteRefresh />
+            <RouteProgress />
             <AgeGate />
             <Onboarding />
             <InstallPrompt />
