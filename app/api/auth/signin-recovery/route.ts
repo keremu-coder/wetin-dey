@@ -9,12 +9,27 @@ import {
   isValidRecoveryCodeFormat,
   hashRecoveryCode
 } from "@/lib/recovery-code";
-import { sameOrigin, checkRateLimit, getRequestIp } from "@/lib/rate-limit";
+import { sameOrigin, checkIpRateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
   try {
     if (!sameOrigin(req)) {
       return Response.json({ error: "bad origin" }, { status: 403 });
+    }
+
+    // Throttle every attempt per IP before touching the database. Counts
+    // valid-format guesses and invalid ones together, so a brute-force run
+    // cannot outpace the limit by mixing shapes.
+    const limit = await checkIpRateLimit(req, {
+      key: "recovery",
+      limit: 10,
+      windowMs: 15 * 60 * 1000
+    });
+    if (!limit.ok) {
+      return Response.json(
+        { error: "Too many attempts. Try again later." },
+        { status: 429 }
+      );
     }
 
     const body = (await req.json()) as { recovery_code?: unknown };
@@ -45,23 +60,6 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (!session) {
-      // Rate limit failed attempts by IP-less heuristic — use the code prefix
-      // as a bucket key. Not perfect but stops trivial brute force.
-      const limit = await checkRateLimit(
-        `recovery:${normalized.slice(0, 4)}`,
-        {
-          key: "recovery_fail",
-          limit: 10,
-          windowMs: 15 * 60 * 1000
-        },
-        { ip: getRequestIp(req) }
-      );
-      if (!limit.ok) {
-        return Response.json(
-          { error: "Too many attempts. Try again later." },
-          { status: 429 }
-        );
-      }
       return Response.json(
         { error: "That recovery code was not found. Check it and try again." },
         { status: 404 }
