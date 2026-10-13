@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sameOrigin } from "@/lib/rate-limit";
+import { isValidLatLng } from "@/lib/geo";
 
 /**
  * Sender-side live location update. Called every ~30s while the sender
@@ -18,10 +19,10 @@ export async function POST(req: NextRequest) {
     if (!sid) return NextResponse.json({ error: "no session" }, { status: 401 });
 
     const body = (await req.json()) as { lat?: unknown; lng?: unknown };
-    const lat = typeof body?.lat === "number" ? body.lat : null;
-    const lng = typeof body?.lng === "number" ? body.lng : null;
-    if (lat === null || lng === null) {
-      return NextResponse.json({ error: "lat and lng required" }, { status: 400 });
+    const lat = body?.lat;
+    const lng = body?.lng;
+    if (!isValidLatLng(lat, lng)) {
+      return NextResponse.json({ error: "valid lat and lng required" }, { status: 400 });
     }
 
     const db = createServiceClient();

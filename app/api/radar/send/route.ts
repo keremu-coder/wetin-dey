@@ -4,6 +4,7 @@ import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sameOrigin, checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 import { assertNotBanned } from "@/lib/guards";
+import { isValidLatLng } from "@/lib/geo";
 import { sendPushToSessions } from "@/lib/push-server";
 
 const TYPES = ["safe","home","on_way","need_help","call_me","police_stop"] as const;
@@ -58,21 +59,39 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "no recipients" }, { status: 400 });
     }
     const note = typeof body?.note === "string" ? body.note.slice(0, 200) : null;
-    const lat = typeof body?.lat === "number" ? body.lat : null;
-    const lng = typeof body?.lng === "number" ? body.lng : null;
     const needsLocation = type === "need_help" || type === "police_stop";
+    const hasCoords = isValidLatLng(body?.lat, body?.lng);
+    if (needsLocation && body?.lat != null && !hasCoords) {
+      return NextResponse.json({ error: "invalid coordinates" }, { status: 400 });
+    }
+    const lat = hasCoords ? (body.lat as number) : null;
+    const lng = hasCoords ? (body.lng as number) : null;
 
     const db = createServiceClient();
 
-    // Only signal people I actually added.
+    // Only signal people I actually added, capped at 20 per send.
     const { data: allowed } = await db
       .from("radar_contacts")
       .select("contact_id")
       .eq("owner_id", sid)
-      .in("contact_id", recipients);
-    const allowedIds = (allowed ?? []).map((r) => r.contact_id as string);
+      .in("contact_id", recipients.slice(0, 20));
+    const iAdded = (allowed ?? []).map((r) => r.contact_id as string);
+
+    // Mutual consent: a recipient only receives a signal if they have
+    // also added the sender back. Stops unsolicited pings and stalking.
+    const { data: reciprocal } = iAdded.length
+      ? await db
+          .from("radar_contacts")
+          .select("owner_id")
+          .eq("contact_id", sid)
+          .in("owner_id", iAdded)
+      : { data: [] as Array<{ owner_id: string }> };
+    const allowedIds = (reciprocal ?? []).map((r) => r.owner_id as string);
     if (allowedIds.length === 0) {
-      return NextResponse.json({ error: "no valid recipients" }, { status: 400 });
+      return NextResponse.json(
+        { error: "No valid recipients. They must add you back first." },
+        { status: 400 }
+      );
     }
 
     const rows = allowedIds.map((rid) => ({
