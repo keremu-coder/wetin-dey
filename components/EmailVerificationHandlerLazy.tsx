@@ -1,12 +1,40 @@
 "use client";
-import nextDynamic from "next/dynamic";
 
-// EmailVerificationHandler imports the Supabase client, which drags in
-// ~300 KB of gotrue crypto (Buffer, ASN.1, JWT). It only matters when the
-// URL carries a verification ?code= — i.e. after the user has already
-// signed in elsewhere. Loading it after first paint keeps the auth
-// client off the critical path of /signin, /join, and every public page.
-export const EmailVerificationHandler = nextDynamic(
-  () => import("@/components/EmailVerificationHandler").then((m) => m.EmailVerificationHandler),
-  { ssr: false }
-);
+import { useEffect, useState, type ComponentType } from "react";
+
+/**
+ * Only loads EmailVerificationHandler when the URL actually carries a
+ * verification token. That component imports the Supabase browser client
+ * (~318 KB of gotrue crypto: Buffer, ASN.1, JWT). Loading it on every
+ * page — including /signin, /join, /privacy — was burning 300 KB per
+ * first paint for a code path that fires once, ever, per user.
+ *
+ * Correct lazy: not next/dynamic (which fires immediately when mounted),
+ * but a URL-gated dynamic import that only runs when code / token_hash /
+ * error_code is present in the query string.
+ */
+export function EmailVerificationHandler() {
+  const [Comp, setComp] = useState<ComponentType | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    const hasToken =
+      url.searchParams.has("code") ||
+      url.searchParams.has("token_hash") ||
+      url.searchParams.has("error_code");
+    if (!hasToken) return;
+
+    let cancelled = false;
+    void import("@/components/EmailVerificationHandler").then((m) => {
+      if (cancelled) return;
+      setComp(() => m.EmailVerificationHandler);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (!Comp) return null;
+  return <Comp />;
+}
