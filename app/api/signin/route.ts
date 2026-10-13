@@ -6,8 +6,33 @@ import { createClient } from "@supabase/supabase-js";
 import { signSessionId, sessionCookieOptions } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { COOKIE_NAME } from "@/lib/constants";
+import { sameOrigin, checkIpRateLimit } from "@/lib/rate-limit";
+
+const BAD_LOGIN = "Email or password no correct.";
+
+/** Escape LIKE wildcards so an email can only ever match itself. */
+function escapeLike(v: string): string {
+  return v.replace(/[\\%_]/g, (c) => "\\" + c);
+}
 
 export async function POST(req: NextRequest) {
+  if (!sameOrigin(req)) {
+    return Response.json({ error: "bad origin" }, { status: 403 });
+  }
+
+  // Throttle every attempt per IP before touching auth.
+  const limit = await checkIpRateLimit(req, {
+    key: "signin",
+    limit: 10,
+    windowMs: 15 * 60 * 1000
+  });
+  if (!limit.ok) {
+    return Response.json(
+      { error: "Too many attempts. Try again later." },
+      { status: 429 }
+    );
+  }
+
   let body: { email?: string; password?: string };
   try {
     body = await req.json();
@@ -18,11 +43,10 @@ export async function POST(req: NextRequest) {
   const email = String(body.email ?? "").trim().toLowerCase();
   const password = String(body.password ?? "");
 
-  if (!email || !password) {
+  if (!email || !password || email.length > 254 || password.length > 256) {
     return Response.json({ error: "Email and password required." }, { status: 400 });
   }
 
-  // STEP 1: auth
   const anonClient = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -33,53 +57,42 @@ export async function POST(req: NextRequest) {
     await anonClient.auth.signInWithPassword({ email, password });
 
   if (authErr || !authData?.user) {
-    return Response.json(
-      { error: "Email or password no correct." },
-      { status: 401 }
-    );
+    return Response.json({ error: BAD_LOGIN }, { status: 401 });
   }
 
-  // STEP 2: lookup — case-insensitive, with diagnostics if it fails
   const db = createServiceClient();
 
-  const { data: profile, error: profileErr } = await db
+  // Prefer the stable auth_user_id; fall back to an exact (wildcard-escaped)
+  // case-insensitive email match for rows that predate the backfill.
+  let { data: profile, error: profileErr } = await db
     .from("sessions")
-    .select("id, handle, handle_kind, email")
-    .ilike("email", email)
+    .select("id, handle")
+    .eq("auth_user_id", authData.user.id)
     .maybeSingle();
 
+  if (!profile && !profileErr) {
+    const res = await db
+      .from("sessions")
+      .select("id, handle")
+      .ilike("email", escapeLike(email))
+      .maybeSingle();
+    profile = res.data;
+    profileErr = res.error;
+  }
+
   if (profileErr) {
-    console.error("[route-error]", profileErr);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    console.error("[signin] profile lookup failed:", profileErr.message);
+    return Response.json({ error: "Server error" }, { status: 500 });
   }
 
   if (!profile) {
-    // Diagnostic: show every session handle + email so we can see the mismatch
-    const { data: allSessions } = await db
-      .from("sessions")
-      .select("handle, email, handle_kind")
-      .order("created_at", { ascending: false })
-      .limit(20);
-
-    return Response.json(
-      {
-        error: "No profile found for this email.",
-        input_email: email,
-        auth_user_id: authData.user.id,
-        auth_user_email: authData.user.email,
-        sessions_in_db: allSessions
-      },
-      { status: 404 }
-    );
+    // Server-side log only. Never return other users' data to the client.
+    console.error("[signin] auth ok but no sessions row for auth user", authData.user.id);
+    return Response.json({ error: BAD_LOGIN }, { status: 401 });
   }
 
-  // STEP 3: cookie
   const cookieValue = await signSessionId(profile.id);
-  const jar = cookies();
-  jar.set(COOKIE_NAME, cookieValue, sessionCookieOptions());
+  cookies().set(COOKIE_NAME, cookieValue, sessionCookieOptions());
 
   return Response.json({ ok: true, handle: profile.handle });
 }

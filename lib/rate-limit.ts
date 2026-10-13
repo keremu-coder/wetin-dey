@@ -175,6 +175,19 @@ const ALLOWED_ORIGINS = [
   "https://wetindey.vercel.app"
 ];
 
+export async function checkIpRateLimit(
+  req: Request,
+  rule: Rule
+): Promise<RateLimitResult> {
+  const ip = getRequestIp(req);
+  if (!ip) {
+    // No IP signal: fall back to a shared (strict) bucket rather than
+    // allowing unlimited attempts.
+    return checkBucket(`ip:unknown:${rule.key}`, rule);
+  }
+  return checkBucket(`ip:${hashIp(ip)}:${rule.key}`, rule);
+}
+
 export function sameOrigin(req: Request): boolean {
   const origin = req.headers.get("origin");
   const referer = req.headers.get("referer");
