@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import {
+  getAudioContext,
+  isAudioUnlocked,
+  onAudioUnlock,
+  tryUnlockAudio
+} from "@/lib/audio-unlock";
 
 type AlarmProps = {
   active: boolean;
@@ -10,21 +16,27 @@ type AlarmProps = {
 
 /**
  * Continuous alarm overlay shown when the recipient has an unacknowledged
- * danger signal. Uses Web Audio to loop a two-tone chime while active.
+ * danger signal. Uses the shared AudioContext (unlocked at app boot via
+ * AudioUnlock) so sound plays even when the alarm fires from a server
+ * poll rather than a user tap.
  *
- * Browsers require a user gesture before audio can play. If audio is
- * blocked, a visible banner + vibration fallback still fires. The user
- * silences by acknowledging the signal (not by tapping the overlay).
+ * If the shared context is still suspended (user has never interacted
+ * with the page at all), the overlay shows a visible "Tap for sound"
+ * fallback so the alarm is never silently broken.
  */
 export function RadarAlarm({ active, urgency, onSilence }: AlarmProps) {
-  const ctxRef = useRef<AudioContext | null>(null);
   const loopRef = useRef<number | null>(null);
+  const [audioBlocked, setAudioBlocked] = useState(false);
 
   useEffect(() => {
-    if (!active || urgency === "info") return;
+    if (!active || urgency === "info") {
+      setAudioBlocked(false);
+      return;
+    }
     if (typeof window === "undefined") return;
 
-    // Vibrate pattern in browsers that support it. Loops every 4s.
+    let stopped = false;
+
     let vibHandle: ReturnType<typeof setInterval> | null = null;
     if (typeof navigator !== "undefined" && "vibrate" in navigator) {
       const pattern = urgency === "danger" ? [300, 200, 300, 400] : [200, 300];
@@ -34,66 +46,112 @@ export function RadarAlarm({ active, urgency, onSilence }: AlarmProps) {
       }, 4000);
     }
 
-    // Web Audio: two-tone chime, repeats every 2.5s.
-    let stopped = false;
-    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (AudioCtx) {
-      const ctx = new AudioCtx();
-      ctxRef.current = ctx;
+    const ctx = getAudioContext();
 
-      function playTone(freq: number, start: number, dur: number, gainVal: number) {
-        if (!ctx) return;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.frequency.value = freq;
-        osc.type = "sine";
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        const t = ctx.currentTime + start;
-        gain.gain.setValueAtTime(0, t);
-        gain.gain.linearRampToValueAtTime(gainVal, t + 0.02);
-        gain.gain.linearRampToValueAtTime(0, t + dur);
-        osc.start(t);
-        osc.stop(t + dur + 0.05);
-      }
+    function playTone(
+      c: AudioContext,
+      freq: number,
+      start: number,
+      dur: number,
+      gainVal: number
+    ) {
+      const osc = c.createOscillator();
+      const gain = c.createGain();
+      osc.frequency.value = freq;
+      osc.type = "sine";
+      osc.connect(gain);
+      gain.connect(c.destination);
+      const t = c.currentTime + start;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(gainVal, t + 0.02);
+      gain.gain.linearRampToValueAtTime(0, t + dur);
+      osc.start(t);
+      osc.stop(t + dur + 0.05);
+    }
 
-      function beat() {
+    function beat() {
+      if (stopped || !ctx) return;
+      const isDanger = urgency === "danger";
+      playTone(ctx, isDanger ? 880 : 660, 0, 0.18, 0.18);
+      playTone(ctx, isDanger ? 1174 : 880, 0.22, 0.22, 0.2);
+    }
+
+    if (ctx) {
+      void tryUnlockAudio().then((ok) => {
         if (stopped) return;
-        const isDanger = urgency === "danger";
-        playTone(isDanger ? 880 : 660, 0, 0.18, 0.18);
-        playTone(isDanger ? 1174 : 880, 0.22, 0.22, 0.2);
+        if (ok) {
+          setAudioBlocked(false);
+          beat();
+        } else {
+          setAudioBlocked(true);
+        }
+      });
+
+      if (isAudioUnlocked()) {
+        setAudioBlocked(false);
+        beat();
       }
 
-      // Browsers block audio until a user gesture. Try; if suspended, resume on next tap.
-      ctx.resume().then(beat).catch(() => { /* user must tap once */ });
-      loopRef.current = window.setInterval(beat, 2500);
+      const unsub = onAudioUnlock(() => {
+        if (stopped) return;
+        setAudioBlocked(false);
+        beat();
+      });
+
+      loopRef.current = window.setInterval(() => {
+        if (stopped) return;
+        if (isAudioUnlocked()) beat();
+      }, 2500);
+
+      return () => {
+        stopped = true;
+        unsub();
+        if (vibHandle) clearInterval(vibHandle);
+        if (loopRef.current) clearInterval(loopRef.current);
+        loopRef.current = null;
+      };
     }
 
     return () => {
       stopped = true;
       if (vibHandle) clearInterval(vibHandle);
-      if (loopRef.current) clearInterval(loopRef.current);
-      try { ctxRef.current?.close(); } catch { /* ignore */ }
-      ctxRef.current = null;
-      loopRef.current = null;
     };
   }, [active, urgency]);
 
   if (!active || urgency === "info") return null;
 
+  async function handleEnableSound() {
+    const ok = await tryUnlockAudio();
+    setAudioBlocked(!ok);
+  }
+
   return (
     <div
       role="alert"
       aria-live="assertive"
-      className={`fixed inset-x-0 top-0 z-[90] flex items-center justify-center px-4 pt-[calc(0.5rem+env(safe-area-inset-top,0px))] ${urgency === "danger" ? "bg-danger" : "bg-warn"}`}
+      className={`fixed inset-x-0 top-0 z-[90] flex items-center justify-center px-4 pt-[calc(0.5rem+env(safe-area-inset-top,0px))] ${
+        urgency === "danger" ? "bg-danger" : "bg-warn"
+      }`}
     >
       <div className="flex w-full max-w-2xl items-center gap-3 py-2.5">
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-[1.1rem] text-white" aria-hidden>
+        <span
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-[1.1rem] text-white"
+          aria-hidden
+        >
           {urgency === "danger" ? "\u26A0" : "\u260E"}
         </span>
         <p className="flex-1 text-[0.9375rem] font-semibold leading-tight text-white">
           {urgency === "danger" ? "Someone needs help" : "Someone wants to reach you"}
         </p>
+        {audioBlocked ? (
+          <button
+            type="button"
+            onClick={() => void handleEnableSound()}
+            className="rounded-full bg-white/30 px-3 py-1.5 text-[0.75rem] font-bold text-white"
+          >
+            Tap for sound
+          </button>
+        ) : null}
         {onSilence ? (
           <button
             type="button"

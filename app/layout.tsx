@@ -9,6 +9,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { RouteWarmup } from "@/components/RouteWarmup";
 import { RouteRefresh } from "@/components/RouteRefresh";
 import { RouteProgress } from "@/components/RouteProgress";
+import { AudioUnlock } from "@/components/AudioUnlock";
 import { TermsGate } from "@/components/TermsGate";
 import { AgeGate } from "@/components/AgeGate";
 import { EmailVerificationHandler } from "@/components/EmailVerificationHandler";
@@ -119,6 +120,7 @@ export default async function RootLayout({
             <RouteWarmup />
             <RouteRefresh />
             <RouteProgress />
+            <AudioUnlock />
             <AgeGate />
             <Onboarding />
             <InstallPrompt />
