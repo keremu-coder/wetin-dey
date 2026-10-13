@@ -15,7 +15,7 @@ const encoder = new TextEncoder();
 
 function secret(): string {
   const s = process.env.SESSION_SECRET;
-  if (!s || s.length < 16) {
+  if (!s || s.length < 32) {
     throw new Error("SESSION_SECRET must be set to a long random string");
   }
   return s;
