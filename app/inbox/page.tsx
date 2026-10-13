@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { unstable_cache } from "next/cache";
 import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { timeAgoShort } from "@/lib/dm";
@@ -10,25 +11,22 @@ function avatarColor(seed: string): string {
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
   const colors = [
-    "#C0392B",
-    "#D97706",
-    "#1F7A4D",
-    "#7C3AED",
-    "#0E7490",
-    "#BE185D",
-    "#4D7C0F",
-    "#A16207"
+    "#C0392B", "#D97706", "#1F7A4D", "#7C3AED",
+    "#0E7490", "#BE185D", "#4D7C0F", "#A16207"
   ];
   return colors[Math.abs(h) % colors.length];
 }
 
-export default async function InboxPage() {
-  const sessionId = await getSessionId();
-  if (!sessionId) redirect("/signin");
+type InboxRow = {
+  id: string;
+  other_handle: string;
+  last_body: string | null;
+  last_from_me: boolean;
+  last_message_at: string;
+  unread: number;
+};
 
-  const me = await getOrCreateSessionProfile(sessionId);
-  if (!me) redirect("/signin");
-
+async function getInboxRowsInner(sessionId: string): Promise<InboxRow[]> {
   const db = createServiceClient();
 
   const [threadsA, threadsB] = await Promise.all([
@@ -52,70 +50,65 @@ export default async function InboxPage() {
       new Date(a.last_message_at).getTime()
   );
 
-  let rows: Array<{
-    id: string;
-    other_handle: string;
-    last_body: string | null;
-    last_from_me: boolean;
-    last_message_at: string;
-    unread: number;
-  }> = [];
+  if (threads.length === 0) return [];
 
-  if (threads.length > 0) {
-    const otherIds = threads.map((t) =>
-      t.session_a === sessionId ? t.session_b : t.session_a
-    );
+  const otherIds = threads.map((t) =>
+    t.session_a === sessionId ? t.session_b : t.session_a
+  );
+  const threadIds = threads.map((t) => t.id);
 
-    const threadIds = threads.map((t) => t.id);
+  const [sessionsRes, messagesRes] = await Promise.all([
+    db.from("sessions").select("id, handle").in("id", otherIds),
+    db
+      .from("dm_messages")
+      .select("thread_id, sender_id, body, created_at, held, read_at")
+      .in("thread_id", threadIds)
+      .order("created_at", { ascending: false })
+      .limit(threadIds.length * 5)
+  ]);
 
-    const [sessionsRes, messagesRes] = await Promise.all([
-      db.from("sessions").select("id, handle").in("id", otherIds),
-      db
-        .from("dm_messages")
-        .select("thread_id, sender_id, body, created_at, held, read_at")
-        .in("thread_id", threadIds)
-        .order("created_at", { ascending: false })
-        .limit(threadIds.length * 5)
-    ]);
+  const handleMap = new Map<string, string>();
+  for (const s of sessionsRes.data ?? []) handleMap.set(s.id, s.handle);
 
-    const handleMap = new Map<string, string>();
-    for (const s of sessionsRes.data ?? []) handleMap.set(s.id, s.handle);
+  const lastByThread = new Map<string, { body: string; sender_id: string }>();
+  const unreadByThread = new Map<string, number>();
 
-    const lastByThread = new Map<
-      string,
-      { body: string; sender_id: string }
-    >();
-    const unreadByThread = new Map<string, number>();
-
-    for (const m of messagesRes.data ?? []) {
-      if (m.held) continue;
-      if (!lastByThread.has(m.thread_id)) {
-        lastByThread.set(m.thread_id, {
-          body: m.body,
-          sender_id: m.sender_id
-        });
-      }
-      if (m.sender_id !== sessionId && m.read_at == null) {
-        unreadByThread.set(
-          m.thread_id,
-          (unreadByThread.get(m.thread_id) ?? 0) + 1
-        );
-      }
+  for (const m of messagesRes.data ?? []) {
+    if (m.held) continue;
+    if (!lastByThread.has(m.thread_id)) {
+      lastByThread.set(m.thread_id, { body: m.body, sender_id: m.sender_id });
     }
-
-    rows = threads.map((t) => {
-      const other = t.session_a === sessionId ? t.session_b : t.session_a;
-      const last = lastByThread.get(t.id);
-      return {
-        id: t.id,
-        other_handle: handleMap.get(other) ?? "Anonymous",
-        last_body: last?.body ?? null,
-        last_from_me: last ? last.sender_id === sessionId : false,
-        last_message_at: t.last_message_at,
-        unread: unreadByThread.get(t.id) ?? 0
-      };
-    });
+    if (m.sender_id !== sessionId && m.read_at == null) {
+      unreadByThread.set(m.thread_id, (unreadByThread.get(m.thread_id) ?? 0) + 1);
+    }
   }
+
+  return threads.map((t) => {
+    const other = t.session_a === sessionId ? t.session_b : t.session_a;
+    const last = lastByThread.get(t.id);
+    return {
+      id: t.id,
+      other_handle: handleMap.get(other) ?? "Anonymous",
+      last_body: last?.body ?? null,
+      last_from_me: last ? last.sender_id === sessionId : false,
+      last_message_at: t.last_message_at,
+      unread: unreadByThread.get(t.id) ?? 0
+    };
+  });
+}
+
+const getInboxRows = unstable_cache(getInboxRowsInner, ["inbox-rows-v1"], {
+  revalidate: 15
+});
+
+export default async function InboxPage() {
+  const sessionId = await getSessionId();
+  if (!sessionId) redirect("/signin");
+
+  const me = await getOrCreateSessionProfile(sessionId);
+  if (!me) redirect("/signin");
+
+  const rows = await getInboxRows(sessionId);
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-6 pb-28">
@@ -160,9 +153,7 @@ export default async function InboxPage() {
                   <div className="flex items-baseline justify-between gap-2">
                     <p
                       className={`truncate text-[0.9375rem] ${
-                        hasUnread
-                          ? "font-bold text-ink"
-                          : "font-semibold text-ink"
+                        hasUnread ? "font-bold text-ink" : "font-semibold text-ink"
                       }`}
                     >
                       @{t.other_handle}
