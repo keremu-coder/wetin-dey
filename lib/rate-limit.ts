@@ -12,6 +12,22 @@ type Bucket = {
 };
 
 const memBuckets = new Map<string, Bucket>();
+let writesSinceSweep = 0;
+const SWEEP_EVERY_N_WRITES = 200;
+
+/**
+ * Lazy eviction of expired in-memory buckets.
+ *
+ * memBuckets is a plain Map that would otherwise grow unbounded on a
+ * long-lived serverless instance: every unique client ip:hash or
+ * session key creates an entry that never gets removed. Called every
+ * SWEEP_EVERY_N_WRITES writes so the cost is amortized to near zero.
+ */
+function sweepExpiredBuckets(now: number): void {
+  for (const [key, bucket] of memBuckets) {
+    if (bucket.resetAt <= now) memBuckets.delete(key);
+  }
+}
 
 type Rule = {
   key: string;
@@ -101,6 +117,11 @@ async function checkBucket(
       count: 1,
       resetAt: now + rule.windowMs
     });
+    writesSinceSweep += 1;
+    if (writesSinceSweep >= SWEEP_EVERY_N_WRITES) {
+      writesSinceSweep = 0;
+      sweepExpiredBuckets(now);
+    }
   }
 
   // Slow path: DB check for cross-instance abuse. Only for tight limits
