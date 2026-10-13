@@ -79,6 +79,23 @@ export async function GET(
     }
 
     const requesterId = await getSessionId();
+
+    // Private communities require membership to read messages.
+    if (!community.is_public) {
+      if (!requesterId) {
+        return Response.json({ error: "forbidden" }, { status: 403 });
+      }
+      const { data: reqMembership } = await db
+        .from("community_members")
+        .select("id")
+        .eq("community_id", community.id)
+        .eq("session_id", requesterId)
+        .maybeSingle();
+      if (!reqMembership) {
+        return Response.json({ error: "forbidden" }, { status: 403 });
+      }
+    }
+
     const blockedIds = await getBlockedIds(requesterId);
 
     let requesterHides = false;
