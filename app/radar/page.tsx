@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Alama } from "@/components/Alama";
 import { RadarAlarm } from "@/components/RadarAlarm";
 import { useBackgroundRadar } from "@/lib/use-background-radar";
+import { BackgroundLocationDisclosure } from "@/components/BackgroundLocationDisclosure";
 import { useBatteryExemption } from "@/lib/use-battery-exemption";
 
 type Signal = "safe" | "home" | "on_way" | "need_help" | "call_me" | "police_stop";
@@ -78,6 +79,9 @@ export default function RadarPage() {
   const [alarmSilenced, setAlarmSilenced] = useState(false);
 
   const liveWatchRef = useRef<number | null>(null);
+  const [bgDisclosureOpen, setBgDisclosureOpen] = useState(false);
+  const [bgConsent, setBgConsent] = useState<"granted" | "declined" | null>(null);
+  const pendingSendRef = useRef<{ type: Signal; recipients: string[] } | null>(null);
 
   async function load() {
     try {
@@ -103,7 +107,15 @@ export default function RadarPage() {
   );
 
   // Native-only: keeps Android location flowing when the app is backgrounded.
-  useBackgroundRadar(hasActiveShare);
+  useBackgroundRadar(hasActiveShare && bgConsent !== "declined");
+
+  // Load the user's past choice for the background-location disclosure.
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem("radar_bg_consent");
+      if (v === "granted" || v === "declined") setBgConsent(v);
+    } catch { /* ignore */ }
+  }, []);
 
   // Android-only: nudges the user to exempt us from Doze so background
   // location isn't suspended while a signal is live.
@@ -142,7 +154,14 @@ export default function RadarPage() {
   );
   const alarmActive = !!alarmItem && !alarmSilenced;
 
-  async function send(type: Signal, recipients: string[]) {
+  async function send(type: Signal, recipients: string[], force = false) {
+    // Google Play Prominent Disclosure: show the background-location
+    // notice once, before the OS permission prompt fires.
+    if ((type === "need_help" || type === "police_stop") && bgConsent === null && !force) {
+      pendingSendRef.current = { type, recipients };
+      setBgDisclosureOpen(true);
+      return;
+    }
     let lat: number | null = null;
     let lng: number | null = null;
     if (type === "need_help" || type === "police_stop") {
@@ -226,6 +245,25 @@ export default function RadarPage() {
 
   return (
     <main className="mx-auto max-w-2xl px-5 py-6 pb-32">
+      <BackgroundLocationDisclosure
+        open={bgDisclosureOpen}
+        onAccept={() => {
+          try { localStorage.setItem("radar_bg_consent", "granted"); } catch {}
+          setBgConsent("granted");
+          setBgDisclosureOpen(false);
+          const pending = pendingSendRef.current;
+          pendingSendRef.current = null;
+          if (pending) void send(pending.type, pending.recipients, true);
+        }}
+        onDecline={() => {
+          try { localStorage.setItem("radar_bg_consent", "declined"); } catch {}
+          setBgConsent("declined");
+          setBgDisclosureOpen(false);
+          const pending = pendingSendRef.current;
+          pendingSendRef.current = null;
+          if (pending) void send(pending.type, pending.recipients, true);
+        }}
+      />
       <RadarAlarm
         active={alarmActive}
         urgency={alarmItem ? urgency(alarmItem.signal_type) : "info"}
