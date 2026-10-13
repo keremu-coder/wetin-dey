@@ -55,7 +55,7 @@ any time.
 
 - Phone numbers (unless you voluntarily add one for recovery)
 - Email addresses (unless you voluntarily add one for recovery)
-- Precise location (Radar rounds to about 1 km; nothing finer is stored)
+- Precise location (Radar Need help / Police stop signals only; exact coordinates stored for up to 4 hours of sharing, visible only to the contacts you chose, deleted with the account)
 - IP addresses for anonymous reports
 - Tracking pixels, fingerprinting scripts, or third-party analytics
 

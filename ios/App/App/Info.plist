@@ -49,7 +49,7 @@
   <string>Main</string>
   <key>UIRequiredDeviceCapabilities</key>
   <array>
-    <string>armv7</string>
+    <string>arm64</string>
   </array>
   <key>UISupportedInterfaceOrientations</key>
   <array>
@@ -86,7 +86,16 @@
   <string>Wetin Dey uses your photo library to choose photos and videos for reports, posts, and your profile avatar.</string>
 
   <key>NSLocationWhenInUseUsageDescription</key>
-  <string>Wetin Dey uses your location for Radar — a map of nearby civic signals. Location is rounded to about 1 km and never stored as precise coordinates.</string>
+  <string>Wetin Dey uses your location when you send a Need help or Police stop signal on Radar, so the trusted contacts you chose can find you. Other signals do not include your location.</string>
+
+  <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+  <string>While a Need help or Police stop signal is active (up to 4 hours), Wetin Dey keeps sharing your live location with the contacts you chose, even when the app is in the background. You can stop sharing at any time.</string>
+
+  <key>UIBackgroundModes</key>
+  <array>
+    <string>location</string>
+    <string>remote-notification</string>
+  </array>
 
   <key>ITSAppUsesNonExemptEncryption</key>
   <false/>

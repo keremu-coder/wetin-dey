@@ -60,9 +60,11 @@ identity.
 - None. No crash reporting SDK installed.
 
 **Location**
+- Precise location - **Linked**, **Not used for tracking**
+  - Purpose: App Functionality (Radar Need help / Police stop signals)
+  - Notes: Exact coordinates stored on the signal, updated ~every 25-30s for up to 4 hours, visible only to contacts the user chose (who must have added the user back). Deleted with the account.
 - Coarse location - **Not Linked**, **Not used for tracking**
-  - Purpose: App Functionality (Radar rounds to ~1 km grid)
-  - Notes: Never stored as precise coordinates.
+  - Purpose: App Functionality (near-you filtering; not stored)
 
 ### Data not collected
 
@@ -71,7 +73,6 @@ identity.
 - Contacts
 - Health & fitness
 - Financial info (no payments)
-- Precise location
 - Sensitive info
 - Advertising data / IDFA
 
@@ -102,7 +103,8 @@ Yes. https://9jawatindey.vercel.app/delete-account
 | Text (report body) | Yes | Yes - Groq (formalization), Telegram (public mirror of reviewed reports) | No | Civic reports |
 | Name (handle) | Yes | No | No | Public username |
 | User IDs (session id) | Yes | No | No | Session identification |
-| Approximate location | Yes | No | Yes | Radar signal buckets (~1 km) |
+| Approximate location | Yes | No | Yes | Near-you filtering (not stored) |
+| Precise location | Yes | No | Yes | Radar Need help / Police stop signals; visible only to chosen contacts (who must have added you back); stored up to 4h of sharing; deleted with account |
 | App interactions | Yes | No | No | Presence, last-seen |
 | Device or other IDs | No | - | - | - |
 
