@@ -50,6 +50,7 @@ type Contact = {
   handle: string | null;
   display_name: string | null;
   avatar_url: string | null;
+  mutual?: boolean;
 };
 
 function timeAgo(iso: string) {
@@ -237,10 +238,18 @@ export default function RadarPage() {
   }
 
   function tapSignal(type: Signal) {
-    if (contacts.length === 0) { setError("Add someone to your Circle first."); return; }
-    if (contacts.length === 1) { void send(type, [contacts[0].id]); return; }
+    const mutuals = contacts.filter((c) => c.mutual !== false);
+    if (mutuals.length === 0) {
+      setError(
+        contacts.length > 0
+          ? "Your Circle needs to add you back before you can signal them."
+          : "Add someone to your Circle first."
+      );
+      return;
+    }
+    if (mutuals.length === 1) { void send(type, [mutuals[0].id]); return; }
     setPicking(type);
-    setSelected(new Set(contacts.map((c) => c.id)));
+    setSelected(new Set(mutuals.map((c) => c.id)));
   }
 
   return (
@@ -441,8 +450,17 @@ export default function RadarPage() {
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[0.9375rem] font-semibold text-ink">@{c.handle ?? "unknown"}</p>
-                  {c.display_name ? <p className="truncate text-[0.75rem] text-muted">{c.display_name}</p> : null}
+                  <div className="flex items-center gap-2">
+                    <p className="truncate text-[0.9375rem] font-semibold text-ink">@{c.handle ?? "unknown"}</p>
+                    {c.mutual === false ? (
+                      <span className="shrink-0 rounded-full bg-warm-soft px-2 py-0.5 text-[0.65rem] font-semibold text-warm-deep">Pending</span>
+                    ) : null}
+                  </div>
+                  {c.mutual === false ? (
+                    <p className="truncate text-[0.75rem] text-muted">They need to add you back.</p>
+                  ) : c.display_name ? (
+                    <p className="truncate text-[0.75rem] text-muted">{c.display_name}</p>
+                  ) : null}
                 </div>
                 <button
                   type="button"
