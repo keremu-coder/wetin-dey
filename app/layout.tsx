@@ -8,6 +8,7 @@ import { PushRegistrar } from "@/components/PushRegistrar";
 import { NativeNetworkMonitor } from "@/components/NativeNetworkMonitor";
 import { BottomNav } from "@/components/BottomNav";
 import { RouteWarmup } from "@/components/RouteWarmup";
+import { RouteRefresh } from "@/components/RouteRefresh";
 import { TermsGate } from "@/components/TermsGate";
 import { AgeGate } from "@/components/AgeGate";
 import { EmailVerificationHandler } from "@/components/EmailVerificationHandler";
@@ -120,6 +121,7 @@ export default function RootLayout({
             <PushRegistrar />
             <NativeNetworkMonitor />
             <RouteWarmup />
+            <RouteRefresh />
             <AgeGate />
             <Onboarding />
             <InstallPrompt />
