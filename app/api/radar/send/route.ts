@@ -117,7 +117,13 @@ export async function POST(req: NextRequest) {
       const senderHandle = senderRes.data?.handle ?? "Someone";
       const copy = PUSH_COPY[type as SignalType];
       const firstId = (inserted?.[0] as { id?: string } | undefined)?.id ?? String(Date.now());
-      await sendPushToSessions(allowedIds, {
+      // Fan-out cap: push at most the first 50 recipients. Everyone on
+      // the DB insert still gets the in-app notification; the push
+      // channel is bounded so a Circle with hundreds of mutuals does
+      // not fan out into hundreds of simultaneous FCM calls per signal.
+      const PUSH_FANOUT_MAX = 50;
+      const pushTargets = allowedIds.slice(0, PUSH_FANOUT_MAX);
+      await sendPushToSessions(pushTargets, {
         title: copy.title,
         body: "@" + senderHandle + " \u2014 " + copy.body,
         tag: "radar-" + firstId,
