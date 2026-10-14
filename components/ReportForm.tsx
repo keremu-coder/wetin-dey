@@ -253,7 +253,22 @@ export function ReportForm({
     fd.set("anonymous", "true");
 
     const res = await fetch("/api/reports", { method: "POST", body: fd });
-    const json = (await res.json()) as { id?: string; error?: string };
+    let json: { id?: string; error?: string } = {};
+    try {
+      json = await res.json();
+    } catch {
+      // Vercel rejects oversize bodies at the edge with a plain-text 413,
+      // not JSON. Fall back to a useful message.
+      if (res.status === 413) {
+        setError(
+          "File too large for upload. Attach a photo, record voice testimony, or paste a public link."
+        );
+      } else {
+        setError("Upload failed. Try again in a moment.");
+      }
+      setBusy(false);
+      return;
+    }
     if (!res.ok || !json.id) {
       setError(json.error ?? "post no send");
       setBusy(false);
