@@ -47,10 +47,13 @@ export async function GET(
         "id, sender_id, body, filter_level, held, created_at, read_at"
       )
       .eq("thread_id", thread.id)
-      .order("created_at", { ascending: true })
+      // Newest 200, then reversed for display order. A plain
+      // ascending sort + limit(200) returns the OLDEST 200 in a
+      // long thread, so the user never sees the latest messages.
+      .order("created_at", { ascending: false })
       .limit(200);
 
-    const messages = (all ?? []).filter((m) => {
+    const messages = ((all ?? []).slice().reverse()).filter((m) => {
       if (!m.held) return true;
       return m.sender_id === sessionId;
     });

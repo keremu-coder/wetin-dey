@@ -337,7 +337,9 @@ export async function POST(req: NextRequest) {
       if (voiceTestimony.size > 10 * 1024 * 1024) {
         return jsonError("Voice too large", 400);
       }
-      const buf = Buffer.from(await voiceTestimony.arrayBuffer());
+      const rawBuf = Buffer.from(await voiceTestimony.arrayBuffer());
+      // Strip container metadata (M4A/MP3 tags can carry GPS). Fail-closed.
+      const buf = await stripMediaMetadata(rawBuf, "webm");
 
       // Voice moderation — Whisper transcribe + text filter.
       // Best-effort: fails open on any error so a Groq outage

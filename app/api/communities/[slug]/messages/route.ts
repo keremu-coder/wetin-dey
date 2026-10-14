@@ -8,6 +8,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { notifyCommunityMembers } from "@/lib/push-server";
 import { analyzeModeration, moderationReason } from "@/lib/dm-filter";
 import { transcribeAndModerate } from "@/lib/voice-moderation";
+import { stripMediaMetadata } from "@/lib/media-strip";
 import { isBanned, BANNED_MESSAGE } from "@/lib/ban-guard";
 import { getBlockedIds } from "@/lib/blocks";
 import { createNotification } from "@/lib/notifications";
@@ -315,7 +316,9 @@ export async function POST(req: NextRequest,
             ? "ogg"
             : "webm";
         const path = `chat/${community.id}/${audioId}.${ext}`;
-        const buf = Buffer.from(await file.arrayBuffer());
+        const rawBuf = Buffer.from(await file.arrayBuffer());
+        // Strip container metadata (M4A/MP3 tags can carry GPS). Fail-closed.
+        const buf = await stripMediaMetadata(rawBuf, "webm");
 
         // Voice moderation — Whisper transcribe + text filter. Best-effort:
         // fails open so a Groq outage never blocks a legitimate message.
