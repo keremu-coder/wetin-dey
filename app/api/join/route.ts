@@ -72,7 +72,11 @@ export async function POST(req: NextRequest) {
 
   const db = createServiceClient();
 
-  const profile = await getOrCreateSessionProfile(sessionId);
+  // Named signup bypasses the IP ban. Anonymity is the loophole; a
+  // verified email is the accountability path back in.
+  const profile = await getOrCreateSessionProfile(sessionId, {
+    bypassIpBan: true
+  });
   if (!profile) {
     return Response.json({ error: "session profile failed" }, { status: 500 });
   }

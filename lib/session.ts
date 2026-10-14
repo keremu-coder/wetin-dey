@@ -1,7 +1,7 @@
 // lib/session.ts
 
 import { nanoid } from "nanoid";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { COOKIE_NAME } from "./constants";
 import {
   generateCleanHandle,
@@ -285,8 +285,28 @@ async function uniqueRecoveryCode(
   return { raw: fallback, hash: hashRecoveryCode(fallback) };
 }
 
+/**
+ * Read the inbound request IP and return its salted hash, or null if
+ * the request is not in a context where headers are available
+ * (build-time static generation, etc.).
+ */
+async function readRequestIpHash(): Promise<string | null> {
+  try {
+    const h = await headers();
+    const forwarded = h.get("x-forwarded-for") ?? "";
+    const first = forwarded.split(",")[0]?.trim() ?? "";
+    const ip = first || h.get("x-real-ip") || "";
+    if (!ip) return null;
+    const { hashIp } = await import("./rate-limit");
+    return hashIp(ip);
+  } catch {
+    return null;
+  }
+}
+
 export async function getOrCreateSessionProfile(
-  sessionId: string
+  sessionId: string,
+  opts?: { bypassIpBan?: boolean }
 ): Promise<SessionProfile | null> {
   const db = createServiceClient();
 
@@ -354,6 +374,27 @@ export async function getOrCreateSessionProfile(
     handle = `User_${Date.now().toString().slice(-6)}`;
   }
 
+  // Ban evasion check. If this request's IP was banned in the last
+  // 30 days and this is an anonymous session, refuse to create the
+  // row. Signing up as a named user (bypassIpBan) is the escape
+  // hatch: accountability via email instead of anonymity.
+  let last_ip_hash: string | null = null;
+  if (!opts?.bypassIpBan) {
+    last_ip_hash = await readRequestIpHash();
+    if (last_ip_hash) {
+      const { data: banRow } = await db
+        .from("banned_ip_hashes")
+        .select("ip_hash")
+        .eq("ip_hash", last_ip_hash)
+        .gt("expires_at", new Date().toISOString())
+        .maybeSingle();
+      if (banRow) {
+        console.warn("[session] refused new session from banned IP");
+        return null;
+      }
+    }
+  }
+
   const { hash: recovery_code_hash } = await uniqueRecoveryCode(db);
 
   const { data: created, error } = await db
@@ -363,7 +404,8 @@ export async function getOrCreateSessionProfile(
       handle,
       handle_kind: "anonymous",
       auth_provider: "none",
-      recovery_code_hash
+      recovery_code_hash,
+      last_ip_hash
     })
     .select("*")
     .single();

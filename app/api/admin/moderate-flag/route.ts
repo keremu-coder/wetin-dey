@@ -308,6 +308,32 @@ export async function POST(req: NextRequest) {
         return Response.json({ error: "Server error" }, { status: 500 });
       }
 
+      // Also ban the session's last-seen IP hash for 30 days. This
+      // does not stop evasion from a different network, but it blocks
+      // the common "clear cookies, retry from same WiFi" case.
+      try {
+        const { data: bannedRow } = await db
+          .from("sessions")
+          .select("last_ip_hash")
+          .eq("id", authorId)
+          .maybeSingle();
+        const ipHash = (bannedRow as { last_ip_hash?: string | null } | null)
+          ?.last_ip_hash;
+        if (ipHash) {
+          const expiresAt = new Date(
+            Date.now() + 30 * 24 * 60 * 60 * 1000
+          ).toISOString();
+          await db.from("banned_ip_hashes").upsert({
+            ip_hash: ipHash,
+            banned_at: new Date().toISOString(),
+            expires_at: expiresAt,
+            reason: note ?? "Repeated guideline violations"
+          });
+        }
+      } catch (e) {
+        console.error("[moderate-flag] IP ban record failed:", e);
+      }
+
       await hideTarget(db, flag.target_type, flag.target_id);
 
       const { error } = await db
