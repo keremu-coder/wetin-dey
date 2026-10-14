@@ -82,6 +82,15 @@ export default function PrivacyPage() {
             the entire signal by asking us to delete your account.
           </p>
           <p className="mt-2">
+            <strong>Radar Circle contacts:</strong> when you add someone to
+            your Circle, we store a link between your session and theirs so
+            you can send each other signals. Adding someone is one-sided by
+            default; the other person must add you back before either of you
+            can signal the other. You can remove a Circle contact at any
+            time from the Radar page, and deleting your account removes your
+            Circle membership from our system in both directions.
+          </p>
+          <p className="mt-2">
             <strong>Presence:</strong> a last-seen timestamp that powers the
             online indicator. You can hide it entirely in Settings → Presence.
           </p>
