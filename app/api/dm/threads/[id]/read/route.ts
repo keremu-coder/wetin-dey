@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { NextRequest } from "next/server";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
+import { serverError } from "@/lib/http";
 
 /**
  * POST — mark every message the OTHER person sent in this thread as read.
@@ -49,10 +50,6 @@ export async function POST(
 
     return Response.json({ ok: true });
   } catch (e) {
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("dm/threads/[id]/read", e);
   }
 }

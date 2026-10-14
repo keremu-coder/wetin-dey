@@ -10,6 +10,7 @@ import {
   hashRecoveryCode
 } from "@/lib/recovery-code";
 import { sameOrigin, checkIpRateLimit } from "@/lib/rate-limit";
+import { serverError } from "@/lib/http";
 
 export async function POST(req: NextRequest) {
   try {
@@ -88,10 +89,6 @@ export async function POST(req: NextRequest) {
     res.headers.append("Set-Cookie", cookieString);
     return res;
   } catch (e) {
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("auth/signin-recovery", e);
   }
 }

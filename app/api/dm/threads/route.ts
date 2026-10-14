@@ -7,6 +7,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { orderParticipants } from "@/lib/dm";
 import { sameOrigin } from "@/lib/rate-limit";
 import { assertCanWrite } from "@/lib/guards";
+import { serverError } from "@/lib/http";
 
 function escapeLike(s: string): string {
   return s.replace(/[\\%_]/g, "\\$&");
@@ -97,11 +98,7 @@ export async function GET() {
       })
     });
   } catch (e) {
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("dm/threads", e);
   }
 }
 
@@ -222,10 +219,6 @@ export async function POST(req: NextRequest) {
 
     return Response.json({ ok: true, thread_id: id });
   } catch (e) {
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("dm/threads", e);
   }
 }

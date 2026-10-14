@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
+import { serverError } from "@/lib/http";
 
 /**
  * GET — statuses from people I follow. Newest first, only people with
@@ -52,10 +53,6 @@ export async function GET() {
 
     return Response.json({ people });
   } catch (e) {
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("statuses/following", e);
   }
 }

@@ -5,6 +5,7 @@ import { nanoid } from "nanoid";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { isBanned, BANNED_MESSAGE } from "@/lib/ban-guard";
+import { serverError } from "@/lib/http";
 
 export async function POST(
   req: NextRequest,
@@ -86,10 +87,6 @@ export async function POST(
     });
   } catch (e) {
     console.error("[comment vote] unexpected:", e);
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("comments/[id]/vote", e);
   }
 }

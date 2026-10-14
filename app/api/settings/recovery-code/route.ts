@@ -9,6 +9,7 @@ import {
   hashRecoveryCode
 } from "@/lib/recovery-code";
 import { sameOrigin } from "@/lib/rate-limit";
+import { serverError } from "@/lib/http";
 
 /**
  * GET - has this session already generated a recovery code?
@@ -35,11 +36,7 @@ export async function GET() {
       has_code: Boolean(data?.recovery_code_hash)
     });
   } catch (e) {
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("settings/recovery-code", e);
   }
 }
 
@@ -99,10 +96,6 @@ export async function POST(req: NextRequest) {
       recovery_code: formatRecoveryCode(plaintext)
     });
   } catch (e) {
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("settings/recovery-code", e);
   }
 }

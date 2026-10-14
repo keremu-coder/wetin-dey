@@ -8,6 +8,7 @@ import { sendPushToSessions } from "@/lib/push-server";
 import { BROADCAST_MAX_MB, BROADCAST_TITLE_MAX } from "@/lib/broadcasts";
 import { assertCanWrite } from "@/lib/guards";
 import { getBlockedIds } from "@/lib/blocks";
+import { serverError } from "@/lib/http";
 
 function extFromMime(mime: string): string {
   const m = (mime || "").toLowerCase();
@@ -78,11 +79,7 @@ export async function GET(
       }))
     });
   } catch (e) {
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("communities/[slug]/broadcasts", e);
   }
 }
 
@@ -217,10 +214,6 @@ export async function POST(
       }
     });
   } catch (e) {
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("communities/[slug]/broadcasts", e);
   }
 }

@@ -15,6 +15,7 @@ import {
   TERMS_NOT_ACCEPTED_CODE,
   TERMS_NOT_ACCEPTED_MESSAGE
 } from "@/lib/terms-guard";
+import { serverError } from "@/lib/http";
 
 function extForAudioType(t: string | undefined): string {
   const lower = (t ?? "").toLowerCase();
@@ -91,11 +92,7 @@ export async function GET(
     return Response.json({ comments });
   } catch (e) {
     console.error("[comments GET] unexpected:", e);
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("reports/[id]/comments", e);
   }
 }
 
@@ -319,10 +316,6 @@ export async function POST(
     });
   } catch (e) {
     console.error("[comments POST] unexpected:", e);
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("reports/[id]/comments", e);
   }
 }

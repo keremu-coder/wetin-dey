@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sameOrigin, checkRateLimit, getRequestIp } from "@/lib/rate-limit";
+import { serverError } from "@/lib/http";
 
 export async function GET() {
   try {
@@ -48,11 +49,7 @@ export async function GET() {
     });
   } catch (e) {
     console.error("[block GET]", e);
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("block", e);
   }
 }
 
@@ -143,10 +140,6 @@ export async function POST(req: NextRequest) {
     return Response.json({ ok: true, action: "block" });
   } catch (e) {
     console.error("[block POST]", e);
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("block", e);
   }
 }

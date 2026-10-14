@@ -8,6 +8,7 @@ import {
   CHECKIN_MAX_NOTE,
   isValidCheckinStatus
 } from "@/lib/checkin";
+import { serverError } from "@/lib/http";
 
 export async function GET(
   _req: NextRequest,
@@ -100,11 +101,7 @@ export async function GET(
       my_response
     });
   } catch (e) {
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("communities/[slug]/checkins", e);
   }
 }
 
@@ -202,10 +199,6 @@ export async function POST(
       status: body.status
     });
   } catch (e) {
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("communities/[slug]/checkins", e);
   }
 }

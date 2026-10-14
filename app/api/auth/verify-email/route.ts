@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sameOrigin } from "@/lib/rate-limit";
+import { serverError } from "@/lib/http";
 
 /**
  * Called by EmailVerificationHandler after the user clicks the Supabase
@@ -78,10 +79,6 @@ export async function POST(req: NextRequest) {
     return Response.json({ ok: true });
   } catch (e) {
     console.error("[verify-email]", e);
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("auth/verify-email", e);
   }
 }

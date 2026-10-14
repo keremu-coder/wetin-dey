@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getBlockedIds } from "@/lib/blocks";
+import { serverError } from "@/lib/http";
 
 export async function GET(
   _req: NextRequest,
@@ -91,10 +92,6 @@ export async function GET(
 
     return Response.json({ members });
   } catch (e) {
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("communities/[slug]/members", e);
   }
 }

@@ -5,6 +5,7 @@ import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sameOrigin } from "@/lib/rate-limit";
 import { assertNotBanned } from "@/lib/guards";
+import { serverError } from "@/lib/http";
 
 /**
  * Register a native push token (APNs on iOS, FCM on Android).
@@ -62,11 +63,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("[native-subscribe]", e);
-    console.error("[route-error]", e);
-    return NextResponse.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("push/native-subscribe", e);
   }
 }
 
@@ -103,10 +100,6 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("[native-subscribe DELETE]", e);
-    console.error("[route-error]", e);
-    return NextResponse.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("push/native-subscribe", e);
   }
 }

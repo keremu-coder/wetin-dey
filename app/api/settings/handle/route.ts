@@ -6,6 +6,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { sameOrigin, checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 import { validateHandle, cooldownDaysLeft } from "@/lib/handle-rules";
 import { assertCanWrite } from "@/lib/guards";
+import { serverError } from "@/lib/http";
 
 export async function GET() {
   try {
@@ -34,11 +35,7 @@ export async function GET() {
       cooldown_days_left: daysLeft
     });
   } catch (e) {
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("settings/handle", e);
   }
 }
 
@@ -154,10 +151,6 @@ export async function POST(req: NextRequest) {
 
     return Response.json({ ok: true, handle: check.normalized });
   } catch (e) {
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("settings/handle", e);
   }
 }

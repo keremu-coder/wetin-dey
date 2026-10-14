@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
+import { serverError } from "@/lib/http";
 
 export async function GET() {
   try {
@@ -133,10 +134,6 @@ export async function GET() {
 
     return Response.json({ spaces });
   } catch (e) {
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("checkins/active", e);
   }
 }

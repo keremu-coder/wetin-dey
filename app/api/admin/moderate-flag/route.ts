@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sameOrigin } from "@/lib/rate-limit";
+import { serverError } from "@/lib/http";
 
 type Action = "dismiss" | "remove" | "ban_user";
 const VALID_ACTIONS: Action[] = ["dismiss", "remove", "ban_user"];
@@ -323,10 +324,6 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "unreachable" }, { status: 500 });
   } catch (e) {
     console.error("[moderate-flag]", e);
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("admin/moderate-flag", e);
   }
 }

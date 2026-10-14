@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { NextRequest } from "next/server";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
+import { serverError } from "@/lib/http";
 
 /**
  * POST /api/notifications/read
@@ -52,10 +53,6 @@ export async function POST(req: NextRequest) {
 
     return Response.json({ ok: true });
   } catch (e) {
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("notifications/read", e);
   }
 }

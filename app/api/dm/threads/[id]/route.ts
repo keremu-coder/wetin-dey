@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { NextRequest } from "next/server";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
+import { serverError } from "@/lib/http";
 
 export async function GET(
   _req: NextRequest,
@@ -72,10 +73,6 @@ export async function GET(
       }))
     });
   } catch (e) {
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("dm/threads/[id]", e);
   }
 }

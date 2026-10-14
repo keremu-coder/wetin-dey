@@ -15,6 +15,7 @@ import {
   TERMS_NOT_ACCEPTED_CODE,
   TERMS_NOT_ACCEPTED_MESSAGE
 } from "@/lib/terms-guard";
+import { serverError } from "@/lib/http";
 
 export async function POST(
   req: NextRequest,
@@ -170,10 +171,6 @@ export async function POST(
 
     return Response.json({ ok: true, message: data });
   } catch (e) {
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("dm/threads/[id]/messages", e);
   }
 }

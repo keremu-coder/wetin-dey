@@ -5,6 +5,7 @@ import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sameOrigin, checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 import { COOKIE_NAME } from "@/lib/constants";
+import { serverError } from "@/lib/http";
 
 type DeleteBody = {
   confirm?: unknown;
@@ -314,11 +315,7 @@ export async function POST(req: NextRequest) {
     return res;
   } catch (e) {
     console.error("[account/delete]", e);
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("account/delete", e);
   }
 }
 

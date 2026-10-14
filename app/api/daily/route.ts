@@ -5,6 +5,7 @@ import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { todayPrompt } from "@/lib/daily-prompts";
 import { assertCanWrite } from "@/lib/guards";
+import { serverError } from "@/lib/http";
 
 export async function GET() {
   try {
@@ -33,11 +34,7 @@ export async function GET() {
       my_answer: mineResult.data ?? null
     });
   } catch (e) {
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("daily", e);
   }
 }
 
@@ -99,10 +96,6 @@ export async function POST(req: NextRequest) {
       answer_count: count ?? 0
     });
   } catch (e) {
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("daily", e);
   }
 }

@@ -17,6 +17,7 @@ import {
   TERMS_NOT_ACCEPTED_CODE,
   TERMS_NOT_ACCEPTED_MESSAGE
 } from "@/lib/terms-guard";
+import { serverError } from "@/lib/http";
 
 type ParentRow = {
   id: string;
@@ -227,11 +228,7 @@ export async function GET(
     return Response.json({ messages: output, online: onlineHandles });
   } catch (e) {
     console.error("[messages GET]", e);
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("communities/[slug]/messages", e);
   }
 }
 
@@ -519,10 +516,6 @@ export async function POST(
     });
   } catch (e) {
     console.error("[messages POST]", e);
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("communities/[slug]/messages", e);
   }
 }

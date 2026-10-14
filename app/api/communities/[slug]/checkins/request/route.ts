@@ -6,6 +6,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { sendPushToSessions } from "@/lib/push-server";
 import { CHECKIN_REASON_MAX } from "@/lib/checkin";
 import { assertCanWrite } from "@/lib/guards";
+import { serverError } from "@/lib/http";
 
 export async function POST(
   req: NextRequest,
@@ -101,10 +102,6 @@ export async function POST(
 
     return Response.json({ ok: true, request });
   } catch (e) {
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("communities/[slug]/checkins/request", e);
   }
 }

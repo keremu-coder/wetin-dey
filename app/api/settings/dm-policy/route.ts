@@ -5,6 +5,7 @@ import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sameOrigin } from "@/lib/rate-limit";
 import { assertCanWrite } from "@/lib/guards";
+import { serverError } from "@/lib/http";
 
 const VALID = ["everyone", "following"] as const;
 type Policy = (typeof VALID)[number];
@@ -28,11 +29,7 @@ export async function GET() {
 
     return Response.json({ policy });
   } catch (e) {
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("settings/dm-policy", e);
   }
 }
 
@@ -70,10 +67,6 @@ export async function POST(req: NextRequest) {
 
     return Response.json({ ok: true, policy: body.policy });
   } catch (e) {
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("settings/dm-policy", e);
   }
 }

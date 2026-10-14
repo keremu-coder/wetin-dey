@@ -6,6 +6,7 @@ import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { checkRateLimit, sameOrigin } from "@/lib/rate-limit";
 import { assertCanWrite } from "@/lib/guards";
+import { serverError } from "@/lib/http";
 
 const MIN_BODY = 50;
 const MAX_BODY = 2000;
@@ -130,10 +131,6 @@ export async function POST(
         "Your response has been submitted. A moderator will review it. If approved, it will appear on the report page."
     });
   } catch (e) {
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("reports/[id]/reply", e);
   }
 }

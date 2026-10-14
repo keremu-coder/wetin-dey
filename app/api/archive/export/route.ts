@@ -4,6 +4,7 @@ export const maxDuration = 30;
 
 import { NextRequest } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
+import { serverError } from "@/lib/http";
 
 const PAGE_SIZE = 1000;
 
@@ -75,10 +76,6 @@ export async function GET(req: NextRequest) {
       }
     });
   } catch (e) {
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("archive/export", e);
   }
 }

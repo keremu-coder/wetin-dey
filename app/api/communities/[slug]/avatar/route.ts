@@ -6,6 +6,7 @@ import sharp from "sharp";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { assertCanWrite } from "@/lib/guards";
+import { serverError } from "@/lib/http";
 
 const MAX_BYTES = 2 * 1024 * 1024;
 const ALLOWED_MIMES = ["image/jpeg", "image/png", "image/webp"];
@@ -134,11 +135,7 @@ export async function POST(
 
     return Response.json({ ok: true, avatar_url: url });
   } catch (e) {
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("communities/[slug]/avatar", e);
   }
 }
 
@@ -184,10 +181,6 @@ export async function DELETE(
 
     return Response.json({ ok: true });
   } catch (e) {
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("communities/[slug]/avatar", e);
   }
 }

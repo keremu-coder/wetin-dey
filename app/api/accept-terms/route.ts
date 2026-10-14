@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sameOrigin } from "@/lib/rate-limit";
+import { serverError } from "@/lib/http";
 
 /**
  * GET: Returns whether the current session has accepted the Terms of Use
@@ -79,10 +80,6 @@ export async function POST(req: NextRequest) {
     return Response.json({ ok: true });
   } catch (e) {
     console.error("[accept-terms POST]", e);
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("accept-terms", e);
   }
 }

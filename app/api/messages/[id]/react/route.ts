@@ -5,6 +5,7 @@ import { nanoid } from "nanoid";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { isBanned, BANNED_MESSAGE } from "@/lib/ban-guard";
+import { serverError } from "@/lib/http";
 
 // Real emojis — must match QUICK_EMOJI in ChatRoom.tsx exactly.
 // These were previously stored as mojibake (ðŸ˜‚ etc.), which broke
@@ -107,10 +108,6 @@ export async function POST(
     return Response.json({ ok: true, reactions });
   } catch (e) {
     console.error("[react]", e);
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("messages/[id]/react", e);
   }
 }

@@ -8,6 +8,7 @@ import {
   telegramConfigured,
   postReportToTelegram
 } from "@/lib/telegram";
+import { serverError } from "@/lib/http";
 
 const BATCH_SIZE = 5;
 const BASE_URL = "https://9jawatindey.vercel.app";
@@ -116,10 +117,6 @@ export async function GET(req: NextRequest) {
       remaining: count ?? 0
     });
   } catch (e) {
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("mirror", e);
   }
 }

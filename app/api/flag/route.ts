@@ -9,6 +9,7 @@ import {
   AUTO_HIDE_MIN_ACCOUNT_AGE_HOURS
 } from "@/lib/constants";
 import { assertNotBanned } from "@/lib/guards";
+import { serverError } from "@/lib/http";
 
 const VALID_TARGETS = [
   "message",
@@ -431,10 +432,6 @@ export async function POST(req: NextRequest) {
     });
   } catch (e) {
     console.error("[flag]", e);
-    console.error("[route-error]", e);
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return serverError("flag", e);
   }
 }
