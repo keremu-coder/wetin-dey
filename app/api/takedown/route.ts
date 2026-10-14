@@ -4,12 +4,27 @@ import { NextRequest } from "next/server";
 import { nanoid } from "nanoid";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getSessionId } from "@/lib/session";
-import { sameOrigin } from "@/lib/rate-limit";
+import { sameOrigin, checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
   // CSRF: reject cross-origin state-changing requests.
   if (!sameOrigin(req)) {
     return Response.json({ error: "bad origin" }, { status: 403 });
+  }
+
+  const sessionId = await getSessionId();
+  if (!sessionId) {
+    return Response.json({ error: "Sign in first to file a dispute." }, { status: 401 });
+  }
+
+  // Rate limit per session+IP: 5 disputes/hour.
+  const rl = await checkRateLimit(
+    sessionId,
+    { key: "takedown_dispute", limit: 5, windowMs: 60 * 60 * 1000 },
+    { ip: getRequestIp(req) }
+  );
+  if (!rl.ok) {
+    return Response.json({ error: "Too many disputes. Wait small." }, { status: 429 });
   }
 
   let body: {
@@ -54,8 +69,6 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "That report does not exist." }, { status: 404 });
   }
 
-  const sessionId = await getSessionId();
-
   const { error } = await db.from("disputes").insert({
     id: nanoid(),
     report_id: reportId,
@@ -70,10 +83,8 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Server error" }, { status: 500 });
   }
 
-  await db
-    .from("reports")
-    .update({ status: "disputed" })
-    .eq("id", reportId);
+  // Do NOT auto-flip status. A dispute is a claim, not a finding.
+  // Public metadata stays put until a moderator reviews the queue.
 
   await db.from("moderation_actions").insert({
     report_id: reportId,
