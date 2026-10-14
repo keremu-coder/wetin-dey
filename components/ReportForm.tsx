@@ -275,12 +275,6 @@ export function ReportForm({
         setBusy(false);
         return;
       }
-      // Remove the file inputs from the multipart payload: FormData(form)
-      // picked them up, and if they stay, the POST to /api/reports still
-      // carries the full file and Vercel 413s at the edge. We only need
-      // to send the staging path.
-      fd.delete("evidence");
-      fd.delete("voice_testimony");
       fd.set("staging_path", staged);
       fd.set("staging_mime", toUpload.type);
     }
