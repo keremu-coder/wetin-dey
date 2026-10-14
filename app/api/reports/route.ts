@@ -331,7 +331,8 @@ export async function POST(req: NextRequest) {
         upsert: false
       });
       if (up.error) {
-        return jsonError("Upload failed", 500);
+        console.error("[reports] evidence upload error:", JSON.stringify(up.error));
+        return jsonError("Upload failed: " + (up.error.message ?? "unknown"), 500);
       }
       evidenceUrl = db.storage.from("evidence").getPublicUrl(path).data.publicUrl;
 
