@@ -1,4 +1,5 @@
 export const runtime = "nodejs";
+export const maxDuration = 60; // seconds. Video evidence goes through a staging-bucket download, ffmpeg strip, and re-upload; the default 10s function timeout is not enough.
 
 import { NextRequest } from "next/server";
 import { nanoid } from "nanoid";
