@@ -233,62 +233,21 @@ export function ReportForm({
       fd.set("community_slug", communitySlug);
     }
 
-    // Direct-to-Supabase upload. Signs a URL, PUTs the file to
-    // Supabase Storage directly, then sends only the staging path to
-    // /api/reports. Bypasses Vercel's ~4.5 MB request body limit that
-    // was silently 413-ing video evidence above ~4.5 MB.
-    async function uploadStaged(file: File): Promise<string | null> {
+    if (evidenceFile && evidenceFile.type.startsWith("image/")) {
       try {
-        const sign = await fetch("/api/reports/upload-url", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ mime: file.type, size: file.size })
-        });
-        if (!sign.ok) return null;
-        const j = (await sign.json()) as { signedUrl?: string; path?: string };
-        if (!j.signedUrl || !j.path) return null;
-        const put = await fetch(j.signedUrl, {
-          method: "PUT",
-          body: file,
-          headers: { "content-type": file.type || "application/octet-stream" }
-        });
-        if (!put.ok) return null;
-        return j.path;
+        const clean = await stripExifInBrowser(evidenceFile);
+        fd.set(
+          "evidence",
+          new File([clean], "evidence.jpg", { type: "image/jpeg" })
+        );
       } catch {
-        return null;
+        fd.set("evidence", evidenceFile);
       }
+    } else if (evidenceFile) {
+      fd.set("evidence", evidenceFile);
     }
 
-    if (evidenceFile) {
-      let toUpload: File = evidenceFile;
-      if (evidenceFile.type.startsWith("image/")) {
-        try {
-          const clean = await stripExifInBrowser(evidenceFile);
-          toUpload = new File([clean], "evidence.jpg", { type: "image/jpeg" });
-        } catch {
-          toUpload = evidenceFile;
-        }
-      }
-      const staged = await uploadStaged(toUpload);
-      if (!staged) {
-        setError("Upload failed. Try again.");
-        setBusy(false);
-        return;
-      }
-      fd.set("staging_path", staged);
-      fd.set("staging_mime", toUpload.type);
-    }
-
-    if (testimonyFile) {
-      const staged = await uploadStaged(testimonyFile);
-      if (!staged) {
-        setError("Voice upload failed. Try again.");
-        setBusy(false);
-        return;
-      }
-      fd.set("testimony_staging_path", staged);
-      fd.set("testimony_staging_mime", testimonyFile.type);
-    }
+    if (testimonyFile) fd.set("voice_testimony", testimonyFile);
     if (publicLink.trim()) fd.set("public_link", publicLink.trim());
 
     fd.set("anonymous", "true");

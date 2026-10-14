@@ -151,29 +151,13 @@ export async function POST(req: NextRequest) {
   const file = form.get("evidence");
   const publicLink = String(form.get("public_link") ?? "").trim();
   const voiceTestimony = form.get("voice_testimony");
-  const stagingPath = form.get("staging_path");
-  const stagingMime = form.get("staging_mime");
-  const testimonyStagingPath = form.get("testimony_staging_path");
-  const testimonyStagingMime = form.get("testimony_staging_mime");
-
-  const hasStaging = typeof stagingPath === "string" && stagingPath.length > 0;
-  const hasTestimonyStaging =
-    typeof testimonyStagingPath === "string" && testimonyStagingPath.length > 0;
 
   let evidenceType: string | null = null;
   let evidenceUrl: string | null = null;
   let evidenceLink: string | null = null;
   let evidenceLabel = "";
 
-  if (hasStaging) {
-    const mime = typeof stagingMime === "string" ? stagingMime : "";
-    if (mime.startsWith("image/")) evidenceType = "photo";
-    else if (mime.startsWith("video/")) evidenceType = "video";
-    else if (mime.startsWith("audio/")) evidenceType = "audio";
-    else return jsonError("File must be image, video, or audio.", 400);
-  } else if (hasTestimonyStaging) {
-    evidenceType = "voice_testimony";
-  } else if (file instanceof File && file.size > 0) {
+  if (file instanceof File && file.size > 0) {
     const mime = file.type || "";
     if (mime.startsWith("image/")) evidenceType = "photo";
     else if (mime.startsWith("video/")) evidenceType = "video";
@@ -283,118 +267,7 @@ export async function POST(req: NextRequest) {
     verification.requiresManualReview ||
     defamation.held;
 
-    if (hasStaging) {
-    try {
-      const stagingMimeStr = typeof stagingMime === "string" ? stagingMime : "";
-      const { data: blob, error: dlErr } = await db.storage
-        .from("report-staging")
-        .download(stagingPath as string);
-      if (dlErr || !blob) {
-        return jsonError("Upload fetch failed", 500);
-      }
-      const rawBuf = Buffer.from(await blob.arrayBuffer());
-      if (rawBuf.length > 25 * 1024 * 1024) {
-        return jsonError("File too large (max 25MB)", 400);
-      }
-      let uploadBuf: Buffer = rawBuf;
-      let ext = "bin";
-      let contentType = stagingMimeStr || "application/octet-stream";
-
-      if (stagingMimeStr.startsWith("image/")) {
-        uploadBuf = await stripExifServer(rawBuf);
-        ext = "jpg";
-        contentType = "image/jpeg";
-        try {
-          const imgMod = await classifyImage(uploadBuf);
-          if (imgMod.hold) {
-            held = true;
-            console.warn(
-              "[reports] image held for review:",
-              imgMod.reasons.join(" | ")
-            );
-          }
-        } catch (e) {
-          console.warn("[reports] image moderation error:", e);
-        }
-      } else if (stagingMimeStr.startsWith("video/")) {
-        ext = "mp4";
-        held = true;
-        uploadBuf = await stripMediaMetadata(rawBuf, "mp4");
-      } else if (stagingMimeStr.startsWith("audio/")) {
-        ext = "webm";
-        uploadBuf = await stripMediaMetadata(rawBuf, "webm");
-      }
-
-      const path = `${id}.${ext}`;
-      const up = await db.storage.from("evidence").upload(path, uploadBuf, {
-        contentType,
-        upsert: false
-      });
-      if (up.error) {
-        return jsonError("Upload failed", 500);
-      }
-      evidenceUrl = db.storage.from("evidence").getPublicUrl(path).data.publicUrl;
-
-      try {
-        await db.storage.from("report-staging").remove([stagingPath as string]);
-      } catch {
-        /* non-fatal */
-      }
-    } catch (e) {
-      console.error("[reports] staging upload failed:", e);
-      return jsonError("Upload error", 500);
-    }
-  } else if (hasTestimonyStaging) {
-    try {
-      const testimonyMimeStr =
-        typeof testimonyStagingMime === "string" ? testimonyStagingMime : "audio/webm";
-      const { data: blob, error: dlErr } = await db.storage
-        .from("report-staging")
-        .download(testimonyStagingPath as string);
-      if (dlErr || !blob) {
-        return jsonError("Voice fetch failed", 500);
-      }
-      const rawBuf = Buffer.from(await blob.arrayBuffer());
-      if (rawBuf.length > 10 * 1024 * 1024) {
-        return jsonError("Voice too large", 400);
-      }
-
-      try {
-        const voiceMod = await transcribeAndModerate(
-          rawBuf,
-          testimonyMimeStr || "audio/webm"
-        );
-        if (voiceMod.hold) {
-          held = true;
-          console.warn(
-            "[reports] voice held for review:",
-            voiceMod.reasons.join(" | ")
-          );
-        }
-      } catch (e) {
-        console.warn("[reports] voice moderation error:", e);
-      }
-
-      const path = `${id}-testimony.webm`;
-      const up = await db.storage.from("evidence").upload(path, rawBuf, {
-        contentType: "audio/webm",
-        upsert: false
-      });
-      if (up.error) {
-        return jsonError("Voice upload failed", 500);
-      }
-      evidenceUrl = db.storage.from("evidence").getPublicUrl(path).data.publicUrl;
-
-      try {
-        await db.storage.from("report-staging").remove([testimonyStagingPath as string]);
-      } catch {
-        /* non-fatal */
-      }
-    } catch (e) {
-      console.error("[reports] testimony staging failed:", e);
-      return jsonError("Voice error", 500);
-    }
-  } else if (file instanceof File && file.size > 0) {
+  if (file instanceof File && file.size > 0) {
     try {
       if (file.size > 25 * 1024 * 1024) {
         return jsonError("File too large (max 25MB)", 400);
