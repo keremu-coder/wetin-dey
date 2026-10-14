@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { serverError } from "@/lib/http";
+import { sameOrigin } from "@/lib/rate-limit";
 
 /**
  * POST /api/notifications/read
@@ -16,6 +17,11 @@ import { serverError } from "@/lib/http";
  * Idempotent — re-marking an already-read row is a no-op.
  */
 export async function POST(req: NextRequest) {
+  // CSRF: reject cross-origin state-changing requests.
+  if (!sameOrigin(req)) {
+    return Response.json({ error: "bad origin" }, { status: 403 });
+  }
+
   try {
     const sessionId = await getSessionId();
     if (!sessionId) {

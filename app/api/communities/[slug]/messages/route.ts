@@ -18,6 +18,7 @@ import {
   TERMS_NOT_ACCEPTED_MESSAGE
 } from "@/lib/terms-guard";
 import { serverError } from "@/lib/http";
+import { sameOrigin } from "@/lib/rate-limit";
 
 type ParentRow = {
   id: string;
@@ -63,7 +64,7 @@ async function loadParent(
 }
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   context: { params: Promise<{ slug: string }> }
 ) {
     const params = await context.params;
@@ -232,10 +233,13 @@ export async function GET(
   }
 }
 
-export async function POST(
-  req: NextRequest,
-  context: { params: Promise<{ slug: string }> }
-) {
+export async function POST(req: NextRequest,
+  context: { params: Promise<{ slug: string }> }) {
+  // CSRF: reject cross-origin state-changing requests.
+  if (!sameOrigin(req)) {
+    return Response.json({ error: "bad origin" }, { status: 403 });
+  }
+
     const params = await context.params;
   try {
     const sessionId = await getSessionId();

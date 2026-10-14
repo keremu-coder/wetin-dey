@@ -6,6 +6,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { todayPrompt } from "@/lib/daily-prompts";
 import { assertCanWrite } from "@/lib/guards";
 import { serverError } from "@/lib/http";
+import { sameOrigin } from "@/lib/rate-limit";
 
 export async function GET() {
   try {
@@ -39,6 +40,11 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  // CSRF: reject cross-origin state-changing requests.
+  if (!sameOrigin(req)) {
+    return Response.json({ error: "bad origin" }, { status: 403 });
+  }
+
   try {
     const sessionId = await getSessionId();
     if (!sessionId) {

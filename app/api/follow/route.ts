@@ -5,12 +5,18 @@ import { nanoid } from "nanoid";
 import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { assertCanWrite } from "@/lib/guards";
+import { sameOrigin } from "@/lib/rate-limit";
 
 function escapeLike(s: string): string {
   return s.replace(/[\\%_]/g, "\\$&");
 }
 
 export async function POST(req: NextRequest) {
+  // CSRF: reject cross-origin state-changing requests.
+  if (!sameOrigin(req)) {
+    return Response.json({ error: "bad origin" }, { status: 403 });
+  }
+
   const sessionId = await getSessionId();
   if (!sessionId) return Response.json({ error: "no session" }, { status: 401 });
 

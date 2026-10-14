@@ -4,15 +4,19 @@ import { NextRequest } from "next/server";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { serverError } from "@/lib/http";
+import { sameOrigin } from "@/lib/rate-limit";
 
 /**
  * POST — mark every message the OTHER person sent in this thread as read.
  * Idempotent. Called on thread open, on new message arrival, and on tab focus.
  */
-export async function POST(
-  _req: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
+export async function POST(req: NextRequest,
+  context: { params: Promise<{ id: string }> }) {
+  // CSRF: reject cross-origin state-changing requests.
+  if (!sameOrigin(req)) {
+    return Response.json({ error: "bad origin" }, { status: 403 });
+  }
+
     const params = await context.params;
   try {
     const sessionId = await getSessionId();

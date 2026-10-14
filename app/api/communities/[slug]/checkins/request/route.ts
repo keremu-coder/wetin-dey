@@ -7,11 +7,15 @@ import { sendPushToSessions } from "@/lib/push-server";
 import { CHECKIN_REASON_MAX } from "@/lib/checkin";
 import { assertCanWrite } from "@/lib/guards";
 import { serverError } from "@/lib/http";
+import { sameOrigin } from "@/lib/rate-limit";
 
-export async function POST(
-  req: NextRequest,
-  context: { params: Promise<{ slug: string }> }
-) {
+export async function POST(req: NextRequest,
+  context: { params: Promise<{ slug: string }> }) {
+  // CSRF: reject cross-origin state-changing requests.
+  if (!sameOrigin(req)) {
+    return Response.json({ error: "bad origin" }, { status: 403 });
+  }
+
     const params = await context.params;
   try {
     const sessionId = await getSessionId();

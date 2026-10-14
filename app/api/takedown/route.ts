@@ -4,8 +4,14 @@ import { NextRequest } from "next/server";
 import { nanoid } from "nanoid";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getSessionId } from "@/lib/session";
+import { sameOrigin } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
+  // CSRF: reject cross-origin state-changing requests.
+  if (!sameOrigin(req)) {
+    return Response.json({ error: "bad origin" }, { status: 403 });
+  }
+
   let body: {
     postUrl?: string;
     name?: string;

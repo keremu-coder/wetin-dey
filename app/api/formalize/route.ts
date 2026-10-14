@@ -4,8 +4,14 @@ import { NextRequest } from "next/server";
 import { formalizeReport } from "@/lib/formalize";
 import { createServiceClient } from "@/lib/supabase/server";
 import { scoreDefamation } from "@/lib/defamation";
+import { sameOrigin } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
+  // CSRF: reject cross-origin state-changing requests.
+  if (!sameOrigin(req)) {
+    return Response.json({ error: "bad origin" }, { status: 403 });
+  }
+
   let reportId: string | null = null;
   try {
     const body = await req.json();

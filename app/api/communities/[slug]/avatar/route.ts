@@ -7,6 +7,7 @@ import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { assertCanWrite } from "@/lib/guards";
 import { serverError } from "@/lib/http";
+import { sameOrigin } from "@/lib/rate-limit";
 
 const MAX_BYTES = 2 * 1024 * 1024;
 const ALLOWED_MIMES = ["image/jpeg", "image/png", "image/webp"];
@@ -37,10 +38,13 @@ async function loadOwnedCommunity(slug: string, sessionId: string) {
   return { community };
 }
 
-export async function POST(
-  req: NextRequest,
-  context: { params: Promise<{ slug: string }> }
-) {
+export async function POST(req: NextRequest,
+  context: { params: Promise<{ slug: string }> }) {
+  // CSRF: reject cross-origin state-changing requests.
+  if (!sameOrigin(req)) {
+    return Response.json({ error: "bad origin" }, { status: 403 });
+  }
+
     const params = await context.params;
   try {
     const sessionId = await getSessionId();
@@ -140,7 +144,7 @@ export async function POST(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   context: { params: Promise<{ slug: string }> }
 ) {
     const params = await context.params;

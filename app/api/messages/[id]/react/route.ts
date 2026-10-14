@@ -6,16 +6,20 @@ import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { isBanned, BANNED_MESSAGE } from "@/lib/ban-guard";
 import { serverError } from "@/lib/http";
+import { sameOrigin } from "@/lib/rate-limit";
 
 // Real emojis — must match QUICK_EMOJI in ChatRoom.tsx exactly.
 // These were previously stored as mojibake (ðŸ˜‚ etc.), which broke
 // reactions whenever the client sent the correct character.
 const ALLOWED = ["😂", "😢", "😮", "❤️", "🔥", "👍", "👏", "🙏"];
 
-export async function POST(
-  req: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
+export async function POST(req: NextRequest,
+  context: { params: Promise<{ id: string }> }) {
+  // CSRF: reject cross-origin state-changing requests.
+  if (!sameOrigin(req)) {
+    return Response.json({ error: "bad origin" }, { status: 403 });
+  }
+
     const params = await context.params;
   try {
     const sessionId = await getSessionId();
