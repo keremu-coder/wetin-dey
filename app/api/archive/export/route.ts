@@ -67,6 +67,23 @@ export async function GET(req: NextRequest) {
 
     const json = JSON.stringify(payload, null, 2);
 
+    // Persist to the private archive-export bucket. The cron caller
+    // discards the response body, so without this the daily job would
+    // do the work and produce no artifact. Best-effort: a persistence
+    // failure does not block the download response.
+    try {
+      const stamp = new Date().toISOString().slice(0, 10);
+      const path = `wetindey-${stamp}.json`;
+      await db.storage
+        .from("archive-export")
+        .upload(path, new Blob([json], { type: "application/json" }), {
+          contentType: "application/json",
+          upsert: true
+        });
+    } catch (persistErr) {
+      console.error("[archive/export] persist failed:", persistErr);
+    }
+
     return new Response(json, {
       headers: {
         "content-type": "application/json; charset=utf-8",

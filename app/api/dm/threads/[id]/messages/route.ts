@@ -5,7 +5,7 @@ import { nanoid } from "nanoid";
 import { waitUntil } from "@vercel/functions";
 import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
-import { analyzeMessage, blockReason } from "@/lib/dm-filter";
+import { analyzeMessage, analyzeModeration, blockReason } from "@/lib/dm-filter";
 import { DM_BODY_MAX } from "@/lib/dm";
 import { notifyDMRecipient } from "@/lib/push-server";
 import { sameOrigin } from "@/lib/rate-limit";
@@ -135,6 +135,23 @@ export async function POST(
       );
     }
 
+    // Text-moderation filter (threats, hate, profanity). On match, hold
+    // the message so the recipient does not see it — same semantics as
+    // community chat and comments.
+    const mod = analyzeModeration(text);
+    const held = mod.hold;
+    if (held) {
+      try {
+        await db.from("dm_violations").insert({
+          id: nanoid(),
+          session_id: sessionId,
+          thread_id: thread.id,
+          kind: mod.matches[0]?.kind ?? "moderation",
+          excerpt: text.slice(0, 200)
+        });
+      } catch { /* non-fatal */ }
+    }
+
     const id = nanoid();
     const { data, error } = await db
       .from("dm_messages")
@@ -144,7 +161,7 @@ export async function POST(
         sender_id: sessionId,
         body: text,
         filter_level: analysis.level,
-        held: false
+        held
       })
       .select("id, sender_id, body, created_at, held, filter_level, read_at")
       .single();
