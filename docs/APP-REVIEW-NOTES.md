@@ -146,3 +146,33 @@ the roadmap but not shipped, and are not mentioned above:
 
 Do not add these back to the "Draft text" section until the code exists
 and has been tested on a device.
+## Known limitations (deliberate, not bugs)
+
+### Ban evasion by anonymous users is mitigated, not solved
+
+We ban an IP hash for 30 days when a session is banned, and refuse to
+mint a new anonymous session from a banned IP. This stops the common
+case: a user clears cookies and retries from the same WiFi.
+
+It does **not** stop:
+- VPN / proxy rotation
+- Mobile carrier CGNAT rotation (airplane mode = new IP)
+- Signing up as a named user (verified email). This is the intended
+  escape hatch — accountability replaces anonymity.
+
+False positives are bounded by a 30-day window and by the fact that
+named signup always succeeds regardless of IP ban.
+
+### Session revocation is near-instant, not instant
+
+Signout, password reset, and recovery-code rotation each bump a
+per-session `session_epoch`. Cookies are bound to the epoch via HMAC,
+so any cookie issued before the bump stops working.
+
+`getSessionId` caches the epoch for **30 seconds per server instance**.
+After a bump, a stolen cookie can still authenticate for up to 30
+seconds against any warm instance that already cached the old epoch.
+This is acceptable for the theft threat model (an attacker who has the
+cookie already has the session), but it is **not** "instant logout
+everywhere." If that property is ever needed, drop the cache TTL or
+add an explicit pub/sub invalidation channel.
