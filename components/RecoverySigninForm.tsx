@@ -7,7 +7,7 @@ import {
   formatRecoveryCode,
   normalizeRecoveryCode,
   isValidRecoveryCodeFormat
-} from "@/lib/recovery-code";
+} from "@/lib/recovery-code-format";
 
 export function RecoverySigninForm() {
   const router = useRouter();
