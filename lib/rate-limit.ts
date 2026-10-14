@@ -130,9 +130,12 @@ async function checkBucket(
     }
   }
 
-  // Slow path: DB check for cross-instance abuse. Only for tight limits
-  // to keep DB write volume low.
-  if (rule.limit <= 10) {
+  // Slow path: DB check for cross-instance abuse. Applies to every
+  // limit at or below 100 — which is every security-sensitive endpoint
+  // (signin, recovery, join, radar send, radar add-contact, report
+  // upload). High-volume heartbeats with limits above 100 stay
+  // memory-only to keep DB write volume bounded.
+  if (rule.limit <= 100) {
     const db = createServiceClient();
     const sinceIso = new Date(now - rule.windowMs).toISOString();
 
