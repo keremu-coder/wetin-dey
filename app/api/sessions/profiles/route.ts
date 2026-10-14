@@ -4,12 +4,23 @@ import { isValidFontId, DEFAULT_FONT_ID } from "@/lib/fonts-registry";
 
 export const runtime = "nodejs";
 
+/**
+ * Service-role client. Fails loud if SUPABASE_SERVICE_ROLE_KEY is missing.
+ *
+ * Previously this fell back to the anon key with `||`, which would
+ * silently downgrade a production route to a lower-privilege client if
+ * the service key was ever unset. Because the anon grant on sessions is
+ * revoked (see migration 013), that fallback would return empty results
+ * instead of an error — a silent breakage, not a visible one. Fail loud.
+ */
 function sb() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) throw new Error("Supabase env missing");
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    throw new Error(
+      "Supabase env missing: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are both required"
+    );
+  }
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
