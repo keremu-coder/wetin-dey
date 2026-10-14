@@ -73,5 +73,22 @@ export async function POST(req: NextRequest) {
     return serverError("auth/reset-password", updateErr);
   }
 
+  // Kill every previously-issued cookie for this user by bumping the
+  // session epoch. A password reset means the user is recovering a
+  // possibly-compromised account; any stolen cookie must die now.
+  try {
+    const adminDb = createServiceClient();
+    const { data: rows } = await adminDb
+      .from("sessions")
+      .select("id")
+      .eq("auth_user_id", userRes.user.id);
+    const { bumpSessionEpoch } = await import("@/lib/session");
+    for (const r of rows ?? []) {
+      await bumpSessionEpoch((r as { id: string }).id);
+    }
+  } catch (e) {
+    console.error("[reset-password] epoch bump failed:", e);
+  }
+
   return Response.json({ ok: true });
 }

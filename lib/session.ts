@@ -21,7 +21,7 @@ function secret(): string {
   return s;
 }
 
-async function hmacBase64Url(id: string): Promise<string> {
+async function hmacBase64Url(subject: string): Promise<string> {
   const key = await crypto.subtle.importKey(
     "raw",
     encoder.encode(secret()),
@@ -29,16 +29,28 @@ async function hmacBase64Url(id: string): Promise<string> {
     false,
     ["sign"]
   );
-  const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(id));
+  const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(subject));
   const bytes = new Uint8Array(sig);
   let bin = "";
   for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
   return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-async function sign(id: string): Promise<string> {
-  const mac = await hmacBase64Url(id);
-  return `${id}.${mac}`;
+/**
+ * Cookie format:
+ *   legacy (pre-epoch):  "<id>.<mac(id)>"
+ *   current:             "<id>.<epoch>.<mac(id:epoch)>"
+ *
+ * The epoch is a monotonically-increasing integer stored on the session
+ * row. Bumping it (signout, password reset, recovery-code rotation)
+ * invalidates every previously-issued cookie for that session — that is
+ * how we get real server-side revocation on top of a stateless HMAC
+ * cookie. The MAC binds the epoch, so an attacker cannot forge a
+ * different epoch value.
+ */
+async function sign(id: string, epoch: number): Promise<string> {
+  const mac = await hmacBase64Url(`${id}:${epoch}`);
+  return `${id}.${epoch}.${mac}`;
 }
 
 function constantTimeEqual(a: string, b: string): boolean {
@@ -50,18 +62,52 @@ function constantTimeEqual(a: string, b: string): boolean {
   return result === 0;
 }
 
+/**
+ * Parse and HMAC-verify a cookie value. Returns { id, epoch } or null.
+ * Legacy 2-part cookies are accepted with epoch 1 for backward compat.
+ */
+async function parseSession(
+  raw: string | undefined
+): Promise<{ id: string; epoch: number } | null> {
+  if (!raw) return null;
+  const parts = raw.split(".");
+  let id: string, epochStr: string | null, mac: string;
+
+  if (parts.length === 2) {
+    // Legacy: <id>.<mac(id)>
+    id = parts[0];
+    epochStr = null;
+    mac = parts[1];
+  } else if (parts.length === 3) {
+    id = parts[0];
+    epochStr = parts[1];
+    mac = parts[2];
+  } else {
+    return null;
+  }
+
+  if (id.length < 8 || id.length > 64) return null;
+
+  const epoch = epochStr === null ? 1 : Number(epochStr);
+  if (!Number.isInteger(epoch) || epoch < 1 || epoch > 1_000_000) return null;
+
+  const subject = epochStr === null ? id : `${id}:${epoch}`;
+  const expected = await hmacBase64Url(subject);
+  if (!constantTimeEqual(mac, expected)) return null;
+
+  return { id, epoch };
+}
+
+/**
+ * Legacy wrapper — returns just the id. Middleware uses this to decide
+ * whether the inbound cookie is well-formed; it does NOT check the
+ * epoch against the database (which happens in getSessionId below).
+ */
 export async function verifySessionValue(
   raw: string | undefined
 ): Promise<string | null> {
-  if (!raw) return null;
-  const dot = raw.lastIndexOf(".");
-  if (dot <= 0) return null;
-  const id = raw.slice(0, dot);
-  const mac = raw.slice(dot + 1);
-  if (id.length < 8 || id.length > 64) return null;
-  const expected = await hmacBase64Url(id);
-  if (!constantTimeEqual(mac, expected)) return null;
-  return id;
+  const parsed = await parseSession(raw);
+  return parsed?.id ?? null;
 }
 
 export async function issueSessionCookieValue(): Promise<{
@@ -69,15 +115,69 @@ export async function issueSessionCookieValue(): Promise<{
   value: string;
 }> {
   const id = nanoid();
-  return { id, value: await sign(id) };
+  return { id, value: await sign(id, 1) };
+}
+
+/* ─── epoch lookup + cache ─────────────────────────────────────── */
+
+type EpochEntry = { epoch: number; expiresAt: number };
+const epochCache = new Map<string, EpochEntry>();
+const EPOCH_CACHE_TTL_MS = 30_000;
+
+/**
+ * Read the current session_epoch for a session. Cached for 30 seconds
+ * per instance so that most authenticated API calls skip the DB. On a
+ * cache miss this is one indexed point lookup on the primary key.
+ */
+async function currentEpoch(sid: string): Promise<number | null> {
+  const now = Date.now();
+  const c = epochCache.get(sid);
+  if (c && c.expiresAt > now) return c.epoch;
+
+  const db = createServiceClient();
+  const { data, error } = await db
+    .from("sessions")
+    .select("id, session_epoch")
+    .eq("id", sid)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  const raw = (data as { session_epoch?: number | null }).session_epoch;
+  const epoch = typeof raw === "number" && Number.isInteger(raw) ? raw : 1;
+  epochCache.set(sid, { epoch, expiresAt: now + EPOCH_CACHE_TTL_MS });
+  return epoch;
 }
 
 /**
- * Sign an existing session id — used for returning users who sign in
- * from a new device or after a cookie clear.
+ * Invalidate every previously-issued cookie for a session by bumping
+ * its epoch. Call on signout, password reset, and recovery-code
+ * rotation. Returns the new epoch, or null if the session is gone.
+ *
+ * Two concurrent bumps on the same instance may produce the same new
+ * epoch (1 -> 2, 1 -> 2). That is acceptable — one bump is enough to
+ * kill any previously-issued cookie, and bumping is a user-initiated
+ * action that is not expected to happen in parallel.
  */
-export async function signSessionId(id: string): Promise<string> {
-  return await sign(id);
+export async function bumpSessionEpoch(sid: string): Promise<number | null> {
+  const db = createServiceClient();
+  const current = await currentEpoch(sid);
+  if (current === null) return null;
+  const next = current + 1;
+  const { error } = await db
+    .from("sessions")
+    .update({ session_epoch: next })
+    .eq("id", sid);
+  if (error) {
+    console.error("[session] bumpSessionEpoch failed:", error.message);
+    return null;
+  }
+  epochCache.set(sid, { epoch: next, expiresAt: Date.now() + EPOCH_CACHE_TTL_MS });
+  return next;
+}
+
+/** Explicit cache eviction, in case a caller needs to force a re-read. */
+export function invalidateEpochCache(sid: string): void {
+  epochCache.delete(sid);
 }
 
 export function sessionCookieOptions() {
@@ -90,9 +190,31 @@ export function sessionCookieOptions() {
   };
 }
 
+/**
+ * Sign an existing session id for a returning user. Reads the current
+ * epoch from the DB and signs with it, so the newly-issued cookie is
+ * always fresh relative to any prior revocation.
+ */
+export async function signSessionId(id: string): Promise<string> {
+  const epoch = await currentEpoch(id);
+  if (epoch === null) throw new Error("session not found");
+  return await sign(id, epoch);
+}
+
+/**
+ * Read the cookie, verify HMAC, then confirm the epoch matches what is
+ * stored on the session row. Epoch mismatch means the cookie was issued
+ * before a revocation — return null so the caller treats the request as
+ * unauthenticated.
+ */
 export async function getSessionId(): Promise<string | null> {
   const jar = await cookies();
-  return await verifySessionValue(jar.get(COOKIE_NAME)?.value);
+  const parsed = await parseSession(jar.get(COOKIE_NAME)?.value);
+  if (!parsed) return null;
+  const dbEpoch = await currentEpoch(parsed.id);
+  if (dbEpoch === null) return null;
+  if (dbEpoch !== parsed.epoch) return null;
+  return parsed.id;
 }
 
 export async function requireSessionId(): Promise<string> {
@@ -117,14 +239,14 @@ export async function parseCookieHeader(
   return null;
 }
 
-/* ─── handle validation ─────────────────────────────────── */
+/* ─── handle validation ───────────────────────────────────────── */
 
 export function isValidHandleFormat(handle: string): boolean {
   if (handle.length < 3 || handle.length > 20) return false;
   return /^[a-zA-Z0-9_]+$/.test(handle);
 }
 
-/* ─── session profile ───────────────────────────────────── */
+/* ─── session profile ─────────────────────────────────────────── */
 
 export type SessionProfile = {
   id: string;
@@ -146,10 +268,6 @@ export type SessionProfile = {
   created_at: string;
 };
 
-/**
- * Generates a unique recovery code. Retries a few times on collision.
- * Codes are stored in the DB and are what a user types to sign back in.
- */
 async function uniqueRecoveryCode(
   db: ReturnType<typeof createServiceClient>
 ): Promise<{ raw: string; hash: string }> {
@@ -163,7 +281,6 @@ async function uniqueRecoveryCode(
       .maybeSingle();
     if (!data) return { raw: candidate, hash: candidateHash };
   }
-  // Fallback: impossible collision; just return something unique
   const fallback = generateRecoveryCode();
   return { raw: fallback, hash: hashRecoveryCode(fallback) };
 }
@@ -180,8 +297,6 @@ export async function getOrCreateSessionProfile(
     .maybeSingle();
 
   if (existing) {
-    // Backfill: if an existing session predates the recovery_code column,
-    // generate one now. Same for avatar (it's a nullable column already).
     if (!existing.recovery_code_hash) {
       try {
         const { hash: codeHash } = await uniqueRecoveryCode(db);
@@ -217,7 +332,6 @@ export async function getOrCreateSessionProfile(
       break;
     }
   }
-
   if (!handle) {
     for (let i = 0; i < 5; i++) {
       const candidate = generateFallbackHandle();
@@ -227,7 +341,6 @@ export async function getOrCreateSessionProfile(
       }
     }
   }
-
   if (!handle) {
     for (let i = 0; i < 5; i++) {
       const candidate = generateLegacyHandle();
@@ -237,7 +350,6 @@ export async function getOrCreateSessionProfile(
       }
     }
   }
-
   if (!handle) {
     handle = `User_${Date.now().toString().slice(-6)}`;
   }

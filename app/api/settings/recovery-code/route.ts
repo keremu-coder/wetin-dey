@@ -91,6 +91,21 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: "Server error" }, { status: 500 });
     }
 
+    // Rotating the recovery code is a security event — invalidate
+    // any cookie that was issued before this moment.
+    try {
+      const { bumpSessionEpoch } = await import("@/lib/session");
+      await bumpSessionEpoch(sessionId);
+      // Re-issue the current device so the acting user stays signed in.
+      const { signSessionId, sessionCookieOptions } = await import("@/lib/session");
+      const fresh = await signSessionId(sessionId);
+      const { cookies: nextCookies } = await import("next/headers");
+      const { COOKIE_NAME } = await import("@/lib/constants");
+      (await nextCookies()).set(COOKIE_NAME, fresh, sessionCookieOptions());
+    } catch (e) {
+      console.error("[recovery-code] epoch bump failed:", e);
+    }
+
     return Response.json({
       ok: true,
       recovery_code: formatRecoveryCode(plaintext)
