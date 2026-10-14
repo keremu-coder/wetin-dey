@@ -159,6 +159,16 @@ export async function POST(req: NextRequest) {
     .eq("id", sessionId);
 
   if (updErr) {
+    // Unique violation: another request claimed this handle between
+    // the SELECT pre-check and this UPDATE. Postgres catches it via
+    // the unique index on handle_lower; we surface the same friendly
+    // 409 the pre-check returns.
+    if (updErr.code === "23505") {
+      return Response.json(
+        { error: "That handle don already dey. Try another one." },
+        { status: 409 }
+      );
+    }
     console.error("[join] session update failed:", updErr.message);
     return Response.json(
       { error: "Account created but profile update failed." },
