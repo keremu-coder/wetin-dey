@@ -203,12 +203,14 @@ export default function PrivacyPage() {
             <li>Withdraw consent for optional processing</li>
           </ul>
           <p className="mt-2">
-            Because reports are never deleted (see the{" "}
+            Reports and comments that comply with our content rules stay in
+            the public archive. Deleting your account removes your identifying
+            information, but the anonymized report and comment content remains
+            (see the{" "}
             <Link href="/terms" className="text-brand underline">
               Terms
             </Link>
-            ), deleting your account removes your identifying information from
-            our system but does not remove the anonymized report content.
+            for the full exception list).
           </p>
         </section>
 
