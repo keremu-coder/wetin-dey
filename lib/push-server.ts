@@ -318,15 +318,16 @@ export async function notifyCommunityMembers(params: {
 
   const recipients = (members as Array<{ session_id: string }>)
     .map((m) => m.session_id)
-    .filter((id) => id && id !== senderSessionId);
+    .filter((id) => id && id !== senderSessionId)
+    // Fan-out cap. A community with 10k members should not fire 10k
+    // FCM calls per message. Recipients beyond the cap still see the
+    // in-app badge (the DB row is what drives it).
+    .slice(0, 50);
 
   if (recipients.length === 0) return;
 
-  const preview = body
-    ? body.slice(0, 90)
-    : hasAudio
-      ? "🎤 Voice note"
-      : "New message";
+  // Same reasoning as DMs: no chat content on lockscreens.
+  const preview = hasAudio ? "🎤 Voice note" : "New message";
 
   await sendPushToSessions(recipients, {
     title: `${senderHandle} in ${communityName}`,
@@ -361,7 +362,10 @@ export async function notifyDMRecipient(params: {
     /* ignore */
   }
 
-  const preview = body.length > 90 ? body.slice(0, 90) + "…" : body;
+  // Never put DM content in the push body — it lands on lockscreens,
+  // notification history, and (on iOS) the Apple Watch. Show only a
+  // generic prompt; the user opens the app to read.
+  const preview = "Tap to read";
 
   await sendPushToSessions([recipientSessionId], {
     title: `@${senderHandle} sent you a message`,

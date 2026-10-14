@@ -92,7 +92,13 @@ export function getRequestIp(req: Request): string | null {
  * buckets become unreachable — fine, since all windows are <= 1h.
  */
 function hashIp(ip: string): string {
-  const salt = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "dev-salt";
+  // Fail closed: never fall back to a hardcoded string. A shared
+  // default would make the IP-hash bucket reproducible across every
+  // environment, letting an attacker pre-compute hashes.
+  const salt = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!salt) {
+    throw new Error("hashIp requires SUPABASE_SERVICE_ROLE_KEY as salt");
+  }
   return createHash("sha256")
     .update(`${salt}:${ip}`)
     .digest("hex")
