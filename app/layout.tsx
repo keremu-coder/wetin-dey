@@ -12,7 +12,6 @@ import { RouteProgress } from "@/components/RouteProgress";
 import { AudioUnlock } from "@/components/AudioUnlock";
 import { TermsGate } from "@/components/TermsGate";
 import { AgeGate } from "@/components/AgeGate";
-import { EmailVerificationHandler } from "@/components/EmailVerificationHandler";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { ToastProvider } from "@/components/Toast";
 import { StatusBarTheme } from "@/components/StatusBarTheme";
@@ -125,7 +124,6 @@ export default async function RootLayout({
             <Onboarding />
             <InstallPrompt />
             <TermsGate />
-            <EmailVerificationHandler />
             <Nav />
             <PullToRefresh>{children}</PullToRefresh>
             <SiteFooter />

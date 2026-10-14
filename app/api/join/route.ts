@@ -131,7 +131,10 @@ export async function POST(req: NextRequest) {
   try {
     const { error: resendErr } = await db.auth.resend({
       type: "signup",
-      email
+      email,
+      options: {
+        emailRedirectTo: "https://9jawatindey.vercel.app/auth/verify"
+      }
     });
     if (resendErr) {
       console.warn("[join] resend confirmation failed:", resendErr.message);
