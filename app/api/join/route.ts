@@ -116,7 +116,17 @@ export async function POST(req: NextRequest) {
   });
 
   if (authErr || !authData?.user) {
-    console.error("[join] createUser failed:", authErr?.message ?? "unknown");
+    const msg = authErr?.message ?? "unknown";
+    console.error("[join] createUser failed:", msg);
+    // Supabase returns "already exists" / "User already registered"
+    // if an auth user with this email exists but has no session row.
+    // That is a 409 for the caller, not a server error.
+    if (/already (registered|exists)/i.test(msg) || /duplicate/i.test(msg)) {
+      return Response.json(
+        { error: "That email don already dey for another account." },
+        { status: 409 }
+      );
+    }
     return Response.json(
       { error: "Could not create account." },
       { status: 500 }
@@ -165,7 +175,13 @@ export async function POST(req: NextRequest) {
     // Unique violation: another request claimed this handle between
     // the SELECT pre-check and this UPDATE. Postgres catches it via
     // the unique index on handle_lower; we surface the same friendly
-    // 409 the pre-check returns.
+    // 409 the pre-check returns. Before we return, clean up the auth
+    // user we just created — otherwise it is orphaned with no session.
+    try {
+      await db.auth.admin.deleteUser(authData.user.id);
+    } catch (cleanupErr) {
+      console.error("[join] orphan cleanup failed:", cleanupErr);
+    }
     if (updErr.code === "23505") {
       return Response.json(
         { error: "That handle don already dey. Try another one." },
