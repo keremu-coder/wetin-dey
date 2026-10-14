@@ -182,13 +182,20 @@ async function sendNativePush(
           })
         });
 
+        // Only 404 (NOT_FOUND) and 410 (UNREGISTERED) mean the token is
+        // actually dead. A 400 means OUR payload was malformed — that is
+        // a bug on our side, not the token's, and deleting the token
+        // would silently unsubscribe every user the moment we ship a
+        // bad notification shape.
         if (res.status === 404 || res.status === 410) {
           staleIds.push(t.id);
           return;
         }
-        if (!res.ok) {
-          // 400 = invalid argument (bad token shape). Treat as stale.
-          if (res.status === 400) staleIds.push(t.id);
+        if (res.status === 400) {
+          console.warn(
+            "[push] FCM 400 (likely our payload, not the token):",
+            await res.text().catch(() => "")
+          );
         }
       } catch {
         /* network — retry next time */
@@ -197,8 +204,15 @@ async function sendNativePush(
   );
 
   if (staleIds.length > 0) {
+    // Safety cap: if a single invocation sees an unusual number of
+    // stale tokens (botched deploy, wrong FCM project), stop after 100
+    // to avoid wiping the table. The rest get cleaned up on later runs.
+    const toDelete = staleIds.slice(0, 100);
+    if (staleIds.length > 100) {
+      console.warn(`[push] ${staleIds.length} stale tokens seen; deleting first 100 only`);
+    }
     try {
-      await sb().from("native_push_tokens").delete().in("id", staleIds);
+      await sb().from("native_push_tokens").delete().in("id", toDelete);
     } catch {
       /* ignore */
     }
