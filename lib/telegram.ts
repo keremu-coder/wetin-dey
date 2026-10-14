@@ -14,10 +14,6 @@ export function telegramConfigured(): boolean {
   return !!(token() && chatId());
 }
 
-/**
- * Escape HTML entities for Telegram's HTML parse mode.
- * Only 3 characters need escaping: & < >
- */
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")
@@ -35,16 +31,16 @@ export type MirrorPayload = {
   publicUrl: string;
 };
 
-/**
- * Post a single report to the configured Telegram channel.
- * Returns true on success, false otherwise.
- */
+export type MirrorResult =
+  | { ok: true; messageId: number }
+  | { ok: false; reason: string };
+
 export async function postReportToTelegram(
   p: MirrorPayload
-): Promise<boolean> {
+): Promise<MirrorResult> {
   const t = token();
   const c = chatId();
-  if (!t || !c) return false;
+  if (!t || !c) return { ok: false, reason: "not-configured" };
 
   const lines: string[] = [];
   lines.push(`<b>${escapeHtml(p.title)}</b>`);
@@ -65,9 +61,7 @@ export async function postReportToTelegram(
   }
 
   lines.push("");
-  lines.push(
-    `🔗 <a href="${escapeHtml(p.publicUrl)}">Read on Wetin Dey</a>`
-  );
+  lines.push(`🔗 <a href="${escapeHtml(p.publicUrl)}">Read on Wetin Dey</a>`);
 
   const text = lines.join("\n");
 
@@ -85,11 +79,51 @@ export async function postReportToTelegram(
     if (!res.ok) {
       const body = await res.text().catch(() => "");
       console.error("[telegram] send failed", res.status, body.slice(0, 200));
-      return false;
+      return { ok: false, reason: `http-${res.status}` };
     }
-    return true;
+    const json = (await res.json()) as {
+      ok?: boolean;
+      result?: { message_id?: number };
+    };
+    const messageId = json?.result?.message_id;
+    if (typeof messageId !== "number") {
+      return { ok: false, reason: "no-message-id" };
+    }
+    return { ok: true, messageId };
   } catch (err) {
     console.error("[telegram] network error", err);
+    return { ok: false, reason: "network" };
+  }
+}
+
+/**
+ * Delete a previously-posted message from the mirror channel.
+ * Returns true if Telegram confirms deletion (or the message was
+ * already gone), false on any failure. Safe to call on ids that may
+ * not exist — Telegram returns "message to delete not found" and we
+ * treat that as success since the goal state is achieved.
+ */
+export async function deleteReportFromTelegram(
+  messageId: number
+): Promise<boolean> {
+  const t = token();
+  const c = chatId();
+  if (!t || !c) return false;
+
+  try {
+    const res = await fetch(`${TELEGRAM_API}/bot${t}/deleteMessage`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ chat_id: c, message_id: messageId })
+    });
+    if (res.ok) return true;
+    const body = await res.text().catch(() => "");
+    // "message to delete not found" is fine — already gone.
+    if (body.includes("message to delete not found")) return true;
+    console.error("[telegram] delete failed", res.status, body.slice(0, 200));
+    return false;
+  } catch (err) {
+    console.error("[telegram] delete network error", err);
     return false;
   }
 }

@@ -79,7 +79,7 @@ export async function GET(req: NextRequest) {
         r.summary_pidgin || r.summary_english || r.body?.slice(0, 400) || "";
       const publicUrl = `${BASE_URL}/r/${r.id}`;
 
-      const ok = await postReportToTelegram({
+      const result = await postReportToTelegram({
         id: r.id,
         title,
         agency: r.agency_canonical || r.agency_raw || "Unknown agency",
@@ -89,14 +89,18 @@ export async function GET(req: NextRequest) {
         publicUrl
       });
 
-      if (ok) {
+      if (result.ok) {
         posted += 1;
         await db
           .from("reports")
-          .update({ mirrored_to_telegram_at: new Date().toISOString() })
+          .update({
+            mirrored_to_telegram_at: new Date().toISOString(),
+            telegram_message_id: result.messageId
+          })
           .eq("id", r.id);
       } else {
         failedIds.push(r.id);
+        console.warn("[mirror] post failed", r.id, result.reason);
       }
 
       await new Promise((res) => setTimeout(res, 500));

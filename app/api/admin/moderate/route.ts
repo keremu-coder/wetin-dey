@@ -5,6 +5,7 @@ import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { jsonError } from "@/lib/http";
 import { sameOrigin } from "@/lib/rate-limit";
+import { deleteReportFromTelegram } from "@/lib/telegram";
 
 async function requireAdmin(sessionId: string | null): Promise<boolean> {
   if (!sessionId) return false;
@@ -55,11 +56,19 @@ export async function POST(req: NextRequest) {
       .eq("id", reportId);
     if (error) return jsonError(error.message, 500);
   } else if (action === "hide") {
-    const { error } = await db
+    // held=true removes from public view. Also delete the Telegram
+    // mirror post so the takedown promise in /terms holds.
+    const { data: row, error } = await db
       .from("reports")
-      .update({ reviewed: true, reviewer_note: note || "hidden" })
-      .eq("id", reportId);
+      .update({ held: true, reviewer_note: note || "hidden" })
+      .eq("id", reportId)
+      .select("telegram_message_id")
+      .maybeSingle();
     if (error) return jsonError(error.message, 500);
+    const mid = (row as { telegram_message_id?: number | null } | null)?.telegram_message_id;
+    if (mid) {
+      try { await deleteReportFromTelegram(mid); } catch { /* best-effort */ }
+    }
   } else {
     return jsonError("unknown action", 400);
   }
