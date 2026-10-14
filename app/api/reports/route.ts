@@ -2,6 +2,7 @@ export const runtime = "nodejs";
 export const maxDuration = 60; // seconds. Video evidence goes through a staging-bucket download, ffmpeg strip, and re-upload; the default 10s function timeout is not enough.
 
 import { NextRequest } from "next/server";
+import { waitUntil } from "@vercel/functions";
 import { nanoid } from "nanoid";
 import { CATEGORIES, NIGERIA_STATES, PAGE_SIZE } from "@/lib/constants";
 import { stripExifServer } from "@/lib/exif";
@@ -437,13 +438,14 @@ export async function POST(req: NextRequest) {
   if (postType === "report_am") {
     try {
       const { formalizeReport } = await import("@/lib/formalize");
-      void formalizeReport({
-        category,
-        agency_raw,
-        state,
-        body,
-        amount_kobo
-      })
+      waitUntil(
+        formalizeReport({
+          category,
+          agency_raw,
+          state,
+          body,
+          amount_kobo
+        })
         .then(async (output) => {
           if (output && output.confidence >= 0.5) {
             const aiRisk =
@@ -479,7 +481,8 @@ export async function POST(req: NextRequest) {
               .eq("id", id);
           }
         })
-        .catch(() => {});
+          .catch(() => {})
+      );
     } catch {
       /* ignore */
     }

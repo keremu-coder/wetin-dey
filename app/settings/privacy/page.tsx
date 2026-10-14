@@ -43,7 +43,7 @@ export default async function PrivacyPage() {
             <li>• No phone numbers</li>
             <li>• No device fingerprints</li>
             <li>• No third-party analytics</li>
-            <li>• No exact GPS coordinates — only rough state-level, never stored</li>
+            <li>• Reports and posts use rough state-level location only, never stored. Radar Need help / Police stop signals share exact coordinates, but only with the Circle members you chose, and only while the signal is active (up to 4 hours). Coordinates are cleared the moment you tap I&apos;m safe or the signal auto-expires.</li>
           </ul>
         </div>
 

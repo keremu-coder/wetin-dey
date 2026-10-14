@@ -12,11 +12,16 @@ import { createServiceClient } from "@/lib/supabase/server";
 export async function GET(req: NextRequest) {
   try {
     const secret = process.env.CRON_SECRET;
-    if (secret) {
-      const auth = req.headers.get("authorization") ?? "";
-      if (auth !== `Bearer ${secret}`) {
-        return NextResponse.json({ error: "forbidden" }, { status: 403 });
-      }
+    if (!secret) {
+      // Hard 500 if the secret is missing. Previously this branch
+      // silently allowed any caller through, which would let anyone
+      // auto-stop another user's live Radar signal.
+      console.error("[radar/sweep] CRON_SECRET is not set");
+      return NextResponse.json({ error: "Server error" }, { status: 500 });
+    }
+    const auth = req.headers.get("authorization") ?? "";
+    if (auth !== `Bearer ${secret}`) {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
 
     const db = createServiceClient();
