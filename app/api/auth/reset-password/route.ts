@@ -1,11 +1,11 @@
 export const runtime = "nodejs";
 
 import { NextRequest } from "next/server";
-import { createServiceClient } from "@/lib/supabase/server";
+import { createFreshAnonClient, createServiceClient } from "@/lib/supabase/server";
 import { sameOrigin } from "@/lib/rate-limit";
+import { serverError } from "@/lib/http";
 
 export async function POST(req: NextRequest) {
-  // CSRF: reject cross-origin state-changing requests.
   if (!sameOrigin(req)) {
     return Response.json({ error: "bad origin" }, { status: 403 });
   }
@@ -34,9 +34,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const db = createServiceClient();
+  // Fresh client per request. setSession mutates the client's auth
+  // state, so using the shared service-role singleton here would let
+  // two concurrent requests on the same warm instance cross-wire
+  // their sessions and change the wrong user's password.
+  const tokenClient = createFreshAnonClient();
 
-  const { error: sessionErr } = await db.auth.setSession({
+  const { error: sessionErr } = await tokenClient.auth.setSession({
     access_token: accessToken,
     refresh_token: refreshToken
   });
@@ -48,10 +52,25 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { error: updateErr } = await db.auth.updateUser({ password });
+  // Resolve the user from the verified token, then update via the
+  // admin API by user id. This keeps the password change pinned to the
+  // exact user the token belongs to, with no shared mutable state.
+  const { data: userRes, error: userErr } = await tokenClient.auth.getUser();
+  if (userErr || !userRes?.user?.id) {
+    return Response.json(
+      { error: "Reset link expired. Request a new one." },
+      { status: 401 }
+    );
+  }
+
+  const admin = createServiceClient();
+  const { error: updateErr } = await admin.auth.admin.updateUserById(
+    userRes.user.id,
+    { password }
+  );
 
   if (updateErr) {
-    return Response.json({ error: "Server error" }, { status: 500 });
+    return serverError("auth/reset-password", updateErr);
   }
 
   return Response.json({ ok: true });

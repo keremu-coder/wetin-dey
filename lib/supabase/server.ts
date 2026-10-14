@@ -44,3 +44,16 @@ export async function withSession<T>(
   await client.rpc("set_app_session", { sid: sessionId });
   return fn(client);
 }
+
+/**
+ * A *fresh* anon client, never cached. Use this for any flow that
+ * calls auth.setSession() — setSession mutates the client's internal
+ * auth state, so a shared singleton would let concurrent requests on
+ * the same warm instance cross-wire their sessions.
+ */
+export function createFreshAnonClient(): SupabaseClient {
+  const { url, anon } = urlAndAnon();
+  return createClient(url, anon, {
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
+}
