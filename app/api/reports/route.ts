@@ -8,7 +8,7 @@ import { stripExifServer } from "@/lib/exif";
 import { classifyImage } from "@/lib/image-moderation";
 import { transcribeAndModerate } from "@/lib/voice-moderation";
 import { stripMediaMetadata } from "@/lib/media-strip";
-import { jsonError } from "@/lib/http";
+import { jsonError, serverError } from "@/lib/http";
 import { sameOrigin } from "@/lib/rate-limit";
 import { hashDedupe } from "@/lib/rate-limit";
 import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
@@ -429,8 +429,7 @@ export async function POST(req: NextRequest) {
     if (String(error.message).toLowerCase().includes("rate limit")) {
       return jsonError("slow down — too many posts this hour", 429);
     }
-    console.error("INSERT FAILED:", error);
-    return jsonError("Server error", 500);
+    return serverError("reports/insert", error);
   }
 
   if (postType === "report_am") {
