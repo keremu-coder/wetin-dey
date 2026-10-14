@@ -2,12 +2,26 @@ export const runtime = "nodejs";
 
 import { NextRequest } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
-import { sameOrigin } from "@/lib/rate-limit";
+import { sameOrigin, checkIpRateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
   // CSRF: reject cross-origin state-changing requests.
   if (!sameOrigin(req)) {
     return Response.json({ error: "bad origin" }, { status: 403 });
+  }
+
+  // Throttle per IP. Without this an attacker can flood a victim's
+  // inbox or burn the Resend quota by hammering this endpoint.
+  const rl = await checkIpRateLimit(req, {
+    key: "forgot_password",
+    limit: 5,
+    windowMs: 60 * 60 * 1000
+  });
+  if (!rl.ok) {
+    return Response.json(
+      { error: "Too many attempts. Try again later." },
+      { status: 429 }
+    );
   }
 
   let body: { email?: string };
