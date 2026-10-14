@@ -197,6 +197,24 @@ export async function POST(req: NextRequest) {
 
     // ── 5. Optional: delete user's own content (comments + chat) ──
     if (deleteContent) {
+      // Remove voice-note files from storage before deleting rows.
+      // Without this, the public URLs keep working after account deletion.
+      const { data: cmAudio } = await db
+        .from("community_messages")
+        .select("audio_url")
+        .eq("session_id", sessionId)
+        .not("audio_url", "is", null);
+      for (const m of cmAudio ?? []) {
+        if (m.audio_url) {
+          const path = supabaseStoragePath(m.audio_url, "voice-notes");
+          if (path) {
+            await db.storage
+              .from("voice-notes")
+              .remove([path])
+              .catch(() => {});
+          }
+        }
+      }
       await db
         .from("community_messages")
         .delete()
