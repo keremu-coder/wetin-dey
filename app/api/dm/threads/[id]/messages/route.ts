@@ -175,16 +175,20 @@ export async function POST(
       .update({ last_message_at: new Date().toISOString() })
       .eq("id", thread.id);
 
-    waitUntil(
-      notifyDMRecipient({
-        recipientSessionId: recipientId,
-        senderHandle: me.handle,
-        threadId: thread.id,
-        body: text
-      }).catch((err) => {
-        console.error("[dm push]", err);
-      })
-    );
+    // A held message is hidden from the recipient, so do not ping them
+    // with a "Tap to read" push for something they will never see.
+    if (!held) {
+      waitUntil(
+        notifyDMRecipient({
+          recipientSessionId: recipientId,
+          senderHandle: me.handle,
+          threadId: thread.id,
+          body: text
+        }).catch((err) => {
+          console.error("[dm push]", err);
+        })
+      );
+    }
 
     return Response.json({ ok: true, message: data });
   } catch (e) {
