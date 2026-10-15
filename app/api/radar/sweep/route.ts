@@ -4,7 +4,9 @@ import { createServiceClient } from "@/lib/supabase/server";
 
 /**
  * Auto-stop sweep. Flips location_stopped = true on every signal whose
- * expires_at has passed. Called by Vercel cron every 15 minutes.
+ * expires_at has passed. Called every 15 minutes by the GitHub Actions
+ * workflow .github/workflows/radar-sweep.yml (NOT by Vercel cron: vercel.json
+ * has no entry for it). If that workflow is disabled, signals do not expire.
  *
  * Guarded by CRON_SECRET so external callers can't trigger it. Vercel
  * sends `Authorization: Bearer $CRON_SECRET` on scheduled invocations.
