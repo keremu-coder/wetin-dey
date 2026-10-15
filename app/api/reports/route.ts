@@ -11,8 +11,12 @@ import { transcribeAndModerate } from "@/lib/voice-moderation";
 import { stripMediaMetadata } from "@/lib/media-strip";
 import { audioContainerFor } from "@/lib/audio-container";
 import { jsonError, serverError } from "@/lib/http";
-import { sameOrigin } from "@/lib/rate-limit";
-import { hashDedupe } from "@/lib/rate-limit";
+import {
+  checkRateLimit,
+  getRequestIp,
+  hashDedupe,
+  sameOrigin
+} from "@/lib/rate-limit";
 import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { stripSession, type Report } from "@/lib/types";
@@ -98,7 +102,6 @@ export async function GET(req: NextRequest) {
 
   return Response.json({ reports: cleaned });
 }
-
 export async function POST(req: NextRequest) {
   if (!sameOrigin(req)) return jsonError("origin blocked", 403);
 
@@ -118,6 +121,27 @@ export async function POST(req: NextRequest) {
     return Response.json(
       { error: TERMS_NOT_ACCEPTED_MESSAGE, code: TERMS_NOT_ACCEPTED_CODE },
       { status: 403 }
+    );
+  }
+
+  // Rate limit BEFORE req.formData(). A flood here would otherwise
+  // buffer 25MB per request, run sharp, call Groq, and hit Supabase
+  // storage on every attempt. Two buckets: session (per-cookie) and
+  // IP (via getRequestIp, catches cookie-dropping). 20/hour per
+  // session, 40/hour per IP.
+  const limit = await checkRateLimit(
+    sessionId,
+    {
+      key: "report_create",
+      limit: 20,
+      windowMs: 60 * 60 * 1000
+    },
+    { ip: getRequestIp(req) }
+  );
+  if (!limit.ok) {
+    return Response.json(
+      { error: "slow down — too many reports. try again later." },
+      { status: 429 }
     );
   }
 

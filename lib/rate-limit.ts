@@ -45,7 +45,7 @@ export type RateLimitResult =
  * Vercel sets x-forwarded-for as a comma-separated list (client, proxy,
  * proxy, ...). The first entry is the original client. x-real-ip is a
  * single-value fallback. Returns null when neither header is present
- * (local dev, unusual proxies) — callers treat null as "no IP signal".
+ * (local dev, unusual proxies) - callers treat null as "no IP signal".
  */
 export type DedupeInput = {
   category: string;
@@ -86,10 +86,10 @@ export function getRequestIp(req: Request): string | null {
  * Deterministic hash of an IP, salted with the service role key.
  *
  * Why hash: SPEC.md rule 1 forbids logging IP addresses for anonymous
- * activity. We never store the raw IP — only a salted hash. It's enough
+ * activity. We never store the raw IP - only a salted hash. It's enough
  * to rate-limit the same client across sessions, and it disappears with
  * the rate_events row. If the service role key rotates, older IP-hash
- * buckets become unreachable — fine, since all windows are <= 1h.
+ * buckets become unreachable - fine, since all windows are <= 1h.
  */
 export function hashIp(ip: string): string {
   // Fail closed: never fall back to a hardcoded string. A shared
@@ -131,7 +131,7 @@ async function checkBucket(
   }
 
   // Slow path: DB check for cross-instance abuse. Applies to every
-  // limit at or below 100 — which is every security-sensitive endpoint
+  // limit at or below 100 - which is every security-sensitive endpoint
   // (signin, recovery, join, radar send, radar add-contact, report
   // upload). High-volume heartbeats with limits above 100 stay
   // memory-only to keep DB write volume bounded.
@@ -157,7 +157,7 @@ async function checkBucket(
 
     if (dbError) {
       // Fail closed. The audit (finding 2) flagged that DB errors used
-      // to silently allow the request. Deny instead — the caller already
+      // to silently allow the request. Deny instead - the caller already
       // returns 429 with a retry hint.
       return { ok: false, retryAfterMs: 60_000 };
     }
@@ -166,7 +166,7 @@ async function checkBucket(
       return { ok: false, retryAfterMs: rule.windowMs };
     }
 
-    // Best-effort insert. Failure here does not deny the request — the
+    // Best-effort insert. Failure here does not deny the request - the
     // in-memory bucket already counted it.
     try {
       await db.from("rate_events").insert({
@@ -212,7 +212,7 @@ export async function checkRateLimit(
 /**
  * Origin check for POST routes. Fail-closed:
  *
- * - Missing Origin AND Referer → deny. (Audit finding 7b: this used
+ * - Missing Origin AND Referer -> deny. (Audit finding 7b: this used
  *   to return true, which let header-stripping clients through.)
  * - Explicit allowlist only. No host-header synthesis, so a spoofed
  *   Host cannot manufacture a matching origin.
@@ -242,6 +242,18 @@ export async function checkIpRateLimit(
   return checkBucket(`ip:${hashIp(ip)}:${rule.key}`, rule);
 }
 
+/**
+ * Same-origin check for state-changing routes.
+ *
+ * Origin is preferred: browsers send it on all cross-origin requests
+ * and on same-origin POSTs from fetch/XHR. When Origin is absent we
+ * fall back to Referer.
+ *
+ * Referer comparison is by parsed `.origin`, NOT string prefix. A
+ * prefix check with `startsWith("https://9jawatindey.vercel.app")`
+ * would accept `https://9jawatindey.vercel.app.evil.com/page` - the
+ * attacker's DNS, matching your prefix. Parse and compare exactly.
+ */
 export function sameOrigin(req: Request): boolean {
   const origin = req.headers.get("origin");
   const referer = req.headers.get("referer");
@@ -251,10 +263,15 @@ export function sameOrigin(req: Request): boolean {
   }
 
   if (referer) {
-    return ALLOWED_ORIGINS.some((o) => referer.startsWith(o));
+    try {
+      return ALLOWED_ORIGINS.includes(new URL(referer).origin);
+    } catch {
+      // Malformed Referer header - deny.
+      return false;
+    }
   }
 
-  // Neither header present → deny. Same-origin browsers always send
+  // Neither header present -> deny. Same-origin browsers always send
   // at least one of these for credentialed cross-document requests.
   return false;
 }
