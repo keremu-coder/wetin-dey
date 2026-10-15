@@ -65,7 +65,6 @@ const themeScript = `
   }
 })();
 `;
-
 export default async function RootLayout({
   children
 }: {
@@ -86,8 +85,28 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        {/*
+          The theme bootstrap MUST run before first paint to avoid a
+          light/dark flash, so it is an inline script. It carries the
+          per-request CSP nonce from middleware.
+
+          suppressHydrationWarning on the <script> element is required
+          because browsers blank the nonce content attribute after
+          parsing (a security feature: CSS cannot exfiltrate the nonce
+          via attribute selectors). In dev, Next 15's overlay does a
+          second SSR pass for error replay without the x-csp-nonce
+          header, so the overlay compares an empty server nonce against
+          the real client nonce and logs a hydration mismatch.
+
+          Production renders the nonce correctly (verified in live HTML)
+          and never runs the replay pass. This attribute silences the
+          dev-only noise on this one element without affecting anything
+          else. Do not add suppressHydrationWarning elsewhere without a
+          specific reason.
+        */}
         <script
           nonce={nonce}
+          suppressHydrationWarning
           dangerouslySetInnerHTML={{ __html: themeScript }}
         />
 
