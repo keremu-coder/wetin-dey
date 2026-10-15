@@ -9,6 +9,7 @@ import { stripExifServer } from "@/lib/exif";
 import { classifyImage } from "@/lib/image-moderation";
 import { transcribeAndModerate } from "@/lib/voice-moderation";
 import { stripMediaMetadata } from "@/lib/media-strip";
+import { audioContainerFor } from "@/lib/audio-container";
 import { jsonError, serverError } from "@/lib/http";
 import { sameOrigin } from "@/lib/rate-limit";
 import { hashDedupe } from "@/lib/rate-limit";
@@ -314,10 +315,14 @@ export async function POST(req: NextRequest) {
         // catch and rejects the upload rather than storing raw.
         uploadBuf = await stripMediaMetadata(buf, "mp4");
       } else if (file.type.startsWith("audio/")) {
-        ext = "webm";
-
         // Same for audio — M4A/MP3 tags can carry GPS. Fail-closed.
-        uploadBuf = await stripMediaMetadata(buf, "webm");
+        // The container must match the real format: `-c copy` cannot put
+        // iPhone AAC (audio/mp4) into WebM, so a fixed "webm" made every
+        // iPhone audio upload fail.
+        const container = audioContainerFor(file.type);
+        ext = container.ext;
+        contentType = container.contentType;
+        uploadBuf = await stripMediaMetadata(buf, container.ext);
       }
 
       const path = `${id}.${ext}`;
@@ -340,7 +345,9 @@ export async function POST(req: NextRequest) {
       }
       const rawBuf = Buffer.from(await voiceTestimony.arrayBuffer());
       // Strip container metadata (M4A/MP3 tags can carry GPS). Fail-closed.
-      const buf = await stripMediaMetadata(rawBuf, "webm");
+      // Container matches the real format (iPhone records audio/mp4).
+      const voiceContainer = audioContainerFor(voiceTestimony.type);
+      const buf = await stripMediaMetadata(rawBuf, voiceContainer.ext);
 
       // Voice moderation — Whisper transcribe + text filter.
       // Best-effort: fails open on any error so a Groq outage
@@ -361,9 +368,9 @@ export async function POST(req: NextRequest) {
         console.warn("[reports] voice moderation error:", e);
       }
 
-      const path = `${id}-testimony.webm`;
+      const path = `${id}-testimony.${voiceContainer.ext}`;
       const up = await db.storage.from("evidence").upload(path, buf, {
-        contentType: "audio/webm",
+        contentType: voiceContainer.contentType,
         upsert: false
       });
       if (up.error) {

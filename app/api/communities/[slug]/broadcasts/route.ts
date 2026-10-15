@@ -10,6 +10,8 @@ import { assertCanWrite } from "@/lib/guards";
 import { getBlockedIds } from "@/lib/blocks";
 import { serverError } from "@/lib/http";
 import { sameOrigin } from "@/lib/rate-limit";
+import { stripMediaMetadata } from "@/lib/media-strip";
+import { audioContainerFor } from "@/lib/audio-container";
 
 function extFromMime(mime: string): string {
   const m = (mime || "").toLowerCase();
@@ -155,7 +157,10 @@ export async function POST(req: NextRequest,
     const fileMime = file.type || "audio/webm";
     const ext = extFromMime(fileMime);
     const path = `broadcasts/${community.id}/${audioId}.${ext}`;
-    const buf = Buffer.from(await file.arrayBuffer());
+    const rawBuf = Buffer.from(await file.arrayBuffer());
+    // Strip container metadata (GPS, device, timestamps) before storing.
+    // Fail-closed: a strip failure aborts the upload instead of storing raw.
+    const buf = await stripMediaMetadata(rawBuf, audioContainerFor(fileMime).ext);
 
     const up = await db.storage.from("voice-notes").upload(path, buf, {
       contentType: fileMime,

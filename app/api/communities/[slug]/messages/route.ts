@@ -9,6 +9,7 @@ import { notifyCommunityMembers } from "@/lib/push-server";
 import { analyzeModeration, moderationReason } from "@/lib/dm-filter";
 import { transcribeAndModerate } from "@/lib/voice-moderation";
 import { stripMediaMetadata } from "@/lib/media-strip";
+import { audioContainerFor } from "@/lib/audio-container";
 import { isBanned, BANNED_MESSAGE } from "@/lib/ban-guard";
 import { getBlockedIds } from "@/lib/blocks";
 import { createNotification } from "@/lib/notifications";
@@ -318,7 +319,8 @@ export async function POST(req: NextRequest,
         const path = `chat/${community.id}/${audioId}.${ext}`;
         const rawBuf = Buffer.from(await file.arrayBuffer());
         // Strip container metadata (M4A/MP3 tags can carry GPS). Fail-closed.
-        const buf = await stripMediaMetadata(rawBuf, "webm");
+        // Container matches the real format (iPhone records audio/mp4).
+        const buf = await stripMediaMetadata(rawBuf, audioContainerFor(file.type).ext);
 
         // Voice moderation — Whisper transcribe + text filter. Best-effort:
         // fails open so a Groq outage never blocks a legitimate message.
