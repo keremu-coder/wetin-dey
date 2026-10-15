@@ -472,21 +472,15 @@ export async function getOrCreateSessionProfile(
       error.code === "23505" &&
       /sessions_handle_lower/i.test(error.message ?? "")
     ) {
-      let newHandle: string | null = null;
-      for (let i = 0; i < 8; i++) {
-        const candidate = generateCleanHandle();
-        if (await tryHandle(candidate)) {
-          newHandle = candidate;
-          break;
-        }
-      }
-      if (!newHandle) {
-        newHandle =
-          "User_" +
-          Date.now().toString().slice(-6) +
-          Math.floor(Math.random() * 1000);
-      }
-      handle = newHandle;
+      // Raced with another new visitor on the same random handle.
+      // The pre-check via tryHandle() loses the same race, so skip it.
+      // Append the session id (globally unique) — two parallel
+      // requests have different ids, so retries cannot collide.
+      const suffix = sessionId
+        .slice(-6)
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "");
+      handle = generateCleanHandle().slice(0, 12) + suffix;
       lastError = error;
       continue;
     }
