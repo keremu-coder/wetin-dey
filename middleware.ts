@@ -12,15 +12,21 @@ import { issueSessionCookieValue, sessionCookieOptions, verifySessionValue } fro
  * style-src keeps 'unsafe-inline' because Next injects an inline style
  * block at boot; that's a lower-severity class of issue.
  *
+ * 'unsafe-eval' is added ONLY outside production. Next.js dev mode uses
+ * eval() in react-refresh-utils for hot module reloading, and
+ * 'strict-dynamic' forbids eval unless 'unsafe-eval' is also listed.
+ * Production builds do not eval, so the keyword never ships live.
+ *
  * Vercel's preview toolbar (vercel.live) is only allowed outside production.
  */
 const IS_PROD = process.env.NODE_ENV === "production";
 const DEV_LIVE = IS_PROD ? "" : " https://vercel.live";
+const DEV_EVAL = IS_PROD ? "" : " 'unsafe-eval'";
 
 function buildCsp(nonce: string): string {
   return [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${DEV_LIVE}`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${DEV_EVAL}${DEV_LIVE}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com data:",
     "img-src 'self' data: blob: https://*.supabase.co",
