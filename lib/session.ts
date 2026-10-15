@@ -423,36 +423,80 @@ export async function getOrCreateSessionProfile(
 
   const { hash: recovery_code_hash } = await uniqueRecoveryCode(db);
 
-  const baseRow = {
-    id: sessionId,
-    handle,
-    handle_kind: "anonymous",
-    auth_provider: "none",
-    recovery_code_hash
-  };
+  let lastError: { code?: string; message?: string } | null = null;
 
-  let { data: created, error } = await db
-    .from("sessions")
-    .insert({ ...baseRow, last_ip_hash })
-    .select("*")
-    .single();
+  // Parallel requests for a brand-new session race here: whoami, unread,
+  // status all fire at once. Two collisions are possible and both must
+  // be retried, not logged as errors:
+  //   * sessions_pkey            — same session id, one request already
+  //                                inserted. Re-read and return.
+  //   * sessions_handle_lower_idx — different sessions picked the same
+  //                                random handle. Generate a new one.
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const baseRow = {
+      id: sessionId,
+      handle,
+      handle_kind: "anonymous",
+      auth_provider: "none",
+      recovery_code_hash
+    };
 
-  // Migration 028 (last_ip_hash) not applied yet: retry without it so a
-  // deploy-before-migrate does not block every new visitor.
-  if (error && /last_ip_hash/i.test(error.message ?? "")) {
-    ({ data: created, error } = await db
+    let { data: created, error } = await db
       .from("sessions")
-      .insert(baseRow)
+      .insert({ ...baseRow, last_ip_hash })
       .select("*")
-      .single());
-  }
+      .single();
 
-  if (error) {
+    // Migration 028 (last_ip_hash) not applied yet: retry without it so a
+    // deploy-before-migrate does not block every new visitor.
+    if (error && /last_ip_hash/i.test(error.message ?? "")) {
+      ({ data: created, error } = await db
+        .from("sessions")
+        .insert(baseRow)
+        .select("*")
+        .single());
+    }
+
+    if (!error) return created as SessionProfile;
+
+    if (error.code === "23505" && /sessions_pkey/i.test(error.message ?? "")) {
+      const { data: raced } = await db
+        .from("sessions")
+        .select("*")
+        .eq("id", sessionId)
+        .maybeSingle();
+      if (raced) return raced as SessionProfile;
+    }
+
+    if (
+      error.code === "23505" &&
+      /sessions_handle_lower/i.test(error.message ?? "")
+    ) {
+      let newHandle: string | null = null;
+      for (let i = 0; i < 8; i++) {
+        const candidate = generateCleanHandle();
+        if (await tryHandle(candidate)) {
+          newHandle = candidate;
+          break;
+        }
+      }
+      if (!newHandle) {
+        newHandle =
+          "User_" +
+          Date.now().toString().slice(-6) +
+          Math.floor(Math.random() * 1000);
+      }
+      handle = newHandle;
+      lastError = error;
+      continue;
+    }
+
     console.error("session create failed:", error);
     return null;
   }
 
-  return created as SessionProfile;
+  console.error("session create failed after retries:", lastError);
+  return null;
 }
 
 export async function getCurrentProfile(): Promise<SessionProfile | null> {
