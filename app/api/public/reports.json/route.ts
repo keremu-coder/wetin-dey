@@ -31,6 +31,9 @@ export async function GET(req: NextRequest) {
     .from("reports")
     .select("id, created_at, category, agency_canonical, state, amount_kobo, summary_english, status")
     .eq("reviewed", true)
+    // A report hidden by a moderator is held=true. Without this filter the
+    // public JSON feed kept serving reports after a takedown.
+    .eq("held", false)
     .order("created_at", { ascending: false })
     .limit(200);
 

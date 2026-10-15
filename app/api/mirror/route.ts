@@ -52,6 +52,7 @@ export async function GET(req: NextRequest) {
         "id, created_at, state, category, post_type, agency_canonical, agency_raw, summary_pidgin, summary_english, amount_kobo, body, community_id"
       )
       .eq("reviewed", true)
+      .eq("held", false)
       .is("mirrored_to_telegram_at", null)
       .is("community_id", null)
       .in("post_type", ["report_am", "ask", "help"])
@@ -110,6 +111,7 @@ export async function GET(req: NextRequest) {
       .from("reports")
       .select("id", { count: "exact", head: true })
       .eq("reviewed", true)
+      .eq("held", false)
       .is("mirrored_to_telegram_at", null)
       .is("community_id", null)
       .in("post_type", ["report_am", "ask", "help"]);

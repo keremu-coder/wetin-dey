@@ -5,6 +5,7 @@ import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sameOrigin } from "@/lib/rate-limit";
 import { serverError } from "@/lib/http";
+import { deleteReportFromTelegram } from "@/lib/telegram";
 
 type Action = "dismiss" | "remove" | "ban_user";
 const VALID_ACTIONS: Action[] = ["dismiss", "remove", "ban_user"];
@@ -89,10 +90,23 @@ async function hideTarget(
     return !error;
   }
   if (targetType === "post" || targetType === "report") {
-    const { error } = await db
+    const { data: row, error } = await db
       .from("reports")
       .update({ held: true })
-      .eq("id", targetId);
+      .eq("id", targetId)
+      .select("telegram_message_id")
+      .maybeSingle();
+    // Takedown must also remove the public Telegram copy (same as the
+    // admin "hide" action), or the 24-hour promise does not hold.
+    const mid = (row as { telegram_message_id?: number | null } | null)
+      ?.telegram_message_id;
+    if (!error && mid) {
+      try {
+        await deleteReportFromTelegram(mid);
+      } catch {
+        /* best-effort */
+      }
+    }
     return !error;
   }
   if (targetType === "dm_message") {
