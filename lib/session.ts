@@ -10,6 +10,12 @@ import {
 } from "./handles";
 import { createServiceClient } from "./supabase/server";
 import { generateRecoveryCode, hashRecoveryCode } from "./recovery-code";
+import {
+  decideSession,
+  isMissingEpochColumn,
+  pruneEpochCache,
+  type EpochLookup
+} from "./session-epoch";
 
 const encoder = new TextEncoder();
 
@@ -124,15 +130,18 @@ type EpochEntry = { epoch: number; expiresAt: number };
 const epochCache = new Map<string, EpochEntry>();
 const EPOCH_CACHE_TTL_MS = 30_000;
 
+const EPOCH_CACHE_MAX = 5000;
+
 /**
- * Read the current session_epoch for a session. Cached for 30 seconds
- * per instance so that most authenticated API calls skip the DB. On a
- * cache miss this is one indexed point lookup on the primary key.
+ * Look up the current session_epoch for a session. Cached for 30 seconds
+ * per instance so that most authenticated API calls skip the DB. The
+ * result distinguishes "no such row" from "the lookup failed" from "the
+ * column is not migrated yet" — see lib/session-epoch.ts for why.
  */
-async function currentEpoch(sid: string): Promise<number | null> {
+async function lookupEpoch(sid: string): Promise<EpochLookup> {
   const now = Date.now();
   const c = epochCache.get(sid);
-  if (c && c.expiresAt > now) return c.epoch;
+  if (c && c.expiresAt > now) return { kind: "ok", epoch: c.epoch };
 
   const db = createServiceClient();
   const { data, error } = await db
@@ -141,11 +150,24 @@ async function currentEpoch(sid: string): Promise<number | null> {
     .eq("id", sid)
     .maybeSingle();
 
-  if (error || !data) return null;
+  if (error) {
+    if (isMissingEpochColumn(error)) return { kind: "no-column" };
+    console.error("[session] epoch lookup failed:", error.message);
+    return { kind: "error" };
+  }
+  if (!data) return { kind: "missing" };
+
   const raw = (data as { session_epoch?: number | null }).session_epoch;
   const epoch = typeof raw === "number" && Number.isInteger(raw) ? raw : 1;
   epochCache.set(sid, { epoch, expiresAt: now + EPOCH_CACHE_TTL_MS });
-  return epoch;
+  pruneEpochCache(epochCache, now, EPOCH_CACHE_MAX);
+  return { kind: "ok", epoch };
+}
+
+/** Epoch for an existing row, or null if the row is missing / lookup failed. */
+async function currentEpoch(sid: string): Promise<number | null> {
+  const r = await lookupEpoch(sid);
+  return r.kind === "ok" ? r.epoch : null;
 }
 
 /**
@@ -196,9 +218,11 @@ export function sessionCookieOptions() {
  * always fresh relative to any prior revocation.
  */
 export async function signSessionId(id: string): Promise<string> {
-  const epoch = await currentEpoch(id);
-  if (epoch === null) throw new Error("session not found");
-  return await sign(id, epoch);
+  const r = await lookupEpoch(id);
+  if (r.kind === "ok") return await sign(id, r.epoch);
+  // Migration 026 not applied yet: every cookie is epoch 1.
+  if (r.kind === "no-column") return await sign(id, 1);
+  throw new Error("session not found");
 }
 
 /**
@@ -211,10 +235,12 @@ export async function getSessionId(): Promise<string | null> {
   const jar = await cookies();
   const parsed = await parseSession(jar.get(COOKIE_NAME)?.value);
   if (!parsed) return null;
-  const dbEpoch = await currentEpoch(parsed.id);
-  if (dbEpoch === null) return null;
-  if (dbEpoch !== parsed.epoch) return null;
-  return parsed.id;
+  const lookup = await lookupEpoch(parsed.id);
+  // A previously verified epoch (even if expired) lets a transient DB
+  // error pass for a cookie that matches it, instead of signing everyone
+  // out during a Supabase blip.
+  const stale = epochCache.get(parsed.id)?.epoch ?? null;
+  return decideSession(parsed.epoch, lookup, stale) ? parsed.id : null;
 }
 
 export async function requireSessionId(): Promise<string> {
@@ -397,18 +423,29 @@ export async function getOrCreateSessionProfile(
 
   const { hash: recovery_code_hash } = await uniqueRecoveryCode(db);
 
-  const { data: created, error } = await db
+  const baseRow = {
+    id: sessionId,
+    handle,
+    handle_kind: "anonymous",
+    auth_provider: "none",
+    recovery_code_hash
+  };
+
+  let { data: created, error } = await db
     .from("sessions")
-    .insert({
-      id: sessionId,
-      handle,
-      handle_kind: "anonymous",
-      auth_provider: "none",
-      recovery_code_hash,
-      last_ip_hash
-    })
+    .insert({ ...baseRow, last_ip_hash })
     .select("*")
     .single();
+
+  // Migration 028 (last_ip_hash) not applied yet: retry without it so a
+  // deploy-before-migrate does not block every new visitor.
+  if (error && /last_ip_hash/i.test(error.message ?? "")) {
+    ({ data: created, error } = await db
+      .from("sessions")
+      .insert(baseRow)
+      .select("*")
+      .single());
+  }
 
   if (error) {
     console.error("session create failed:", error);
