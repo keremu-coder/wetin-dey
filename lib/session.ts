@@ -323,8 +323,27 @@ async function readRequestIpHash(): Promise<string | null> {
     const first = forwarded.split(",")[0]?.trim() ?? "";
     const ip = first || h.get("x-real-ip") || "";
     if (!ip) return null;
-    const { hashIp } = await import("./rate-limit");
-    return hashIp(ip);
+    // Web Crypto only. This file is imported by middleware.ts, which
+    // runs in Edge Runtime, where Node's `crypto` module is unavailable.
+    // lib/rate-limit.ts imports Node crypto (for hashDedupe), so we
+    // cannot pull hashIp from there without dragging Node crypto into
+    // the Edge bundle.
+    //
+    // Output format MUST stay identical to lib/rate-limit.ts hashIp:
+    //   sha256(`${SUPABASE_SERVICE_ROLE_KEY}:${ip}`).hex().slice(0,16)
+    // Both write to ban-check lookups (banned_ip_hashes, sessions.last_ip_hash)
+    // that assume the same shape. If this drifts, a banned user can
+    // create a new session without being caught.
+    const salt = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!salt) return null;
+    const data = new TextEncoder().encode(`${salt}:${ip}`);
+    const digest = await crypto.subtle.digest("SHA-256", data);
+    const bytes = new Uint8Array(digest);
+    let hex = "";
+    for (let i = 0; i < bytes.length; i++) {
+      hex += bytes[i].toString(16).padStart(2, "0");
+    }
+    return hex.slice(0, 16);
   } catch {
     return null;
   }
