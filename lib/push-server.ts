@@ -232,6 +232,36 @@ type PushTarget = {
   auth: string;
 };
 
+// Audit finding 6: endpoint is attacker-controlled. Without an allowlist,
+// any user could subscribe with endpoint="https://attacker.example/..." and
+// the server would POST to it with a signed VAPID header (SSRF) — and if
+// the endpoint never responds, the fan-out stalls (the Radar "Need help"
+// signal awaited push fan-out, so a malicious endpoint could freeze the
+// sender's signal until Vercel's function timeout).
+//
+// Two defences below:
+//   1. Allowlist of known web-push service hosts. Anything else is skipped
+//      (and the offending row is deleted — the user will re-subscribe next
+//      time they open the app).
+//   2. 5-second timeout on sendNotification, so a hanging endpoint cannot
+//      block the fan-out.
+function isAllowedPushEndpoint(endpoint: string): boolean {
+  try {
+    const u = new URL(endpoint);
+    if (u.protocol !== "https:") return false;
+    const host = u.hostname.toLowerCase();
+    return (
+      host === "fcm.googleapis.com" ||
+      host.endsWith(".push.apple.com") ||
+      host.endsWith(".notify.windows.com") ||
+      host === "updates.push.services.mozilla.com" ||
+      host.endsWith(".push.services.mozilla.com")
+    );
+  } catch {
+    return false;
+  }
+}
+
 async function sendWebPush(
   sessionIds: string[],
   payload: { title: string; body: string; tag?: string; url?: string }
@@ -245,7 +275,24 @@ async function sendWebPush(
 
   if (error || !data) return;
 
-  const targets = data as PushTarget[];
+  const allTargets = data as PushTarget[];
+  const targets = allTargets.filter((t) => isAllowedPushEndpoint(t.endpoint));
+
+  // Clean out rows whose endpoint failed the allowlist — they are
+  // structurally invalid and will never work. Best-effort; a failure
+  // here doesn't block the fan-out.
+  const invalid = allTargets.filter((t) => !isAllowedPushEndpoint(t.endpoint));
+  if (invalid.length > 0) {
+    try {
+      await sb()
+        .from("push_subscriptions")
+        .delete()
+        .in("endpoint", invalid.map((t) => t.endpoint));
+    } catch {
+      /* ignore */
+    }
+  }
+
   const deadEndpoints: string[] = [];
 
   await Promise.all(
@@ -261,7 +308,8 @@ async function sendWebPush(
             body: payload.body,
             tag: payload.tag ?? "wetindey",
             url: payload.url ?? "/"
-          })
+          }),
+          { timeout: 5000 }
         );
       } catch (err) {
         const statusCode = (err as { statusCode?: number }).statusCode;

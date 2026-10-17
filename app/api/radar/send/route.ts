@@ -6,6 +6,7 @@ import { sameOrigin, checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 import { assertNotBanned } from "@/lib/guards";
 import { isValidLatLng } from "@/lib/geo";
 import { sendPushToSessions } from "@/lib/push-server";
+import { waitUntil } from "@vercel/functions";
 
 const TYPES = ["safe","home","on_way","need_help","call_me","police_stop"] as const;
 type SignalType = typeof TYPES[number];
@@ -123,12 +124,19 @@ export async function POST(req: NextRequest) {
       // not fan out into hundreds of simultaneous FCM calls per signal.
       const PUSH_FANOUT_MAX = 50;
       const pushTargets = allowedIds.slice(0, PUSH_FANOUT_MAX);
-      await sendPushToSessions(pushTargets, {
-        title: copy.title,
-        body: "@" + senderHandle + " \u2014 " + copy.body,
-        tag: "radar-" + firstId,
-        url: "/radar"
-      });
+      // Audit finding 6b: this was `await sendPushToSessions(...)`.
+      // A malicious or slow web-push endpoint could stall the sender's
+      // own "Need help" signal until Vercel's function timeout — the
+      // exact opposite of what a safety feature must do. Fire and
+      // forget: the DB rows are already inserted, push is best-effort.
+      waitUntil(
+        sendPushToSessions(pushTargets, {
+          title: copy.title,
+          body: "@" + senderHandle + " \u2014 " + copy.body,
+          tag: "radar-" + firstId,
+          url: "/radar"
+        }).catch((e) => console.error("[radar/send] push failed:", e))
+      );
     } catch (e) {
       console.error("[radar/send] push failed:", e);
     }

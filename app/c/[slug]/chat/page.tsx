@@ -117,6 +117,7 @@ export default async function ChatPage(props: {
     {
       handle: string;
       last_seen_at: string | null;
+      hide_presence: boolean;
       font_preference: string | null;
       text_color: string | null;
       status_line: string | null;
@@ -126,19 +127,28 @@ export default async function ChatPage(props: {
   if (allSessionIds.length > 0) {
     const { data: profiles } = await db
       .from("sessions")
-      .select("id, handle, last_seen_at, font_preference, text_color, status_line")
+      .select("id, handle, last_seen_at, hide_presence, font_preference, text_color, status_line")
       .in("id", allSessionIds);
 
     for (const p of profiles ?? []) {
       profilesMap.set(p.id, {
         handle: p.handle,
         last_seen_at: p.last_seen_at ?? null,
+        hide_presence: p.hide_presence === true,
         font_preference: p.font_preference ?? null,
         text_color: p.text_color ?? null,
         status_line: p.status_line ?? null
       });
     }
   }
+
+  // Audit finding 12b: presence privacy. If the requester hides their
+  // presence, they don't see anyone else's last-seen time. And if a
+  // target hides their own presence, we null out their last_seen_at
+  // regardless of who is viewing.
+  const requesterHides = sessionId
+    ? (profilesMap.get(sessionId)?.hide_presence ?? false)
+    : false;
 
   // Build the parent snapshot map now that we have handles
   const parentMap = new Map<string, MessageParent>();
@@ -179,7 +189,10 @@ export default async function ChatPage(props: {
       audio_url: m.audio_url,
       created_at: m.created_at,
       author_handle: p?.handle ?? "Anonymous",
-      author_last_seen: p?.last_seen_at ?? null,
+      author_last_seen:
+        (requesterHides || p?.hide_presence === true)
+          ? null
+          : (p?.last_seen_at ?? null),
       reactions: reactionMap.get(m.id) ?? [],
       parent_id: parentId,
       parent: parentId ? parentMap.get(parentId) ?? null : null
@@ -192,7 +205,10 @@ export default async function ChatPage(props: {
     return {
       session_id: m.session_id,
       handle: p?.handle ?? "Anonymous",
-      last_seen_at: p?.last_seen_at ?? null,
+      last_seen_at:
+        (requesterHides || p?.hide_presence === true)
+          ? null
+          : (p?.last_seen_at ?? null),
       role: m.role
     };
   });

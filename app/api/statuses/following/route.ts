@@ -35,21 +35,36 @@ export async function GET() {
     const { data: sessions } = await db
       .from("sessions")
       .select(
-        "handle, status_line, status_line_updated_at, availability, last_seen_at"
+        "handle, status_line, status_line_updated_at, availability, last_seen_at, hide_presence"
       )
       .in("id", ids)
       .not("status_line", "is", null)
       .order("status_line_updated_at", { ascending: false })
       .limit(20);
 
+    // Audit finding 12b: last_seen_at was returned regardless of the
+    // target's hide_presence flag. Also apply the "if I hide mine, I
+    // don't see others'" rule the members route uses.
+    const { data: me } = await db
+      .from("sessions")
+      .select("hide_presence")
+      .eq("id", sessionId)
+      .maybeSingle();
+    const requesterHides = me?.hide_presence === true;
+
     const people = (sessions ?? [])
       .filter((s) => s.status_line && s.status_line.trim().length > 0)
-      .map((s) => ({
-        handle: s.handle,
-        status_line: s.status_line,
-        availability: s.availability ?? "auto",
-        last_seen_at: s.last_seen_at
-      }));
+      .map((s) => {
+        const targetHides =
+          requesterHides ||
+          (s as { hide_presence?: boolean }).hide_presence === true;
+        return {
+          handle: s.handle,
+          status_line: s.status_line,
+          availability: s.availability ?? "auto",
+          last_seen_at: targetHides ? null : s.last_seen_at
+        };
+      });
 
     return Response.json({ people });
   } catch (e) {
