@@ -31,7 +31,7 @@ function buildCsp(nonce: string): string {
     "font-src 'self' https://fonts.gstatic.com data:",
     "img-src 'self' data: blob: https://*.supabase.co",
     "media-src 'self' blob: https://*.supabase.co",
-    `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.groq.com https://api.telegram.org${DEV_LIVE}`,
+    `connect-src 'self' https://*.supabase.co wss://*.supabase.co${DEV_LIVE}`,
     `frame-src ${IS_PROD ? "'none'" : "https://vercel.live"}`,
     "frame-ancestors 'none'",
     "base-uri 'self'",
