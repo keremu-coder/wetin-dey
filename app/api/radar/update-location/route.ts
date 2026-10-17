@@ -39,12 +39,24 @@ export async function POST(req: NextRequest) {
     }
 
     const db = createServiceClient();
+
+    // Audit finding: the previous query accepted location updates for
+    // any signal whose location_sharing was still true - including
+    // signals past their expires_at, up to 15 minutes of drift until
+    // the sweep job runs (and indefinitely if the sweep dies).
+    //
+    // Adding the expires_at check here makes the 4-hour expiry
+    // literally enforced by the endpoint itself: a client that keeps
+    // sending coordinates after expiry gets a no-op update, not a
+    // fresh lat/lng. The sweep job still flips location_sharing and
+    // nulls coordinates - this route just stops accepting new ones.
     const { error } = await db
       .from("radar_signals")
       .update({ lat, lng, location_updated_at: new Date().toISOString() })
       .eq("sender_id", sid)
       .eq("location_sharing", true)
       .eq("location_stopped", false)
+      .gt("expires_at", new Date().toISOString())
       .in("signal_type", ["need_help", "police_stop"]);
 
     if (error) {
