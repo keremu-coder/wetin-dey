@@ -147,7 +147,7 @@ export function PostActions({
                   : "bg-ink/5 text-muted hover:bg-brand-tint hover:text-brand"
               }`}
             >
-              ✋ Me too · {meToo}
+              {"\uD83D\uDC65"} {meToo} e dey affect me too
             </button>
             <button
               type="button"
@@ -158,7 +158,7 @@ export function PostActions({
                   : "bg-ink/5 text-muted hover:bg-danger-soft hover:text-danger"
               }`}
             >
-              👎 {downvotes}
+              {"\uD83D\uDC4E"} {downvotes}
             </button>
           </>
         ) : (
@@ -172,7 +172,7 @@ export function PostActions({
                   : "bg-ink/5 text-muted hover:bg-brand-tint hover:text-brand"
               }`}
             >
-              👍 {upvotes}
+              {"\uD83D\uDC4D"} {upvotes}
             </button>
             <button
               type="button"
@@ -183,7 +183,7 @@ export function PostActions({
                   : "bg-ink/5 text-muted hover:bg-danger-soft hover:text-danger"
               }`}
             >
-              👎 {downvotes}
+              {"\uD83D\uDC4E"} {downvotes}
             </button>
           </>
         )}
@@ -192,7 +192,7 @@ export function PostActions({
           href={`/r/${postId}`}
           className="inline-flex items-center gap-1.5 rounded-full bg-ink/5 px-3 py-1.5 text-[0.75rem] font-medium text-muted transition-colors hover:bg-ink/10"
         >
-          💬 {commentCount}
+          {"\uD83D\uDCAC"} {commentCount}
         </Link>
 
         <button
@@ -200,9 +200,8 @@ export function PostActions({
           onClick={share}
           className="inline-flex items-center gap-1.5 rounded-full bg-ink/5 px-3 py-1.5 text-[0.75rem] font-medium text-muted transition-colors hover:bg-ink/10"
         >
-          🔗 Share
+          {"\uD83D\uDD17"} Share
         </button>
-
         <div className="relative ml-auto">
           <button
             type="button"
@@ -210,7 +209,7 @@ export function PostActions({
             className="rounded-lg px-3 py-1.5 text-[0.9rem] text-faint transition-colors hover:bg-ink/5 hover:text-ink"
             aria-label="More options"
           >
-            •••
+            {"\u2022\u2022\u2022"}
           </button>
 
           {menuOpen ? (
@@ -273,7 +272,7 @@ export function PostActions({
                     disabled={busy}
                     className="block w-full rounded-lg px-3 py-2 text-left text-[0.8125rem] text-danger hover:bg-danger-soft disabled:opacity-60"
                   >
-                    {busy ? "Dey block…" : `Block @${authorHandle}`}
+                    {busy ? "Dey block\u2026" : `Block @${authorHandle}`}
                   </button>
                 ) : null}
                 <Link

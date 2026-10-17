@@ -71,7 +71,7 @@ export function ReportCard({
   const postUrl = `/r/${report.id}`;
 
   return (
-    <article className="group relative rounded-2xl border border-border bg-surface shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover">
+    <article className="group relative rounded-3xl border border-border bg-surface transition-colors hover:border-border-strong">
       <div className="p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
@@ -83,8 +83,8 @@ export function ReportCard({
                 {authorLabel}
               </p>
               <p className="text-[0.75rem] text-faint">
-                {timeAgo(report.created_at)} · {report.state}
-                {report.lga ? ` · ${report.lga}` : ""}
+                {timeAgo(report.created_at)} Â· {report.state}
+                {report.lga ? ` Â· ${report.lga}` : ""}
               </p>
             </div>
           </div>
@@ -149,8 +149,6 @@ export function HomeFeed({
   const [nearState, setNearState] = useState<string | null>(filters.state ?? null);
   const [locating, setLocating] = useState(false);
 
-  // Location prompt only fires when the user explicitly taps Near you.
-  // Never auto-request on page load — that is a bad-faith UX pattern.
   function askForLocation() {
     if (!navigator.geolocation) return;
     setLocating(true);
@@ -194,7 +192,7 @@ export function HomeFeed({
             setTab("near");
           }}
         >
-          {locating ? "Locating…" : `Near you${nearState ? ` (${nearState})` : ""}`}
+          {locating ? "Locating\u2026" : `Near you${nearState ? ` (${nearState})` : ""}`}
         </button>
         <button
           type="button"
