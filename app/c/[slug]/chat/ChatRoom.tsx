@@ -157,7 +157,8 @@ export function ChatRoom({
         body: JSON.stringify({ handle, action: "block" })
       });
       if (!res.ok) {
-        console.error("[chat] block failed:", await res.text().catch(() => ""));
+        setBlockedNotice("Could not block. Check your connection and try again.");
+        setTimeout(() => setBlockedNotice(null), 6000);
         return;
       }
       // New Set — React needs a new reference to re-render the filter.
@@ -171,6 +172,8 @@ export function ChatRoom({
       setTimeout(() => setBlockedNotice(null), 6000);
     } catch (e) {
       console.error("[chat] block network error:", e);
+      setBlockedNotice("Could not block. Check your connection and try again.");
+      setTimeout(() => setBlockedNotice(null), 6000);
     }
   }
 
