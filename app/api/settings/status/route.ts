@@ -18,15 +18,22 @@ import { isValidAvailability } from "@/lib/presence";
  *       the signed session cookie.
  */
 
-export async function GET(req: NextRequest) {
+// GET returns the caller's own status via the signed session cookie.
+//
+// Audit finding 3c: the previous version accepted ?session_id= and
+// returned that session's status to anyone. That made the endpoint a
+// session-id oracle — an attacker who obtained session ids elsewhere
+// (see finding 2) could probe this to confirm a session's existence
+// and read their status. There is no client that actually needs to
+// read *another* session's status by id: profile pages read
+// status_line directly from the sessions row server-side, and the
+// settings page reads its own status. So we drop the query param
+// entirely.
+export async function GET(_req: NextRequest) {
   try {
-    const url = new URL(req.url);
-    const sessionId = url.searchParams.get("session_id");
+    const sessionId = await getSessionId();
     if (!sessionId) {
-      return NextResponse.json(
-        { error: "session_id required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "no session" }, { status: 401 });
     }
 
     const db = createServiceClient();

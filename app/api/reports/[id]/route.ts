@@ -10,9 +10,21 @@ export async function GET(
   const params = await context.params;
   const sessionId = await getSessionId();
   const db = createServiceClient();
+  // Audit finding 10: select("*") leaked internal columns to any
+  // caller who fetched a public report:
+  //   - defamation_risk, defamation_reasons: internal risk score
+  //   - reviewer_note: what the moderator wrote
+  //   - dedupe_hash: internal deduplication fingerprint
+  //   - telegram_message_id: internal mirror id
+  //   - formalization_confidence: internal AI score
+  // The columns below are the ones the client actually renders plus
+  // the ones the author-visibility check below needs (reviewed, held,
+  // session_id). session_id is stripped before response by stripSession.
   const { data, error } = await db
     .from("reports")
-    .select("*")
+    .select(
+      "id, created_at, category, agency_raw, agency_canonical, state, lga, body, amount_kobo, evidence_url, evidence_type, evidence_link, evidence_label, summary_pidgin, summary_english, incident_date, status, reviewed, held, author_handle, post_type, upvotes, downvotes, me_too_count, comment_count, evidence_tier, target_type, community_id, session_id"
+    )
     .eq("id", params.id)
     .maybeSingle();
 

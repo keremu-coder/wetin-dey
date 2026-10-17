@@ -10,7 +10,6 @@ import {
 } from "@/lib/constants";
 import { assertNotBanned } from "@/lib/guards";
 import { serverError } from "@/lib/http";
-import { deleteReportEvidence } from "@/lib/evidence-cleanup";
 
 const VALID_TARGETS = [
   "message",
@@ -61,14 +60,16 @@ async function applyAutoHide(
     return !error;
   }
   if (targetType === "post" || targetType === "report") {
+    // Crowd auto-hide is REVERSIBLE — a moderator can dismiss the flag
+    // and unhide the report. So do NOT delete the evidence storage
+    // object here (audit finding 5). Permanent evidence deletion only
+    // happens via moderator-confirmed takedown in admin/moderate or
+    // admin/moderate-flag, where the decision is verified by a human.
     const { error } = await db
       .from("reports")
       .update({ held: true })
       .eq("id", targetId)
       .eq("held", false);
-    if (!error) {
-      await deleteReportEvidence(targetId);
-    }
     return !error;
   }
   if (targetType === "dm_message") {

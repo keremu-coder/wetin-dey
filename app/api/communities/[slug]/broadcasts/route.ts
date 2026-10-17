@@ -31,7 +31,7 @@ export async function GET(
 
     const { data: community } = await db
       .from("communities")
-      .select("id")
+      .select("id, is_public")
       .eq("slug", params.slug)
       .maybeSingle();
 
@@ -39,7 +39,31 @@ export async function GET(
       return Response.json({ error: "not found" }, { status: 404 });
     }
 
+    // Audit finding 3a: broadcasts expose audio URLs and previously
+    // returned the raw session_id of the broadcaster. Two problems:
+    //   (1) Private Spaces served their audio to non-members.
+    //   (2) session_id was spread into the response, leaking a bearer-
+    //       equivalent identifier to any caller.
+    // Fix: require membership for private Spaces, and strip session_id
+    // from the response. Broadcasts in public Spaces remain readable to
+    // anyone (they are public by design).
     const requesterId = await getSessionId();
+
+    if (!community.is_public) {
+      if (!requesterId) {
+        return Response.json({ error: "forbidden" }, { status: 403 });
+      }
+      const { data: membership } = await db
+        .from("community_members")
+        .select("id")
+        .eq("community_id", community.id)
+        .eq("session_id", requesterId)
+        .maybeSingle();
+      if (!membership) {
+        return Response.json({ error: "forbidden" }, { status: 403 });
+      }
+    }
+
     const blockedIds = await getBlockedIds(requesterId);
     const blockedList = Array.from(blockedIds);
 
@@ -76,10 +100,14 @@ export async function GET(
     }
 
     return Response.json({
-      broadcasts: (broadcasts ?? []).map((b) => ({
-        ...b,
-        author_handle: handleMap.get(b.session_id) ?? "Anonymous"
-      }))
+      broadcasts: (broadcasts ?? []).map((b) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { session_id, ...pub } = b;
+        return {
+          ...pub,
+          author_handle: handleMap.get(session_id) ?? "Anonymous"
+        };
+      })
     });
   } catch (e) {
     return serverError("communities/[slug]/broadcasts", e);

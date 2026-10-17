@@ -59,7 +59,7 @@ async function resolveHandle(raw: string): Promise<ResolvedHandle> {
 }
 
 const getProfileBundle = unstable_cache(
-  async (handle: string) => {
+  async (handle: string, profileId: string) => {
     const db = createServiceClient();
 
     const [profileResult, postsResult] = await Promise.all([
@@ -75,8 +75,17 @@ const getProfileBundle = unstable_cache(
         .select(
           "id, created_at, state, reviewed, agency_canonical, agency_raw, summary_pidgin, body, status, amount_kobo"
         )
-        .eq("author_handle", handle)
+        // Audit finding 9: filter by session_id, not author_handle.
+        // A handle snapshot on old reports can be re-registered by a
+        // different user; keying on author_handle leaks the old owner's
+        // posts to the new owner. Also require reviewed=true (so
+        // unreviewed posts don't appear on a public profile) and
+        // community_id IS NULL (so posts inside private Spaces don't
+        // appear on a public profile).
+        .eq("session_id", profileId)
+        .eq("reviewed", true)
         .eq("held", false)
+        .is("community_id", null)
         .order("created_at", { ascending: false })
         .limit(30)
     ]);
@@ -97,7 +106,7 @@ const getProfileBundle = unstable_cache(
       }>
     };
   },
-  ["profile-bundle-v5"],
+  ["profile-bundle-v6"],
   { revalidate: 60 }
 );
 
@@ -229,7 +238,7 @@ export default async function ProfilePage(props: {
         : "posts";
 
   const [bundle, mySessionId] = await Promise.all([
-    getProfileBundle(handle),
+    getProfileBundle(handle, resolved.profile_id),
     getSessionId()
   ]);
 

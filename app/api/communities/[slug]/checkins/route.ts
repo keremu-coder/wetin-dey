@@ -21,7 +21,7 @@ export async function GET(
 
     const { data: community } = await db
       .from("communities")
-      .select("id, name")
+      .select("id, name, is_public")
       .eq("slug", params.slug)
       .maybeSingle();
 
@@ -29,7 +29,24 @@ export async function GET(
       return Response.json({ error: "not found" }, { status: 404 });
     }
 
+    // Audit finding 2: check-ins expose member session_ids, safety
+    // statuses, and free-text notes. Require a session AND membership
+    // for BOTH public and private spaces — check-in data is more
+    // sensitive than the public member list and should never be
+    // readable without joining.
     const sessionId = await getSessionId();
+    if (!sessionId) {
+      return Response.json({ error: "no session" }, { status: 401 });
+    }
+    const { data: membership } = await db
+      .from("community_members")
+      .select("id")
+      .eq("community_id", community.id)
+      .eq("session_id", sessionId)
+      .maybeSingle();
+    if (!membership) {
+      return Response.json({ error: "Join the space first." }, { status: 403 });
+    }
 
     const { data: memberRows } = await db
       .from("community_members")

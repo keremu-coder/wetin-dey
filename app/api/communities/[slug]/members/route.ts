@@ -78,12 +78,18 @@ export async function GET(
       (memberRows ?? []).map((m) => [m.session_id, m.role])
     );
 
+    // Audit finding 3b: session_id is a bearer-equivalent identifier
+    // and was being returned to any caller who could see the member
+    // list. The response now exposes only the public handle, role, and
+    // the presence-gated last_seen_at. Clients that need to identify
+    // "me" in this list compare against their own handle (or fetch
+    // their own session_id separately) — they never needed the ids of
+    // other members.
     const members = (sessions ?? []).map((s) => {
       const targetHides =
         requesterHides ||
         (s as { hide_presence?: boolean }).hide_presence === true;
       return {
-        session_id: s.id,
         handle: s.handle,
         role: roleMap.get(s.id) ?? "member",
         last_seen_at: targetHides ? null : s.last_seen_at
