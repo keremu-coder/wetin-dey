@@ -45,6 +45,12 @@ Test credentials live in .env.test (gitignored). Do not commit them here.
 - Search, settings sub-pages (10 of them)
 - Presence (online/away/offline)
 - In-app notifications bell (reply, mention, comment) with 30s polling + unread badge
+- Logged-out homepage hero (identity + trust markers + recent record + CTA) - `components/HomeLoggedOut.tsx`
+- Report card with 16px radius, theme-safe status badges, ✓ on resolved, "e dey affect me too" me-too phrasing
+- AI disclosure on report detail (visible "AI-generated" chip + collapsible "Read clean English version")
+- Rate limiting on 20+ routes (see `lib/rate-limit.ts` callers)
+- Evidence cleanup on report hide - `lib/evidence-cleanup.ts`
+- Reputation schema + computeTier helper - `lib/reputation.ts` (backend only, no UI)
 
 ## Missing / TODO
 - Live video rooms (Phase 4)
