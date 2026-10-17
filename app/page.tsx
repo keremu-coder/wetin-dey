@@ -1,15 +1,63 @@
 import Link from "next/link";
 import { getSessionId } from "@/lib/session";
 import { getChatsHome } from "@/lib/chats-data";
+import { createServiceClient } from "@/lib/supabase/server";
 import { ChatRow } from "@/components/ChatRow";
 import { SectionHeader } from "@/components/SectionHeader";
 import { SuggestionRow } from "@/components/SuggestionRow";
+import { HomeLoggedOut } from "@/components/HomeLoggedOut";
+import type { Report } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const sessionId = await getSessionId();
   const { chats, suggestions } = await getChatsHome(sessionId);
+
+  // A visitor with zero chats gets the identity hero regardless of
+  // whether the middleware already minted them an anonymous session
+  // cookie (it always does). The signal for "new user" is "no chats",
+  // not "no session". Once they join their first space, they never
+  // see the hero again — this is the whole point of Direction A.
+  if (chats.length === 0) {
+    const db = createServiceClient();
+
+    const { data: recentReports } = await db
+      .from("reports")
+      .select(
+        "id, created_at, category, agency_raw, agency_canonical, state, lga, body, amount_kobo, evidence_url, evidence_type, evidence_link, evidence_label, summary_pidgin, summary_english, incident_date, status, reviewed, author_handle, post_type, upvotes, downvotes, me_too_count, comment_count, evidence_tier, target_type, community_id"
+      )
+      .eq("reviewed", true)
+      .eq("held", false)
+      .in("post_type", ["report_am", "ask", "help"])
+      .is("community_id", null)
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    // Push resolved reports to the front, then take 3. Resolved is the
+    // emotional peak — a visitor landing on the homepage should see
+    // "wetin we don settle" first, not just the outrage feed.
+    const sorted = [...((recentReports ?? []) as Report[])].sort((a, b) => {
+      const aResolved = a.status === "resolved";
+      const bResolved = b.status === "resolved";
+      if (aResolved && !bResolved) return -1;
+      if (bResolved && !aResolved) return 1;
+      return 0;
+    });
+
+    return (
+      <HomeLoggedOut
+        reports={sorted.slice(0, 3)}
+        suggestions={suggestions.map((s) => ({
+          id: s.id,
+          slug: s.slug,
+          name: s.name,
+          emoji: s.emoji ?? null,
+          meta: s.meta
+        }))}
+      />
+    );
+  }
 
   return (
     <main className="mx-auto max-w-2xl pb-24">
@@ -26,49 +74,30 @@ export default async function HomePage() {
         </Link>
       </div>
 
-      {chats.length > 0 ? (
-        <>
-          <SectionHeader title="Chats" action={{ label: "New space", href: "/communities/new" }} />
-          <div>
-            {chats.map((c, i) => (
-              <ChatRow
-                key={c.key}
-                href={c.href}
-                name={c.name}
-                seed={c.seed}
-                emoji={c.emoji}
-                avatarUrl={c.avatarUrl}
-                signal={c.signal}
-                preview={c.preview}
-                previewPrefix={c.previewPrefix}
-                voice={c.voice}
-                receipt={c.receipt}
-                timestamp={c.timestamp}
-                unread={c.unread}
-                isLast={i === chats.length - 1}
-              />
-            ))}
-          </div>
-        </>
-      ) : (
-        <div className="mx-auto max-w-[280px] px-5 pt-8 text-center">
-          <div className="mx-auto mb-4 flex h-28 w-28 items-center justify-center rounded-3xl bg-primary-tint">
-            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-primary-ink" aria-hidden>
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-            </svg>
-          </div>
-          <p className="text-[1.0625rem] font-semibold leading-[1.375rem] text-ink">Your people dey here</p>
-          <p className="mt-2 text-[1rem] leading-[1.5rem] text-muted">
-            Join a space or start one for your family, church cell, estate or friends. Send voice notes, share news, no phone number needed.
-          </p>
-          <Link href="/communities/new" className="mt-6 flex h-12 items-center justify-center rounded-full bg-primary px-6 text-[1rem] font-semibold text-white">
-            Start a space
-          </Link>
-          <Link href="/communities" className="mt-2 flex h-11 items-center justify-center text-[0.9375rem] font-semibold text-primary-ink">
-            Browse public spaces
-          </Link>
-        </div>
-      )}
+      <SectionHeader
+        title="Chats"
+        action={{ label: "New space", href: "/communities/new" }}
+      />
+      <div>
+        {chats.map((c, i) => (
+          <ChatRow
+            key={c.key}
+            href={c.href}
+            name={c.name}
+            seed={c.seed}
+            emoji={c.emoji}
+            avatarUrl={c.avatarUrl}
+            signal={c.signal}
+            preview={c.preview}
+            previewPrefix={c.previewPrefix}
+            voice={c.voice}
+            receipt={c.receipt}
+            timestamp={c.timestamp}
+            unread={c.unread}
+            isLast={i === chats.length - 1}
+          />
+        ))}
+      </div>
 
       {suggestions.length > 0 ? (
         <>
