@@ -395,8 +395,7 @@ export function DMThread({
             className="flex h-10 w-10 items-center justify-center rounded-full text-faint transition-colors hover:bg-ink/5 hover:text-ink"
             aria-label="More options"
           >
-            •••
-          </button>
+          {"\u2022\u2022\u2022"}</button>
 
           {menuOpen ? (
             <>
