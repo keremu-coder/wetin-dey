@@ -74,7 +74,7 @@ export function TalkTabs({
         <p className="mt-1 text-[0.9375rem] leading-relaxed text-muted">
           {isCommunity
             ? "Talent, wins, gist, and everything else. Free form. Support the good ones. No tribal or party fights."
-            : "Civic reports and accountability. Everything here requires evidence. Nothing gets deleted. Nothing carries ads. Ever."}
+            : "The community's memory. Everything wey Naija don see and settle \u2014 light, road, police, water. Shine your eye, add your own. E no dey disappear."}
         </p>
       </div>
 

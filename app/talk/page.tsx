@@ -203,10 +203,27 @@ async function TalkData({
     communityReports.forEach((r, i) => { communityReports[i] = attach(r); });
   }
 
+  // C10 fix: sort resolved reports to the top of each list within the
+  // current page batch. Resolved is the emotional peak of the product —
+  // a user landing on /talk should see "wetin we don settle" before
+  // "wetin still dey happen". The sort is stable within each group, so
+  // resolved reports still appear newest-first, and unresolved reports
+  // still appear newest-first.
+  //
+  // Cross-page sorting is deferred. Within-page is what users see
+  // first, and the query is paginated with PAGE_SIZE = 20, so the
+  // chance of a resolved report living on page 2 is already low.
+  const sortResolvedFirst = (arr: Report[]): Report[] =>
+    [...arr].sort((a, b) => {
+      const aR = a.status === "resolved" ? 1 : 0;
+      const bR = b.status === "resolved" ? 1 : 0;
+      return bR - aR;
+    });
+
   return (
     <TalkTabs
-      civicReports={civicReports}
-      communityReports={communityReports}
+      civicReports={sortResolvedFirst(civicReports)}
+      communityReports={sortResolvedFirst(communityReports)}
       civicPage={page}
       communityPage={page}
       currentHandle={currentHandle}
