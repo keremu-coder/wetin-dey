@@ -3,7 +3,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
-import { sameOrigin } from "@/lib/rate-limit";
+import { sameOrigin, checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 import { assertNotBanned } from "@/lib/guards";
 
 export async function POST(req: NextRequest) {
@@ -19,6 +19,15 @@ export async function POST(req: NextRequest) {
 
     const denied = await assertNotBanned(sessionId);
     if (denied) return denied;
+
+    const limit = await checkRateLimit(
+      sessionId,
+      { key: "push_subscribe", limit: 10, windowMs: 3600000 },
+      { ip: getRequestIp(req) }
+    );
+    if (!limit.ok) {
+      return NextResponse.json({ error: "Slow down — try again later." }, { status: 429 });
+    }
 
     const body = (await req.json()) as {
       endpoint?: unknown;

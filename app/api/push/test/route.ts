@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionId } from "@/lib/session";
 import { sendPushToSessions } from "@/lib/push-server";
-import { sameOrigin } from "@/lib/rate-limit";
+import { sameOrigin, checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -15,6 +15,15 @@ export async function POST(req: NextRequest) {
     const sessionId = await getSessionId();
     if (!sessionId) {
       return NextResponse.json({ error: "no session" }, { status: 401 });
+    }
+
+    const limit = await checkRateLimit(
+      sessionId,
+      { key: "push_test", limit: 5, windowMs: 3600000 },
+      { ip: getRequestIp(req) }
+    );
+    if (!limit.ok) {
+      return NextResponse.json({ error: "Slow down — try again later." }, { status: 429 });
     }
 
     await sendPushToSessions([sessionId], {

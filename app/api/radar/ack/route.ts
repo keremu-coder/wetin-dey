@@ -2,7 +2,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
-import { sameOrigin } from "@/lib/rate-limit";
+import { sameOrigin, checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 
 /**
  * Two callers:
@@ -15,6 +15,15 @@ export async function POST(req: NextRequest) {
     if (!sameOrigin(req)) return NextResponse.json({ error: "bad origin" }, { status: 403 });
     const sid = await getSessionId();
     if (!sid) return NextResponse.json({ error: "no session" }, { status: 401 });
+
+    const limit = await checkRateLimit(
+      sid,
+      { key: "radar_ack", limit: 30, windowMs: 60000 },
+      { ip: getRequestIp(req) }
+    );
+    if (!limit.ok) {
+      return NextResponse.json({ error: "Slow down — too many requests." }, { status: 429 });
+    }
 
     const body = (await req.json()) as { id?: unknown; note?: unknown; stopLocation?: unknown };
     const id = typeof body?.id === "string" ? body.id : null;
