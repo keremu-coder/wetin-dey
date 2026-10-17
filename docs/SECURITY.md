@@ -219,3 +219,48 @@ The security-relevant changes in October 2026 (hostile audit response):
 - Privacy copy tightened (`f3b222a`)
 
 Full commit log: `git log --oneline`.
+---
+
+## npm audit — accepted risk (2026-10-17)
+
+`npm audit` reports **18 vulnerabilities (9 moderate, 7 high, 2 critical)**.
+`npm audit fix` was run and found **0 safe fixes** — every available fix
+requires `--force`, and every `--force` is a major-version upgrade that
+would break the app (next 15 -> 16, tailwind 3 -> 4, vitest 4 -> 5,
+@capacitor/cli 7 -> 8).
+
+**Do NOT run `npm audit fix --force`.** It will break the entire app. This
+was already noted in `SESSION_LOG.md` and remains true.
+
+Every remaining finding is in build-time or test-time tooling. None are
+user-exploitable in the production app:
+
+| Package | Severity | Runs in | Exploitable by a user of 9jawatindey.vercel.app? |
+|---|---|---|---|
+| `tinypool` | critical | vitest test runner | **No** — only runs during `npm test` |
+| `postcss` (via next) | high | build + CSS processing | **No** — requires attacker-controlled CSS input; app CSS is author-controlled |
+| `braces` | high | tailwind file watcher | **No** — build-time only |
+| `esbuild` | moderate | dev server | **No** — dev only, never on Vercel |
+| `postcss-selector-parser` | moderate | tailwind | **No** — build-time only |
+| `uuid` | moderate | @capacitor/cli | **No** — CLI runs on developer laptop only |
+| `@vitest/mocker` | moderate | vitest | **No** — test-time only |
+
+### Why we accept this now
+
+The 2 critical alerts live in the test runner. The high alerts live in
+CSS/postcss, which only become exploitable if an attacker can control
+the CSS input your app processes — they cannot, since your CSS is 100%
+first-party.
+
+Fixing these requires waiting for compatible major-version releases from
+the upstream packages, then doing a coordinated upgrade (next 15 -> 16,
+tailwind 3 -> 4) with a full regression test. That is not a pre-submission
+task. It is a post-launch engineering sprint.
+
+### Review when
+
+- Next 16 hits stable AND you're ready for the migration
+- Tailwind 4 hits stable AND you've reviewed the breaking changes
+- A security researcher reports one of these as exploitable in a
+  context that DOES affect this app (unlikely, but if it happens, fix
+  it that day)
