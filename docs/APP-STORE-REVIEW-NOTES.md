@@ -42,8 +42,10 @@ required to use the app. A signed session cookie is the only identifier.
 
 ## Guideline 1.2 — UGC moderation
 
-Every one of the following surfaces has both a Report action and a Block
-action reachable from the overflow menu:
+Report is available on every UGC surface. Block is available on messages,
+comments, posts, reports, DMs, spaces, and profiles. Voice notes and
+broadcast items are reportable directly and blockable via the author's
+profile (tap the author handle -> Block):
 
 - Chat messages (message menu — long-press or tap the menu button)
 - Comments on reports
@@ -65,8 +67,9 @@ applies on next load. Blocked-users list at Settings -> Blocked Users.
 Automated moderation:
 - Server-side keyword and pattern filters run before any message,
   comment, or post is stored (threats, hate, doxxing, sexual content).
-- Weighted trust scoring: content flagged 3+ times by accounts older
-  than 24h with email verification is auto-hidden pending review.
+- Weighted trust scoring: content flagged by verified-email and
+  30-day-old accounts crosses the 3.0 auto-hide threshold faster than
+  by fresh accounts. The rule is a weighted sum, not a flat count.
 - Moderation queue at /admin/pending (moderator-only, protected).
 - 24-hour removal SLA stated in Terms of Use (/terms) and Community
   Guidelines (/guidelines).
@@ -89,7 +92,7 @@ app/api/account/delete/route.ts.
 
 - Supabase Auth credential (email + password)
 - Email / phone recovery data on the session row
-- Handle
+- Handle (replaced with deleted_<id>, not nulled)
 - Avatar image file (from the user-avatars storage bucket)
 - All push subscriptions (browser + native tokens)
 - Follows, blocks, votes, reactions
@@ -157,14 +160,14 @@ background location is gathered for analytics, no location is stored for
 inactive users, no location is shared with the app's operators.
 
 Purpose strings in Info.plist:
-- NSLocationWhenInUseUsageDescription — "Radar uses your location only
-  while you have an active 'Need help' or 'Police stop' signal open.
-  Updates stop when you tap 'I'm safe' or after 4 hours."
-- NSLocationAlwaysAndWhenInUseUsageDescription — "If you enable
-  background location during an active Radar safety signal, the app
-  continues to share your location with your chosen Circle members so
-  they can find you. This stops when you tap 'I'm safe' or after 4
-  hours."
+- NSLocationWhenInUseUsageDescription — "Wetin Dey uses your location
+  when you send a Need help or Police stop signal on Radar, so the
+  trusted contacts you chose can find you. Other signals do not include
+  your location."
+- NSLocationAlwaysAndWhenInUseUsageDescription — "While a Need help or
+  Police stop signal is active (up to 4 hours), Wetin Dey keeps sharing
+  your live location with the contacts you chose, even when the app is
+  in the background. You can stop sharing at any time."
 
 Comparable apps: Life360, Apple's Emergency SOS Live Video, Noonlight.
 
@@ -188,8 +191,8 @@ acknowledged.
 - @capacitor/push-notifications — permission flow + token capture (FCM
   wiring lands in next build)
 - @capacitor/network — offline/online detection
-- Native audio recording via @capacitor/microphone for voice notes and
-  voice testimony
+- Audio capture via getUserMedia + MediaRecorder running inside the
+  WebView (same JS path as desktop; not a separate native plugin)
 
 **Native integrations explicitly scheduled for the very next build
 (within 2 weeks of this submission):**
@@ -243,7 +246,7 @@ Full disclosure in /privacy and docs/STORE_DISCLOSURES.md.
    - Report / Block actions in the overflow menu
 
 5. To test UGC moderation end-to-end:
-   - Tap /communities -> join "Emergency" or "Lagos Traffic Watch"
+   - Tap /communities -> join "Naija Market" or "Gamers Lounge"
    - Post any message in the Space chat
    - Long-press the message -> menu shows Reply, Report, Block
    - Tap Report -> pick a reason -> confirm
@@ -258,8 +261,8 @@ Full disclosure in /privacy and docs/STORE_DISCLOSURES.md.
 
 7. To test Radar (background location):
    - Two devices or two browser profiles needed
-   - Device A: Settings -> Radar -> add Device B as a Circle contact
-   - Device B: Settings -> Radar -> add Device A back
+   - Device A: open the Radar page (/radar) -> add Device B as a Circle contact
+   - Device B: open the Radar page (/radar) -> add Device A back
    - Device A: tap "Need help" -> grant location permission
    - Device B: receive signal with Device A's live location
    - Device A: tap "I'm safe" -> location sharing stops immediately
@@ -298,10 +301,10 @@ Two tabs:
 - Community: free-form feed + Spaces with live chat, voice notes, broadcasts.
 
 UGC MODERATION (1.2):
-Every UGC surface has a Report + Block action in the message/post overflow menu. Report: 10 reason categories, stored for moderators, 24h SLA. Block: hides the user's content immediately, persists server-side. Moderator queue at /admin/pending. Age gate 17+.
+Report is on every UGC surface (10 reason categories, 24h SLA, moderation queue at /admin/pending). Block is on messages, comments, posts, reports, DMs, spaces, and profiles; blocks hide the user's content immediately and persist server-side. Voice notes and broadcasts can be reported directly and blocked via the author profile. Age gate 17+.
 
 ACCOUNT DELETION (5.1.1v):
-Settings > Delete Account. Type DELETE to confirm. Server-side deletion of auth credential, email, avatar, push tokens, follows, blocks, votes, check-ins, Radar contacts, broadcasts, session row.
+Settings > Delete Account. Type DELETE to confirm. Server-side deletion of auth credential, email, avatar, push tokens, follows, blocks, votes, check-ins, Radar contacts, broadcasts. Handle is replaced with deleted_<id>; session row is tombstoned.
 
 RETAINED (fully disclosed in /privacy and /terms in-app): public reports + comments remain at permanent URLs, detached from identity (session_id tombstoned, handle nulled). This is required for civic archive integrity: otherwise any government agency could censor a report by pressuring its author to quit. Same model as Wikipedia, Internet Archive, SeeClickFix.
 
@@ -309,7 +312,7 @@ BACKGROUND LOCATION (4.4):
 Radar is personal-safety. Location is collected ONLY during an active "Need help"/"Police stop" signal, sent every 30s to a mutual-consent Circle. Stops on "I'm safe" tap, 4h auto-expiry, or contact removal. No background collection outside an active signal. Comparable to Life360 / Emergency SOS.
 
 MINIMUM FUNCTIONALITY (4.2):
-Current build uses Capacitor + WebView loading production URL. Native integrations already present: haptics, share sheet, splash, status bar, push permission flow + token capture, network monitor, native audio recording for voice notes/evidence.
+Current build uses Capacitor + WebView loading production URL. Native integrations already present: haptics, share sheet, splash, status bar, push permission flow + token capture, network monitor, getUserMedia/MediaRecorder audio capture for voice notes/evidence (running in the WebView).
 Next build (within 2 weeks): Firebase FCM + APNs native push, biometric app lock.
 Follow-up build (6-8 weeks): local asset bundling (removes remote load).
 
@@ -321,9 +324,9 @@ REVIEWER CREDENTIALS: provided in App Store Connect sign-in fields.
 TESTING:
 - Age gate on first launch
 - /talk shows civic feed, tap any report for AI summary + evidence + comments
-- /communities > join "Emergency" > post message > long-press > Report/Block
+- /communities > join "Naija Market" > post message > long-press > Report/Block
 - Settings > Delete Account > type DELETE
-- Settings > Radar > add mutual contact > send Need help > verify live location
+- /radar > add mutual contact (they must add you back) > send Need help > verify live location
 
 Contact: support@wetindey.app
 
