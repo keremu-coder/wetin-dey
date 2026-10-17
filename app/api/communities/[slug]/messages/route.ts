@@ -20,7 +20,7 @@ import {
   TERMS_NOT_ACCEPTED_MESSAGE
 } from "@/lib/terms-guard";
 import { serverError } from "@/lib/http";
-import { sameOrigin } from "@/lib/rate-limit";
+import { sameOrigin, checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 
 type ParentRow = {
   id: string;
@@ -30,12 +30,6 @@ type ParentRow = {
   audio_url: string | null;
 };
 
-/**
- * Load a message row that a reply points at, plus the handle of the
- * person who wrote it. Returns null when the parent no longer exists
- * (ON DELETE SET NULL removes the FK value but the referenced row can
- * still be gone if the whole community was deleted).
- */
 async function loadParent(
   db: ReturnType<typeof createServiceClient>,
   parentId: string,
@@ -69,7 +63,7 @@ export async function GET(
   req: NextRequest,
   context: { params: Promise<{ slug: string }> }
 ) {
-    const params = await context.params;
+  const params = await context.params;
   try {
     const db = createServiceClient();
 
@@ -85,7 +79,6 @@ export async function GET(
 
     const requesterId = await getSessionId();
 
-    // Private communities require membership to read messages.
     if (!community.is_public) {
       if (!requesterId) {
         return Response.json({ error: "forbidden" }, { status: 403 });
@@ -133,7 +126,6 @@ export async function GET(
 
     const ordered = (messages ?? []).reverse();
 
-    // Fetch parents for any replies in this batch.
     const parentIds = Array.from(
       new Set(
         ordered
@@ -237,12 +229,11 @@ export async function GET(
 
 export async function POST(req: NextRequest,
   context: { params: Promise<{ slug: string }> }) {
-  // CSRF: reject cross-origin state-changing requests.
   if (!sameOrigin(req)) {
     return Response.json({ error: "bad origin" }, { status: 403 });
   }
 
-    const params = await context.params;
+  const params = await context.params;
   try {
     const sessionId = await getSessionId();
     if (!sessionId) {
@@ -258,6 +249,20 @@ export async function POST(req: NextRequest,
         { error: TERMS_NOT_ACCEPTED_MESSAGE, code: TERMS_NOT_ACCEPTED_CODE },
         { status: 403 }
       );
+    }
+
+    const limit = await checkRateLimit(
+      sessionId,
+      {
+        key: "community_message",
+        limit: 30,
+        windowMs: 60 * 1000
+      },
+      { ip: getRequestIp(req) }
+    );
+
+    if (!limit.ok) {
+      return Response.json({ error: "Slow down — too many messages." }, { status: 429 });
     }
 
     const profile = await getOrCreateSessionProfile(sessionId);
@@ -318,12 +323,8 @@ export async function POST(req: NextRequest,
             : "webm";
         const path = `chat/${community.id}/${audioId}.${ext}`;
         const rawBuf = Buffer.from(await file.arrayBuffer());
-        // Strip container metadata (M4A/MP3 tags can carry GPS). Fail-closed.
-        // Container matches the real format (iPhone records audio/mp4).
         const buf = await stripMediaMetadata(rawBuf, audioContainerFor(file.type).ext);
 
-        // Voice moderation — Whisper transcribe + text filter. Best-effort:
-        // fails open so a Groq outage never blocks a legitimate message.
         try {
           const voiceMod = await transcribeAndModerate(
             buf,
@@ -375,10 +376,6 @@ export async function POST(req: NextRequest,
       );
     }
 
-    // Resolve and validate the parent, if any. Must exist and live in
-    // the same community. Silently ignore an invalid parent rather than
-    // 400 the whole send — the user typed a message, they don't want to
-    // lose it because the reply target got deleted.
     let parentId: string | null = null;
     let parentSnapshot: MessageParent | null = null;
     if (parentIdRaw) {
@@ -437,12 +434,6 @@ export async function POST(req: NextRequest,
         })
       );
 
-      // Reply + mention notifications. Both are best-effort, run after
-      // the response is sent, and are deduplicated so that a reply that
-      // also mentions the parent author does not produce two rows.
-      //
-      // The reply target's session id is tracked in `alreadyNotified`
-      // so the mention pass skips them.
       waitUntil(
         (async () => {
           const alreadyNotified = new Set<string>();
@@ -461,7 +452,7 @@ export async function POST(req: NextRequest,
                   kind: "reply",
                   targetType: "community_message",
                   targetId: id,
-                  preview: body || (audio_url ? "🎤 Voice note" : null)
+                  preview: body || (audio_url ? "Voice note" : null)
                 });
               }
             }
@@ -469,8 +460,6 @@ export async function POST(req: NextRequest,
             console.error("[notify reply]", e);
           }
 
-          // Mention pass. Only runs on text messages — voice notes have
-          // no body to mention in.
           if (!body) return;
 
           try {

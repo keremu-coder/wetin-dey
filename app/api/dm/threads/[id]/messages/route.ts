@@ -8,7 +8,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { analyzeMessage, analyzeModeration, blockReason } from "@/lib/dm-filter";
 import { DM_BODY_MAX } from "@/lib/dm";
 import { notifyDMRecipient } from "@/lib/push-server";
-import { sameOrigin } from "@/lib/rate-limit";
+import { sameOrigin, checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 import { isBanned, BANNED_MESSAGE } from "@/lib/ban-guard";
 import {
   hasAcceptedTerms,
@@ -21,7 +21,7 @@ export async function POST(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-    const params = await context.params;
+  const params = await context.params;
   try {
     if (!sameOrigin(req)) {
       return Response.json({ error: "bad origin" }, { status: 403 });
@@ -41,6 +41,20 @@ export async function POST(
         { error: TERMS_NOT_ACCEPTED_MESSAGE, code: TERMS_NOT_ACCEPTED_CODE },
         { status: 403 }
       );
+    }
+
+    const limit = await checkRateLimit(
+      sessionId,
+      {
+        key: "dm_message",
+        limit: 30,
+        windowMs: 60 * 1000
+      },
+      { ip: getRequestIp(req) }
+    );
+
+    if (!limit.ok) {
+      return Response.json({ error: "Slow down — too many messages." }, { status: 429 });
     }
 
     const me = await getOrCreateSessionProfile(sessionId);
@@ -135,9 +149,6 @@ export async function POST(
       );
     }
 
-    // Text-moderation filter (threats, hate, profanity). On match, hold
-    // the message so the recipient does not see it — same semantics as
-    // community chat and comments.
     const mod = analyzeModeration(text);
     const held = mod.hold;
     if (held) {
@@ -175,8 +186,6 @@ export async function POST(
       .update({ last_message_at: new Date().toISOString() })
       .eq("id", thread.id);
 
-    // A held message is hidden from the recipient, so do not ping them
-    // with a "Tap to read" push for something they will never see.
     if (!held) {
       waitUntil(
         notifyDMRecipient({

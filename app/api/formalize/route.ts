@@ -4,12 +4,32 @@ import { NextRequest } from "next/server";
 import { formalizeReport } from "@/lib/formalize";
 import { createServiceClient } from "@/lib/supabase/server";
 import { scoreDefamation } from "@/lib/defamation";
-import { sameOrigin } from "@/lib/rate-limit";
+import { sameOrigin, checkRateLimit, getRequestIp } from "@/lib/rate-limit";
+import { getSessionId } from "@/lib/session";
 
 export async function POST(req: NextRequest) {
   // CSRF: reject cross-origin state-changing requests.
   if (!sameOrigin(req)) {
     return Response.json({ error: "bad origin" }, { status: 403 });
+  }
+
+  const sessionId = await getSessionId();
+  if (!sessionId) {
+    return Response.json({ error: "no session" }, { status: 401 });
+  }
+
+  const limit = await checkRateLimit(
+    sessionId,
+    {
+      key: "formalize",
+      limit: 5,
+      windowMs: 60 * 60 * 1000
+    },
+    { ip: getRequestIp(req) }
+  );
+
+  if (!limit.ok) {
+    return Response.json({ error: "Too many requests. Try again later." }, { status: 429 });
   }
 
   let reportId: string | null = null;
@@ -32,7 +52,7 @@ export async function POST(req: NextRequest) {
   const { data: report, error: fetchErr } = await db
     .from("reports")
     .select(
-      "id, category, agency_raw, state, body, amount_kobo, summary_pidgin, target_type, held, defamation_risk, defamation_reasons, evidence_type, evidence_link"
+      "id, category, agency_raw, state, body, amount_kobo, summary_pidgin, target_type, held, defamation_risk, defamation_reasons, evidence_type, evidence_link, session_id"
     )
     .eq("id", reportId)
     .single();
@@ -42,6 +62,10 @@ export async function POST(req: NextRequest) {
       { ok: false, error: "report not found" },
       { status: 404 }
     );
+  }
+
+  if (report.session_id !== sessionId) {
+    return Response.json({ error: "forbidden" }, { status: 403 });
   }
 
   if (report.summary_pidgin) {

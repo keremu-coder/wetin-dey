@@ -2,7 +2,7 @@ export const runtime = "nodejs";
 
 import { nanoid } from "nanoid";
 import { jsonError } from "@/lib/http";
-import { sameOrigin } from "@/lib/rate-limit";
+import { sameOrigin, checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { assertCanWrite } from "@/lib/guards";
@@ -11,7 +11,7 @@ export async function GET(
   _req: Request,
   context: { params: Promise<{ id: string }> }
 ) {
-    const params = await context.params;
+  const params = await context.params;
   const sessionId = await getSessionId();
   const db = createServiceClient();
   const { data: report } = await db.from("reports").select("id, reviewed, session_id").eq("id", params.id).maybeSingle();
@@ -41,13 +41,27 @@ export async function POST(
   req: Request,
   context: { params: Promise<{ id: string }> }
 ) {
-    const params = await context.params;
+  const params = await context.params;
   if (!sameOrigin(req)) return jsonError("origin blocked", 403);
   const sessionId = await getSessionId();
   if (!sessionId) return jsonError("no session", 401);
 
   const denied = await assertCanWrite(sessionId);
   if (denied) return denied;
+
+  const limit = await checkRateLimit(
+    sessionId,
+    {
+      key: "me_too",
+      limit: 30,
+      windowMs: 60 * 1000
+    },
+    { ip: getRequestIp(req) }
+  );
+
+  if (!limit.ok) {
+    return jsonError("slow down — too many requests", 429);
+  }
 
   const db = createServiceClient();
   const { data: report } = await db.from("reports").select("id, reviewed, session_id").eq("id", params.id).maybeSingle();

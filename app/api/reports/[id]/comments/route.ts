@@ -16,7 +16,7 @@ import {
   TERMS_NOT_ACCEPTED_MESSAGE
 } from "@/lib/terms-guard";
 import { serverError } from "@/lib/http";
-import { sameOrigin } from "@/lib/rate-limit";
+import { sameOrigin, checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 
 function extForAudioType(t: string | undefined): string {
   const lower = (t ?? "").toLowerCase();
@@ -32,7 +32,7 @@ export async function GET(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-    const params = await context.params;
+  const params = await context.params;
   try {
     const sessionId = await getSessionId();
     const blockedIds = await getBlockedIds(sessionId);
@@ -99,12 +99,11 @@ export async function GET(
 
 export async function POST(req: NextRequest,
   context: { params: Promise<{ id: string }> }) {
-  // CSRF: reject cross-origin state-changing requests.
   if (!sameOrigin(req)) {
     return Response.json({ error: "bad origin" }, { status: 403 });
   }
 
-    const params = await context.params;
+  const params = await context.params;
   try {
     const sessionId = await getSessionId();
     if (!sessionId) {
@@ -120,6 +119,20 @@ export async function POST(req: NextRequest,
         { error: TERMS_NOT_ACCEPTED_MESSAGE, code: TERMS_NOT_ACCEPTED_CODE },
         { status: 403 }
       );
+    }
+
+    const limit = await checkRateLimit(
+      sessionId,
+      {
+        key: "comment_create",
+        limit: 10,
+        windowMs: 60 * 1000
+      },
+      { ip: getRequestIp(req) }
+    );
+
+    if (!limit.ok) {
+      return Response.json({ error: "Slow down — too many comments." }, { status: 429 });
     }
 
     const profile = await getOrCreateSessionProfile(sessionId);
@@ -176,8 +189,6 @@ export async function POST(req: NextRequest,
         const pub = db.storage.from("voice-notes").getPublicUrl(path);
         audio_url = pub.data.publicUrl;
 
-        // Voice moderation — Whisper transcribe + text filter.
-        // Best-effort: fails open on any error.
         try {
           const voiceMod = await transcribeAndModerate(
             buf,
@@ -269,11 +280,6 @@ export async function POST(req: NextRequest,
       );
     }
 
-    // Best-effort: notify the report author when someone comments on
-    // their report. Runs after the response, skips replies-to-comments
-    // (v1 scope — comment replies do not notify, to avoid spam on long
-    // threads). The notification helper handles self-check and block
-    // check.
     if (!parent_id) {
       waitUntil(
         (async () => {
@@ -290,7 +296,7 @@ export async function POST(req: NextRequest,
                 kind: "comment",
                 targetType: "report",
                 targetId: params.id,
-                preview: body || (audio_url ? "🎤 Voice note" : null)
+                preview: body || (audio_url ? "ðŸŽ¤ Voice note" : null)
               });
             }
           } catch (e) {
