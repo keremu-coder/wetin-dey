@@ -147,7 +147,7 @@ export async function POST(req: NextRequest) {
       type: "signup",
       email,
       options: {
-        emailRedirectTo: "https://9jawatindey.vercel.app/auth/verify"
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL || "https://9jawatindey.vercel.app"}/auth/verify`
       }
     });
     if (resendErr) {

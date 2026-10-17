@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
   }
 
   await db.auth.resetPasswordForEmail(email, {
-    redirectTo: "https://9jawatindey.vercel.app/reset-password"
+    redirectTo: `${process.env.NEXT_PUBLIC_APP_URL || "https://9jawatindey.vercel.app"}/reset-password`
   });
 
   // Always return ok — never reveal whether an email exists
