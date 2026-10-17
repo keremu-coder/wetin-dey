@@ -51,9 +51,11 @@ export async function deleteReportEvidence(reportId: string): Promise<void> {
   const path = url.slice(idx + marker.length);
   if (!path) return;
 
-  try {
-    await db.storage.from("evidence").remove([path]);
-  } catch (e) {
-    console.error("[evidence-cleanup] storage remove failed:", e);
+  // Audit finding 4a: supabase-js returns { data, error } and does not
+  // throw. The previous try/catch never fired, so a failed delete was
+  // silent. Check the error explicitly.
+  const { error: rmErr } = await db.storage.from("evidence").remove([path]);
+  if (rmErr) {
+    console.error("[evidence-cleanup] storage remove failed:", rmErr.message);
   }
 }

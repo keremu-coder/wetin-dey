@@ -147,6 +147,33 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Audit finding 4c: when the user opts to delete their content, also
+    // delete the evidence storage objects for every report they own.
+    // Without this, files stayed public at their URLs even after the
+    // account was gone.
+    //
+    // Best-effort: a storage failure logs but does not block the
+    // account deletion (which is the user's primary intent).
+    if (deleteContent) {
+      try {
+        const { data: userReports } = await db
+          .from("reports")
+          .select("id")
+          .eq("session_id", sessionId);
+        if (userReports && userReports.length > 0) {
+          const { deleteReportEvidence } = await import("@/lib/evidence-cleanup");
+          await Promise.all(
+            userReports.map((r) =>
+              deleteReportEvidence(r.id).catch((e) =>
+                console.warn("[account/delete] evidence cleanup:", e)
+              )
+            )
+          );
+        }
+      } catch (e) {
+        console.error("[account/delete] evidence batch failed:", e);
+      }
+    }
     // ── 2. Delete avatar blobs ──
     if (session.avatar_url) {
       const path = supabaseStoragePath(session.avatar_url, "user-avatars");

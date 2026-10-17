@@ -38,6 +38,24 @@ export async function GET(
     const blockedIds = await getBlockedIds(sessionId);
 
     const db = createServiceClient();
+
+    // Audit finding 11: comments on a held or unreviewed report must
+    // not be served. Same visibility rule as /api/reports/[id].
+    const { data: parentReport } = await db
+      .from("reports")
+      .select("reviewed, held, session_id")
+      .eq("id", params.id)
+      .maybeSingle();
+    if (!parentReport) {
+      return Response.json({ error: "no dey" }, { status: 404 });
+    }
+    if (
+      (!parentReport.reviewed || parentReport.held) &&
+      parentReport.session_id !== sessionId
+    ) {
+      return Response.json({ error: "no dey" }, { status: 404 });
+    }
+
     let q = db
       .from("comments")
       .select(
@@ -119,6 +137,25 @@ export async function POST(req: NextRequest,
         { error: TERMS_NOT_ACCEPTED_MESSAGE, code: TERMS_NOT_ACCEPTED_CODE },
         { status: 403 }
       );
+    }
+
+    // Audit finding 11: reject new comments on held/unreviewed reports.
+    {
+      const checkDb = createServiceClient();
+      const { data: parentReport } = await checkDb
+        .from("reports")
+        .select("reviewed, held, session_id")
+        .eq("id", params.id)
+        .maybeSingle();
+      if (!parentReport) {
+        return Response.json({ error: "no dey" }, { status: 404 });
+      }
+      if (
+        (!parentReport.reviewed || parentReport.held) &&
+        parentReport.session_id !== sessionId
+      ) {
+        return Response.json({ error: "no dey" }, { status: 404 });
+      }
     }
 
     const limit = await checkRateLimit(
@@ -296,7 +333,7 @@ export async function POST(req: NextRequest,
                 kind: "comment",
                 targetType: "report",
                 targetId: params.id,
-                preview: body || (audio_url ? "ðŸŽ¤ Voice note" : null)
+                preview: body || (audio_url ? "Voice note" : null)
               });
             }
           } catch (e) {

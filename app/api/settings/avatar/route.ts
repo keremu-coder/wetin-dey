@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
     const buf = Buffer.from(await file.arrayBuffer());
     let processed: Buffer;
     try {
-      processed = await sharp(buf)
+      processed = await sharp(buf, { limitInputPixels: 25_000_000 })
         .rotate()
         .resize(400, 400, { fit: "cover", position: "attention" })
         .jpeg({ quality: 85 })

@@ -10,10 +10,6 @@ export async function POST(req: NextRequest) {
   if (!sameOrigin(req)) {
     return Response.json({ error: "bad origin" }, { status: 403 });
   }
-
-  if (!sameOrigin(req)) {
-    return Response.json({ error: "bad origin" }, { status: 403 });
-  }
   try {
     const sessionId = await getSessionId();
     if (!sessionId) {

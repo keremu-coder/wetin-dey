@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sameOrigin } from "@/lib/rate-limit";
+import { deleteReportEvidence } from "@/lib/evidence-cleanup";
 
 export async function DELETE(req: NextRequest,
   context: { params: Promise<{ id: string }> }) {
@@ -29,6 +30,11 @@ export async function DELETE(req: NextRequest,
   if (post.session_id !== sessionId) {
     return Response.json({ error: "not your post" }, { status: 403 });
   }
+
+  // Audit finding 4b: nulling evidence_url without deleting the storage
+  // object left orphaned files public at their URLs. Delete the file
+  // FIRST, before nulling the reference.
+  await deleteReportEvidence(params.id);
 
   // Soft-delete: replace body with redaction note, mark as deleted
   await db
