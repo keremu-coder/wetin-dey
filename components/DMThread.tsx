@@ -345,7 +345,7 @@ export function DMThread({
   const bg = avatarColor(otherHandle);
 
   return (
-    <div className="fixed inset-x-0 top-0 bottom-0 flex flex-col bg-paper">
+    <div className="fixed inset-0 z-50 flex h-[100dvh] flex-col bg-paper">
       <header
         className="flex shrink-0 items-center gap-3 border-b border-border bg-paper/95 px-3 py-2.5 backdrop-blur-xl"
         style={{ paddingTop: "calc(0.625rem + env(safe-area-inset-top, 0px))" }}
@@ -489,8 +489,19 @@ export function DMThread({
                       }`}
                     >
                       <span>{m._pending ? "Sending" : m._failed ? "Failed" : timeAgoShort(m.created_at)}</span>
-                      {isLastMine && lastMineSeen ? (
-                        <span className="text-brand">· Seen</span>
+                      {isLastMine ? (
+                        <span className="flex items-center text-brand" title={lastMineSeen ? "Read" : "Delivered"}>
+                          {lastMineSeen ? (
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="-ml-1">
+                              <polyline points="18 7 9 16 4 11"></polyline>
+                              <polyline points="22 7 13 16 11 14"></polyline>
+                            </svg>
+                          ) : (
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                          )}
+                        </span>
                       ) : null}
                     </p>
                     {m._failed ? (

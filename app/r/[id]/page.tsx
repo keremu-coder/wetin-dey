@@ -93,9 +93,22 @@ function EvidenceBlock(report: {
             href={report.evidence_link}
             target="_blank"
             rel="noopener noreferrer"
-            className="block break-all rounded-xl bg-ink/5 p-3 text-[0.875rem] text-brand underline"
+            className="flex items-center justify-between gap-3 rounded-xl border border-brand/20 bg-brand-tint/30 p-3.5 transition-colors hover:bg-brand-tint/60"
           >
-            {report.evidence_link}
+            <div className="flex min-w-0 items-center gap-2.5">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-brand">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+              </svg>
+              <span className="truncate text-[0.875rem] font-medium text-brand">
+                Open source link
+              </span>
+            </div>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-brand/70">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>
           </a>
         ) : null}
       </div>
