@@ -40,7 +40,7 @@ labels. No identity is ever stored.
 
 ## STACK
 
-- Next.js 14.2 App Router + TypeScript (strict)
+- Next.js 15.5.28 App Router + TypeScript (strict)
 - Tailwind CSS + shadcn/ui
 - Supabase (Postgres, Storage, Realtime, anonymous auth)
 - Groq API (`openai/gpt-oss-120b`) for formalization

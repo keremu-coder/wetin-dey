@@ -9,7 +9,7 @@ Repo: https://github.com/keremu-coder/wetin-dey
 Test credentials live in .env.test (gitignored). Do not commit them here.
 
 ## Stack
-- Next.js 14.2 App Router + TypeScript
+- Next.js 15.5.28 App Router + TypeScript
 - Tailwind CSS + custom design system (dark + light mode)
 - Supabase (Postgres, Storage, Realtime, RLS)
 - Groq API (openai/gpt-oss-120b) for AI formalization

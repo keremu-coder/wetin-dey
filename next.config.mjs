@@ -22,11 +22,11 @@ const nextConfig = {
     }
   },
   async headers() {
-    // No 'unsafe-eval' — Next 14 production builds don't need it.
-    // 'unsafe-inline' is still required because Next injects a small
-    // inline hydration script. Replacing that with nonces is a
-    // separate project (needs a middleware rewrite).
-    // CSP is set by middleware.ts (needs a per-request nonce).
+    // CSP is set by middleware.ts with a per-request nonce (see
+    // buildCsp there). This file only sets the other security headers
+    // and asset cache controls. Do not add a Content-Security-Policy
+    // header here — two CSP headers on the same response conflict,
+    // and browsers take the intersection (which would break the app).
 
     const permissions = [
       "camera=(self)",

@@ -22,7 +22,7 @@ with a member list, live chat, presence indicators, and voice broadcasts.
 
 ## Stack
 
-- Next.js 14.2 App Router + TypeScript (strict)
+- Next.js 15.5.28 App Router + TypeScript (strict)
 - Tailwind CSS + custom design system (dark + light mode)
 - Supabase (Postgres, Storage, Realtime, RLS)
 - Groq API (`openai/gpt-oss-120b`) for report formalization
