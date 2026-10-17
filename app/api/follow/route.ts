@@ -5,14 +5,13 @@ import { nanoid } from "nanoid";
 import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { assertCanWrite } from "@/lib/guards";
-import { sameOrigin } from "@/lib/rate-limit";
+import { sameOrigin, checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 
 function escapeLike(s: string): string {
   return s.replace(/[\\%_]/g, "\\$&");
 }
 
 export async function POST(req: NextRequest) {
-  // CSRF: reject cross-origin state-changing requests.
   if (!sameOrigin(req)) {
     return Response.json({ error: "bad origin" }, { status: 403 });
   }
@@ -22,6 +21,15 @@ export async function POST(req: NextRequest) {
 
   const denied = await assertCanWrite(sessionId);
   if (denied) return denied;
+
+  const limit = await checkRateLimit(
+    sessionId,
+    { key: "follow", limit: 20, windowMs: 60 * 1000 },
+    { ip: getRequestIp(req) }
+  );
+  if (!limit.ok) {
+    return Response.json({ error: "Slow down — too many follow actions." }, { status: 429 });
+  }
 
   const me = await getOrCreateSessionProfile(sessionId);
   if (!me) return Response.json({ error: "no profile" }, { status: 500 });

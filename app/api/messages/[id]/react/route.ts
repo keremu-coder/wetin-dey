@@ -6,7 +6,7 @@ import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { isBanned, BANNED_MESSAGE } from "@/lib/ban-guard";
 import { serverError } from "@/lib/http";
-import { sameOrigin } from "@/lib/rate-limit";
+import { sameOrigin, checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 
 // Real emojis — must match QUICK_EMOJI in ChatRoom.tsx exactly.
 // These were previously stored as mojibake (ðŸ˜‚ etc.), which broke
@@ -29,6 +29,15 @@ export async function POST(req: NextRequest,
 
     if (await isBanned(sessionId)) {
       return Response.json({ error: BANNED_MESSAGE }, { status: 403 });
+    }
+
+    const limit = await checkRateLimit(
+      sessionId,
+      { key: "message_react", limit: 30, windowMs: 60 * 1000 },
+      { ip: getRequestIp(req) }
+    );
+    if (!limit.ok) {
+      return Response.json({ error: "Slow down — too many reactions." }, { status: 429 });
     }
 
     let body: { emoji?: string };
