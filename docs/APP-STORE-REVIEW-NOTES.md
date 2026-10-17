@@ -42,10 +42,12 @@ required to use the app. A signed session cookie is the only identifier.
 
 ## Guideline 1.2 — UGC moderation
 
-Report is available on every UGC surface. Block is available on messages,
-comments, posts, reports, DMs, spaces, and profiles. Voice notes and
-broadcast items are reportable directly and blockable via the author's
-profile (tap the author handle -> Block):
+Report is available on every UGC surface. Block is available on
+messages, comments, posts, reports, DMs, and profiles. Space-level
+content (the space itself) has Report only; blocking applies to
+messages within a space. Voice notes inside chat messages and comments
+are blockable via their message menu. Broadcast items are reportable
+only — the broadcast banner has no Block action.
 
 - Chat messages (message menu — long-press or tap the menu button)
 - Comments on reports
@@ -65,8 +67,10 @@ immediately for the blocking user -> server-side getBlockedIds filter
 applies on next load. Blocked-users list at Settings -> Blocked Users.
 
 Automated moderation:
-- Server-side keyword and pattern filters run before any message,
-  comment, or post is stored (threats, hate, doxxing, sexual content).
+- Server-side keyword and pattern filters run before any chat message,
+  comment, or voice note is stored (threats, hate, doxxing, sexual
+  content). The filter runs on voice uploads via Whisper transcription
+  and text classification.
 - Weighted trust scoring: content flagged by verified-email and
   30-day-old accounts crosses the 3.0 auto-hide threshold faster than
   by fresh accounts. The rule is a weighted sum, not a flat count.
@@ -152,12 +156,12 @@ seconds so the Circle can see where the sender is.
 
 The signal auto-terminates:
 - When the sender taps "I'm safe"
-- After 4 hours of continuous sharing
-- When the sender removes the Circle contact
+- After 4 hours of continuous sharing (enforced server-side at
+  app/api/radar/send/route.ts)
 
-Location is NEVER collected outside an active Radar signal. No
-background location is gathered for analytics, no location is stored for
-inactive users, no location is shared with the app's operators.
+Location updates are only accepted by the server while the sender has
+an active signal. No location is stored for inactive users, and no
+location is used for analytics or shared with the app's operators.
 
 Purpose strings in Info.plist:
 - NSLocationWhenInUseUsageDescription — "Wetin Dey uses your location
@@ -184,7 +188,7 @@ The app is functional and complete, but the WebView wrapping is
 acknowledged.
 
 **Native integrations already present in this build:**
-- @capacitor/haptics — tap feedback on voting, blocking, reporting
+- @capacitor/haptics — tap feedback on interaction (voting, button taps)
 - @capacitor/share — native share sheet for report URLs and cards
 - @capacitor/splash-screen — native launch screen
 - @capacitor/status-bar — theme-aware status bar
@@ -247,10 +251,10 @@ Full disclosure in /privacy and docs/STORE_DISCLOSURES.md.
 
 5. To test UGC moderation end-to-end:
    - Tap /communities -> join "Naija Market" or "Gamers Lounge"
-   - Post any message in the Space chat
-   - Long-press the message -> menu shows Reply, Report, Block
+   - Long-press any message from ANOTHER user in the Space chat
+   - The menu shows Reply, Report, Block (own messages only show Reply)
    - Tap Report -> pick a reason -> confirm
-   - Tap Block -> the message hides immediately, a banner confirms
+   - Tap Block -> that user's messages hide immediately, a banner confirms
    - Settings -> Blocked Users shows the blocked handle
 
 6. To test account deletion:
@@ -301,7 +305,7 @@ Two tabs:
 - Community: free-form feed + Spaces with live chat, voice notes, broadcasts.
 
 UGC MODERATION (1.2):
-Report is on every UGC surface (10 reason categories, 24h SLA, moderation queue at /admin/pending). Block is on messages, comments, posts, reports, DMs, spaces, and profiles; blocks hide the user's content immediately and persist server-side. Voice notes and broadcasts can be reported directly and blocked via the author profile. Age gate 17+.
+Report is on every UGC surface (10 reason categories, 24h SLA, moderation queue at /admin/pending). Block is on messages, comments, posts, reports, DMs, and profiles; spaces have Report only; blocking applies to messages within spaces. Voice notes in chat/comments are blockable via the message menu. Broadcast items are reportable only. Blocks hide content immediately and persist server-side. Age gate 17+.
 
 ACCOUNT DELETION (5.1.1v):
 Settings > Delete Account. Type DELETE to confirm. Server-side deletion of auth credential, email, avatar, push tokens, follows, blocks, votes, check-ins, Radar contacts, broadcasts. Handle is replaced with deleted_<id>; session row is tombstoned.
@@ -309,7 +313,7 @@ Settings > Delete Account. Type DELETE to confirm. Server-side deletion of auth 
 RETAINED (fully disclosed in /privacy and /terms in-app): public reports + comments remain at permanent URLs, detached from identity (session_id tombstoned, handle nulled). This is required for civic archive integrity: otherwise any government agency could censor a report by pressuring its author to quit. Same model as Wikipedia, Internet Archive, SeeClickFix.
 
 BACKGROUND LOCATION (4.4):
-Radar is personal-safety. Location is collected ONLY during an active "Need help"/"Police stop" signal, sent every 30s to a mutual-consent Circle. Stops on "I'm safe" tap, 4h auto-expiry, or contact removal. No background collection outside an active signal. Comparable to Life360 / Emergency SOS.
+Radar is personal-safety. Location is collected ONLY during an active "Need help"/"Police stop" signal, sent every 30s to a mutual-consent Circle. Stops on "I'm safe" tap or 4h server-enforced auto-expiry. No location is stored for inactive users. Comparable to Life360 / Emergency SOS.
 
 MINIMUM FUNCTIONALITY (4.2):
 Current build uses Capacitor + WebView loading production URL. Native integrations already present: haptics, share sheet, splash, status bar, push permission flow + token capture, network monitor, getUserMedia/MediaRecorder audio capture for voice notes/evidence (running in the WebView).
@@ -324,7 +328,7 @@ REVIEWER CREDENTIALS: provided in App Store Connect sign-in fields.
 TESTING:
 - Age gate on first launch
 - /talk shows civic feed, tap any report for AI summary + evidence + comments
-- /communities > join "Naija Market" > post message > long-press > Report/Block
+- /communities > join "Naija Market" > long-press a message from another user > Report/Block (own messages show Reply only)
 - Settings > Delete Account > type DELETE
 - /radar > add mutual contact (they must add you back) > send Need help > verify live location
 
