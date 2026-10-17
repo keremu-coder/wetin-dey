@@ -47,6 +47,14 @@ export type Report = {
 
   status: ReportStatus;
   reviewed: boolean;
+  held: boolean;
+  target_type: "public" | "private";
+  community_id: string | null;
+  evidence_tier: string | null;
+  source_domain: string | null;
+  defamation_risk: number;
+  defamation_reasons: string[];
+  requires_manual_review: boolean;
   reviewer_note: string | null;
   flagged_at?: string | null;
   moderation_due_at?: string | null;
