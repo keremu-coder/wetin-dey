@@ -254,7 +254,9 @@ const ALLOWED_ORIGINS = [
   "http://127.0.0.1:3000",
   "https://9jawatindey.vercel.app",
   "https://wetin-dey-gamma.vercel.app",
-  "https://wetindey.vercel.app"
+  "https://wetindey.vercel.app",
+  "https://wetindey.app",
+  "https://www.wetindey.app"
 ];
 
 export async function checkIpRateLimit(
