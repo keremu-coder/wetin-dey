@@ -4,7 +4,7 @@ import { NextRequest } from "next/server";
 import { nanoid } from "nanoid";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
-import { checkRateLimit, sameOrigin } from "@/lib/rate-limit";
+import { checkRateLimit, sameOrigin, getRequestIp } from "@/lib/rate-limit";
 import { assertCanWrite } from "@/lib/guards";
 import { serverError } from "@/lib/http";
 
@@ -38,11 +38,17 @@ export async function POST(
     const denied = await assertCanWrite(sessionId);
     if (denied) return denied;
 
-    const limit = await checkRateLimit(sessionId, {
-      key: "report_reply",
-      limit: 3,
-      windowMs: 60 * 60 * 1000
-    });
+    // Audit finding 13: session-only limit was bypassable by dropping
+    // the cookie. Add IP bucket too.
+    const limit = await checkRateLimit(
+      sessionId,
+      {
+        key: "report_reply",
+        limit: 3,
+        windowMs: 60 * 60 * 1000
+      },
+      { ip: getRequestIp(req) }
+    );
     if (!limit.ok) {
       return Response.json(
         { error: "Too many replies submitted. Try again later." },

@@ -49,6 +49,29 @@ export async function POST(req: NextRequest,
     const db = createServiceClient();
     const commentId = params.id;
 
+    // Audit finding 14: verify the comment and its parent report are
+    // visible before accepting a vote. Same rule as elsewhere.
+    const { data: target } = await db
+      .from("comments")
+      .select("hidden, report_id")
+      .eq("id", commentId)
+      .maybeSingle();
+    if (!target || target.hidden) {
+      return Response.json({ error: "no dey" }, { status: 404 });
+    }
+    const { data: parent } = await db
+      .from("reports")
+      .select("reviewed, held, session_id")
+      .eq("id", target.report_id)
+      .maybeSingle();
+    if (
+      parent &&
+      (!parent.reviewed || parent.held) &&
+      parent.session_id !== sessionId
+    ) {
+      return Response.json({ error: "no dey" }, { status: 404 });
+    }
+
     const { data: existing } = await db
       .from("comment_votes")
       .select("id, vote")

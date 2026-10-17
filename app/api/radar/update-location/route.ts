@@ -2,7 +2,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
-import { sameOrigin, checkRateLimit, getRequestIp } from "@/lib/rate-limit";
+import { sameOrigin, checkRateLimit } from "@/lib/rate-limit";
 import { isValidLatLng } from "@/lib/geo";
 
 /**
@@ -18,10 +18,14 @@ export async function POST(req: NextRequest) {
     const sid = await getSessionId();
     if (!sid) return NextResponse.json({ error: "no session" }, { status: 401 });
 
+    // Audit finding 7: radar is life-safety. A shared carrier CGNAT
+    // means one abusive session on the same IP could block another
+    // user's live location updates. Key on session only — no IP
+    // bucket — so a Radar signal in progress cannot be starved by a
+    // neighbour's traffic.
     const limit = await checkRateLimit(
       sid,
-      { key: "radar_update_location", limit: 20, windowMs: 60000 },
-      { ip: getRequestIp(req) }
+      { key: "radar_update_location", limit: 20, windowMs: 60000 }
     );
     if (!limit.ok) {
       return NextResponse.json({ error: "Slow down — too many requests." }, { status: 429 });

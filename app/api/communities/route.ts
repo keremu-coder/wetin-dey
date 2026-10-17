@@ -21,8 +21,25 @@ export async function GET(req: NextRequest) {
     .limit(50);
 
   if (q) {
-    const escaped = q.replace(/[\\%_]/g, "\\$&");
-    query = query.or(`name.ilike.%${escaped}%,slug.ilike.%${escaped}%`);
+    // Audit finding 17: the previous .or() filter interpolated `q` into
+    // PostgREST filter syntax. A comma or paren in `q` could inject
+    // additional conditions (e.g. `q="x),is_public.eq.false"`). Escaping
+    // LIKE wildcards was not enough. Fix: filter by name OR slug via
+    // two separate .ilike() calls combined with .or(...) is unsafe;
+    // instead we query once with a single LIKE (case-insensitive) on
+    // both columns using the Postgres OR inside .or() BUT with `q`
+    // stripped of PostgREST filter metacharacters AND quoted.
+    //
+    // The safest approach without changing the SQL: strip any character
+    // that has meaning to PostgREST filter syntax, then wrap in quotes.
+    const cleaned = q.replace(/[(),]/g, "").replace(/[\\%_]/g, "\\$&");
+    // PostgREST accepts double-quoted values in filter expressions.
+    // Reject if cleaning emptied it (avoid a filter that matches all).
+    if (cleaned.length > 0) {
+      query = query.or(
+        `name.ilike."%${cleaned}%",slug.ilike."%${cleaned}%"`
+      );
+    }
   }
 
   const { data, error } = await query;

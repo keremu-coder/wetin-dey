@@ -2,7 +2,7 @@ export const runtime = "nodejs";
 
 import { nanoid } from "nanoid";
 import { jsonError } from "@/lib/http";
-import { sameOrigin } from "@/lib/rate-limit";
+import { sameOrigin, checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { assertCanWrite } from "@/lib/guards";
@@ -18,6 +18,19 @@ export async function POST(
 
   const denied = await assertCanWrite(sessionId);
   if (denied) return denied;
+
+  // Audit finding 13: disputes had no rate limit at all. Sessions are
+  // free, so a single script could bury the moderation queue with
+  // thousands of 4KB rows. Two buckets: session (per-cookie) and IP
+  // (catches cookie-dropping).
+  const limit = await checkRateLimit(
+    sessionId,
+    { key: "report_dispute", limit: 3, windowMs: 60 * 60 * 1000 },
+    { ip: getRequestIp(req) }
+  );
+  if (!limit.ok) {
+    return jsonError("Too many disputes. Try again later.", 429);
+  }
 
   const payload = (await req.json()) as {
     claimant_name?: string;

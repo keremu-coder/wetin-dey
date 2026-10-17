@@ -91,6 +91,33 @@ export function getRequestIp(req: Request): string | null {
  * the rate_events row. If the service role key rotates, older IP-hash
  * buckets become unreachable - fine, since all windows are <= 1h.
  */
+// Audit finding 8: an attacker on a home IPv6 connection has 2^64
+// addresses available (one /64 prefix), and each address was a fresh
+// bucket. Bucket IPv6 on the /64 prefix so rotation within the
+// customer's block hits the same rate-limit counter.
+function normalizeIpForBucket(ip: string): string {
+  const trimmed = ip.trim();
+  if (!trimmed.includes(":")) return trimmed; // IPv4 unchanged
+
+  // IPv4-mapped IPv6 (::ffff:1.2.3.4) — bucket on the IPv4 part.
+  if (trimmed.toLowerCase().startsWith("::ffff:")) {
+    return trimmed.slice(7);
+  }
+
+  // Expand "::" so we can reliably take the first four segments.
+  let expanded = trimmed.toLowerCase();
+  if (expanded.includes("::")) {
+    const parts = expanded.split("::");
+    const before = parts[0] ? parts[0].split(":") : [];
+    const after = parts[1] ? parts[1].split(":") : [];
+    const missing = Math.max(0, 8 - before.length - after.length);
+    const middle = Array(missing).fill("0");
+    expanded = [...before, ...middle, ...after].join(":");
+  }
+  const segments = expanded.split(":");
+  return segments.slice(0, 4).join(":") + "::/64";
+}
+
 export function hashIp(ip: string): string {
   // Fail closed: never fall back to a hardcoded string. A shared
   // default would make the IP-hash bucket reproducible across every
@@ -99,8 +126,9 @@ export function hashIp(ip: string): string {
   if (!salt) {
     throw new Error("hashIp requires SUPABASE_SERVICE_ROLE_KEY as salt");
   }
+  const bucket = normalizeIpForBucket(ip);
   return createHash("sha256")
-    .update(`${salt}:${ip}`)
+    .update(`${salt}:${bucket}`)
     .digest("hex")
     .slice(0, 16);
 }

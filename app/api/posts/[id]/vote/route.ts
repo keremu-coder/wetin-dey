@@ -45,6 +45,25 @@ export async function POST(req: NextRequest,
   const db = createServiceClient();
   const postId = params.id;
 
+  // Audit finding 14: votes were landing on any id, including held
+  // and unreviewed reports. Check visibility first, same rule as
+  // /api/reports/[id]. Authors can vote on their own held reports;
+  // nobody else can.
+  const { data: target } = await db
+    .from("reports")
+    .select("reviewed, held, session_id")
+    .eq("id", postId)
+    .maybeSingle();
+  if (!target) {
+    return Response.json({ error: "no dey" }, { status: 404 });
+  }
+  if (
+    (!target.reviewed || target.held) &&
+    target.session_id !== sessionId
+  ) {
+    return Response.json({ error: "no dey" }, { status: 404 });
+  }
+
   const { data: existing } = await db
     .from("post_votes")
     .select("id, vote")
