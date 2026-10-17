@@ -156,8 +156,13 @@ seconds so the Circle can see where the sender is.
 
 The signal auto-terminates:
 - When the sender taps "I'm safe"
-- After 4 hours of continuous sharing (enforced server-side at
-  app/api/radar/send/route.ts)
+- After 4 hours of continuous sharing. The cutoff is enforced at two
+  points: app/api/radar/update-location/route.ts refuses any update
+  whose target signal has expires_at in the past (hard cutoff, no
+  grace window), and a scheduled sweep job
+  (app/api/radar/sweep/route.ts, run every 15 minutes by a GitHub
+  Actions workflow) flips location_sharing to false and nulls the
+  stored coordinates so recipients no longer see a live signal.
 
 Location updates are only accepted by the server while the sender has
 an active signal. No location is stored for inactive users, and no
@@ -313,7 +318,7 @@ Settings > Delete Account. Type DELETE to confirm. Server-side deletion of auth 
 RETAINED (fully disclosed in /privacy and /terms in-app): public reports + comments remain at permanent URLs, detached from identity (session_id tombstoned, handle nulled). This is required for civic archive integrity: otherwise any government agency could censor a report by pressuring its author to quit. Same model as Wikipedia, Internet Archive, SeeClickFix.
 
 BACKGROUND LOCATION (4.4):
-Radar is personal-safety. Location is collected ONLY during an active "Need help"/"Police stop" signal, sent every 30s to a mutual-consent Circle. Stops on "I'm safe" tap or 4h server-enforced auto-expiry. No location is stored for inactive users. Comparable to Life360 / Emergency SOS.
+Radar is personal-safety. Location is collected ONLY during an active "Need help"/"Police stop" signal, sent every 30s to a mutual-consent Circle. Stops on "I'm safe" tap or at the 4h mark. The 4h cutoff is enforced at the location-update endpoint (expired signals refuse new coordinates, no grace window) plus a 15-minute scheduled sweep that clears stored coordinates. No location is stored for inactive users. Comparable to Life360 / Emergency SOS.
 
 MINIMUM FUNCTIONALITY (4.2):
 Current build uses Capacitor + WebView loading production URL. Native integrations already present: haptics, share sheet, splash, status bar, push permission flow + token capture, network monitor, getUserMedia/MediaRecorder audio capture for voice notes/evidence (running in the WebView).
