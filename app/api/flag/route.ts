@@ -10,6 +10,7 @@ import {
 } from "@/lib/constants";
 import { assertNotBanned } from "@/lib/guards";
 import { serverError } from "@/lib/http";
+import { deleteReportEvidence } from "@/lib/evidence-cleanup";
 
 const VALID_TARGETS = [
   "message",
@@ -65,6 +66,9 @@ async function applyAutoHide(
       .update({ held: true })
       .eq("id", targetId)
       .eq("held", false);
+    if (!error) {
+      await deleteReportEvidence(targetId);
+    }
     return !error;
   }
   if (targetType === "dm_message") {

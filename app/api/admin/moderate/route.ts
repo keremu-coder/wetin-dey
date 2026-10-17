@@ -6,6 +6,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { jsonError } from "@/lib/http";
 import { sameOrigin } from "@/lib/rate-limit";
 import { deleteReportFromTelegram } from "@/lib/telegram";
+import { deleteReportEvidence } from "@/lib/evidence-cleanup";
 
 async function requireAdmin(sessionId: string | null): Promise<boolean> {
   if (!sessionId) return false;
@@ -57,7 +58,8 @@ export async function POST(req: NextRequest) {
     if (error) return jsonError(error.message, 500);
   } else if (action === "hide") {
     // held=true removes from public view. Also delete the Telegram
-    // mirror post so the takedown promise in /terms holds.
+    // mirror post and the evidence storage object so the 24-hour
+    // takedown promise in /terms actually holds (C3).
     const { data: row, error } = await db
       .from("reports")
       .update({ held: true, reviewer_note: note || "hidden" })
@@ -69,6 +71,7 @@ export async function POST(req: NextRequest) {
     if (mid) {
       try { await deleteReportFromTelegram(mid); } catch { /* best-effort */ }
     }
+    await deleteReportEvidence(reportId);
   } else {
     return jsonError("unknown action", 400);
   }

@@ -6,6 +6,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { sameOrigin } from "@/lib/rate-limit";
 import { serverError } from "@/lib/http";
 import { deleteReportFromTelegram } from "@/lib/telegram";
+import { deleteReportEvidence } from "@/lib/evidence-cleanup";
 
 type Action = "dismiss" | "remove" | "ban_user";
 const VALID_ACTIONS: Action[] = ["dismiss", "remove", "ban_user"];
@@ -106,6 +107,9 @@ async function hideTarget(
       } catch {
         /* best-effort */
       }
+    }
+    if (!error) {
+      await deleteReportEvidence(targetId);
     }
     return !error;
   }
