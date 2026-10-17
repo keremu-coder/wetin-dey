@@ -10,6 +10,7 @@ import { classifyImage } from "@/lib/image-moderation";
 import { transcribeAndModerate } from "@/lib/voice-moderation";
 import { stripMediaMetadata } from "@/lib/media-strip";
 import { audioContainerFor } from "@/lib/audio-container";
+import { validateEvidenceLink } from "@/lib/evidence-link";
 import { jsonError, serverError } from "@/lib/http";
 import {
   checkRateLimit,
@@ -192,11 +193,12 @@ export async function POST(req: NextRequest) {
   } else if (voiceTestimony instanceof File && voiceTestimony.size > 0) {
     evidenceType = "voice_testimony";
   } else if (publicLink) {
-    if (!/^https?:\/\/.+\..+/.test(publicLink)) {
-      return jsonError("Public link no correct.", 400);
+    const validated = validateEvidenceLink(publicLink);
+    if (!validated.ok) {
+      return jsonError(validated.error, 400);
     }
     evidenceType = "public_link";
-    evidenceLink = publicLink;
+    evidenceLink = validated.url;
   }
 
   if (requiresEvidence && !evidenceType) {

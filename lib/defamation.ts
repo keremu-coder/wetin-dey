@@ -6,6 +6,20 @@
 //
 // This is a heuristic, not a legal opinion. It catches the obvious patterns.
 // The AI catches the subtle ones. A human moderator catches the rest.
+//
+// C6 fix (audit):
+//   - Removed /i from the two NAMED_INDIVIDUAL patterns. Case sensitivity
+//     is load-bearing — with /i, [A-Z][a-z]+ matches any lowercase word,
+//     so "he killed" matched the "named + accusation" pattern. Do not
+//     add /i back.
+//   - countMatches now uses \b word boundaries + a bounded suffix group,
+//     so "kill" no longer matches "skill", "rape" no longer matches
+//     "grape", "steal" no longer matches "stealership".
+//   - Added unambiguous Pidgin accusation terms (tief, thief, ritualist,
+//     etc.). Deliberately excluded ambiguous Pidgin verbs (chop, carry,
+//     settle, shake) — those appear in non-defamatory sentences constantly
+//     ("I chop rice", "carry your bag", "settle am"). A future pass can
+//     add context-aware detection for those, but not this one.
 
 export type DefamationResult = {
   risk: number; // 0..1
@@ -13,37 +27,50 @@ export type DefamationResult = {
   held: boolean; // risk >= 0.6
 };
 
+// No /i on either pattern. See file header for why.
+//
+// Pattern 1: honorific + one Capitalized name. Matches "Mr. John",
+// "Chief Adebayo", "Dr. Ngozi", "Alhaji Musa". The honorific anchors
+// the match — no /i needed because titles are always capitalized in
+// written text.
+//
+// Pattern 2: two Capitalized names + criminal verb. Matches "John Doe
+// stole", "Ngozi Okafor killed". Requires both name tokens capitalized,
+// so "the man killed" does NOT match.
 const NAMED_INDIVIDUAL_PATTERNS: RegExp[] = [
-  /\b(Mr|Mrs|Ms|Miss|Dr|Chief|Alhaji|Alhaja|Pastor|Bishop|Imam|Sheikh|Senator|Hon|Honourable|Barr|Engr|Prof)\.?\s+[A-Z][a-z]+/i,
-  /\b[A-Z][a-z]+\s+[A-Z][a-z]+\s+(is|stole|took|collected|demanded|raped|killed|assaulted|extorted|bribed)/i
+  /\b(?:Mr|Mrs|Ms|Miss|Dr|Chief|Alhaji|Alhaja|Pastor|Bishop|Imam|Sheikh|Senator|Hon|Honourable|Barr|Engr|Prof)\.?\s+[A-Z][a-z]+/,
+  /\b[A-Z][a-z]+\s+[A-Z][a-z]+\s+(?:is|stole|took|collected|demanded|raped|killed|assaulted|extorted|bribed)\b/
 ];
 
+// Unambiguous criminal accusations in English + Pidgin.
+// Suffix handling in countMatches covers common inflections
+// (steal/steals/stealing/stealer, kill/kills/killed/killer/killers,
+// murder/murdered/murderers, etc.).
 const CRIMINAL_ACCUSATIONS = [
-  "stole",
   "steal",
   "bribe",
-  "bribery",
   "extort",
-  "extortion",
   "embezzle",
-  "embezzlement",
   "fraud",
-  "fraudulent",
   "kidnap",
-  "kidnapped",
   "rape",
-  "raped",
+  "rapist",
   "murder",
-  "murdered",
   "kill",
-  "killed",
   "assault",
-  "assaulted",
-  "cultist",
   "cultism",
+  "cultist",
   "money laundering",
   "419",
-  "yahoo boy"
+  "yahoo boy",
+  "tief",
+  "thief",
+  "loot",
+  "ritualist",
+  "ritualism",
+  "kidnapper",
+  "robber",
+  "robbery"
 ];
 
 const OFFICIAL_CAPACITY_LANGUAGE = [
@@ -66,15 +93,30 @@ const TITLES_THAT_ARE_OFFICIAL = [
   "nimc",
   "nnpc",
   "nerc",
-  "disco",
   "disco"
 ];
 
+/**
+ * Count how many of `terms` appear as whole words (with optional short
+ * inflections) in `text`.
+ *
+ * The pattern \b${term}\w{0,4}\b is deliberate:
+ *   - "kill" matches kill/kills/killed/killing/killer/killers
+ *   - "kill" does NOT match "skill" (no boundary before k)
+ *   - "steal" does NOT match "stealership" (suffix > 4 chars)
+ *   - "rape" does NOT match "grape" (no boundary before r)
+ *
+ * The 4-char suffix cap stops stemmed English words from slipping through
+ * while still allowing "kidnapper" (kidnap + p-er = 3 chars) and
+ * "murderers" (murder + e-rs = 3 chars).
+ */
 function countMatches(text: string, terms: string[]): string[] {
   const lower = text.toLowerCase();
   const found: string[] = [];
   for (const t of terms) {
-    if (lower.includes(t.toLowerCase())) found.push(t);
+    const escaped = t.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp(`\\b${escaped}\\w{0,4}\\b`);
+    if (re.test(lower)) found.push(t);
   }
   return found;
 }
