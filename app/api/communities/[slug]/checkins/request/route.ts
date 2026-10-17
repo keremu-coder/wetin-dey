@@ -7,7 +7,7 @@ import { sendPushToSessions } from "@/lib/push-server";
 import { CHECKIN_REASON_MAX } from "@/lib/checkin";
 import { assertCanWrite } from "@/lib/guards";
 import { serverError } from "@/lib/http";
-import { sameOrigin } from "@/lib/rate-limit";
+import { sameOrigin, checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest,
   context: { params: Promise<{ slug: string }> }) {
@@ -25,6 +25,15 @@ export async function POST(req: NextRequest,
 
     const denied = await assertCanWrite(sessionId);
     if (denied) return denied;
+
+    const limit = await checkRateLimit(
+      sessionId,
+      { key: "checkin_request", limit: 5, windowMs: 3600000 },
+      { ip: getRequestIp(req) }
+    );
+    if (!limit.ok) {
+      return Response.json({ error: "Slow down — too many requests." }, { status: 429 });
+    }
 
     const profile = await getOrCreateSessionProfile(sessionId);
     if (!profile) {

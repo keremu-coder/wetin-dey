@@ -9,7 +9,7 @@ import { BROADCAST_MAX_MB, BROADCAST_TITLE_MAX } from "@/lib/broadcasts";
 import { assertCanWrite } from "@/lib/guards";
 import { getBlockedIds } from "@/lib/blocks";
 import { serverError } from "@/lib/http";
-import { sameOrigin } from "@/lib/rate-limit";
+import { sameOrigin, checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 import { stripMediaMetadata } from "@/lib/media-strip";
 import { audioContainerFor } from "@/lib/audio-container";
 
@@ -102,6 +102,15 @@ export async function POST(req: NextRequest,
 
     const denied = await assertCanWrite(sessionId);
     if (denied) return denied;
+
+    const limit = await checkRateLimit(
+      sessionId,
+      { key: "community_broadcast", limit: 10, windowMs: 3600000 },
+      { ip: getRequestIp(req) }
+    );
+    if (!limit.ok) {
+      return Response.json({ error: "Slow down — too many requests." }, { status: 429 });
+    }
 
     const profile = await getOrCreateSessionProfile(sessionId);
     if (!profile) {

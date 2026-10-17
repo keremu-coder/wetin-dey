@@ -6,7 +6,7 @@ import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { slugify, isValidSlug } from "@/lib/community";
 import { assertCanWrite } from "@/lib/guards";
-import { sameOrigin } from "@/lib/rate-limit";
+import { sameOrigin, checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -41,6 +41,15 @@ export async function POST(req: NextRequest) {
 
   const denied = await assertCanWrite(sessionId);
   if (denied) return denied;
+
+  const limit = await checkRateLimit(
+    sessionId,
+    { key: "community_create", limit: 5, windowMs: 3600000 },
+    { ip: getRequestIp(req) }
+  );
+  if (!limit.ok) {
+    return Response.json({ error: "Slow down — too many requests." }, { status: 429 });
+  }
 
   const profile = await getOrCreateSessionProfile(sessionId);
   if (!profile) return Response.json({ error: "no profile" }, { status: 500 });

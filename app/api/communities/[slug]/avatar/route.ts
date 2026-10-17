@@ -7,7 +7,7 @@ import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { assertCanWrite } from "@/lib/guards";
 import { serverError } from "@/lib/http";
-import { sameOrigin } from "@/lib/rate-limit";
+import { sameOrigin, checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 
 const MAX_BYTES = 2 * 1024 * 1024;
 const ALLOWED_MIMES = ["image/jpeg", "image/png", "image/webp"];
@@ -54,6 +54,15 @@ export async function POST(req: NextRequest,
 
     const denied = await assertCanWrite(sessionId);
     if (denied) return denied;
+
+    const limit = await checkRateLimit(
+      sessionId,
+      { key: "community_avatar", limit: 5, windowMs: 3600000 },
+      { ip: getRequestIp(req) }
+    );
+    if (!limit.ok) {
+      return Response.json({ error: "Slow down — too many requests." }, { status: 429 });
+    }
 
     const lookup = await loadOwnedCommunity(params.slug, sessionId);
     if ("error" in lookup) {
@@ -156,6 +165,15 @@ export async function DELETE(
 
     const denied = await assertCanWrite(sessionId);
     if (denied) return denied;
+
+    const limit = await checkRateLimit(
+      sessionId,
+      { key: "community_avatar", limit: 5, windowMs: 3600000 },
+      { ip: getRequestIp(req) }
+    );
+    if (!limit.ok) {
+      return Response.json({ error: "Slow down — too many requests." }, { status: 429 });
+    }
 
     const lookup = await loadOwnedCommunity(params.slug, sessionId);
     if ("error" in lookup) {

@@ -5,7 +5,7 @@ import { nanoid } from "nanoid";
 import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { assertCanWrite } from "@/lib/guards";
-import { sameOrigin } from "@/lib/rate-limit";
+import { sameOrigin, checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest,
   context: { params: Promise<{ slug: string }> }) {
@@ -20,6 +20,15 @@ export async function POST(req: NextRequest,
 
   const denied = await assertCanWrite(sessionId);
   if (denied) return denied;
+
+  const limit = await checkRateLimit(
+    sessionId,
+    { key: "community_join", limit: 10, windowMs: 60000 },
+    { ip: getRequestIp(req) }
+  );
+  if (!limit.ok) {
+    return Response.json({ error: "Slow down — too many requests." }, { status: 429 });
+  }
 
   await getOrCreateSessionProfile(sessionId);
 

@@ -9,7 +9,7 @@ import {
   isValidCheckinStatus
 } from "@/lib/checkin";
 import { serverError } from "@/lib/http";
-import { sameOrigin } from "@/lib/rate-limit";
+import { sameOrigin, checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 
 export async function GET(
   req: NextRequest,
@@ -122,6 +122,15 @@ export async function POST(req: NextRequest,
 
     const denied = await assertCanWrite(sessionId);
     if (denied) return denied;
+
+    const limit = await checkRateLimit(
+      sessionId,
+      { key: "checkin_response", limit: 30, windowMs: 60000 },
+      { ip: getRequestIp(req) }
+    );
+    if (!limit.ok) {
+      return Response.json({ error: "Slow down — too many requests." }, { status: 429 });
+    }
 
     const profile = await getOrCreateSessionProfile(sessionId);
     if (!profile) {
