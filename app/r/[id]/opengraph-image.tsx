@@ -21,15 +21,18 @@ export default async function Image({
 }) {
   const db = createServiceClient();
 
+  // C2 Fix: Only generate OG images for public, reviewed, non-held reports.
   const { data: report } = await db
     .from("reports")
     .select(
       "agency_canonical, agency_raw, state, lga, category, evidence_tier, summary_pidgin"
     )
     .eq("id", params.id)
+    .eq("reviewed", true)
+    .eq("held", false)
     .maybeSingle();
 
-  // Not found or unreviewed: return a plain fallback card so the link
+  // Not found, unreviewed, or held: return a plain fallback card so the link
   // does not 404 when shared.
   const title = report
     ? report.agency_canonical || report.agency_raw || "Report"

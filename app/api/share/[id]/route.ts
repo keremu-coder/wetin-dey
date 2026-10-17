@@ -18,15 +18,18 @@ export async function GET(
   _req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-    const params = await context.params;
+  const params = await context.params;
   const db = createServiceClient();
 
+  // C2 Fix: Only generate share cards for public, reviewed, non-held reports.
   const { data: report } = await db
     .from("reports")
     .select(
       "agency_canonical, agency_raw, state, lga, category, evidence_tier, summary_pidgin"
     )
     .eq("id", params.id)
+    .eq("reviewed", true)
+    .eq("held", false)
     .maybeSingle();
 
   const title = report
