@@ -2,7 +2,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
-import { sameOrigin } from "@/lib/rate-limit";
+import { sameOrigin, checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 import { assertCanWrite } from "@/lib/guards";
 
 const VALID = ["private", "followers", "public"] as const;
@@ -29,6 +29,15 @@ export async function POST(req: NextRequest) {
     if (!sid) return NextResponse.json({ error: "no session" }, { status: 401 });
     const denied = await assertCanWrite(sid);
     if (denied) return denied;
+
+    const limit = await checkRateLimit(
+      sid,
+      { key: "settings_photo_visibility", limit: 30, windowMs: 60000 },
+      { ip: getRequestIp(req) }
+    );
+    if (!limit.ok) {
+      return Response.json({ error: "Slow down — too many requests." }, { status: 429 });
+    }
     const body = (await req.json()) as { visibility?: unknown };
     const v = body?.visibility;
     if (typeof v !== "string" || !VALID.includes(v as Tier)) {

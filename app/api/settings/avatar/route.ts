@@ -5,7 +5,7 @@ import { nanoid } from "nanoid";
 import sharp from "sharp";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
-import { sameOrigin } from "@/lib/rate-limit";
+import { sameOrigin, checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 import { assertCanWrite } from "@/lib/guards";
 import { serverError } from "@/lib/http";
 
@@ -37,6 +37,15 @@ export async function POST(req: NextRequest) {
 
     const denied = await assertCanWrite(sessionId);
     if (denied) return denied;
+
+    const limit = await checkRateLimit(
+      sessionId,
+      { key: "settings_avatar", limit: 5, windowMs: 3600000 },
+      { ip: getRequestIp(req) }
+    );
+    if (!limit.ok) {
+      return Response.json({ error: "Slow down — too many requests." }, { status: 429 });
+    }
 
     const contentType = req.headers.get("content-type") ?? "";
     if (!contentType.includes("multipart/form-data")) {
@@ -136,6 +145,15 @@ export async function DELETE(req: NextRequest) {
 
     const denied = await assertCanWrite(sessionId);
     if (denied) return denied;
+
+    const limit = await checkRateLimit(
+      sessionId,
+      { key: "settings_avatar", limit: 5, windowMs: 3600000 },
+      { ip: getRequestIp(req) }
+    );
+    if (!limit.ok) {
+      return Response.json({ error: "Slow down — too many requests." }, { status: 429 });
+    }
 
     const db = createServiceClient();
     const { data: existing } = await db

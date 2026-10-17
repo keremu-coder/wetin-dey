@@ -8,7 +8,7 @@ import {
   formatRecoveryCode,
   hashRecoveryCode
 } from "@/lib/recovery-code";
-import { sameOrigin } from "@/lib/rate-limit";
+import { sameOrigin, checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 import { serverError } from "@/lib/http";
 
 /**
@@ -55,6 +55,15 @@ export async function POST(req: NextRequest) {
     const sessionId = await getSessionId();
     if (!sessionId) {
       return Response.json({ error: "no session" }, { status: 401 });
+    }
+
+    const limit = await checkRateLimit(
+      sessionId,
+      { key: "settings_recovery_code", limit: 5, windowMs: 3600000 },
+      { ip: getRequestIp(req) }
+    );
+    if (!limit.ok) {
+      return Response.json({ error: "Slow down — try again later." }, { status: 429 });
     }
 
     const db = createServiceClient();

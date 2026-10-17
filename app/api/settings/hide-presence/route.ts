@@ -3,7 +3,7 @@ export const runtime = "nodejs";
 import { NextRequest } from "next/server";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
-import { sameOrigin } from "@/lib/rate-limit";
+import { sameOrigin, checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 import { assertCanWrite } from "@/lib/guards";
 import { serverError } from "@/lib/http";
 
@@ -40,6 +40,15 @@ export async function POST(req: NextRequest) {
 
     const denied = await assertCanWrite(sessionId);
     if (denied) return denied;
+
+    const limit = await checkRateLimit(
+      sessionId,
+      { key: "settings_hide_presence", limit: 30, windowMs: 60000 },
+      { ip: getRequestIp(req) }
+    );
+    if (!limit.ok) {
+      return Response.json({ error: "Slow down — too many requests." }, { status: 429 });
+    }
 
     const body = (await req.json()) as { hide_presence?: unknown };
     if (typeof body.hide_presence !== "boolean") {
