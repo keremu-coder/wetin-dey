@@ -37,6 +37,7 @@ export type MessageRowProps = {
   onReact: (messageId: string, emoji: string) => void;
   onReply: (m: Message) => void;
   onReport: (id: string, label: string) => void;
+  onBlock: (id: string, handle: string) => void;
   onToggleReactions: (id: string | null) => void;
   onRetry: (cid: string) => void;
   onDiscard: (cid: string) => void;
@@ -54,6 +55,7 @@ export function MessageRow({
   onReact,
   onReply,
   onReport,
+  onBlock,
   onToggleReactions,
   onRetry,
   onDiscard
@@ -317,16 +319,28 @@ export function MessageRow({
                 Reply
               </button>
               {!isMe ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onToggleReactions(null);
-                    onReport(m.id, `@${m.author_handle}`);
-                  }}
-                  className="flex h-7 items-center rounded-full px-2 text-[0.7rem] font-semibold text-danger transition-colors hover:bg-danger-soft"
-                >
-                  Report
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onToggleReactions(null);
+                      onReport(m.id, `@${m.author_handle}`);
+                    }}
+                    className="flex h-7 items-center rounded-full px-2 text-[0.7rem] font-semibold text-danger transition-colors hover:bg-danger-soft"
+                  >
+                    Report
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onToggleReactions(null);
+                      onBlock(m.id, m.author_handle);
+                    }}
+                    className="flex h-7 items-center rounded-full px-2 text-[0.7rem] font-semibold text-muted transition-colors hover:bg-ink/10"
+                  >
+                    Block
+                  </button>
+                </>
               ) : null}
             </div>
           </>

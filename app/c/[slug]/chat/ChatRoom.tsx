@@ -142,7 +142,37 @@ export function ChatRoom({
   >("default");
   const [showEnableBanner, setShowEnableBanner] = useState(false);
   const [blockedHandles, setBlockedHandles] = useState<Set<string>>(new Set());
+  const [blockedNotice, setBlockedNotice] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<Message | null>(null);
+
+  // Apple 1.2: block must be reachable from the message menu, not just
+  // via a detour to the profile page. Hides the blocked handle
+  // immediately (client filter) and calls /api/block (server truth,
+  // which is picked up on next page load by getBlockedIds).
+  async function blockUserFromChat(_messageId: string, handle: string) {
+    try {
+      const res = await fetch("/api/block", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ handle, action: "block" })
+      });
+      if (!res.ok) {
+        console.error("[chat] block failed:", await res.text().catch(() => ""));
+        return;
+      }
+      // New Set — React needs a new reference to re-render the filter.
+      setBlockedHandles((prev) => {
+        const next = new Set(prev);
+        next.add(handle);
+        return next;
+      });
+      setBlockedNotice(`You blocked @${handle}. Their messages are hidden. Unblock from Settings → Blocked users.`);
+      // Auto-clear the banner after 6 seconds.
+      setTimeout(() => setBlockedNotice(null), 6000);
+    } catch (e) {
+      console.error("[chat] block network error:", e);
+    }
+  }
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -769,6 +799,12 @@ export function ChatRoom({
         </div>
       ) : null}
 
+      {blockedNotice ? (
+        <div className="mx-3 mb-2 rounded-xl border border-border bg-surface px-3 py-2 text-[0.8125rem] leading-relaxed text-ink/90">
+          {blockedNotice}
+        </div>
+      ) : null}
+
       <div
         ref={scrollRef}
         className="chat-log flex flex-1 flex-col overflow-y-auto py-4"
@@ -809,6 +845,7 @@ export function ChatRoom({
                     onReact={react}
                     onReply={setReplyTo}
                     onReport={(id, label) => setFlagTarget({ id, label })}
+                    onBlock={blockUserFromChat}
                     onToggleReactions={setOpenReactionsFor}
                     onRetry={retryFailed}
                     onDiscard={dismissFailed}
