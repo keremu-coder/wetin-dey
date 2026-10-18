@@ -24,7 +24,7 @@ const config: CapacitorConfig = {
   appName: "Wetin Dey",
   webDir: "public",
   server: {
-    url: "https://9jawatindey.vercel.app",
+    url: "https://wetindey.app",
     cleartext: false,
     androidScheme: "https"
   },

@@ -57,6 +57,10 @@ export async function POST(req: NextRequest) {
     await anonClient.auth.signInWithPassword({ email, password });
 
   if (authErr || !authData?.user) {
+    // Log the real error for the admin to see in Vercel logs
+    if (authErr) {
+      console.error("[signin] Supabase auth error:", authErr.message);
+    }
     return Response.json({ error: BAD_LOGIN }, { status: 401 });
   }
 
