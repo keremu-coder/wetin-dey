@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { createServiceClient } from "@/lib/supabase/server";
 
-const BASE_URL = "https://9jawatindey.vercel.app";
+const BASE_URL = "https://wetindey.app";
 const REPORT_LIMIT = 5000;
 
 export const dynamic = "force-dynamic";
