@@ -6,6 +6,7 @@ import { ChatRow } from "@/components/ChatRow";
 import { SectionHeader } from "@/components/SectionHeader";
 import { SuggestionRow } from "@/components/SuggestionRow";
 import { HomeLoggedOut } from "@/components/HomeLoggedOut";
+import { ChoosePath } from "@/components/ChoosePath";
 import type { Report } from "@/lib/types";
 
 export const dynamic = "force-dynamic";

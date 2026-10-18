@@ -71,12 +71,12 @@ export function HomeLoggedOut({
           <TrustRow
             emoji={EMOJI.moai}
             label="E no dey disappear."
-            sub="Wetin we don talk remain for public record — today, next year, forever."
+            sub="Wetin we don talk remain for public record — today, next year, for the archive."
           />
           <TrustRow
             emoji={EMOJI.handshake}
             label="Nobody too small here."
-            sub="Age, gender, status — e no matter for this place."
+            sub="Gender, status, background — e no matter for this place."
           />
         </div>
       </section>

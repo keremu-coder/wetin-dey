@@ -507,3 +507,8 @@ html.native button {
 :root { --skeleton-bg: rgba(0,0,0,0.06); }
 :root[data-theme="dark"] { --skeleton-bg: rgba(255,255,255,0.1); }
 .skeleton { background-color: var(--skeleton-bg); }
+
+/* Prevent iOS auto-zoom on inputs (requires >= 16px font size) */
+input, textarea, select {
+  font-size: 16px !important;
+}
