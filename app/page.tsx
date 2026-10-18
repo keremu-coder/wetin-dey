@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { getSessionId } from "@/lib/session";
 import { getChatsHome } from "@/lib/chats-data";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -6,13 +7,20 @@ import { ChatRow } from "@/components/ChatRow";
 import { SectionHeader } from "@/components/SectionHeader";
 import { SuggestionRow } from "@/components/SuggestionRow";
 import { HomeLoggedOut } from "@/components/HomeLoggedOut";
-import { PageWrapper } from "@/components/PageWrapper";
+import { ChoosePath } from "@/components/ChoosePath";
 import { StatusBar } from "@/components/StatusBar";
 import type { Report } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
+  const jar = await cookies();
+  const pathChosen = jar.get("wd_path_chosen")?.value;
+
+  if (!pathChosen) {
+    return <ChoosePath />;
+  }
+
   const sessionId = await getSessionId();
   const db = createServiceClient();
   const { chats, suggestions } = await getChatsHome(sessionId);
@@ -55,7 +63,7 @@ export default async function HomePage() {
     });
 
     return (
-      <PageWrapper>
+      
         <HomeLoggedOut
           reports={sorted.slice(0, 3)}
           suggestions={suggestions.map((s) => ({
@@ -66,12 +74,12 @@ export default async function HomePage() {
             meta: s.meta
           }))}
         />
-      </PageWrapper>
+      
     );
   }
 
   return (
-    <PageWrapper>
+    
       <main className="mx-auto max-w-2xl pb-24">
         <div className="px-5 pb-3 pt-2">
           <Link
@@ -132,6 +140,6 @@ export default async function HomePage() {
           </>
         ) : null}
       </main>
-    </PageWrapper>
+    
   );
 }

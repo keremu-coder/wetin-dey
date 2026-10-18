@@ -1,15 +1,29 @@
 "use client";
 import { useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 
-export function ChoosePath({ onChooseAnonymous }: { onChooseAnonymous: () => void }) {
+export function ChoosePath() {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
 
-  function handleAnon() {
+  async function handleChoice(path: "anonymous" | "signup") {
     setLoading(true);
-    // Save their choice to localStorage so we don't ask again
-    localStorage.setItem("wd_path_chosen", "anonymous");
-    onChooseAnonymous();
+    try {
+      await fetch("/api/auth/choose-path", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ path })
+      });
+      
+      if (path === "signup") {
+        router.push("/join");
+      } else {
+        // Refresh the server component to hide this screen
+        router.refresh();
+      }
+    } catch {
+      setLoading(false);
+    }
   }
 
   return (
@@ -20,9 +34,9 @@ export function ChoosePath({ onChooseAnonymous }: { onChooseAnonymous: () => voi
       </p>
 
       <button
-        onClick={handleAnon}
+        onClick={() => handleChoice("anonymous")}
         disabled={loading}
-        className="flex flex-col items-center justify-center rounded-2xl border-2 border-brand bg-brand-tint/30 p-6 transition-colors hover:bg-brand-tint/60"
+        className="flex flex-col items-center justify-center rounded-2xl border-2 border-brand bg-brand-tint/30 p-6 transition-colors hover:bg-brand-tint/60 disabled:opacity-50"
       >
         <span className="text-[1.1rem] font-bold text-brand">Stay Anonymous</span>
         <span className="mt-1 text-center text-[0.8125rem] text-brand/80">
@@ -34,16 +48,16 @@ export function ChoosePath({ onChooseAnonymous }: { onChooseAnonymous: () => voi
         <span className="bg-paper px-4 text-[0.75rem] font-semibold uppercase tracking-widest text-faint">Or</span>
       </div>
 
-      <Link
-        href="/join"
-        onClick={() => localStorage.setItem("wd_path_chosen", "signup")}
-        className="flex flex-col items-center justify-center rounded-2xl border-2 border-border bg-surface p-6 transition-colors hover:border-ink/30 hover:bg-ink/5"
+      <button
+        onClick={() => handleChoice("signup")}
+        disabled={loading}
+        className="flex flex-col items-center justify-center rounded-2xl border-2 border-border bg-surface p-6 transition-colors hover:border-ink/30 hover:bg-ink/5 disabled:opacity-50"
       >
         <span className="text-[1.1rem] font-bold text-ink">Create a Profile</span>
         <span className="mt-1 text-center text-[0.8125rem] text-muted">
           Claim your handle, set a status, and save your account with email or recovery code.
         </span>
-      </Link>
+      </button>
     </main>
   );
 }
