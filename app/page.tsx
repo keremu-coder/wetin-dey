@@ -13,6 +13,7 @@ export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const sessionId = await getSessionId();
+  const db = createServiceClient();
   const { chats, suggestions } = await getChatsHome(sessionId);
 
   // A visitor with zero chats gets the identity hero regardless of
