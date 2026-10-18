@@ -72,8 +72,6 @@ export async function POST(req: NextRequest) {
 
   const db = createServiceClient();
 
-  // Named signup bypasses the IP ban. Anonymity is the loophole; a
-  // verified email is the accountability path back in.
   const profile = await getOrCreateSessionProfile(sessionId, {
     bypassIpBan: true
   });
@@ -110,9 +108,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Create the Auth user WITHOUT confirming the email. We then ask
-  // Supabase to send the signup confirmation email via the SMTP provider
-  // configured in the dashboard (currently Resend).
   const { data: authData, error: authErr } = await db.auth.admin.createUser({
     email,
     password,
@@ -122,9 +117,6 @@ export async function POST(req: NextRequest) {
   if (authErr || !authData?.user) {
     const msg = authErr?.message ?? "unknown";
     console.error("[join] createUser failed:", msg);
-    // Supabase returns "already exists" / "User already registered"
-    // if an auth user with this email exists but has no session row.
-    // That is a 409 for the caller, not a server error.
     if (/already (registered|exists)/i.test(msg) || /duplicate/i.test(msg)) {
       return Response.json(
         { error: "That email don already dey for another account." },
@@ -137,10 +129,44 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Ask Supabase to send the confirmation email. Uses the SMTP config
-  // in the dashboard. Failure here is logged but does not fail signup —
-  // the account exists and is usable, and the user can request a
-  // resend from Settings → Account.
+  // Link the Auth user to this session row FIRST.
+  const { data: linkedRows, error: updErr } = await db
+    .from("sessions")
+    .update({
+      handle,
+      handle_kind: "named",
+      display_name: handle,
+      email,
+      auth_provider: "email",
+      auth_user_id: authData.user.id,
+      accepted_terms_at: new Date().toISOString()
+    })
+    .eq("id", sessionId)
+    .select("id");
+
+  if (updErr || !linkedRows || linkedRows.length !== 1) {
+    try {
+      await db.auth.admin.deleteUser(authData.user.id);
+    } catch (cleanupErr) {
+      console.error("[join] orphan cleanup failed:", cleanupErr);
+    }
+    if (updErr?.code === "23505") {
+      return Response.json(
+        { error: "That handle don already dey. Try another one." },
+        { status: 409 }
+      );
+    }
+    console.error(
+      "[join] session update failed:",
+      updErr?.message ?? `matched ${linkedRows?.length ?? 0} rows, expected 1`
+    );
+    return Response.json(
+      { error: "Account created but profile update failed." },
+      { status: 500 }
+    );
+  }
+
+  // Ask Supabase to send the confirmation email AFTER linking.
   let verificationEmailSent = false;
   try {
     const { error: resendErr } = await db.auth.resend({
@@ -159,43 +185,6 @@ export async function POST(req: NextRequest) {
     console.warn(
       "[join] resend confirmation threw:",
       (e as Error).message
-    );
-  }
-
-  const { error: updErr } = await db
-    .from("sessions")
-    .update({
-      handle,
-      handle_kind: "named",
-      display_name: handle,
-      email,
-      auth_provider: "email",
-      auth_user_id: authData.user.id,
-      accepted_terms_at: new Date().toISOString()
-    })
-    .eq("id", sessionId);
-
-  if (updErr) {
-    // Unique violation: another request claimed this handle between
-    // the SELECT pre-check and this UPDATE. Postgres catches it via
-    // the unique index on handle_lower; we surface the same friendly
-    // 409 the pre-check returns. Before we return, clean up the auth
-    // user we just created — otherwise it is orphaned with no session.
-    try {
-      await db.auth.admin.deleteUser(authData.user.id);
-    } catch (cleanupErr) {
-      console.error("[join] orphan cleanup failed:", cleanupErr);
-    }
-    if (updErr.code === "23505") {
-      return Response.json(
-        { error: "That handle don already dey. Try another one." },
-        { status: 409 }
-      );
-    }
-    console.error("[join] session update failed:", updErr.message);
-    return Response.json(
-      { error: "Account created but profile update failed." },
-      { status: 500 }
     );
   }
 
