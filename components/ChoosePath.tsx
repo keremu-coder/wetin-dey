@@ -1,6 +1,8 @@
 "use client";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export function ChoosePath() {
   const router = useRouter();
@@ -14,7 +16,7 @@ export function ChoosePath() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ path })
       });
-      
+
       if (path === "signup") {
         router.push("/join");
       } else {
@@ -28,7 +30,9 @@ export function ChoosePath() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-12">
-      <h1 className="font-serif text-[2rem] font-semibold text-ink text-center">How you wan enter?</h1>
+      <h1 className="font-serif text-[2rem] font-semibold text-ink text-center">
+        How you wan enter?
+      </h1>
       <p className="mt-2 text-center text-[0.9375rem] text-muted mb-8">
         You fit stay anonymous, or create a profile to save your handle and connect with friends.
       </p>
@@ -45,7 +49,9 @@ export function ChoosePath() {
       </button>
 
       <div className="relative my-6 text-center">
-        <span className="bg-paper px-4 text-[0.75rem] font-semibold uppercase tracking-widest text-faint">Or</span>
+        <span className="bg-paper px-4 text-[0.75rem] font-semibold uppercase tracking-widest text-faint">
+          Or
+        </span>
       </div>
 
       <button
@@ -58,6 +64,13 @@ export function ChoosePath() {
           Claim your handle, set a status, and save your account with email or recovery code.
         </span>
       </button>
+
+      <p className="mt-8 text-center text-[0.875rem] text-muted">
+        Already get account?{" "}
+        <Link href="/signin" className="font-semibold text-brand hover:underline">
+          Sign in
+        </Link>
+      </p>
     </main>
   );
 }
