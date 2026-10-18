@@ -17,3 +17,5 @@ android/.idea/
 android/keystore.properties
 *.jks
 *.keystore
+
+.idea/
