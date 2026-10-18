@@ -18,6 +18,9 @@ export async function POST(req: NextRequest,
   const sessionId = await getSessionId();
   if (!sessionId) return Response.json({ error: "no session" }, { status: 401 });
 
+  // Ensure the session row exists before checking terms
+  await getOrCreateSessionProfile(sessionId);
+
   const denied = await assertCanWrite(sessionId);
   if (denied) return denied;
 
@@ -72,12 +75,16 @@ export async function POST(req: NextRequest,
     .maybeSingle();
 
   if (!existing) {
-    await db.from("community_members").insert({
+    const { error: insertErr } = await db.from("community_members").insert({
       id: nanoid(),
       community_id: community.id,
       session_id: sessionId,
       role: "member"
     });
+    if (insertErr) {
+      console.error("[community join] insert failed:", insertErr);
+      return Response.json({ error: "Could not join space" }, { status: 500 });
+    }
   }
 
   return Response.json({ ok: true, joined: true });
