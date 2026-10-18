@@ -54,19 +54,19 @@ export function ChatComposer({
         const pid = replyTo?.id ?? null;
         onSubmit(e, pid);
       }}
-      className="border-t border-border bg-paper/90 px-3 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] backdrop-blur-xl"
+      className="text-[16px] border-t border-border bg-paper/90 px-3 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] backdrop-blur-xl"
     >
       {error ? (
-        <p className="mb-1 text-[0.75rem] text-danger">{error}</p>
+        <p className="text-[16px] mb-1 text-[0.75rem] text-danger">{error}</p>
       ) : null}
 
       {replyTo ? (
-        <div className="mb-1.5 flex items-start gap-2 rounded-xl border-l-2 border-brand bg-ink/[0.04] px-2.5 py-1.5">
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[0.75rem] font-semibold text-brand">
+        <div className="text-[16px] mb-1.5 flex items-start gap-2 rounded-xl border-l-2 border-brand bg-ink/[0.04] px-2.5 py-1.5">
+          <div className="text-[16px] min-w-0 flex-1">
+            <p className="text-[16px] truncate text-[0.75rem] font-semibold text-brand">
               Replying to @{replyTo.author_handle}
             </p>
-            <p className="mt-0.5 line-clamp-1 text-[0.8125rem] leading-snug text-muted">
+            <p className="text-[16px] mt-0.5 line-clamp-1 text-[0.8125rem] leading-snug text-muted">
               {replyTo.body && replyTo.body.trim()
                 ? replyTo.body
                 : replyTo.audio_url
@@ -77,7 +77,7 @@ export function ChatComposer({
           <button
             type="button"
             onClick={onCancelReply}
-            className="shrink-0 rounded-full p-1 text-faint transition-colors hover:bg-ink/10 hover:text-ink"
+            className="text-[16px] shrink-0 rounded-full p-1 text-faint transition-colors hover:bg-ink/10 hover:text-ink"
             aria-label="Cancel reply"
           >
             <svg
@@ -98,14 +98,14 @@ export function ChatComposer({
       ) : null}
 
       {suggestion && composerMode === "text" ? (
-        <div className="mb-1.5 flex items-center gap-2 text-[0.75rem]">
-          <span className="text-muted">
+        <div className="text-[16px] mb-1.5 flex items-center gap-2 text-[0.75rem]">
+          <span className="text-[16px] text-muted">
             Correct{" "}
-            <span className="font-medium text-ink line-through">
+            <span className="text-[16px] font-medium text-ink line-through">
               {suggestion.original}
             </span>{" "}
             {"\u2192"}{" "}
-            <span className="font-semibold text-brand">
+            <span className="text-[16px] font-semibold text-brand">
               {suggestion.suggested}
             </span>
             ?
@@ -113,14 +113,14 @@ export function ChatComposer({
           <button
             type="button"
             onClick={onApplySuggestion}
-            className="rounded-md bg-brand px-2 py-0.5 text-[0.7rem] font-semibold text-white"
+            className="text-[16px] rounded-md bg-brand px-2 py-0.5 text-[0.7rem] font-semibold text-white"
           >
             Fix
           </button>
           <button
             type="button"
             onClick={onDismissSuggestion}
-            className="text-faint hover:text-ink"
+            className="text-[16px] text-faint hover:text-ink"
           >
             {"\u2715"}
           </button>
@@ -128,29 +128,29 @@ export function ChatComposer({
       ) : null}
 
       {recording ? (
-        <div className="flex items-center gap-3 rounded-full border border-danger bg-danger-soft px-3 py-2">
-          <span className="flex h-8 w-8 shrink-0 animate-pulse items-center justify-center rounded-full bg-danger text-white">
+        <div className="text-[16px] flex items-center gap-3 rounded-full border border-danger bg-danger-soft px-3 py-2">
+          <span className="text-[16px] flex h-8 w-8 shrink-0 animate-pulse items-center justify-center rounded-full bg-danger text-white">
             {"\u25CF"}
           </span>
           <span
-            className="flex-1 text-[0.9375rem] font-semibold text-danger"
+            className="text-[16px] flex-1 text-[0.9375rem] font-semibold text-danger"
             style={{ fontVariantNumeric: "tabular-nums" }}
           >
             {String(Math.floor(recordSeconds / 60)).padStart(2, "0")}:
             {String(recordSeconds % 60).padStart(2, "0")}
-            <span className="ml-2 text-[0.75rem] font-normal">/ 00:30</span>
+            <span className="text-[16px] ml-2 text-[0.75rem] font-normal">/ 00:30</span>
           </span>
           <button
             type="button"
             onClick={onCancelVoice}
-            className="shrink-0 rounded-full border border-border-strong bg-surface px-3 py-1.5 text-[0.75rem] font-medium text-ink transition-colors hover:bg-ink/5"
+            className="text-[16px] shrink-0 rounded-full border border-border-strong bg-surface px-3 py-1.5 text-[0.75rem] font-medium text-ink transition-colors hover:bg-ink/5"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={onStopVoice}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand text-white transition-transform hover:bg-brand-soft active:scale-90"
+            className="text-[16px] flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand text-white transition-transform hover:bg-brand-soft active:scale-90"
             aria-label="Send voice note"
           >
             <svg
@@ -169,11 +169,11 @@ export function ChatComposer({
           </button>
         </div>
       ) : composerMode === "voice" ? (
-        <div className="flex items-center gap-3">
+        <div className="text-[16px] flex items-center gap-3">
           <button
             type="button"
             onClick={onSwitchToText}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border-strong bg-surface text-ink transition-colors hover:bg-ink/5"
+            className="text-[16px] flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border-strong bg-surface text-ink transition-colors hover:bg-ink/5"
             aria-label="Switch to text"
             title="Type instead"
           >
@@ -197,7 +197,7 @@ export function ChatComposer({
           <button
             type="button"
             onClick={onStartVoice}
-            className="flex h-14 flex-1 items-center justify-center gap-3 rounded-full bg-brand text-white transition-transform hover:bg-brand-soft active:scale-[0.98]"
+            className="text-[16px] flex h-14 flex-1 items-center justify-center gap-3 rounded-full bg-brand text-white transition-transform hover:bg-brand-soft active:scale-[0.98]"
             aria-label="Tap to record voice note"
           >
             <svg
@@ -214,17 +214,17 @@ export function ChatComposer({
               <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
               <line x1="12" y1="19" x2="12" y2="22" />
             </svg>
-            <span className="font-serif text-[1rem] font-semibold">
+            <span className="text-[16px] font-serif text-[1rem] font-semibold">
               Tap to talk
             </span>
           </button>
         </div>
       ) : (
-        <div className="flex items-end gap-2">
+        <div className="text-[16px] flex items-end gap-2">
           <button
             type="button"
             onClick={onSwitchToVoice}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border-strong bg-surface text-ink transition-colors hover:bg-ink/5"
+            className="text-[16px] flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border-strong bg-surface text-ink transition-colors hover:bg-ink/5"
             aria-label="Switch to voice"
             title="Talk instead"
           >
@@ -243,7 +243,7 @@ export function ChatComposer({
               <line x1="12" y1="19" x2="12" y2="22" />
             </svg>
           </button>
-          <div className="composer-shell flex flex-1 items-end gap-2 rounded-2xl border border-border-strong bg-surface px-3 py-2">
+          <div className="text-[16px] composer-shell flex flex-1 items-end gap-2 rounded-2xl border border-border-strong bg-surface px-3 py-2">
             <textarea
               ref={textareaRef}
               value={body}
@@ -263,14 +263,14 @@ export function ChatComposer({
                   onSubmit(e as unknown as React.FormEvent, pid);
                 }
               }}
-              className="!max-h-24 !min-h-[28px] flex-1 resize-none !border-0 !bg-transparent !py-1 !text-[0.9375rem] !outline-none !ring-0 focus:!border-0 focus:!ring-0 focus:!shadow-none"
+              className="text-[16px] !max-h-24 !min-h-[28px] flex-1 resize-none !border-0 !bg-transparent !py-1 !text-[0.9375rem] !outline-none !ring-0 focus:!border-0 focus:!ring-0 focus:!shadow-none"
               style={{ boxShadow: "none" }}
             />
           </div>
           <button
             type="submit"
             disabled={!body.trim()}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand text-white transition-transform hover:bg-brand-soft active:scale-90 disabled:opacity-30"
+            className="text-[16px] flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand text-white transition-transform hover:bg-brand-soft active:scale-90 disabled:opacity-30"
             aria-label="Send"
           >
             <svg

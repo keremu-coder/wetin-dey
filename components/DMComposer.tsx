@@ -105,12 +105,12 @@ export function DMComposer({
   return (
     <form
       onSubmit={send}
-      className="border-t border-border bg-paper/95 px-3 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] backdrop-blur-xl"
+      className="text-[16px] border-t border-border bg-paper/95 px-3 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] backdrop-blur-xl"
     >
       {error ? (
-        <p className="mb-1 text-[0.75rem] text-danger">{error}</p>
+        <p className="text-[16px] mb-1 text-[0.75rem] text-danger">{error}</p>
       ) : null}
-      <div className="flex items-end gap-2 rounded-2xl border border-border-strong bg-surface px-3 py-2">
+      <div className="text-[16px] flex items-end gap-2 rounded-2xl border border-border-strong bg-surface px-3 py-2">
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value.slice(0, DM_BODY_MAX))}
@@ -123,13 +123,13 @@ export function DMComposer({
               send(e as unknown as React.FormEvent);
             }
           }}
-          className="!max-h-24 !min-h-[28px] flex-1 resize-none !border-0 !bg-transparent !py-1 !text-[0.9375rem] !outline-none !ring-0 focus:!border-0 focus:!ring-0 focus:!shadow-none"
+          className="text-[16px] !max-h-24 !min-h-[28px] flex-1 resize-none !border-0 !bg-transparent !py-1 !text-[0.9375rem] !outline-none !ring-0 focus:!border-0 focus:!ring-0 focus:!shadow-none"
           style={{ boxShadow: "none" }}
         />
         <button
           type="submit"
           disabled={!body.trim()}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand text-white transition-transform hover:bg-brand-soft active:scale-90 disabled:opacity-30"
+          className="text-[16px] flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand text-white transition-transform hover:bg-brand-soft active:scale-90 disabled:opacity-30"
           aria-label="Send"
         >
           <svg
