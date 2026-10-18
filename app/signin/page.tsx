@@ -21,6 +21,12 @@ export default function SigninPage() {
 
       <EmailSigninForm />
 
+      <div className="mt-3 text-center">
+        <Link href="/forgot-password" className="text-[0.8125rem] font-medium text-brand hover:underline">
+          Forgot password?
+        </Link>
+      </div>
+
       <p className="mt-4 text-center text-[0.8125rem] text-muted">
         New here?{" "}
         <Link href="/join" className="font-semibold text-brand hover:underline">
