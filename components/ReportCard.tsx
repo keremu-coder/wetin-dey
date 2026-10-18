@@ -75,9 +75,12 @@ export function ReportCard({
       <div className="p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full shadow-sm">
+            <Link
+              href={hasHandle ? `/u/${encodeURIComponent(handleRaw)}` : postUrl}
+              className="h-10 w-10 shrink-0 overflow-hidden rounded-full shadow-sm transition-opacity hover:opacity-80"
+            >
               <Alama seed={handleRaw || report.id} size={40} title={authorLabel} />
-            </div>
+            </Link>
             <div className="min-w-0">
               <p className="truncate text-[0.875rem] font-medium text-ink">
                 {authorLabel}
