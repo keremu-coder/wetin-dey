@@ -53,34 +53,46 @@ export function ProfileActions({
           className="flex h-10 w-10 items-center justify-center rounded-xl border border-border-strong bg-surface text-faint transition-colors hover:bg-ink/5 hover:text-ink"
           aria-label="More options"
         >
-          •••
+          {"\u2022\u2022\u2022"}
         </button>
 
         {menuOpen ? (
           <>
             <div
-              className="fixed inset-0 z-40"
+              className="fixed inset-0 z-40 bg-black/50 animate-fade-in"
               onClick={() => setMenuOpen(false)}
             />
-            <div className="absolute right-0 top-full z-50 mt-1 w-56 rounded-xl border border-border bg-surface p-1 shadow-card-hover">
-              <button
-                type="button"
-                onClick={() => {
-                  setMenuOpen(false);
-                  setFlagOpen(true);
-                }}
-                className="block w-full rounded-lg px-3 py-2 text-left text-[0.8125rem] text-ink hover:bg-ink/5"
-              >
-                Report @{handle}
-              </button>
-              <button
-                type="button"
-                onClick={blockUser}
-                disabled={busy}
-                className="block w-full rounded-lg px-3 py-2 text-left text-[0.8125rem] text-danger hover:bg-danger-soft disabled:opacity-60"
-              >
-                {busy ? "Dey block…" : `Block @${handle}`}
-              </button>
+            <div className="fixed inset-x-0 bottom-0 z-50 animate-slide-up rounded-t-3xl border-t border-border bg-surface pb-8 pt-2 shadow-2xl">
+              <div className="mx-auto mb-2 h-1.5 w-12 rounded-full bg-ink/20" />
+              <div className="flex flex-col px-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setFlagOpen(true);
+                  }}
+                  className="flex h-14 w-full items-center justify-center rounded-xl text-[1.05rem] font-semibold text-ink hover:bg-ink/5 active:bg-ink/10"
+                >
+                  Report @{handle}
+                </button>
+                <div className="my-1 h-px w-full bg-border" />
+                <button
+                  type="button"
+                  onClick={blockUser}
+                  disabled={busy}
+                  className="flex h-14 w-full items-center justify-center rounded-xl text-[1.05rem] font-semibold text-danger hover:bg-danger-soft active:bg-danger-soft disabled:opacity-60"
+                >
+                  {busy ? "Dey block…" : `Block @${handle}`}
+                </button>
+                <div className="my-1 h-px w-full bg-border" />
+                <button
+                  type="button"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex h-14 w-full items-center justify-center rounded-xl text-[1.05rem] font-semibold text-muted hover:bg-ink/5 active:bg-ink/10"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </>
         ) : null}
