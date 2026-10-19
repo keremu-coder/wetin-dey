@@ -29,6 +29,8 @@ type ParentRow = {
   community_id: string;
   body: string | null;
   audio_url: string | null;
+  media_path?: string | null;
+  media_type?: string | null;
 };
 
 async function loadParent(
@@ -39,7 +41,7 @@ async function loadParent(
 ): Promise<MessageParent | null> {
   const { data: parent } = await db
     .from("community_messages")
-    .select("id, session_id, community_id, body, audio_url")
+    .select("id, session_id, community_id, body, audio_url, media_path, media_type")
     .eq("id", parentId)
     .maybeSingle();
 
@@ -78,7 +80,9 @@ async function loadParent(
     author_handle: session?.handle ?? "Anonymous",
     author_avatar_url: canSee ? (session?.avatar_url ?? null) : null,
     body: p.body,
-    audio_url: p.audio_url
+    audio_url: p.audio_url,
+    media_path: p.media_path ?? null,
+    media_type: p.media_type ?? null
   };
 }
 
@@ -131,7 +135,7 @@ export async function GET(
 
     let q = db
       .from("community_messages")
-      .select("id, session_id, body, audio_url, created_at, parent_id")
+      .select("id, session_id, body, audio_url, created_at, parent_id, media_path, media_type, viewed_at")
       .eq("community_id", community.id)
       .eq("hidden", false)
       .order("created_at", { ascending: false })
@@ -161,7 +165,7 @@ export async function GET(
     if (parentIds.length > 0) {
       const { data } = await db
         .from("community_messages")
-        .select("id, session_id, community_id, body, audio_url")
+        .select("id, session_id, community_id, body, audio_url, media_path, media_type")
         .in("id", parentIds);
       parentRows = (data ?? []) as ParentRow[];
     }
@@ -172,7 +176,7 @@ export async function GET(
         ...parentRows.map((p) => p.session_id)
       ])
     );
-    
+
     const handleMap = new Map<string, string>();
     const avatarMap = new Map<string, string | null>();
     const lastSeenMap = new Map<string, string | null>();
@@ -217,7 +221,9 @@ export async function GET(
         author_handle: handleMap.get(p.session_id) ?? "Anonymous",
         author_avatar_url: avatarMap.get(p.session_id) ?? null,
         body: p.body,
-        audio_url: p.audio_url
+        audio_url: p.audio_url,
+        media_path: p.media_path ?? null,
+        media_type: p.media_type ?? null
       });
     }
 
@@ -250,6 +256,9 @@ export async function GET(
         id: m.id,
         body: m.body,
         audio_url: m.audio_url,
+        media_path: m.media_path,
+        media_type: m.media_type,
+        viewed_at: m.viewed_at,
         created_at: m.created_at,
         author_handle: handleMap.get(m.session_id) ?? "Anonymous",
         author_avatar_url: avatarMap.get(m.session_id) ?? null,
@@ -314,7 +323,7 @@ export async function POST(req: NextRequest,
 
     const { data: community } = await db
       .from("communities")
-      .select("id, name, slug")
+      .select("id, name, slug, is_public")
       .eq("slug", params.slug)
       .maybeSingle();
 
@@ -337,6 +346,10 @@ export async function POST(req: NextRequest,
     let body = "";
     let voiceHeld = false;
     let audio_url: string | null = null;
+    let media_path: string | null = null;
+    let media_type: string | null = null;
+    let media_mime: string | null = null;
+    let media_size: number | null = null;
     let parentIdRaw: string | null = null;
 
     if (contentType.includes("multipart/form-data")) {
@@ -346,53 +359,72 @@ export async function POST(req: NextRequest,
       if (typeof parentField === "string" && parentField.length > 0) {
         parentIdRaw = parentField;
       }
-      const file = form.get("audio");
 
-      if (file instanceof File && file.size > 0) {
-        if (file.size > 5 * 1024 * 1024) {
-          return Response.json(
-            { error: "Voice note too large (max 5MB)" },
-            { status: 400 }
-          );
+      const audioFile = form.get("audio");
+      const mediaFile = form.get("media");
+
+      if (audioFile instanceof File && audioFile.size > 0) {
+        if (audioFile.size > 5 * 1024 * 1024) {
+          return Response.json({ error: "Voice note too large (max 5MB)" }, { status: 400 });
         }
         const audioId = nanoid();
-        const ext = file.type.includes("mp4")
-          ? "m4a"
-          : file.type.includes("ogg")
-            ? "ogg"
-            : "webm";
+        const ext = audioFile.type.includes("mp4") ? "m4a" : audioFile.type.includes("ogg") ? "ogg" : "webm";
         const path = `chat/${community.id}/${audioId}.${ext}`;
-        const rawBuf = Buffer.from(await file.arrayBuffer());
-        const buf = await stripMediaMetadata(rawBuf, audioContainerFor(file.type).ext);
+        const rawBuf = Buffer.from(await audioFile.arrayBuffer());
+        const buf = await stripMediaMetadata(rawBuf, audioContainerFor(audioFile.type).ext);
 
         try {
-          const voiceMod = await transcribeAndModerate(
-            buf,
-            file.type || "audio/webm"
-          );
+          const voiceMod = await transcribeAndModerate(buf, audioFile.type || "audio/webm");
           if (voiceMod.hold) {
             voiceHeld = true;
-            console.warn(
-              "[chat] voice held for review:",
-              voiceMod.reasons.join(" | ")
-            );
           }
         } catch (e) {
           console.warn("[chat] voice moderation error:", e);
         }
 
         const up = await db.storage.from("voice-notes").upload(path, buf, {
-          contentType: file.type || "audio/webm",
+          contentType: audioFile.type || "audio/webm",
           upsert: false
         });
         if (up.error) {
-          return Response.json(
-            { error: "Voice upload failed" },
-            { status: 500 }
-          );
+          return Response.json({ error: "Voice upload failed" }, { status: 500 });
         }
-        audio_url = db.storage.from("voice-notes").getPublicUrl(path).data
-          .publicUrl;
+        audio_url = db.storage.from("voice-notes").getPublicUrl(path).data.publicUrl;
+      }
+
+      if (mediaFile instanceof File && mediaFile.size > 0) {
+        if (community.is_public) {
+          return Response.json({ error: "Public spaces cannot have view-once media." }, { status: 403 });
+        }
+        
+        const isPhoto = mediaFile.type.startsWith("image/");
+        const isVideo = mediaFile.type.startsWith("video/");
+        if (!isPhoto && !isVideo) {
+          return Response.json({ error: "Only photos and videos are allowed." }, { status: 400 });
+        }
+        if (isPhoto && mediaFile.size > 5 * 1024 * 1024) {
+          return Response.json({ error: "Photo is too large (max 5MB)" }, { status: 400 });
+        }
+        if (isVideo && mediaFile.size > 15 * 1024 * 1024) {
+          return Response.json({ error: "Video is too large (max 15MB)" }, { status: 400 });
+        }
+
+        const ext = mediaFile.name.split(".").pop() || (isPhoto ? "jpg" : "mp4");
+        const mediaId = nanoid();
+        const path = `chat/${community.id}/${mediaId}.${ext}`;
+        const buf = Buffer.from(await mediaFile.arrayBuffer());
+        
+        const up = await db.storage.from("community-media").upload(path, buf, {
+          contentType: mediaFile.type,
+          upsert: false
+        });
+        if (up.error) {
+          return Response.json({ error: "Media upload failed" }, { status: 500 });
+        }
+        media_path = path;
+        media_type = isPhoto ? "photo" : "video";
+        media_mime = mediaFile.type;
+        media_size = mediaFile.size;
       }
     } else {
       try {
@@ -406,14 +438,11 @@ export async function POST(req: NextRequest,
       }
     }
 
-    if (!body && !audio_url) {
+    if (!body && !audio_url && !media_path) {
       return Response.json({ error: "Message is empty" }, { status: 400 });
     }
     if (body.length > 500) {
-      return Response.json(
-        { error: "Message too long (max 500 chars)" },
-        { status: 400 }
-      );
+      return Response.json({ error: "Message too long (max 500 chars)" }, { status: 400 });
     }
 
     let parentId: string | null = null;
@@ -431,12 +460,6 @@ export async function POST(req: NextRequest,
       const mod = analyzeModeration(body);
       if (mod.hold) {
         hidden = true;
-        console.warn(
-          "[chat] held for review:",
-          moderationReason(mod),
-          "| matches:",
-          mod.matches.map((m) => m.kind).join(",")
-        );
       }
     }
 
@@ -450,9 +473,15 @@ export async function POST(req: NextRequest,
         body: body || null,
         audio_url,
         hidden,
-        parent_id: parentId
+        parent_id: parentId,
+        ...(media_path && {
+          media_path,
+          media_type,
+          media_mime,
+          media_size
+        })
       })
-      .select("id, body, audio_url, created_at, hidden, parent_id")
+      .select("id, body, audio_url, created_at, hidden, parent_id, media_path, media_type, viewed_at")
       .single();
 
     if (error) {
@@ -467,73 +496,11 @@ export async function POST(req: NextRequest,
           senderHandle: profile.handle,
           communityName: community.name,
           communitySlug: community.slug,
-          body: body || null,
+          body: body || (media_path ? "📷 View once media" : null),
           hasAudio: !!audio_url
         }).catch((err) => {
           console.error("[push notify]", err);
         })
-      );
-
-      waitUntil(
-        (async () => {
-          const alreadyNotified = new Set<string>();
-          try {
-            if (parentId) {
-              const { data: parentRow } = await db
-                .from("community_messages")
-                .select("session_id")
-                .eq("id", parentId)
-                .maybeSingle();
-              if (parentRow?.session_id) {
-                alreadyNotified.add(parentRow.session_id);
-                await createNotification(db, {
-                  recipientId: parentRow.session_id,
-                  actorId: sessionId,
-                  kind: "reply",
-                  targetType: "community_message",
-                  targetId: id,
-                  preview: body || (audio_url ? "Voice note" : null)
-                });
-              }
-            }
-          } catch (e) {
-            console.error("[notify reply]", e);
-          }
-
-          if (!body) return;
-
-          try {
-            const tokens = Array.from(
-              new Set(
-                (body.match(/@[A-Za-z0-9_]{2,30}/g) ?? []).map((t) =>
-                  t.slice(1).toLowerCase()
-                )
-              )
-            );
-            if (tokens.length === 0) return;
-
-            const { data: mentioners } = await db
-              .from("sessions")
-              .select("id, handle, handle_lower")
-              .in("handle_lower", tokens);
-
-            for (const m of mentioners ?? []) {
-              if (m.id === sessionId) continue;
-              if (alreadyNotified.has(m.id)) continue;
-              alreadyNotified.add(m.id);
-              await createNotification(db, {
-                recipientId: m.id,
-                actorId: sessionId,
-                kind: "mention",
-                targetType: "community_message",
-                targetId: id,
-                preview: body
-              });
-            }
-          } catch (e) {
-            console.error("[notify mention]", e);
-          }
-        })()
       );
     }
 
@@ -544,6 +511,9 @@ export async function POST(req: NextRequest,
         id: data.id,
         body: data.body,
         audio_url: data.audio_url,
+        media_path: data.media_path,
+        media_type: data.media_type,
+        viewed_at: data.viewed_at,
         created_at: data.created_at,
         author_handle: profile.handle,
         author_avatar_url: profile.avatar_url ?? null,

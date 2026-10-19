@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 let audioCtx: AudioContext | null = null;
 
@@ -113,22 +113,23 @@ export const SOUND_PROFILES: Record<
     label: "Ping",
     description: "Warm two-tone chirp",
     sounds: {
+      // Softened the send sound. Lowered gain and smoother sine wave.
       send: [
-        { freq: 1200, start: 0, duration: 0.05, gain: 0.18 },
-        { freq: 1800, start: 0.045, duration: 0.09, gain: 0.22 }
+        { freq: 800, freqEnd: 600, start: 0, duration: 0.08, gain: 0.08 },
+        { freq: 1200, freqEnd: 900, start: 0.06, duration: 0.12, gain: 0.1 }
       ],
       receive: [
-        { freq: 1046.5, start: 0, duration: 0.09, gain: 0.16 },
-        { freq: 1568.0, start: 0.09, duration: 0.14, gain: 0.18 }
+        { freq: 1046.5, start: 0, duration: 0.09, gain: 0.12 },
+        { freq: 1568.0, start: 0.09, duration: 0.14, gain: 0.15 }
       ],
       mention: [
-        { freq: 698.46, start: 0, duration: 0.08, gain: 0.18 },
-        { freq: 880.0, start: 0.07, duration: 0.09, gain: 0.20 },
-        { freq: 1046.5, start: 0.15, duration: 0.16, gain: 0.22 }
+        { freq: 698.46, start: 0, duration: 0.08, gain: 0.15 },
+        { freq: 880.0, start: 0.07, duration: 0.09, gain: 0.18 },
+        { freq: 1046.5, start: 0.15, duration: 0.16, gain: 0.20 }
       ],
       notification: [
-        { freq: 880, start: 0, duration: 0.08, gain: 0.17 },
-        { freq: 1174.66, start: 0.08, duration: 0.14, gain: 0.19 }
+        { freq: 880, start: 0, duration: 0.08, gain: 0.15 },
+        { freq: 1174.66, start: 0.08, duration: 0.14, gain: 0.18 }
       ]
     }
   },
@@ -137,40 +138,21 @@ export const SOUND_PROFILES: Record<
     description: "Bright three-note, modern",
     sounds: {
       send: [
-        {
-          freq: 900,
-          freqEnd: 2200,
-          start: 0,
-          duration: 0.13,
-          gain: 0.24,
-          type: "triangle"
-        }
+        { freq: 900, freqEnd: 2200, start: 0, duration: 0.13, gain: 0.15, type: "triangle" }
       ],
       receive: [
-        { freq: 1760, start: 0, duration: 0.08, gain: 0.18, type: "triangle" },
-        {
-          freq: 1318.5,
-          start: 0.08,
-          duration: 0.08,
-          gain: 0.18,
-          type: "triangle"
-        },
-        { freq: 1760, start: 0.16, duration: 0.14, gain: 0.20, type: "triangle" }
+        { freq: 1760, start: 0, duration: 0.08, gain: 0.15, type: "triangle" },
+        { freq: 1318.5, start: 0.08, duration: 0.08, gain: 0.15, type: "triangle" },
+        { freq: 1760, start: 0.16, duration: 0.14, gain: 0.18, type: "triangle" }
       ],
       mention: [
-        { freq: 2093, start: 0, duration: 0.06, gain: 0.20, type: "triangle" },
-        { freq: 1568, start: 0.06, duration: 0.06, gain: 0.20, type: "triangle" },
-        { freq: 2093, start: 0.12, duration: 0.14, gain: 0.22, type: "triangle" }
+        { freq: 2093, start: 0, duration: 0.06, gain: 0.18, type: "triangle" },
+        { freq: 1568, start: 0.06, duration: 0.06, gain: 0.18, type: "triangle" },
+        { freq: 2093, start: 0.12, duration: 0.14, gain: 0.20, type: "triangle" }
       ],
       notification: [
-        { freq: 1760, start: 0, duration: 0.08, gain: 0.18, type: "triangle" },
-        {
-          freq: 1318.5,
-          start: 0.08,
-          duration: 0.14,
-          gain: 0.19,
-          type: "triangle"
-        }
+        { freq: 1760, start: 0, duration: 0.08, gain: 0.15, type: "triangle" },
+        { freq: 1318.5, start: 0.08, duration: 0.14, gain: 0.15, type: "triangle" }
       ]
     }
   },
@@ -179,26 +161,20 @@ export const SOUND_PROFILES: Record<
     description: "Soft pop, easy on the ear",
     sounds: {
       send: [
-        {
-          freq: 1100,
-          freqEnd: 1800,
-          start: 0,
-          duration: 0.09,
-          gain: 0.18
-        }
+        { freq: 1100, freqEnd: 1800, start: 0, duration: 0.09, gain: 0.12 }
       ],
       receive: [
-        { freq: 1318.5, start: 0, duration: 0.08, gain: 0.16 },
-        { freq: 1760, start: 0.06, duration: 0.14, gain: 0.18 }
+        { freq: 1318.5, start: 0, duration: 0.08, gain: 0.12 },
+        { freq: 1760, start: 0.06, duration: 0.14, gain: 0.15 }
       ],
       mention: [
-        { freq: 1760, start: 0, duration: 0.08, gain: 0.18 },
-        { freq: 1318.5, start: 0.08, duration: 0.08, gain: 0.18 },
-        { freq: 1760, start: 0.16, duration: 0.14, gain: 0.20 }
+        { freq: 1760, start: 0, duration: 0.08, gain: 0.15 },
+        { freq: 1318.5, start: 0.08, duration: 0.08, gain: 0.15 },
+        { freq: 1760, start: 0.16, duration: 0.14, gain: 0.18 }
       ],
       notification: [
-        { freq: 1318.5, start: 0, duration: 0.08, gain: 0.16 },
-        { freq: 1760, start: 0.08, duration: 0.14, gain: 0.18 }
+        { freq: 1318.5, start: 0, duration: 0.08, gain: 0.12 },
+        { freq: 1760, start: 0.08, duration: 0.14, gain: 0.15 }
       ]
     }
   },
@@ -207,37 +183,31 @@ export const SOUND_PROFILES: Record<
     description: "One crisp note",
     sounds: {
       send: [
-        {
-          freq: 1200,
-          freqEnd: 1800,
-          start: 0,
-          duration: 0.1,
-          gain: 0.18
-        }
+        { freq: 1200, freqEnd: 1800, start: 0, duration: 0.1, gain: 0.12 }
       ],
-      receive: [{ freq: 1400, start: 0, duration: 0.12, gain: 0.18 }],
+      receive: [{ freq: 1400, start: 0, duration: 0.12, gain: 0.15 }],
       mention: [
-        { freq: 1400, start: 0, duration: 0.08, gain: 0.18 },
-        { freq: 1864.66, start: 0.08, duration: 0.14, gain: 0.2 }
+        { freq: 1400, start: 0, duration: 0.08, gain: 0.15 },
+        { freq: 1864.66, start: 0.08, duration: 0.14, gain: 0.18 }
       ],
-      notification: [{ freq: 1400, start: 0, duration: 0.12, gain: 0.17 }]
+      notification: [{ freq: 1400, start: 0, duration: 0.12, gain: 0.15 }]
     }
   },
   classic: {
     label: "Knock",
     description: "Descending alert tone",
     sounds: {
-      send: [{ freq: 1100, start: 0, duration: 0.08, gain: 0.18 }],
+      send: [{ freq: 1100, start: 0, duration: 0.08, gain: 0.15 }],
       receive: [
-        { freq: 880, start: 0, duration: 0.1, gain: 0.18 },
-        { freq: 660, start: 0.1, duration: 0.16, gain: 0.19 }
+        { freq: 880, start: 0, duration: 0.1, gain: 0.15 },
+        { freq: 660, start: 0.1, duration: 0.16, gain: 0.18 }
       ],
       mention: [
-        { freq: 660, start: 0, duration: 0.1, gain: 0.18 },
-        { freq: 880, start: 0.1, duration: 0.1, gain: 0.19 },
-        { freq: 1046.5, start: 0.2, duration: 0.16, gain: 0.22 }
+        { freq: 660, start: 0, duration: 0.1, gain: 0.15 },
+        { freq: 880, start: 0.1, duration: 0.1, gain: 0.18 },
+        { freq: 1046.5, start: 0.2, duration: 0.16, gain: 0.20 }
       ],
-      notification: [{ freq: 880, start: 0, duration: 0.14, gain: 0.18 }]
+      notification: [{ freq: 880, start: 0, duration: 0.14, gain: 0.15 }]
     }
   },
   none: {

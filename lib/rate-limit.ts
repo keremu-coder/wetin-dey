@@ -1,4 +1,4 @@
-import "server-only";
+﻿import "server-only";
 import { createHash } from "crypto";
 import { createServiceClient } from "@/lib/supabase/server";
 
@@ -17,11 +17,6 @@ const SWEEP_EVERY_N_WRITES = 200;
 
 /**
  * Lazy eviction of expired in-memory buckets.
- *
- * memBuckets is a plain Map that would otherwise grow unbounded on a
- * long-lived serverless instance: every unique client ip:hash or
- * session key creates an entry that never gets removed. Called every
- * SWEEP_EVERY_N_WRITES writes so the cost is amortized to near zero.
  */
 function sweepExpiredBuckets(now: number): void {
   for (const [key, bucket] of memBuckets) {
@@ -39,14 +34,6 @@ export type RateLimitResult =
   | { ok: true; retryAfterMs: 0 }
   | { ok: false; retryAfterMs: number };
 
-/**
- * Read the client IP from Vercel's forwarded headers.
- *
- * Vercel sets x-forwarded-for as a comma-separated list (client, proxy,
- * proxy, ...). The first entry is the original client. x-real-ip is a
- * single-value fallback. Returns null when neither header is present
- * (local dev, unusual proxies) - callers treat null as "no IP signal".
- */
 export type DedupeInput = {
   category: string;
   agency_canonical: string;
@@ -54,11 +41,6 @@ export type DedupeInput = {
   lga?: string | null;
 };
 
-/**
- * Dedupe hash for pattern detection. Two reports about the same agency,
- * same category, same location, same calendar week produce the same hash.
- * Deliberately excludes session_id, body text, and exact timestamp.
- */
 export function hashDedupe(input: DedupeInput): string {
   const weekBucket = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000));
   const parts = [
@@ -82,29 +64,14 @@ export function getRequestIp(req: Request): string | null {
   return null;
 }
 
-/**
- * Deterministic hash of an IP, salted with the service role key.
- *
- * Why hash: SPEC.md rule 1 forbids logging IP addresses for anonymous
- * activity. We never store the raw IP - only a salted hash. It's enough
- * to rate-limit the same client across sessions, and it disappears with
- * the rate_events row. If the service role key rotates, older IP-hash
- * buckets become unreachable - fine, since all windows are <= 1h.
- */
-// Audit finding 8: an attacker on a home IPv6 connection has 2^64
-// addresses available (one /64 prefix), and each address was a fresh
-// bucket. Bucket IPv6 on the /64 prefix so rotation within the
-// customer's block hits the same rate-limit counter.
 function normalizeIpForBucket(ip: string): string {
   const trimmed = ip.trim();
-  if (!trimmed.includes(":")) return trimmed; // IPv4 unchanged
+  if (!trimmed.includes(":")) return trimmed;
 
-  // IPv4-mapped IPv6 (::ffff:1.2.3.4) — bucket on the IPv4 part.
   if (trimmed.toLowerCase().startsWith("::ffff:")) {
     return trimmed.slice(7);
   }
 
-  // Expand "::" so we can reliably take the first four segments.
   let expanded = trimmed.toLowerCase();
   if (expanded.includes("::")) {
     const parts = expanded.split("::");
@@ -119,9 +86,6 @@ function normalizeIpForBucket(ip: string): string {
 }
 
 export function hashIp(ip: string): string {
-  // Fail closed: never fall back to a hardcoded string. A shared
-  // default would make the IP-hash bucket reproducible across every
-  // environment, letting an attacker pre-compute hashes.
   const salt = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!salt) {
     throw new Error("hashIp requires SUPABASE_SERVICE_ROLE_KEY as salt");
@@ -139,7 +103,6 @@ async function checkBucket(
 ): Promise<RateLimitResult> {
   const now = Date.now();
 
-  // Fast path: in-memory.
   const mem = memBuckets.get(bucketKey);
   if (mem && mem.resetAt > now) {
     if (mem.count >= rule.limit) {
@@ -158,11 +121,6 @@ async function checkBucket(
     }
   }
 
-  // Slow path: DB check for cross-instance abuse. Applies to every
-  // limit at or below 100 - which is every security-sensitive endpoint
-  // (signin, recovery, join, radar send, radar add-contact, report
-  // upload). High-volume heartbeats with limits above 100 stay
-  // memory-only to keep DB write volume bounded.
   if (rule.limit <= 100) {
     const db = createServiceClient();
     const sinceIso = new Date(now - rule.windowMs).toISOString();
@@ -184,9 +142,6 @@ async function checkBucket(
     }
 
     if (dbError) {
-      // Fail closed. The audit (finding 2) flagged that DB errors used
-      // to silently allow the request. Deny instead - the caller already
-      // returns 429 with a retry hint.
       return { ok: false, retryAfterMs: 60_000 };
     }
 
@@ -194,8 +149,6 @@ async function checkBucket(
       return { ok: false, retryAfterMs: rule.windowMs };
     }
 
-    // Best-effort insert. Failure here does not deny the request - the
-    // in-memory bucket already counted it.
     try {
       await db.from("rate_events").insert({
         session_id: bucketKey,
@@ -209,16 +162,6 @@ async function checkBucket(
   return { ok: true, retryAfterMs: 0 };
 }
 
-/**
- * Rate limit check, session-scoped plus optional IP-scoped.
- *
- * The session bucket prevents a single client from spamming. The IP
- * bucket (when opts.ip is passed) prevents the cookie-drop bypass the
- * audit documented: dropping the session cookie no longer resets the
- * limit, because the IP bucket accumulates across sessions.
- *
- * Both buckets must pass. Either failing returns ok: false.
- */
 export async function checkRateLimit(
   sessionId: string,
   rule: Rule,
@@ -237,24 +180,13 @@ export async function checkRateLimit(
   return { ok: true, retryAfterMs: 0 };
 }
 
-/**
- * Origin check for POST routes. Fail-closed:
- *
- * - Missing Origin AND Referer -> deny. (Audit finding 7b: this used
- *   to return true, which let header-stripping clients through.)
- * - Explicit allowlist only. No host-header synthesis, so a spoofed
- *   Host cannot manufacture a matching origin.
- * - Preview deploys and localhost are enumerated.
- *
- * When adding a new deploy URL, extend ALLOWED_ORIGINS rather than
- * weakening the check.
- */
 const ALLOWED_ORIGINS = [
   "http://localhost:3000",
   "http://127.0.0.1:3000",
   "https://wetindey.app",
   "https://wetin-dey-gamma.vercel.app",
   "https://wetindey.vercel.app",
+  "https://tindey.vercel.app",
   "https://wetindey.app",
   "https://www.wetindey.app"
 ];
@@ -265,25 +197,11 @@ export async function checkIpRateLimit(
 ): Promise<RateLimitResult> {
   const ip = getRequestIp(req);
   if (!ip) {
-    // No IP signal: fall back to a shared (strict) bucket rather than
-    // allowing unlimited attempts.
     return checkBucket(`ip:unknown:${rule.key}`, rule);
   }
   return checkBucket(`ip:${hashIp(ip)}:${rule.key}`, rule);
 }
 
-/**
- * Same-origin check for state-changing routes.
- *
- * Origin is preferred: browsers send it on all cross-origin requests
- * and on same-origin POSTs from fetch/XHR. When Origin is absent we
- * fall back to Referer.
- *
- * Referer comparison is by parsed `.origin`, NOT string prefix. A
- * prefix check with `startsWith("https://wetindey.app")`
- * would accept `https://wetindey.app.evil.com/page` - the
- * attacker's DNS, matching your prefix. Parse and compare exactly.
- */
 export function sameOrigin(req: Request): boolean {
   const origin = req.headers.get("origin");
   const referer = req.headers.get("referer");
@@ -296,12 +214,9 @@ export function sameOrigin(req: Request): boolean {
     try {
       return ALLOWED_ORIGINS.includes(new URL(referer).origin);
     } catch {
-      // Malformed Referer header - deny.
       return false;
     }
   }
 
-  // Neither header present -> deny. Same-origin browsers always send
-  // at least one of these for credentialed cross-document requests.
   return false;
 }

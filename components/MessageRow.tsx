@@ -41,6 +41,7 @@ export type MessageRowProps = {
   onToggleReactions: (id: string | null) => void;
   onRetry: (cid: string) => void;
   onDiscard: (cid: string) => void;
+  onViewMedia?: (m: Message) => void;
 };
 
 export function MessageRow({
@@ -58,7 +59,8 @@ export function MessageRow({
   onBlock,
   onToggleReactions,
   onRetry,
-  onDiscard
+  onDiscard,
+  onViewMedia
 }: MessageRowProps) {
   const swipeStartX = useRef<number | null>(null);
   const swipeStartY = useRef<number | null>(null);
@@ -165,6 +167,11 @@ export function MessageRow({
 
   const showReactions = openReactionsFor === m.id;
 
+  // Type-safe checks for media
+  const mediaPath = (m as any).media_path;
+  const mediaType = (m as any).media_type;
+  const viewedAt = (m as any).viewed_at;
+
   return (
     <div>
       {!sameDayAsPrev ? (
@@ -248,6 +255,23 @@ export function MessageRow({
                       : "(empty)"}
                 </p>
               </div>
+            </div>
+          ) : null}
+
+          {mediaPath ? (
+            <div className="flex flex-col items-center justify-center p-2 text-center max-w-[200px]">
+              <div className="mb-2 text-[2rem]">{mediaType === "video" ? "🎥" : "📷"}</div>
+              {viewedAt ? (
+                <span className="text-[0.8125rem] font-medium text-muted">Opened</span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => onViewMedia && onViewMedia(m)}
+                  className="rounded-full bg-ink px-4 py-1.5 text-[0.8125rem] font-semibold text-white transition-transform hover:opacity-90 active:scale-95"
+                >
+                  View once
+                </button>
+              )}
             </div>
           ) : null}
 

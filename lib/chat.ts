@@ -9,12 +9,17 @@ export type MessageParent = {
   author_avatar_url?: string | null;
   body: string | null;
   audio_url: string | null;
+  media_path?: string | null;
+  media_type?: string | null;
 };
 
 export type Message = {
   id: string;
   body: string | null;
   audio_url: string | null;
+  media_path?: string | null;
+  media_type?: string | null;
+  viewed_at?: string | null;
   created_at: string;
   author_handle: string;
   author_avatar_url?: string | null;
@@ -107,3 +112,5 @@ export function previewOf(parent: MessageParent | null): string {
   if (parent.audio_url) return "🎤 Voice note";
   return "(empty)";
 }
+
+

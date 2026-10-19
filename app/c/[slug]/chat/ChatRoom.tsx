@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import nextDynamic from "next/dynamic";
@@ -42,9 +42,6 @@ import { ChatRoomMembers } from "@/components/ChatRoomMembers";
 import { MessageRow } from "@/components/MessageRow";
 import { ChatHeader } from "@/components/ChatHeader";
 import { ChatComposer } from "@/components/ChatComposer";
-
-// Lazy-loaded children — off the initial chat bundle, fetched on first
-// use. Same components, same props, same behavior as before.
 
 const InviteSheet = nextDynamic(
   () => import("@/components/InviteSheet").then((m) => m.InviteSheet),
@@ -144,11 +141,19 @@ export function ChatRoom({
   const [blockedHandles, setBlockedHandles] = useState<Set<string>>(new Set());
   const [blockedNotice, setBlockedNotice] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<Message | null>(null);
+  const [viewingMedia, setViewingMedia] = useState<{url: string, type: string} | null>(null);
 
-  // Apple 1.2: block must be reachable from the message menu, not just
-  // via a detour to the profile page. Hides the blocked handle
-  // immediately (client filter) and calls /api/block (server truth,
-  // which is picked up on next page load by getBlockedIds).
+  async function handleViewMedia(m: Message) {
+    if ((m as any).viewed_at) return;
+    try {
+      const res = await fetch(`/api/community-messages/${m.id}/view`, { method: "POST" });
+      const json = await res.json();
+      if (!res.ok) return;
+      setViewingMedia({ url: json.url, type: json.type });
+      setMessages(prev => prev.map(msg => msg.id === m.id ? { ...msg, viewed_at: new Date().toISOString() } as any : msg));
+    } catch {}
+  }
+
   async function blockUserFromChat(_messageId: string, handle: string) {
     try {
       const res = await fetch("/api/block", {
@@ -161,17 +166,14 @@ export function ChatRoom({
         setTimeout(() => setBlockedNotice(null), 6000);
         return;
       }
-      // New Set — React needs a new reference to re-render the filter.
       setBlockedHandles((prev) => {
         const next = new Set(prev);
         next.add(handle);
         return next;
       });
       setBlockedNotice(`You blocked @${handle}. Their messages are hidden. Unblock from Settings → Blocked users.`);
-      // Auto-clear the banner after 6 seconds.
       setTimeout(() => setBlockedNotice(null), 6000);
     } catch (e) {
-      console.error("[chat] block network error:", e);
       setBlockedNotice("Could not block. Check your connection and try again.");
       setTimeout(() => setBlockedNotice(null), 6000);
     }
@@ -183,23 +185,17 @@ export function ChatRoom({
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Latest messages list, so the realtime handler and optimistic sends
-  // can resolve parent snapshots without depending on stale closures.
   const messagesRef = useRef<Message[]>(messages);
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
 
-  // Pre-seed the handle cache from server-provided members so the realtime
-  // handler can resolve handles immediately.
   const handleCacheRef = useRef<Map<string, string>>(
     new Map(initialMembers.map((m) => [m.session_id, m.handle]))
   );
 
   const prefsRef = useRef<SoundPrefs>(prefs);
 
-  // Pre-mark all server-provided handles as fetched so we don't re-request
-  // their fonts/statuses on mount.
   const fetchedHandlesRef = useRef<Set<string>>(
     new Set([
       ...Object.keys(initialFonts),
@@ -223,9 +219,7 @@ export function ChatRoom({
       if (typeof window !== "undefined") {
         window.localStorage.setItem("wetindey:chat-visited:v1", "1");
       }
-    } catch {
-      /* ignore */
-    }
+    } catch {}
 
     return unsub;
   }, []);
@@ -244,35 +238,27 @@ export function ChatRoom({
   const loadBroadcasts = useMemo(
     () => async () => {
       try {
-        const res = await fetch(`/api/communities/${slug}/broadcasts`, {
-          cache: "no-store"
-        });
+        const res = await fetch(`/api/communities/${slug}/broadcasts`, { cache: "no-store" });
         if (!res.ok) return;
         const json = await res.json();
         if (json?.broadcasts) {
           setBroadcasts(json.broadcasts as Broadcast[]);
         }
-      } catch {
-        /* silent */
-      }
+      } catch {}
     },
     [slug]
   );
 
   useEffect(() => {
     void loadBroadcasts();
-    const t = setInterval(() => {
-      void loadBroadcasts();
-    }, 60000);
+    const t = setInterval(() => { void loadBroadcasts(); }, 60000);
     return () => clearInterval(t);
   }, [loadBroadcasts]);
 
   useEffect(() => {
     if (!isMember || !mySessionId) return;
 
-    let channel: ReturnType<
-      ReturnType<typeof getBrowserClient>["channel"]
-    > | null = null;
+    let channel: ReturnType<ReturnType<typeof getBrowserClient>["channel"]> | null = null;
 
     try {
       const supabase = getBrowserClient();
@@ -287,33 +273,29 @@ export function ChatRoom({
             table: "community_messages"
           },
           (payload) => {
-            const row = payload.new as {
-              id: string;
-              session_id: string;
-              body: string | null;
-              audio_url: string | null;
-              created_at: string;
-              parent_id: string | null;
-            };
+            const row = payload.new as any;
 
             if (row.session_id === mySessionId) return;
 
-            const handle =
-              handleCacheRef.current.get(row.session_id) ?? "Anonymous";
+            const handle = handleCacheRef.current.get(row.session_id) ?? "Anonymous";
 
             const incoming: Message = {
               id: row.id,
               body: row.body,
               audio_url: row.audio_url,
+              media_path: row.media_path,
+              media_type: row.media_type,
+              viewed_at: row.viewed_at,
               created_at: row.created_at,
-              author_handle: handle, parent_id: row.parent_id ?? null, parent: row.parent_id ? (() => { const f = messagesRef.current.find((mm) => mm.id === row.parent_id); return f ? { id: f.id, author_handle: f.author_handle, body: f.body, audio_url: f.audio_url } : null; })() : null,
+              author_handle: handle, 
+              parent_id: row.parent_id ?? null, 
+              parent: row.parent_id ? (() => { const f = messagesRef.current.find((mm) => mm.id === row.parent_id); return f ? { id: f.id, author_handle: f.author_handle, body: f.body, audio_url: f.audio_url } : null; })() : null,
               author_last_seen: null,
               reactions: []
-            };
+            } as any;
 
             const p = prefsRef.current;
-            const mentionedMe =
-              row.body && me ? containsMentionOf(row.body, me) : false;
+            const mentionedMe = row.body && me ? containsMentionOf(row.body, me) : false;
 
             if (mentionedMe && p.mention) {
               playProfile(p.profile, "mention");
@@ -329,9 +311,11 @@ export function ChatRoom({
             if (p.browserNotifications) {
               const preview = row.body
                 ? row.body.slice(0, 90)
-                : row.audio_url
-                  ? "🎤 Voice note"
-                  : "New message";
+                : row.media_path
+                  ? "📷 View once media"
+                  : row.audio_url
+                    ? "🎤 Voice note"
+                    : "New message";
               showBrowserNotification(
                 mentionedMe
                   ? `@${handle} mentioned you in ${name}`
@@ -379,7 +363,6 @@ export function ChatRoom({
     setSuggestion(suggestCorrection(body));
   }, [body, autocorrectOn]);
 
-  // Only fetch profiles for handles NOT already server-provided.
   useEffect(() => {
     const handles = Array.from(
       new Set(messages.map((m) => m.author_handle).filter(Boolean))
@@ -453,9 +436,7 @@ export function ChatRoom({
       } else {
         setShowEnableBanner(true);
       }
-    } catch {
-      /* ignore */
-    }
+    } catch {}
   }
 
   async function send(e: React.FormEvent, parentId: string | null = null) {
@@ -483,7 +464,7 @@ export function ChatRoom({
       reactions: [],
       parent_id: parentId, parent: parentId ? (() => { const f = messagesRef.current.find((mm) => mm.id === parentId); return f ? { id: f.id, author_handle: f.author_handle, body: f.body, audio_url: f.audio_url } : null; })() : null, _cid: cid,
       _pending: true
-    };
+    } as any;
 
     setMessages((prev) => [...prev, optimistic]);
     setBody("");
@@ -647,7 +628,7 @@ export function ChatRoom({
       reactions: [],
       parent_id: parentId, parent: parentId ? (() => { const f = messagesRef.current.find((mm) => mm.id === parentId); return f ? { id: f.id, author_handle: f.author_handle, body: f.body, audio_url: f.audio_url } : null; })() : null, _cid: cid,
       _pending: true
-    };
+    } as any;
     setMessages((prev) => [...prev, optimistic]);
 
     setTimeout(() => {
@@ -696,9 +677,7 @@ export function ChatRoom({
       setTimeout(() => {
         try {
           URL.revokeObjectURL(localUrl);
-        } catch {
-          /* ignore */
-        }
+        } catch {}
       }, 5000);
     } catch {
       setMessages((prev) =>
@@ -725,12 +704,8 @@ export function ChatRoom({
         )
       );
       if (prefsRef.current.vibrate) void tapFeedback();
-    } catch {
-      /* ignore */
-    }
+    } catch {}
   }
-
-  // Swipe gesture — DOM-direct for 60fps.
 
   if (!isMember) {
     return (
@@ -759,7 +734,7 @@ export function ChatRoom({
     !inviteBannerDismissed && members.length < 5 && !inviteOpen;
 
   return (
-    <div className="fixed inset-x-0 top-0 bottom-0 flex flex-col bg-paper">
+    <div className="fixed inset-0 z-50 flex h-[100dvh] flex-col bg-paper">
       <ChatHeader
         slug={slug}
         name={name}
@@ -837,6 +812,7 @@ export function ChatRoom({
                 return (
                   <MessageRow
                     key={m._cid ?? m.id}
+                    onViewMedia={handleViewMedia}
                     m={m}
                     prev={prev}
                     me={me}
@@ -883,6 +859,18 @@ export function ChatRoom({
       ) : null}
 
       <ChatComposer
+        slug={slug}
+        isPublic={false}
+        onMediaStart={(cid) => {
+          const optimistic: Message = { id: cid, body: null, audio_url: null, media_path: "pending", media_type: "photo", created_at: new Date().toISOString(), author_handle: me ?? "you", author_last_seen: null, reactions: [], parent_id: null, parent: null, _cid: cid, _pending: true } as any;
+          setMessages(prev => [...prev, optimistic]);
+        }}
+        onMediaUploaded={(msg) => {
+          setMessages(prev => prev.map(m => m._pending && (m as any).media_path === "pending" ? msg : m));
+        }}
+        onMediaFail={(cid) => {
+          setMessages(prev => prev.filter(m => m._cid !== cid));
+        }}
         body={body}
         onBodyChange={setBody}
         error={error}
@@ -965,6 +953,28 @@ export function ChatRoom({
         }}
         statusByHandle={statusByHandle}
       />
+
+      {viewingMedia ? (
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95"
+          onClick={() => setViewingMedia(null)}
+        >
+          <div className="relative max-h-full max-w-full p-4">
+            <button 
+              className="absolute -top-12 right-0 p-2 text-white/70 hover:text-white"
+              onClick={() => setViewingMedia(null)}
+            >
+              Close
+            </button>
+            {viewingMedia.type === "video" ? (
+              <video src={viewingMedia.url} autoPlay controls playsInline className="max-h-[85vh] max-w-full rounded-lg object-contain" />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={viewingMedia.url} alt="View once media" className="max-h-[85vh] max-w-full rounded-lg object-contain" />
+            )}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
