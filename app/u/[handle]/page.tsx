@@ -11,7 +11,7 @@ import { StatusLine } from "@/components/StatusLine";
 import { StartDMButton } from "@/components/StartDMButton";
 import { ProfileActions } from "@/components/ProfileActions";
 import { UnblockButton } from "@/components/UnblockButton";
-import { Alama } from "@/components/Alama";
+import { Avatar } from "@/components/Avatar";
 import { canSeePhoto } from "@/lib/photo-visibility";
 import { formatNaira } from "@/lib/constants";
 
@@ -156,38 +156,6 @@ async function getFollowing(profileId: string): Promise<PersonRow[]> {
   const order = new Map(ids.map((id, i) => [id, i]));
   people.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
   return people;
-}
-
-function avatarColor(seed: string): string {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
-  const colors = [
-    "bg-[#C0392B]",
-    "bg-[#D97706]",
-    "bg-[#1F7A4D]",
-    "bg-[#7C3AED]",
-    "bg-[#0E7490]",
-    "bg-[#BE185D]",
-    "bg-[#4D7C0F]",
-    "bg-[#A16207]"
-  ];
-  return colors[Math.abs(h) % colors.length];
-}
-
-function avatarHex(seed: string): string {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
-  const colors = [
-    "#C0392B",
-    "#D97706",
-    "#1F7A4D",
-    "#7C3AED",
-    "#0E7490",
-    "#BE185D",
-    "#4D7C0F",
-    "#A16207"
-  ];
-  return colors[Math.abs(h) % colors.length];
 }
 
 function timeAgo(date: string): string {
@@ -395,14 +363,13 @@ export default async function ProfilePage(props: {
 
       <section className="rounded-2xl border border-border bg-surface p-6 shadow-card">
         <div className="flex items-start gap-4">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full shadow-sm">
-            {canSeeMainPhoto && (profile as { avatar_url?: string | null }).avatar_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={(profile as { avatar_url?: string | null }).avatar_url!} alt="" className="h-16 w-16 object-cover" />
-            ) : (
-              <Alama seed={profile.id} size={64} title={`@${handle}`} />
-            )}
-          </div>
+          <Avatar
+            src={canSeeMainPhoto ? (profile as { avatar_url?: string | null }).avatar_url : null}
+            seed={profile.id}
+            size={64}
+            title={`@${handle}`}
+            className="shadow-sm"
+          />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="font-serif text-[1.6rem] font-semibold leading-tight text-ink">
@@ -564,9 +531,8 @@ export default async function ProfilePage(props: {
         ) : (
           <div className="overflow-hidden rounded-2xl border border-border bg-surface">
             {people.map((p, i) => {
-              const bg = avatarHex(p.handle);
               const isThisMe = mySessionId === p.id;
-              
+
               const canSeePersonPhoto = canSeePhoto({
                 viewerId: mySessionId,
                 targetId: p.id,
@@ -586,20 +552,12 @@ export default async function ProfilePage(props: {
                     className="flex min-w-0 flex-1 items-start gap-3"
                   >
                     <div className="relative shrink-0">
-                      {canSeePersonPhoto && p.avatar_url ? (
-                        <img
-                          src={p.avatar_url}
-                          alt=""
-                          className="h-10 w-10 rounded-full object-cover"
-                        />
-                      ) : (
-                        <div
-                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[0.9375rem] font-semibold text-white"
-                          style={{ background: bg }}
-                        >
-                          {p.handle.charAt(0).toUpperCase()}
-                        </div>
-                      )}
+                      <Avatar
+                        src={canSeePersonPhoto ? p.avatar_url : null}
+                        seed={p.id}
+                        size={40}
+                        title={`@${p.handle}`}
+                      />
                     </div>
                     <div className="min-w-0 flex-1 pt-0.5">
                       <p className="truncate text-[0.9375rem] font-medium text-ink">

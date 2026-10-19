@@ -1,6 +1,6 @@
 ﻿import Link from "next/link";
 import { Suspense } from "react";
-import { Alama } from "@/components/Alama";
+import { Avatar } from "@/components/Avatar";
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -39,30 +39,31 @@ export default async function MePage(props: {
   return (
     <main className="mx-auto max-w-2xl px-4 py-6 pb-28">
       <div className="relative mb-6 rounded-2xl border border-border bg-surface p-4">
-        <div className="flex items-center gap-4">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-paper">
-            {profile.avatar_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" />
-            ) : (
-              <Alama seed={profile.id} size={64} title={`@${profile.handle}`} />
-            )}
-          </div>
-          <div className="min-w-0 flex-1 pr-16">
+        <div className="flex items-start gap-4">
+          <Avatar 
+            src={profile.avatar_url} 
+            seed={profile.id} 
+            size={64} 
+            title={`@${profile.handle}`} 
+            border 
+          />
+          <div className="min-w-0 flex-1 pt-1">
             <h1 className="font-serif text-[1.35rem] font-semibold text-ink truncate">
               @{profile.handle}
             </h1>
             <p className="text-[0.8125rem] text-muted">
               {profile.handle_kind === "named" ? "Named account" : "Anonymous"}
             </p>
+            <div className="mt-2.5">
+              <Link
+                href={`/u/${encodeURIComponent(profile.handle)}`}
+                className="inline-flex rounded-xl border border-border-strong bg-paper px-3 py-1.5 text-[0.75rem] font-medium text-ink transition-colors hover:bg-ink/5"
+              >
+                Public view
+              </Link>
+            </div>
           </div>
         </div>
-        <Link
-          href={`/u/${encodeURIComponent(profile.handle)}`}
-          className="absolute right-4 top-4 rounded-xl border border-border-strong bg-paper px-3 py-1.5 text-[0.75rem] font-medium text-ink transition-colors hover:bg-ink/5"
-        >
-          Public view
-        </Link>
       </div>
 
       <Suspense fallback={<MeSkeleton />}>
@@ -74,7 +75,7 @@ export default async function MePage(props: {
           href="/settings"
           className="text-[0.8125rem] font-medium text-brand hover:underline"
         >
-          Settings â†’
+          Settings →
         </Link>
       </div>
     </main>

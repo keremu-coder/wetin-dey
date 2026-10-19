@@ -5,16 +5,8 @@ import Link from "next/link";
 import { getBrowserClient } from "@/lib/supabase/client";
 import { timeAgoShort } from "@/lib/dm";
 import { makeCid } from "@/lib/chat";
-import {
-  playProfile,
-  unlockAudio,
-  showBrowserNotification
-} from "@/lib/sounds";
-import {
-  loadPrefs,
-  subscribePrefs,
-  type SoundPrefs
-} from "@/lib/sound-prefs";
+import { playProfile, unlockAudio, showBrowserNotification } from "@/lib/sounds";
+import { loadPrefs, subscribePrefs, type SoundPrefs } from "@/lib/sound-prefs";
 import { notifyFeedback } from "@/lib/haptics";
 import { useToast } from "./Toast";
 import { useLiveRefreshUnread } from "./LiveStateProvider";
@@ -22,6 +14,7 @@ import { FilterWarning } from "./FilterWarning";
 import { MessageBody } from "./MessageBody";
 import { DMComposer } from "./DMComposer";
 import { FlagSheet } from "./FlagSheet";
+import { Avatar } from "./Avatar";
 
 type Message = {
   id: string;
@@ -31,6 +24,9 @@ type Message = {
   filter_level: string;
   read_at: string | null;
   created_at: string;
+  media_path?: string | null;
+  media_type?: string | null;
+  viewed_at?: string | null;
   _cid?: string;
   _pending?: boolean;
   _failed?: boolean;
@@ -45,22 +41,6 @@ const DEFAULT_PREFS: SoundPrefs = {
   vibrate: true,
   browserNotifications: true
 };
-
-function avatarColor(seed: string): string {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
-  const colors = [
-    "#C0392B",
-    "#D97706",
-    "#1F7A4D",
-    "#7C3AED",
-    "#0E7490",
-    "#BE185D",
-    "#4D7C0F",
-    "#A16207"
-  ];
-  return colors[Math.abs(h) % colors.length];
-}
 
 export function DMThread({
   threadId,
@@ -91,6 +71,7 @@ export function DMThread({
   const [menuOpen, setMenuOpen] = useState(false);
   const [flagOpen, setFlagOpen] = useState(false);
   const [blocking, setBlocking] = useState(false);
+  const [viewingMedia, setViewingMedia] = useState<{url: string, type: string} | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const lastMarkRef = useRef<number>(0);
   const scrollDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -145,6 +126,30 @@ export function DMThread({
 
   function discardOptimistic(cid: string) {
     setMessages((prev) => prev.filter((m) => m._cid !== cid));
+  }
+
+  async function handleViewMedia(m: Message) {
+    if (m.viewed_at) {
+      toast.show("This media has already been opened.", "error");
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/dm/messages/${m.id}/view`, { method: "POST" });
+      const json = await res.json();
+
+      if (!res.ok) {
+        toast.show(json.error || "Could not open media", "error");
+        // Mark as viewed locally so the UI updates
+        setMessages(prev => prev.map(msg => msg.id === m.id ? { ...msg, viewed_at: new Date().toISOString() } : msg));
+        return;
+      }
+
+      setViewingMedia({ url: json.url, type: json.type });
+      setMessages(prev => prev.map(msg => msg.id === m.id ? { ...msg, viewed_at: new Date().toISOString() } : msg));
+    } catch {
+      toast.show("Network error", "error");
+    }
   }
 
   useEffect(() => {
@@ -237,15 +242,7 @@ export function DMThread({
           },
           (payload) => {
             if (cancelled) return;
-            const row = payload.new as {
-              id: string;
-              sender_id: string;
-              body: string;
-              held: boolean;
-              filter_level: string;
-              read_at: string | null;
-              created_at: string;
-            };
+            const row = payload.new as Message;
 
             if (row.sender_id === mySessionId) return;
             if (row.held) return;
@@ -257,14 +254,14 @@ export function DMThread({
             if (p.browserNotifications) {
               showBrowserNotification(
                 `@${otherHandle} sent you a message`,
-                row.body.slice(0, 90),
+                row.media_path ? "📷 View once media" : row.body.slice(0, 90),
                 `dm-${threadId}`
               );
             }
 
             setMessages((prev) => {
               if (prev.some((m) => m.id === row.id)) return prev;
-              return [...prev, row as Message];
+              return [...prev, row];
             });
 
             void markRead();
@@ -334,8 +331,6 @@ export function DMThread({
     .find((m) => m.sender_id === mySessionId);
   const lastMineSeen = lastMine?.read_at != null;
 
-  const bg = avatarColor(otherHandle);
-
   return (
     <div className="fixed inset-0 z-50 flex h-[100dvh] flex-col bg-paper">
       <header
@@ -347,16 +342,7 @@ export function DMThread({
           className="flex h-10 w-10 items-center justify-center rounded-full text-brand transition-colors hover:bg-ink/5"
           aria-label="Back to inbox"
         >
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="15 18 9 12 15 6" />
           </svg>
         </Link>
@@ -364,20 +350,12 @@ export function DMThread({
           href={`/u/${encodeURIComponent(otherHandle)}`}
           className="flex min-w-0 flex-1 items-center gap-2.5"
         >
-          {otherAvatarUrl ? (
-            <img
-              src={otherAvatarUrl}
-              alt=""
-              className="h-9 w-9 shrink-0 rounded-full object-cover"
-            />
-          ) : (
-            <div
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[0.9375rem] font-semibold text-white"
-              style={{ background: bg }}
-            >
-              {otherHandle.charAt(0).toUpperCase()}
-            </div>
-          )}
+          <Avatar 
+            src={otherAvatarUrl} 
+            seed={otherHandle} 
+            size={36} 
+            title={`@${otherHandle}`} 
+          />
           <div className="min-w-0">
             <p className="truncate text-[0.9375rem] font-semibold text-ink">
               @{otherHandle}
@@ -399,10 +377,7 @@ export function DMThread({
 
           {menuOpen ? (
             <>
-              <div
-                className="fixed inset-0 z-40"
-                onClick={() => setMenuOpen(false)}
-              />
+              <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
               <div className="absolute right-0 top-full z-50 mt-1 w-56 rounded-xl border border-border bg-surface p-1 shadow-card-hover">
                 <Link
                   href={`/u/${encodeURIComponent(otherHandle)}`}
@@ -413,10 +388,7 @@ export function DMThread({
                 </Link>
                 <button
                   type="button"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    setFlagOpen(true);
-                  }}
+                  onClick={() => { setMenuOpen(false); setFlagOpen(true); }}
                   className="block w-full rounded-lg px-3 py-2 text-left text-[0.8125rem] text-ink hover:bg-ink/5"
                 >
                   Report conversation
@@ -454,8 +426,7 @@ export function DMThread({
               <p className="text-[0.7rem] leading-relaxed text-muted">
                 🔒 Private conversation between you and @{otherHandle}.
                 <br />
-                Don&apos;t share phone numbers, emails, or links to other apps —
-                they&apos;ll be blocked.
+                Don&apos;t share phone numbers, emails, or links to other apps — they&apos;ll be blocked.
               </p>
             </div>
 
@@ -463,30 +434,34 @@ export function DMThread({
               const mine = m.sender_id === mySessionId;
               const isLastMine = mine && !m._cid && m.id === lastMine?.id;
               return (
-                <div
-                  key={m.id}
-                  className={`flex ${mine ? "justify-end" : "justify-start"}`}
-                >
+                <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                   <div className="max-w-[78%]">
-                    <div
-                      className={`rounded-2xl px-3.5 py-2 ${
-                        mine
-                          ? "bg-surface2 text-ink"
-                          : "bg-surface text-ink"
-                      }`}
-                    >
-                      <MessageBody
-                        body={m.body}
-                        isOwn={mine}
-                        fontId={mine ? myFont : otherFont}
-                        colorId={mine ? myColor : otherColor}
-                      />
+                    <div className={`rounded-2xl px-3.5 py-2 ${mine ? "bg-surface2 text-ink" : "bg-surface text-ink"}`}>
+                      {m.media_path ? (
+                        <div className="flex flex-col items-center justify-center p-2 text-center">
+                          <div className="mb-2 text-[2rem]">{m.media_type === "video" ? "🎥" : "📷"}</div>
+                          {m.viewed_at ? (
+                            <span className="text-[0.8125rem] font-medium text-muted">Opened</span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleViewMedia(m)}
+                              className="rounded-full bg-ink px-4 py-1.5 text-[0.8125rem] font-semibold text-white transition-transform hover:opacity-90 active:scale-95"
+                            >
+                              View once
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <MessageBody
+                          body={m.body}
+                          isOwn={mine}
+                          fontId={mine ? myFont : otherFont}
+                          colorId={mine ? myColor : otherColor}
+                        />
+                      )}
                     </div>
-                    <p
-                      className={`mt-0.5 flex items-center gap-1 text-[0.65rem] text-faint ${
-                        mine ? "justify-end" : ""
-                      }`}
-                    >
+                    <p className={`mt-0.5 flex items-center gap-1 text-[0.65rem] text-faint ${mine ? "justify-end" : ""}`}>
                       <span>{m._pending ? "Sending" : m._failed ? "Failed" : timeAgoShort(m.created_at)}</span>
                       {isLastMine ? (
                         <span className="ml-1 text-[0.65rem] font-bold text-brand" title={lastMineSeen ? "Read" : "Delivered"}>
@@ -536,6 +511,38 @@ export function DMThread({
           targetLabel={`conversation with @${otherHandle}`}
           onClose={() => setFlagOpen(false)}
         />
+      ) : null}
+
+      {viewingMedia ? (
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95"
+          onClick={() => setViewingMedia(null)}
+        >
+          <div className="relative max-h-full max-w-full p-4">
+            <button 
+              className="absolute -top-12 right-0 p-2 text-white/70 hover:text-white"
+              onClick={() => setViewingMedia(null)}
+            >
+              Close
+            </button>
+            {viewingMedia.type === "video" ? (
+              <video 
+                src={viewingMedia.url} 
+                autoPlay 
+                controls 
+                playsInline
+                className="max-h-[85vh] max-w-full rounded-lg object-contain"
+              />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img 
+                src={viewingMedia.url} 
+                alt="View once media" 
+                className="max-h-[85vh] max-w-full rounded-lg object-contain"
+              />
+            )}
+          </div>
+        </div>
       ) : null}
     </div>
   );

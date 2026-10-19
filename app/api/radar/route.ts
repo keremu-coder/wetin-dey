@@ -1,8 +1,9 @@
-export const runtime = "nodejs";
+﻿export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sameOrigin, checkRateLimit, getRequestIp } from "@/lib/rate-limit";
+import { canSeePhoto } from "@/lib/photo-visibility";
 
 // GET  — my inbox (unacknowledged signals sent to me) + my contacts
 // POST — add a contact by handle (I can signal them)
@@ -44,12 +45,29 @@ export async function GET() {
     const senderIds = Array.from(new Set(signals.map((s) => s.sender_id as string).concat(contactIds)));
 
     const sessionsRes = senderIds.length > 0
-      ? await db.from("sessions").select("id, handle, display_name, avatar_url").in("id", senderIds)
-      : { data: [] as Array<{ id: string; handle: string; display_name: string | null; avatar_url: string | null }> };
+      ? await db.from("sessions").select("id, handle, display_name, avatar_url, photo_visibility").in("id", senderIds)
+      : { data: [] as Array<{ id: string; handle: string; display_name: string | null; avatar_url: string | null; photo_visibility: string | null }> };
+
+    const followsRes = senderIds.length > 0
+      ? await db.from("follows").select("followed_session_id").eq("follower_session_id", sid).in("followed_session_id", senderIds)
+      : { data: [] as Array<{ followed_session_id: string }> };
+    const myFollowSet = new Set((followsRes.data ?? []).map(f => f.followed_session_id));
 
     const people = new Map<string, { handle: string; display_name: string | null; avatar_url: string | null }>();
-    for (const s of (sessionsRes.data ?? []) as Array<{ id: string; handle: string; display_name: string | null; avatar_url: string | null }>) {
-      people.set(s.id, { handle: s.handle, display_name: s.display_name, avatar_url: s.avatar_url });
+    for (const s of (sessionsRes.data ?? []) as Array<{ id: string; handle: string; display_name: string | null; avatar_url: string | null; photo_visibility: string | null }>) {
+      
+      const canSee = canSeePhoto({
+        viewerId: sid,
+        targetId: s.id,
+        visibility: (s.photo_visibility as any) ?? "private",
+        isFollowing: myFollowSet.has(s.id)
+      });
+
+      people.set(s.id, { 
+        handle: s.handle, 
+        display_name: s.display_name, 
+        avatar_url: canSee ? s.avatar_url : null 
+      });
     }
 
     return NextResponse.json({

@@ -47,7 +47,7 @@ export default async function DMThreadPage(props: {
     db
       .from("dm_messages")
       .select(
-        "id, sender_id, body, filter_level, held, created_at, read_at"
+        "id, sender_id, body, filter_level, held, created_at, read_at, media_path, media_type, viewed_at"
       )
       .eq("thread_id", thread.id)
       .order("created_at", { ascending: true })
@@ -64,7 +64,7 @@ export default async function DMThreadPage(props: {
   const otherHandle = otherProfile?.handle ?? "Anonymous";
   const otherColor = otherProfile?.text_color ?? null;
   const otherFont = otherProfile?.font_preference ?? null;
-  
+
   const canSeeOtherPhoto = canSeePhoto({
     viewerId: sessionId,
     targetId: otherId,
@@ -105,7 +105,10 @@ export default async function DMThreadPage(props: {
         held: m.held,
         filter_level: m.filter_level,
         read_at: m.read_at,
-        created_at: m.created_at
+        created_at: m.created_at,
+        media_path: m.media_path,
+        media_type: m.media_type,
+        viewed_at: m.viewed_at
       }))}
     />
   );

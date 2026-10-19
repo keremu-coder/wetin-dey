@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef, useState } from "react";
 import { DM_BODY_MAX } from "@/lib/dm";
@@ -31,6 +31,9 @@ type SentMessage = {
   held: boolean;
   filter_level: string;
   read_at: string | null;
+  media_path?: string | null;
+  media_type?: string | null;
+  viewed_at?: string | null;
 };
 
 export function DMComposer({
@@ -48,7 +51,9 @@ export function DMComposer({
 }) {
   const [body, setBody] = useState("");
   const [error, setError] = useState("");
+  const [uploading, setUploading] = useState(false);
   const prefsRef = useRef<SoundPrefs>(DEFAULT_PREFS);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const initial = loadPrefs();
@@ -62,11 +67,9 @@ export function DMComposer({
   async function send(e: React.FormEvent) {
     e.preventDefault();
     const text = body.trim();
-    if (!text) return;
+    if (!text || uploading) return;
 
     unlockAudio();
-
-    // Sound + haptic fire BEFORE the network call so they feel instant.
     const p = prefsRef.current;
     if (p.send) playProfile(p.profile, "send");
     if (p.vibrate) vibrate(20);
@@ -74,7 +77,6 @@ export function DMComposer({
     setError("");
     setBody("");
 
-    // Optimistic message — appears in the thread immediately.
     const cid = onStart(text);
 
     try {
@@ -102,6 +104,61 @@ export function DMComposer({
     }
   }
 
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || uploading) return;
+
+    setUploading(true);
+    setError("");
+    unlockAudio();
+    const p = prefsRef.current;
+    if (p.send) playProfile(p.profile, "send");
+    if (p.vibrate) vibrate(20);
+
+    const cid = onStart(file.type.startsWith("image/") ? "📷 Photo" : "🎥 Video");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("threadId", threadId);
+
+      const uploadRes = await fetch(`/api/dm/upload`, {
+        method: "POST",
+        body: formData
+      });
+      const uploadJson = await uploadRes.json();
+
+      if (!uploadRes.ok) {
+        throw new Error(uploadJson.error || "Upload failed");
+      }
+
+      const msgRes = await fetch(`/api/dm/threads/${threadId}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          body: "",
+          media_path: uploadJson.path,
+          media_type: uploadJson.type,
+          media_mime: uploadJson.mime,
+          media_size: uploadJson.size
+        })
+      });
+      const msgJson = await msgRes.json();
+
+      if (!msgRes.ok) {
+        throw new Error(msgJson.error || "Failed to send");
+      }
+
+      onSuccess(cid, msgJson.message as SentMessage);
+    } catch (err: any) {
+      setError(err.message);
+      onFail(cid);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
   return (
     <form
       onSubmit={send}
@@ -111,6 +168,28 @@ export function DMComposer({
         <p className="text-[16px] mb-1 text-[0.75rem] text-danger">{error}</p>
       ) : null}
       <div className="text-[16px] flex items-end gap-2 rounded-2xl border border-border-strong bg-surface px-3 py-2">
+        <input
+          type="file"
+          accept="image/*,video/*"
+          className="hidden"
+          ref={fileInputRef}
+          onChange={handleFile}
+        />
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          className="flex h-9 w-9 shrink-0 items-center justify-center text-faint transition-colors hover:text-ink disabled:opacity-50"
+          aria-label="Attach photo or video"
+        >
+          {uploading ? (
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-faint border-t-transparent" />
+          ) : (
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+            </svg>
+          )}
+        </button>
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value.slice(0, DM_BODY_MAX))}
@@ -128,20 +207,11 @@ export function DMComposer({
         />
         <button
           type="submit"
-          disabled={!body.trim()}
+          disabled={!body.trim() || uploading}
           className="text-[16px] flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand text-white transition-transform hover:bg-brand-soft active:scale-90 disabled:opacity-30"
           aria-label="Send"
         >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
             <line x1="12" y1="19" x2="12" y2="5" />
             <polyline points="5 12 12 5 19 12" />
           </svg>

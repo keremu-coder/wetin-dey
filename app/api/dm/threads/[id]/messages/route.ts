@@ -1,4 +1,4 @@
-export const runtime = "nodejs";
+﻿export const runtime = "nodejs";
 
 import { NextRequest } from "next/server";
 import { nanoid } from "nanoid";
@@ -103,13 +103,18 @@ export async function POST(
       );
     }
 
-    const body = (await req.json()) as { body?: unknown };
-    if (typeof body.body !== "string") {
-      return Response.json({ error: "body required" }, { status: 400 });
-    }
+    const body = (await req.json()) as {
+      body?: unknown;
+      media_path?: unknown;
+      media_type?: unknown;
+      media_mime?: unknown;
+      media_size?: unknown;
+    };
 
-    const text = body.body.trim();
-    if (text.length < 1) {
+    const isMedia = !!body.media_path;
+    const text = typeof body.body === "string" ? body.body.trim() : "";
+
+    if (!isMedia && text.length < 1) {
       return Response.json({ error: "Empty message" }, { status: 400 });
     }
     if (text.length > DM_BODY_MAX) {
@@ -119,11 +124,11 @@ export async function POST(
       );
     }
 
-    const analysis = analyzeMessage(text);
+    const analysis = isMedia ? { level: "ok", matches: [] } : analyzeMessage(text);
 
     if (analysis.level === "block") {
       const reason =
-        blockReason(analysis) ??
+        blockReason(analysis as any) ??
         "This message contains contact info and can't be sent.";
 
       try {
@@ -131,33 +136,27 @@ export async function POST(
           id: nanoid(),
           session_id: sessionId,
           thread_id: thread.id,
-          kind: analysis.matches[0]?.kind ?? "unknown",
+          kind: analysis.matches?.[0]?.kind ?? "unknown",
           excerpt: text.slice(0, 200)
         });
-      } catch {
-        /* non-fatal */
-      }
+      } catch { /* non-fatal */ }
 
       return Response.json(
-        {
-          ok: false,
-          blocked: true,
-          reason,
-          kinds: analysis.matches.map((m) => m.kind)
-        },
+        { ok: false, blocked: true, reason },
         { status: 400 }
       );
     }
 
-    const mod = analyzeModeration(text);
+    const mod = isMedia ? { hold: false, matches: [] } : analyzeModeration(text);
     const held = mod.hold;
+    
     if (held) {
       try {
         await db.from("dm_violations").insert({
           id: nanoid(),
           session_id: sessionId,
           thread_id: thread.id,
-          kind: mod.matches[0]?.kind ?? "moderation",
+          kind: mod.matches?.[0]?.kind ?? "moderation",
           excerpt: text.slice(0, 200)
         });
       } catch { /* non-fatal */ }
@@ -170,11 +169,17 @@ export async function POST(
         id,
         thread_id: thread.id,
         sender_id: sessionId,
-        body: text,
+        body: isMedia ? "" : text,
         filter_level: analysis.level,
-        held
+        held,
+        ...(isMedia && {
+          media_path: body.media_path as string,
+          media_type: body.media_type as string,
+          media_mime: body.media_mime as string,
+          media_size: body.media_size as number
+        })
       })
-      .select("id, sender_id, body, created_at, held, filter_level, read_at")
+      .select("id, sender_id, body, created_at, held, filter_level, read_at, media_path, media_type, viewed_at")
       .single();
 
     if (error) {
@@ -192,7 +197,7 @@ export async function POST(
           recipientSessionId: recipientId,
           senderHandle: me.handle,
           threadId: thread.id,
-          body: text
+          body: isMedia ? "📷 Photo" : text
         }).catch((err) => {
           console.error("[dm push]", err);
         })
