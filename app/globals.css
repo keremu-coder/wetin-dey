@@ -512,3 +512,29 @@ html.native button {
 input, textarea, select {
   font-size: 16px !important;
 }
+/* === NATIVE APP FEEL OVERRIDES === */
+/* Stop the blue tap highlight on mobile links/buttons */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Prevent text selection (users can't drag-copy text easily) */
+body {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Allow text selection ONLY in inputs and textareas */
+input, textarea, [contenteditable="true"] {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Hide scrollbars but keep scrolling */
+::-webkit-scrollbar {
+  display: none;
+}
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}

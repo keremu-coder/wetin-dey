@@ -20,6 +20,7 @@ import { FONT_VARIABLE_CLASSES } from "@/lib/fonts";
 import "./globals.css";
 
 import { Onboarding } from "@/components/OnboardingLazy";
+import { AppLock } from "@/components/AppLock";
 
 export const metadata: Metadata = {
   title: "Wetin Dey",
@@ -144,7 +145,9 @@ export default async function RootLayout({
             <InstallPrompt />
             <TermsGate />
             <Nav />
-            <PullToRefresh>{children}</PullToRefresh>
+            <AppLock>
+              <PullToRefresh>{children}</PullToRefresh>
+            </AppLock>
             <SiteFooter />
             <BottomNav />
           </LiveStateProvider>
