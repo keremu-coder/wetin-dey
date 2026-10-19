@@ -1,4 +1,4 @@
-export const runtime = "nodejs";
+﻿export const runtime = "nodejs";
 
 import { NextRequest } from "next/server";
 import { getSessionId, getOrCreateSessionProfile, isValidHandleFormat } from "@/lib/session";
@@ -134,6 +134,7 @@ export async function POST(req: NextRequest) {
     .from("sessions")
     .update({
       handle,
+      handle_lower: handleLower,
       handle_kind: "named",
       display_name: handle,
       email,
@@ -194,3 +195,4 @@ export async function POST(req: NextRequest) {
     verification_email_sent: verificationEmailSent
   });
 }
+
