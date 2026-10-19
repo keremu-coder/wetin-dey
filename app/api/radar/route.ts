@@ -7,10 +7,10 @@ import { canSeePhoto } from "@/lib/photo-visibility";
 
 function sanitizeSignalForRecipient(signal: any, viewingSessionId: string, peopleMap: Map<string, any>) {
   const safe = { ...signal };
-  if (!signal.location_sharing) {
-    delete safe.lat;
-    delete safe.lng;
-  }
+  // APPLE COMPLIANCE: Always strip precise coordinates from the general payload.
+  // A dedicated /reveal endpoint with explicit consent is required to expose them.
+  delete safe.lat;
+  delete safe.lng;
   return { ...safe, sender: peopleMap.get(signal.sender_id) ?? null };
 }
 
@@ -147,4 +147,5 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
+
 

@@ -516,7 +516,12 @@ export async function POST(req: NextRequest,
         viewed_at: data.viewed_at,
         created_at: data.created_at,
         author_handle: profile.handle,
-        author_avatar_url: profile.avatar_url ?? null,
+        author_avatar_url: canSeePhoto({
+          viewerId: sessionId,
+          targetId: profile.id,
+          visibility: "private",
+          isFollowing: false
+        }) ? (profile.avatar_url ?? null) : null,
         author_last_seen: new Date().toISOString(),
         reactions: [],
         parent_id: data.parent_id ?? null,
@@ -528,3 +533,5 @@ export async function POST(req: NextRequest,
     return serverError("communities/[slug]/messages", e);
   }
 }
+
+
