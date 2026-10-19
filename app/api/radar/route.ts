@@ -5,10 +5,6 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { sameOrigin, checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 import { canSeePhoto } from "@/lib/photo-visibility";
 
-// GET  — my inbox (unacknowledged signals sent to me) + my contacts
-// POST — add a contact by handle (I can signal them)
-// DELETE — remove a contact
-
 export async function GET() {
   try {
     const sid = await getSessionId();
@@ -70,9 +66,26 @@ export async function GET() {
       });
     }
 
+    // APPLE GUIDELINE 5.1.1: Precise location must be explicitly consented.
+    // We redact lat/lng from the general GET payload for App Store compliance.
+    // The client should render a "Location Shared" badge instead of a map pin
+    // until the dedicated consent flow is built.
+    const redactedInbox = signals.map((s) => ({
+      ...s,
+      lat: null,
+      lng: null,
+      sender: people.get(s.sender_id as string) ?? null
+    }));
+
+    const redactedMine = (mineRes.data ?? []).map((s) => ({
+      ...s,
+      lat: null,
+      lng: null
+    }));
+
     return NextResponse.json({
-      inbox: signals.map((s) => ({ ...s, sender: people.get(s.sender_id as string) ?? null })),
-      mine: mineRes.data ?? [],
+      inbox: redactedInbox,
+      mine: redactedMine,
       contacts: contactIds.map((id) => ({ id, mutual: mutualIds.has(id), ...(people.get(id) ?? { handle: null, display_name: null, avatar_url: null }) }))
     });
   } catch (err) {
@@ -100,7 +113,6 @@ export async function POST(req: NextRequest) {
 
     const db = createServiceClient();
     const { data: target } = await db.from("sessions").select("id").eq("handle_lower", handle).maybeSingle();
-    // Same response whether the handle exists or not, so handles cannot be probed.
     if (!target?.id) return NextResponse.json({ ok: true, pending: true });
     if (target.id === sid) return NextResponse.json({ error: "that's you" }, { status: 400 });
 

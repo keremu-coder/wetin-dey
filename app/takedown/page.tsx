@@ -1,237 +1,59 @@
-"use client";
+﻿import Link from "next/link";
 
-import { useState } from "react";
-import Link from "next/link";
+export const metadata = {
+  title: "Takedown & Dispute — Wetin Dey"
+};
 
 export default function TakedownPage() {
-  const [busy, setBusy] = useState(false);
-  const [sent, setSent] = useState(false);
-  const [error, setError] = useState("");
-  const [postUrl, setPostUrl] = useState("");
-  const [name, setName] = useState("");
-  const [contact, setContact] = useState("");
-  const [explanation, setExplanation] = useState("");
-
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    setBusy(true);
-
-    const res = await fetch("/api/takedown", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ postUrl, name, contact, explanation })
-    });
-
-    const json = await res.json();
-    if (!res.ok) {
-      setError(json.error ?? "Something went wrong. Try again.");
-      setBusy(false);
-      return;
-    }
-
-    setSent(true);
-    setBusy(false);
-  }
-
   return (
-    <main className="mx-auto max-w-2xl px-4 py-6 pb-24">
-      <div className="mb-6">
+    <main className="mx-auto max-w-2xl px-4 py-10 pb-28">
+      <div className="mb-6 flex items-center gap-3">
         <Link
           href="/"
-          className="text-[0.7rem] text-faint hover:text-brand"
+          className="flex h-9 w-9 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5"
+          aria-label="Back"
         >
-          ← Back
+          ←
         </Link>
-        <h1 className="mt-3 font-serif text-[1.75rem] font-semibold leading-tight text-ink">
-          Dispute a report
+        <h1 className="font-serif text-[1.5rem] font-semibold text-ink">
+          Takedown &amp; Dispute
         </h1>
-        <p className="mt-2 text-[0.9375rem] leading-relaxed text-muted">
-          If you are named in a report and believe it is false, defamatory, or
-          unlawful, submit a dispute. We review within 24 hours. Reports are
-          labelled as disputed — they are not deleted. The archive keeps its
-          record.
-        </p>
       </div>
 
-      {sent ? (
-        <div className="rounded-2xl border border-brand/30 bg-brand-tint/60 p-5">
-          <p className="font-serif text-[1.1rem] font-semibold text-brand">
-            Dispute received
-          </p>
-          <p className="mt-2 text-[0.9375rem] leading-relaxed text-ink/85">
-            A moderator will review your dispute within 24 hours. If the report
-            is unsubstantiated, we will label it as Disputed and add your
-            response to the page.
-          </p>
-        </div>
-      ) : (
-        <form onSubmit={onSubmit} className="space-y-5">
-          <div>
-            <label className="mb-2 block text-[0.8125rem] font-semibold text-ink">
-              Link to the report
-            </label>
-            <input
-              type="url"
-              required
-              value={postUrl}
-              onChange={(e) => setPostUrl(e.target.value)}
-              placeholder="https://wetindey.app/r/..."
-            />
-            <p className="mt-1 text-[0.75rem] text-faint">
-              Copy the URL from the report page.
-            </p>
-          </div>
+      <div className="space-y-6 text-[0.9375rem] leading-relaxed text-ink/85">
+        <p>
+          Wetin Dey is built to preserve public records and community voices. However, we take safety, privacy, and legal compliance seriously.
+        </p>
 
-          <div>
-            <label className="mb-2 block text-[0.8125rem] font-semibold text-ink">
-              Your name
-            </label>
-            <input
-              type="text"
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Full name"
-            />
-          </div>
-
-          <div>
-            <label className="mb-2 block text-[0.8125rem] font-semibold text-ink">
-              How can we reach you?
-            </label>
-            <input
-              type="text"
-              required
-              value={contact}
-              onChange={(e) => setContact(e.target.value)}
-              placeholder="Email or phone — we will not publish it"
-            />
-          </div>
-
-          <div>
-            <label className="mb-2 block text-[0.8125rem] font-semibold text-ink">
-              Why is this report false or unfair?
-            </label>
-            <textarea
-              required
-              minLength={30}
-              value={explanation}
-              onChange={(e) => setExplanation(e.target.value)}
-              rows={6}
-              placeholder="Give specifics. What is wrong? Do you have proof?"
-            />
-          </div>
-
-          {error ? (
-            <div className="rounded-xl border border-danger/30 bg-danger-soft px-4 py-3">
-              <p className="text-[0.875rem] text-danger">{error}</p>
-            </div>
-          ) : null}
-
-          <button
-            type="submit"
-            disabled={busy}
-            className="w-full rounded-2xl bg-warm px-5 py-4 font-serif text-[1.05rem] font-semibold text-white shadow-button transition-all hover:bg-warm-deep disabled:opacity-60"
-          >
-            {busy ? "Sending…" : "Submit dispute"}
-          </button>
-        </form>
-      )}
-
-      <article className="mt-10 space-y-6 text-[0.9375rem] leading-relaxed text-ink/90">
-        <section>
-          <h2 className="mb-2 font-serif text-[1.15rem] font-semibold text-ink">
-            What happens next
-          </h2>
-          <ol className="ml-5 list-decimal space-y-1.5">
-            <li>
-              We review your dispute within 24 hours.
-            </li>
-            <li>
-              <strong>If the report violates our content rules</strong> —
-              threats, doxxing, hate speech, sexual content, content naming a
-              minor, illegal content, or confirmed defamation — we remove it
-              from public view within 24 hours.
-            </li>
-            <li>
-              <strong>If the report does not violate our content rules</strong>{" "}
-              — we label it <strong>Disputed</strong>, visible to every reader,
-              and add your response.
-            </li>
-            <li>
-              If you provide evidence, we publish your verified response
-              attached to the report so every reader sees both sides.
-            </li>
-            <li>
-              If your dispute is rejected, we tell you why.
-            </li>
-          </ol>
-        </section>
-
-        <section>
-          <h2 className="mb-2 font-serif text-[1.15rem] font-semibold text-ink">
-            What Wetin Dey will and will not do
-          </h2>
-          <p>Wetin Dey will:</p>
-          <ul className="ml-5 mt-2 list-disc space-y-1.5">
-            <li>
-              <strong>Remove from public view within 24 hours</strong> any
-              content that is a threat, is doxxing, is hate speech, names a
-              minor, is illegal under Nigerian law, or is confirmed defamation.
-            </li>
-            <li>
-              Label a report <strong>Disputed</strong> if the claim is
-              contested but does not violate our content rules.
-            </li>
-            <li>Publish your verified rebuttal alongside the report.</li>
-            <li>
-              Permanently ban a session from posting after repeated violations.
-            </li>
+        <div className="rounded-2xl border border-border bg-surface p-5">
+          <h2 className="font-serif text-[1.15rem] font-semibold text-ink mb-2">When to request a takedown</h2>
+          <ul className="list-disc pl-5 space-y-2 text-muted">
+            <li><strong className="text-ink">Copyright Infringement:</strong> If content you own is posted without permission.</li>
+            <li><strong className="text-ink">Privacy Violation:</strong> If someone posted your private information (doxxing, phone numbers, exact addresses).</li>
+            <li><strong className="text-ink">Harassment or Threats:</strong> If you are being targeted with abusive content.</li>
+            <li><strong className="text-ink">False Information:</strong> If a report contains defamatory claims that can be proven false.</li>
           </ul>
-          <p className="mt-2">Wetin Dey will not:</p>
-          <ul className="ml-5 mt-2 list-disc space-y-1.5">
-            <li>
-              Delete a report solely because its subject disputes it, as long
-              as it does not violate our content rules. Reports are preserved
-              in our records for archive and legal-defense purposes. This is a
-              deliberate policy that protects the integrity of the public
-              archive.
-            </li>
-            <li>
-              Remove criticism of a public agency or of a public official
-              acting in their official capacity.
-            </li>
-          </ul>
-        </section>
-
-        <section>
-          <h2 className="mb-2 font-serif text-[1.15rem] font-semibold text-ink">
-            Urgent cases
-          </h2>
-          <p>
-            For threats of violence, doxxing of a minor, or content that
-            creates an immediate safety risk, email{" "}
-            <a
-              href="mailto:support@wetindey.app?subject=URGENT"
-              className="text-brand underline"
-            >
-              support@wetindey.app
-            </a>{" "}
-            with subject <strong>&ldquo;URGENT&rdquo;</strong> and we will
-            prioritize review.
-          </p>
-        </section>
-
-        <div className="rounded-2xl border border-gold/40 bg-gold-soft/40 p-4">
-          <p className="text-[0.8125rem] leading-relaxed text-ink">
-            <strong>Draft notice:</strong> this copy is written in plain
-            language and is pending review by a Nigerian lawyer familiar with
-            Nigerian defamation law and the Cybercrimes Act 2015. It is not
-            legal advice.
-          </p>
         </div>
-      </article>
+
+        <div className="rounded-2xl border border-border bg-surface p-5">
+          <h2 className="font-serif text-[1.15rem] font-semibold text-ink mb-2">How to submit a request</h2>
+          <p className="text-muted mb-3">
+            Please send an email to <strong className="text-ink">support@wetindey.app</strong> with the subject line <strong className="text-ink">"Takedown Request"</strong>.
+          </p>
+          <p className="text-muted">
+            Include the following details:
+          </p>
+          <ul className="list-disc pl-5 space-y-1 mt-2 text-muted">
+            <li>A link to the specific post or profile.</li>
+            <li>A description of the issue.</li>
+            <li>Proof of ownership or identity (if applicable).</li>
+          </ul>
+        </div>
+
+        <p className="text-[0.875rem] text-muted">
+          We review all requests manually. If approved, the content will be removed or hidden from the public archive. We may reach out for further verification. Please allow up to 48 hours for a response.
+        </p>
+      </div>
     </main>
   );
 }

@@ -42,11 +42,7 @@ export default function PrivacyPage() {
           <p>
             <strong>Anonymous activity:</strong> a random session identifier
             stored in a signed HTTP-only cookie. No phone number. No email
-            address. To protect the service from abuse and spam, our servers
-            process request metadata (including IP addresses) transiently for
-            rate-limiting. IP addresses are never attached to your public
-            reports, comments, or messages, and they are not stored in the
-            database alongside your content.
+            address. To protect the service from abuse, spam, and DDoS attacks, our servers process request metadata (including hashed IP addresses). These IP hashes are stored in a dedicated, ephemeral security table (rate_events) solely for rate-limiting. They are never attached to your public reports, comments, or messages, and they are permanently deleted when the rate-limit window expires (typically 1 hour).
           </p>
           <p className="mt-2">
             <strong>Optional account recovery:</strong> you may attach an email
@@ -115,7 +111,8 @@ export default function PrivacyPage() {
           <ul className="ml-5 list-disc space-y-1">
             <li>Phone numbers (unless you add one for recovery)</li>
             <li>Email addresses (unless you add one for recovery)</li>
-            <li>IP addresses attached to public reports, comments, or messages</li>
+            <li>Raw IP addresses attached to public reports, comments, or messages</li>
+            <li>Raw IP addresses attached to your profile</li>
             <li>
               Tracking pixels, fingerprinting scripts, or third-party analytics
             </li>

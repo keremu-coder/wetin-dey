@@ -76,8 +76,6 @@ export async function POST(req: NextRequest) {
     if (sessErr) return Response.json({ error: "Server error" }, { status: 500 });
     if (!session) return Response.json({ error: "Session not found." }, { status: 404 });
 
-    const storageErrors: string[] = [];
-
     // 1. Delete Supabase Auth user
     let authDeleted = false;
     if (session.auth_user_id) {
@@ -121,11 +119,8 @@ export async function POST(req: NextRequest) {
       if (path) {
         const { error } = await db.storage.from("user-avatars").remove([path]);
         if (error) return Response.json({ error: "Could not delete your profile photo." }, { status: 500 });
-      } else {
-        storageErrors.push("Could not determine avatar path for deletion.");
       }
     }
-    
     const { data: ownedCommunities } = await db.from("communities").select("id, avatar_url").eq("owner_session_id", sessionId);
     for (const c of ownedCommunities ?? []) {
       if (c.avatar_url) {
@@ -133,8 +128,6 @@ export async function POST(req: NextRequest) {
         if (path) {
           const { error } = await db.storage.from("space-avatars").remove([path]);
           if (error) return Response.json({ error: "Could not delete a space avatar." }, { status: 500 });
-        } else {
-          storageErrors.push(`Could not determine space avatar path for community ${c.id}.`);
         }
       }
     }
@@ -147,8 +140,6 @@ export async function POST(req: NextRequest) {
         if (path) {
           const { error } = await db.storage.from("voice-notes").remove([path]);
           if (error) return Response.json({ error: "Could not delete a voice note." }, { status: 500 });
-        } else {
-          storageErrors.push(`Could not determine voice note path for broadcast ${b.id}.`);
         }
       }
     }
@@ -157,15 +148,13 @@ export async function POST(req: NextRequest) {
 
     // 5. Delete chat voice notes and messages
     if (deleteContent) {
-      const { data: cmAudio } = await db.from("community_messages").select("id, audio_url").eq("session_id", sessionId).not("audio_url", "is", null);
+      const { data: cmAudio } = await db.from("community_messages").select("audio_url").eq("session_id", sessionId).not("audio_url", "is", null);
       for (const m of cmAudio ?? []) {
         if (m.audio_url) {
           const path = supabaseStoragePath(m.audio_url, "voice-notes");
           if (path) {
             const { error } = await db.storage.from("voice-notes").remove([path]);
             if (error) return Response.json({ error: "Could not delete a chat voice note." }, { status: 500 });
-          } else {
-            storageErrors.push(`Could not determine chat voice note path for message ${m.id}.`);
           }
         }
       }
@@ -173,51 +162,39 @@ export async function POST(req: NextRequest) {
       if (cmErr) return Response.json({ error: "Could not delete your chat messages." }, { status: 500 });
     }
 
-    // 6. Handle DMs and DM Media (HARDENED)
-    if (deleteContent) {
-      const { data: participantThreads, error: tErr } = await db
-        .from("dm_threads")
-        .select("id")
-        .or(`session_a.eq.${sessionId},session_b.eq.${sessionId}`);
+    // 6. Handle DM Threads, Media, and Messages
+    const { data: dmThreads } = await db
+      .from("dm_threads")
+      .select("id")
+      .or(`session_a.eq.${sessionId},session_b.eq.${sessionId}`);
+
+    const threadIds = (dmThreads ?? []).map(t => t.id);
+
+    if (threadIds.length > 0) {
+      // Enumerate and delete all media files in the dm-media bucket for these threads
+      for (const tId of threadIds) {
+        const { data: files, error: listErr } = await db.storage.from("dm-media").list(tId);
+        if (listErr) return Response.json({ error: "Could not list your DM media files." }, { status: 500 });
         
-      if (tErr) return Response.json({ error: "Could not fetch your DM threads." }, { status: 500 });
-
-      const threadIds = (participantThreads ?? []).map((t: any) => t.id).filter(Boolean);
-
-      if (threadIds.length > 0) {
-        // Delete media objects in dm-media bucket
-        for (const tid of threadIds) {
-          try {
-            const listRes = await db.storage.from("dm-media").list(tid, { limit: 1000 });
-            const files = listRes.data ?? [];
-            for (const f of files) {
-              const fullPath = `${tid}/${f.name}`;
-              const { error } = await db.storage.from("dm-media").remove([fullPath]);
-              if (error) {
-                return Response.json({ error: `Could not delete DM attachment ${fullPath}.` }, { status: 500 });
-              }
-            }
-          } catch (err) {
-            storageErrors.push(`Could not enumerate dm-media for thread ${tid}.`);
-          }
+        if (files && files.length > 0) {
+          const paths = files.map(f => `${tId}/${f.name}`);
+          const { error: delErr } = await db.storage.from("dm-media").remove(paths);
+          if (delErr) return Response.json({ error: "Could not delete your DM media files." }, { status: 500 });
         }
-
-        // Delete DM messages
-        const { error: dmThreadMsgErr } = await db.from("dm_messages").delete().in("thread_id", threadIds);
-        if (dmThreadMsgErr) return Response.json({ error: "Could not delete your direct messages." }, { status: 500 });
-
-        // Delete DM threads
-        const { error: threadDelErr } = await db.from("dm_threads").delete().in("id", threadIds);
-        if (threadDelErr) return Response.json({ error: "Could not delete your DM threads." }, { status: 500 });
       }
 
-      // Catch any orphaned messages
-      const { error: dmSentErr } = await db.from("dm_messages").delete().eq("sender_id", sessionId);
-      if (dmSentErr) return Response.json({ error: "Could not delete your direct messages." }, { status: 500 });
+      if (deleteContent) {
+        // Delete the messages and the threads entirely
+        const { error: msgErr } = await db.from("dm_messages").delete().in("thread_id", threadIds);
+        if (msgErr) return Response.json({ error: "Could not delete your direct messages." }, { status: 500 });
 
-    } else {
-      const { error: dmErr } = await db.from("dm_messages").update({ sender_id: TOMBSTONE }).eq("sender_id", sessionId);
-      if (dmErr) return Response.json({ error: "Could not anonymize your direct messages." }, { status: 500 });
+        const { error: thrErr } = await db.from("dm_threads").delete().in("id", threadIds);
+        if (thrErr) return Response.json({ error: "Could not delete your conversation threads." }, { status: 500 });
+      } else {
+        // Tombstone the messages sent by the user
+        const { error: msgErr } = await db.from("dm_messages").update({ sender_id: TOMBSTONE, body: "[deleted]" }).eq("sender_id", sessionId);
+        if (msgErr) return Response.json({ error: "Could not anonymize your direct messages." }, { status: 500 });
+      }
     }
 
     // 7. Delete all relations and rows owned by this session
@@ -268,13 +245,7 @@ export async function POST(req: NextRequest) {
       if (cErr) return Response.json({ error: "Could not anonymize your comments." }, { status: 500 });
     }
 
-    // If any storage errors were collected, fail the operation
-    if (storageErrors.length > 0) {
-      console.error("[account/delete] storage errors:", storageErrors);
-      return Response.json({ error: "Storage deletion could not be confirmed for some items.", details: storageErrors }, { status: 500 });
-    }
-
-    // 9. Scrub the sessions row
+    // 9. Scrub the sessions row (kept as ghost for DM FKs)
     const scrubHandle = `deleted_${sessionId.slice(0, 8)}`;
     const { error: updErr } = await db.from("sessions").update({
       handle: scrubHandle,
