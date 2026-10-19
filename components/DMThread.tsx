@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -66,6 +66,7 @@ export function DMThread({
   threadId,
   mySessionId,
   otherHandle,
+  otherAvatarUrl,
   myColor,
   myFont,
   otherColor,
@@ -75,6 +76,7 @@ export function DMThread({
   threadId: string;
   mySessionId: string;
   otherHandle: string;
+  otherAvatarUrl?: string | null;
   myColor?: string | null;
   myFont?: string | null;
   otherColor?: string | null;
@@ -145,7 +147,6 @@ export function DMThread({
     setMessages((prev) => prev.filter((m) => m._cid !== cid));
   }
 
-  // Load sound prefs and subscribe to changes
   useEffect(() => {
     const initial = loadPrefs();
     prefsRef.current = initial;
@@ -155,7 +156,6 @@ export function DMThread({
     return unsub;
   }, []);
 
-  // Audio unlock on first tap
   useEffect(() => {
     unlockAudio();
     const handler = () => unlockAudio();
@@ -215,7 +215,6 @@ export function DMThread({
     }
   }
 
-  // Realtime subscription on this thread's messages.
   useEffect(() => {
     if (!mySessionId) return;
 
@@ -289,16 +288,11 @@ export function DMThread({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [threadId, mySessionId, otherHandle]);
 
-  // Mark read on mount. Before this, markRead() only ran on focus and
-  // visibilitychange, so opening a thread directly from the inbox never
-  // cleared the unread flag. The 3s debounce inside markRead() stops the
-  // immediate focus event that follows a tap from double-firing.
   useEffect(() => {
     void markRead();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [threadId]);
 
-  // Background poll as a safety net
   useEffect(() => {
     const t = setInterval(() => {
       void refresh();
@@ -307,7 +301,6 @@ export function DMThread({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [threadId]);
 
-  // On focus, refresh + mark read
   useEffect(() => {
     function onFocus() {
       void refresh();
@@ -325,7 +318,6 @@ export function DMThread({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [threadId]);
 
-  // Scroll to bottom on new messages
   useEffect(() => {
     if (scrollDebounceRef.current) clearTimeout(scrollDebounceRef.current);
     scrollDebounceRef.current = setTimeout(() => {
@@ -372,12 +364,20 @@ export function DMThread({
           href={`/u/${encodeURIComponent(otherHandle)}`}
           className="flex min-w-0 flex-1 items-center gap-2.5"
         >
-          <div
-            className="flex h-9 w-9 items-center justify-center rounded-full text-[0.9375rem] font-semibold text-white"
-            style={{ background: bg }}
-          >
-            {otherHandle.charAt(0).toUpperCase()}
-          </div>
+          {otherAvatarUrl ? (
+            <img
+              src={otherAvatarUrl}
+              alt=""
+              className="h-9 w-9 shrink-0 rounded-full object-cover"
+            />
+          ) : (
+            <div
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[0.9375rem] font-semibold text-white"
+              style={{ background: bg }}
+            >
+              {otherHandle.charAt(0).toUpperCase()}
+            </div>
+          )}
           <div className="min-w-0">
             <p className="truncate text-[0.9375rem] font-semibold text-ink">
               @{otherHandle}

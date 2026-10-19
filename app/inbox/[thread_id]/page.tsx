@@ -1,14 +1,13 @@
-import { notFound, redirect } from "next/navigation";
+﻿import { notFound, redirect } from "next/navigation";
 import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
+import { canSeePhoto } from "@/lib/photo-visibility";
 import { DMThread } from "@/components/DMThread";
 
 export const dynamic = "force-dynamic";
 
 export default async function DMThreadPage(props: {
-
-    params: Promise<{ thread_id: string }>;
-
+  params: Promise<{ thread_id: string }>;
 }) {
   const params = await props.params;
 
@@ -34,10 +33,10 @@ export default async function DMThreadPage(props: {
   const otherId =
     thread.session_a === sessionId ? thread.session_b : thread.session_a;
 
-  const [otherProfileRes, myProfileRes, messagesRes] = await Promise.all([
+  const [otherProfileRes, myProfileRes, messagesRes, followRes] = await Promise.all([
     db
       .from("sessions")
-      .select("handle, text_color, font_preference")
+      .select("handle, text_color, font_preference, avatar_url, photo_visibility")
       .eq("id", otherId)
       .maybeSingle(),
     db
@@ -52,12 +51,28 @@ export default async function DMThreadPage(props: {
       )
       .eq("thread_id", thread.id)
       .order("created_at", { ascending: true })
-      .limit(200)
+      .limit(200),
+    db
+      .from("follows")
+      .select("followed_session_id")
+      .eq("follower_session_id", sessionId)
+      .eq("followed_session_id", otherId)
+      .maybeSingle()
   ]);
 
-  const otherHandle = otherProfileRes.data?.handle ?? "Anonymous";
-  const otherColor = otherProfileRes.data?.text_color ?? null;
-  const otherFont = otherProfileRes.data?.font_preference ?? null;
+  const otherProfile = otherProfileRes.data;
+  const otherHandle = otherProfile?.handle ?? "Anonymous";
+  const otherColor = otherProfile?.text_color ?? null;
+  const otherFont = otherProfile?.font_preference ?? null;
+  
+  const canSeeOtherPhoto = canSeePhoto({
+    viewerId: sessionId,
+    targetId: otherId,
+    visibility: otherProfile?.photo_visibility as any,
+    isFollowing: !!followRes.data
+  });
+  const otherAvatarUrl = canSeeOtherPhoto ? (otherProfile?.avatar_url ?? null) : null;
+
   const myColor = myProfileRes.data?.text_color ?? null;
   const myFont = myProfileRes.data?.font_preference ?? null;
 
@@ -66,8 +81,6 @@ export default async function DMThreadPage(props: {
     return m.sender_id === sessionId;
   });
 
-  // Mark as read server-side — instant, no client round-trip needed.
-  // Fire and forget; we don't await because the response is already in flight.
   void db
     .from("dm_messages")
     .update({ read_at: new Date().toISOString() })
@@ -80,6 +93,7 @@ export default async function DMThreadPage(props: {
       threadId={thread.id}
       mySessionId={sessionId}
       otherHandle={otherHandle}
+      otherAvatarUrl={otherAvatarUrl}
       myColor={myColor}
       myFont={myFont}
       otherColor={otherColor}

@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation";
+﻿import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { unstable_cache } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -75,13 +75,6 @@ const getProfileBundle = unstable_cache(
         .select(
           "id, created_at, state, reviewed, agency_canonical, agency_raw, summary_pidgin, body, status, amount_kobo"
         )
-        // Audit finding 9: filter by session_id, not author_handle.
-        // A handle snapshot on old reports can be re-registered by a
-        // different user; keying on author_handle leaks the old owner's
-        // posts to the new owner. Also require reviewed=true (so
-        // unreviewed posts don't appear on a public profile) and
-        // community_id IS NULL (so posts inside private Spaces don't
-        // appear on a public profile).
         .eq("session_id", profileId)
         .eq("reviewed", true)
         .eq("held", false)
@@ -115,6 +108,8 @@ type PersonRow = {
   handle: string;
   status_line: string | null;
   handle_kind: string | null;
+  avatar_url: string | null;
+  photo_visibility: string | null;
 };
 
 async function getFollowers(profileId: string): Promise<PersonRow[]> {
@@ -131,7 +126,7 @@ async function getFollowers(profileId: string): Promise<PersonRow[]> {
 
   const { data: sessions } = await db
     .from("sessions")
-    .select("id, handle, status_line, handle_kind")
+    .select("id, handle, status_line, handle_kind, avatar_url, photo_visibility")
     .in("id", ids);
 
   const people = (sessions ?? []) as PersonRow[];
@@ -154,7 +149,7 @@ async function getFollowing(profileId: string): Promise<PersonRow[]> {
 
   const { data: sessions } = await db
     .from("sessions")
-    .select("id, handle, status_line, handle_kind")
+    .select("id, handle, status_line, handle_kind, avatar_url, photo_visibility")
     .in("id", ids);
 
   const people = (sessions ?? []) as PersonRow[];
@@ -211,10 +206,8 @@ function timeAgo(date: string): string {
 }
 
 export default async function ProfilePage(props: {
-
-    params: Promise<{ handle: string }>;
-    searchParams: Promise<{ tab?: string }>;
-
+  params: Promise<{ handle: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }) {
   const params = await props.params;
   const searchParams = await props.searchParams;
@@ -245,8 +238,6 @@ export default async function ProfilePage(props: {
   const profile = bundle.profile;
   if (!profile) return notFound();
 
-  // Block check — if I blocked them (or they blocked me), show a
-  // blocked state instead of the profile.
   const blockedIds = await getBlockedIds(mySessionId);
   const isBlockedRelationship = blockedIds.has(profile.id);
   const isMe = mySessionId === profile.id;
@@ -319,8 +310,6 @@ export default async function ProfilePage(props: {
     isFollowing = !!follow;
   }
 
-  const avatarLetter = handle.charAt(0).toUpperCase();
-  const avatarBg = avatarColor(handle);
   const joined = new Date(profile.created_at).toLocaleDateString("en-NG", {
     month: "long",
     year: "numeric"
@@ -347,6 +336,13 @@ export default async function ProfilePage(props: {
         href: `/u/${encodeURIComponent(handle)}?tab=following`
       }
     ];
+
+  const canSeeMainPhoto = canSeePhoto({
+    viewerId: mySessionId,
+    targetId: profile.id,
+    visibility: ((profile as { photo_visibility?: string | null }).photo_visibility as "private" | "followers" | "public" | null | undefined) ?? "private",
+    isFollowing
+  });
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-6 pb-28">
@@ -400,12 +396,7 @@ export default async function ProfilePage(props: {
       <section className="rounded-2xl border border-border bg-surface p-6 shadow-card">
         <div className="flex items-start gap-4">
           <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full shadow-sm">
-            {canSeePhoto({
-              viewerId: mySessionId,
-              targetId: profile.id,
-              visibility: ((profile as { photo_visibility?: string | null }).photo_visibility as "private" | "followers" | "public" | null | undefined) ?? "private",
-              isFollowing
-            }) && (profile as { avatar_url?: string | null }).avatar_url ? (
+            {canSeeMainPhoto && (profile as { avatar_url?: string | null }).avatar_url ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={(profile as { avatar_url?: string | null }).avatar_url!} alt="" className="h-16 w-16 object-cover" />
             ) : (
@@ -575,6 +566,14 @@ export default async function ProfilePage(props: {
             {people.map((p, i) => {
               const bg = avatarHex(p.handle);
               const isThisMe = mySessionId === p.id;
+              
+              const canSeePersonPhoto = canSeePhoto({
+                viewerId: mySessionId,
+                targetId: p.id,
+                visibility: p.photo_visibility as any,
+                isFollowing: myFollowSet.has(p.id)
+              });
+
               return (
                 <div
                   key={p.id}
@@ -586,13 +585,23 @@ export default async function ProfilePage(props: {
                     href={`/u/${encodeURIComponent(p.handle)}`}
                     className="flex min-w-0 flex-1 items-start gap-3"
                   >
-                    <div
-                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[0.9375rem] font-semibold text-white"
-                      style={{ background: bg }}
-                    >
-                      {p.handle.charAt(0).toUpperCase()}
+                    <div className="relative shrink-0">
+                      {canSeePersonPhoto && p.avatar_url ? (
+                        <img
+                          src={p.avatar_url}
+                          alt=""
+                          className="h-10 w-10 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div
+                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[0.9375rem] font-semibold text-white"
+                          style={{ background: bg }}
+                        >
+                          {p.handle.charAt(0).toUpperCase()}
+                        </div>
+                      )}
                     </div>
-                    <div className="min-w-0 flex-1">
+                    <div className="min-w-0 flex-1 pt-0.5">
                       <p className="truncate text-[0.9375rem] font-medium text-ink">
                         @{p.handle}
                       </p>

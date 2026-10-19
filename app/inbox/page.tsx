@@ -1,9 +1,10 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { timeAgoShort } from "@/lib/dm";
+import { canSeePhoto } from "@/lib/photo-visibility";
 
 export const dynamic = "force-dynamic";
 
@@ -105,18 +106,35 @@ async function InboxData({ sessionId }: { sessionId: string }) {
   );
   const threadIds = threads.map((t) => t.id);
 
-  const [sessionsRes, messagesRes] = await Promise.all([
-    db.from("sessions").select("id, handle").in("id", otherIds),
+  const [sessionsRes, messagesRes, followRes] = await Promise.all([
+    db.from("sessions").select("id, handle, avatar_url, photo_visibility").in("id", otherIds),
     db
       .from("dm_messages")
       .select("thread_id, sender_id, body, created_at, held, read_at")
       .in("thread_id", threadIds)
       .order("created_at", { ascending: false })
-      .limit(threadIds.length * 5)
+      .limit(threadIds.length * 5),
+    db
+      .from("follows")
+      .select("followed_session_id")
+      .eq("follower_session_id", sessionId)
+      .in("followed_session_id", otherIds)
   ]);
 
   const handleMap = new Map<string, string>();
-  for (const s of sessionsRes.data ?? []) handleMap.set(s.id, s.handle);
+  const avatarMap = new Map<string, string | null>();
+  const myFollowingSet = new Set((followRes.data ?? []).map(f => f.followed_session_id));
+
+  for (const s of sessionsRes.data ?? []) {
+    handleMap.set(s.id, s.handle);
+    const canSee = canSeePhoto({
+      viewerId: sessionId,
+      targetId: s.id,
+      visibility: s.photo_visibility as any,
+      isFollowing: myFollowingSet.has(s.id)
+    });
+    avatarMap.set(s.id, canSee ? s.avatar_url : null);
+  }
 
   const lastByThread = new Map<string, { body: string; sender_id: string }>();
   const unreadByThread = new Map<string, number>();
@@ -137,6 +155,7 @@ async function InboxData({ sessionId }: { sessionId: string }) {
     return {
       id: t.id,
       other_handle: handleMap.get(other) ?? "Anonymous",
+      avatar_url: avatarMap.get(other) ?? null,
       last_body: last?.body ?? null,
       last_from_me: last ? last.sender_id === sessionId : false,
       last_message_at: t.last_message_at,
@@ -157,12 +176,20 @@ async function InboxData({ sessionId }: { sessionId: string }) {
               i !== 0 ? "border-t border-border" : ""
             }`}
           >
-            <div
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-[1rem] font-semibold text-white"
-              style={{ background: bg }}
-            >
-              {t.other_handle.charAt(0).toUpperCase()}
-            </div>
+            {t.avatar_url ? (
+              <img
+                src={t.avatar_url}
+                alt=""
+                className="h-12 w-12 shrink-0 rounded-full object-cover"
+              />
+            ) : (
+              <div
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-[1rem] font-semibold text-white"
+                style={{ background: bg }}
+              >
+                {t.other_handle.charAt(0).toUpperCase()}
+              </div>
+            )}
             <div className="min-w-0 flex-1">
               <div className="flex items-baseline justify-between gap-2">
                 <p

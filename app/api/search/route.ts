@@ -1,14 +1,11 @@
-export const runtime = "nodejs";
+﻿export const runtime = "nodejs";
 
 import { NextRequest } from "next/server";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getBlockedIds } from "@/lib/blocks";
+import { canSeePhoto } from "@/lib/photo-visibility";
 
-/**
- * Escape `%` and `_` so a user typing them doesn't turn into a wildcard.
- * Postgres LIKE treats `\` as the default escape character.
- */
 function escapeLike(s: string): string {
   return s.replace(/[\\%_]/g, "\\$&");
 }
@@ -28,7 +25,7 @@ export async function GET(req: NextRequest) {
   const db = createServiceClient();
   let query = db
     .from("sessions")
-    .select("id, handle, handle_kind, follower_count, post_count")
+    .select("id, handle, handle_kind, follower_count, post_count, avatar_url, photo_visibility")
     .ilike("handle", `%${q}%`)
     .limit(20);
 
@@ -42,13 +39,33 @@ export async function GET(req: NextRequest) {
     return Response.json({ error: "Server error" }, { status: 500 });
   }
 
-  // Strip id — client only needs handle + counts
-  const users = (data ?? []).map((u) => ({
-    handle: u.handle,
-    handle_kind: u.handle_kind,
-    follower_count: u.follower_count,
-    post_count: u.post_count
-  }));
+  let myFollowingSet = new Set<string>();
+  if (sessionId && data && data.length > 0) {
+    const targetIds = data.map((u) => u.id);
+    const { data: followRows } = await db
+      .from("follows")
+      .select("followed_session_id")
+      .eq("follower_session_id", sessionId)
+      .in("followed_session_id", targetIds);
+    myFollowingSet = new Set((followRows ?? []).map((f) => f.followed_session_id));
+  }
+
+  const users = (data ?? []).map((u) => {
+    const canSee = canSeePhoto({
+      viewerId: sessionId,
+      targetId: u.id,
+      visibility: u.photo_visibility as any,
+      isFollowing: myFollowingSet.has(u.id)
+    });
+
+    return {
+      handle: u.handle,
+      handle_kind: u.handle_kind,
+      follower_count: u.follower_count,
+      post_count: u.post_count,
+      avatar_url: canSee ? u.avatar_url : null
+    };
+  });
 
   return Response.json({ users });
 }

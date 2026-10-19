@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -8,6 +8,7 @@ type User = {
   handle_kind: string;
   follower_count: number;
   post_count: number;
+  avatar_url?: string | null;
 };
 
 export default function SearchPage() {
@@ -42,7 +43,7 @@ export default function SearchPage() {
       <form onSubmit={search} className="mb-6">
         <div className="relative">
           <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted">
-            🔎
+            🔍
           </span>
           <input
             type="search"
@@ -74,9 +75,17 @@ export default function SearchPage() {
                 i !== 0 ? "border-t border-border" : ""
               }`}
             >
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand text-[1.05rem] font-semibold text-white">
-                {u.handle.charAt(0).toUpperCase()}
-              </div>
+              {u.avatar_url ? (
+                <img
+                  src={u.avatar_url}
+                  alt=""
+                  className="h-11 w-11 shrink-0 rounded-full object-cover"
+                />
+              ) : (
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand text-[1.05rem] font-semibold text-white">
+                  {u.handle.charAt(0).toUpperCase()}
+                </div>
+              )}
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[0.9375rem] font-medium text-ink">
                   @{u.handle}
