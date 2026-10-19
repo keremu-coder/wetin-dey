@@ -1,4 +1,4 @@
-export const runtime = "nodejs";
+﻿export const runtime = "nodejs";
 
 import { NextRequest } from "next/server";
 import { nanoid } from "nanoid";
@@ -14,6 +14,7 @@ import { isBanned, BANNED_MESSAGE } from "@/lib/ban-guard";
 import { getBlockedIds } from "@/lib/blocks";
 import { createNotification } from "@/lib/notifications";
 import type { MessageParent } from "@/lib/chat";
+import { canSeePhoto } from "@/lib/photo-visibility";
 import {
   hasAcceptedTerms,
   TERMS_NOT_ACCEPTED_CODE,
@@ -33,7 +34,8 @@ type ParentRow = {
 async function loadParent(
   db: ReturnType<typeof createServiceClient>,
   parentId: string,
-  expectedCommunityId: string
+  expectedCommunityId: string,
+  requesterId: string | null
 ): Promise<MessageParent | null> {
   const { data: parent } = await db
     .from("community_messages")
@@ -47,13 +49,34 @@ async function loadParent(
 
   const { data: session } = await db
     .from("sessions")
-    .select("handle")
+    .select("handle, avatar_url, photo_visibility")
     .eq("id", p.session_id)
     .maybeSingle();
+
+  let canSee = false;
+  if (session) {
+    let isFollowing = false;
+    if (requesterId && requesterId !== p.session_id) {
+      const { data: follow } = await db
+        .from("follows")
+        .select("followed_session_id")
+        .eq("follower_session_id", requesterId)
+        .eq("followed_session_id", p.session_id)
+        .maybeSingle();
+      isFollowing = !!follow;
+    }
+    canSee = canSeePhoto({
+      viewerId: requesterId,
+      targetId: p.session_id,
+      visibility: session.photo_visibility as any,
+      isFollowing
+    });
+  }
 
   return {
     id: p.id,
     author_handle: session?.handle ?? "Anonymous",
+    author_avatar_url: canSee ? (session?.avatar_url ?? null) : null,
     body: p.body,
     audio_url: p.audio_url
   };
@@ -130,9 +153,7 @@ export async function GET(
       new Set(
         ordered
           .map((m) => m.parent_id)
-          .filter(
-            (id): id is string => typeof id === "string" && id.length > 0
-          )
+          .filter((id): id is string => typeof id === "string" && id.length > 0)
       )
     );
 
@@ -151,24 +172,41 @@ export async function GET(
         ...parentRows.map((p) => p.session_id)
       ])
     );
+    
     const handleMap = new Map<string, string>();
+    const avatarMap = new Map<string, string | null>();
     const lastSeenMap = new Map<string, string | null>();
 
     if (sessionIds.length > 0) {
       const { data: profiles } = await db
         .from("sessions")
-        .select("id, handle, last_seen_at, hide_presence")
+        .select("id, handle, last_seen_at, hide_presence, avatar_url, photo_visibility")
         .in("id", sessionIds);
+
+      const myFollowingSet = new Set<string>();
+      if (requesterId && sessionIds.length > 0) {
+        const { data: followRows } = await db
+          .from("follows")
+          .select("followed_session_id")
+          .eq("follower_session_id", requesterId)
+          .in("followed_session_id", sessionIds);
+        for (const f of (followRows ?? []) as Array<{ followed_session_id: string }>) {
+          myFollowingSet.add(f.followed_session_id);
+        }
+      }
 
       for (const p of profiles ?? []) {
         handleMap.set(p.id, p.handle);
-        const targetHides =
-          requesterHides ||
-          (p as { hide_presence?: boolean }).hide_presence === true;
-        lastSeenMap.set(
-          p.id,
-          targetHides ? null : (p.last_seen_at ?? null)
-        );
+        const targetHides = requesterHides || p.hide_presence === true;
+        lastSeenMap.set(p.id, targetHides ? null : (p.last_seen_at ?? null));
+
+        const canSee = canSeePhoto({
+          viewerId: requesterId,
+          targetId: p.id,
+          visibility: p.photo_visibility as any,
+          isFollowing: myFollowingSet.has(p.id)
+        });
+        avatarMap.set(p.id, canSee ? p.avatar_url : null);
       }
     }
 
@@ -177,6 +215,7 @@ export async function GET(
       parentMap.set(p.id, {
         id: p.id,
         author_handle: handleMap.get(p.session_id) ?? "Anonymous",
+        author_avatar_url: avatarMap.get(p.session_id) ?? null,
         body: p.body,
         audio_url: p.audio_url
       });
@@ -213,6 +252,7 @@ export async function GET(
         audio_url: m.audio_url,
         created_at: m.created_at,
         author_handle: handleMap.get(m.session_id) ?? "Anonymous",
+        author_avatar_url: avatarMap.get(m.session_id) ?? null,
         author_last_seen: lastSeenMap.get(m.session_id) ?? null,
         reactions: reactionMap.get(m.id) ?? [],
         parent_id: parentId,
@@ -379,7 +419,7 @@ export async function POST(req: NextRequest,
     let parentId: string | null = null;
     let parentSnapshot: MessageParent | null = null;
     if (parentIdRaw) {
-      const snap = await loadParent(db, parentIdRaw, community.id);
+      const snap = await loadParent(db, parentIdRaw, community.id, sessionId);
       if (snap) {
         parentId = snap.id;
         parentSnapshot = snap;
@@ -506,6 +546,7 @@ export async function POST(req: NextRequest,
         audio_url: data.audio_url,
         created_at: data.created_at,
         author_handle: profile.handle,
+        author_avatar_url: profile.avatar_url ?? null,
         author_last_seen: new Date().toISOString(),
         reactions: [],
         parent_id: data.parent_id ?? null,

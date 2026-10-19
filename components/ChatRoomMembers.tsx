@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { PresenceDot, presenceFromLastSeen } from "./PresenceDot";
@@ -236,12 +236,20 @@ function MemberGroup({
               className="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-ink/5"
             >
               <div className="relative shrink-0">
-                <div
-                  className="flex h-9 w-9 items-center justify-center rounded-full text-[0.85rem] font-semibold text-white"
-                  style={{ background: bg }}
-                >
-                  {m.handle.charAt(0).toUpperCase()}
-                </div>
+                {m.avatar_url ? (
+                  <img
+                    src={m.avatar_url}
+                    alt=""
+                    className="h-9 w-9 rounded-full object-cover"
+                  />
+                ) : (
+                  <div
+                    className="flex h-9 w-9 items-center justify-center rounded-full text-[0.85rem] font-semibold text-white"
+                    style={{ background: bg }}
+                  >
+                    {m.handle.charAt(0).toUpperCase()}
+                  </div>
+                )}
                 <span className="absolute -bottom-0.5 -right-0.5">
                   <PresenceDot state={presence} size="md" />
                 </span>

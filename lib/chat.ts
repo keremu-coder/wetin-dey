@@ -1,18 +1,12 @@
-// lib/chat.ts
+﻿// lib/chat.ts
 // Shared types and helpers for the community chat rooms.
 
 export type Reaction = { emoji: string; count: number };
 
-/**
- * Snapshot of the message this one is replying to.
- *
- * Embedded directly on the reply so rendering a quoted parent never
- * requires a second lookup. Set to null when parent_id is null, or
- * when the parent was deleted (parent_id cascade-sets to null).
- */
 export type MessageParent = {
   id: string;
   author_handle: string;
+  author_avatar_url?: string | null;
   body: string | null;
   audio_url: string | null;
 };
@@ -23,6 +17,7 @@ export type Message = {
   audio_url: string | null;
   created_at: string;
   author_handle: string;
+  author_avatar_url?: string | null;
   author_last_seen: string | null;
   reactions: Reaction[];
   parent_id: string | null;
@@ -35,6 +30,7 @@ export type Message = {
 export type Member = {
   session_id: string;
   handle: string;
+  avatar_url?: string | null;
   last_seen_at: string | null;
   role: string;
 };
@@ -105,10 +101,6 @@ export function makeCid(): string {
   return `c_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-/**
- * Build a compact preview of a message for use as a quoted reply parent.
- * Body first; if it's a voice note with no body, show a mic marker.
- */
 export function previewOf(parent: MessageParent | null): string {
   if (!parent) return "";
   if (parent.body && parent.body.trim()) return parent.body;

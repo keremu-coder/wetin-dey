@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import nextDynamic from "next/dynamic";
@@ -186,9 +186,17 @@ export function MessageRow({
             className="relative shrink-0"
             aria-label={`View @${m.author_handle}`}
           >
-            <div className="chat-msg-avatar" style={{ background: bg }}>
-              {letter}
-            </div>
+            {m.author_avatar_url ? (
+              <img
+                src={m.author_avatar_url}
+                alt=""
+                className="chat-msg-avatar object-cover"
+              />
+            ) : (
+              <div className="chat-msg-avatar" style={{ background: bg }}>
+                {letter}
+              </div>
+            )}
             <span className="absolute -bottom-0.5 -right-0.5">
               <PresenceDot state={presence} />
             </span>

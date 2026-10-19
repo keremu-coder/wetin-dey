@@ -1,20 +1,18 @@
-import { notFound } from "next/navigation";
+﻿import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getSessionId, getOrCreateSessionProfile } from "@/lib/session";
 import { isMember } from "@/lib/community";
 import type { MessageParent } from "@/lib/chat";
+import { canSeePhoto } from "@/lib/photo-visibility";
 import { ChatRoom } from "./ChatRoom";
 
 export const dynamic = "force-dynamic";
 
 export default async function ChatPage(props: {
-
-    params: Promise<{ slug: string }>;
-
+  params: Promise<{ slug: string }>;
 }) {
   const params = await props.params;
-
   const db = createServiceClient();
 
   const { data: community } = await db
@@ -33,10 +31,7 @@ export default async function ChatPage(props: {
   if (!canView) {
     return (
       <main className="mx-auto max-w-2xl px-4 py-10 pb-24">
-        <Link
-          href={`/c/${community.slug}`}
-          className="text-[0.7rem] text-faint hover:text-brand"
-        >
+        <Link href={`/c/${community.slug}`} className="text-[0.7rem] text-faint hover:text-brand">
           ← Back to space
         </Link>
         <div className="mt-6 rounded-2xl border border-border bg-surface p-8 text-center">
@@ -52,12 +47,8 @@ export default async function ChatPage(props: {
     );
   }
 
-  // ─── Server-fetch everything ChatRoom used to fetch on mount ───
-  const myProfile = sessionId
-    ? await getOrCreateSessionProfile(sessionId)
-    : null;
+  const myProfile = sessionId ? await getOrCreateSessionProfile(sessionId) : null;
 
-  // Fetch messages, members, and their profiles in parallel
   const [messagesRes, membersRes] = await Promise.all([
     db
       .from("community_messages")
@@ -74,9 +65,6 @@ export default async function ChatPage(props: {
   const rawMessages = (messagesRes.data ?? []).reverse();
   const memberRows = membersRes.data ?? [];
 
-  // Fetch the parent rows for any replies in this batch. These are also
-  // community_messages rows — same shape — but we only need a small
-  // subset of columns to render the quoted reply.
   const parentIds = Array.from(
     new Set(
       rawMessages
@@ -101,7 +89,6 @@ export default async function ChatPage(props: {
     parentRows = (data ?? []) as ParentRow[];
   }
 
-  // Unique session ids from messages, members, and reply parents
   const allSessionIds = Array.from(
     new Set([
       ...(sessionId ? [sessionId] : []),
@@ -111,11 +98,12 @@ export default async function ChatPage(props: {
     ])
   ).filter(Boolean);
 
-  // Fetch handles, last_seen, fonts, statuses in one query
   const profilesMap = new Map<
     string,
     {
       handle: string;
+      avatar_url: string | null;
+      photo_visibility: string | null;
       last_seen_at: string | null;
       hide_presence: boolean;
       font_preference: string | null;
@@ -124,15 +112,32 @@ export default async function ChatPage(props: {
     }
   >();
 
+  const myFollowingSet = new Set<string>();
+
   if (allSessionIds.length > 0) {
-    const { data: profiles } = await db
-      .from("sessions")
-      .select("id, handle, last_seen_at, hide_presence, font_preference, text_color, status_line")
-      .in("id", allSessionIds);
+    const [{ data: profiles }, { data: followRows }] = await Promise.all([
+      db
+        .from("sessions")
+        .select("id, handle, avatar_url, photo_visibility, last_seen_at, hide_presence, font_preference, text_color, status_line")
+        .in("id", allSessionIds),
+      sessionId
+        ? db
+            .from("follows")
+            .select("followed_session_id")
+            .eq("follower_session_id", sessionId)
+            .in("followed_session_id", allSessionIds)
+        : Promise.resolve({ data: [] })
+    ]);
+
+    for (const f of (followRows ?? []) as Array<{ followed_session_id: string }>) {
+      myFollowingSet.add(f.followed_session_id);
+    }
 
     for (const p of profiles ?? []) {
       profilesMap.set(p.id, {
         handle: p.handle,
+        avatar_url: p.avatar_url ?? null,
+        photo_visibility: p.photo_visibility ?? "private",
         last_seen_at: p.last_seen_at ?? null,
         hide_presence: p.hide_presence === true,
         font_preference: p.font_preference ?? null,
@@ -142,26 +147,32 @@ export default async function ChatPage(props: {
     }
   }
 
-  // Audit finding 12b: presence privacy. If the requester hides their
-  // presence, they don't see anyone else's last-seen time. And if a
-  // target hides their own presence, we null out their last_seen_at
-  // regardless of who is viewing.
   const requesterHides = sessionId
     ? (profilesMap.get(sessionId)?.hide_presence ?? false)
     : false;
 
-  // Build the parent snapshot map now that we have handles
+  const avatarMap = new Map<string, string | null>();
+  for (const [id, p] of profilesMap.entries()) {
+    const canSee = canSeePhoto({
+      viewerId: sessionId,
+      targetId: id,
+      visibility: p.photo_visibility as any,
+      isFollowing: myFollowingSet.has(id)
+    });
+    avatarMap.set(id, canSee ? p.avatar_url : null);
+  }
+
   const parentMap = new Map<string, MessageParent>();
   for (const p of parentRows) {
     parentMap.set(p.id, {
       id: p.id,
       author_handle: profilesMap.get(p.session_id)?.handle ?? "Anonymous",
+      author_avatar_url: avatarMap.get(p.session_id) ?? null,
       body: p.body,
       audio_url: p.audio_url
     });
   }
 
-  // Reactions for the messages
   const msgIds = rawMessages.map((m) => m.id);
   const reactionMap = new Map<string, { emoji: string; count: number }[]>();
   if (msgIds.length > 0) {
@@ -179,7 +190,6 @@ export default async function ChatPage(props: {
     }
   }
 
-  // Build the initial messages array exactly like ChatRoom expects
   const initialMessages = rawMessages.map((m) => {
     const p = profilesMap.get(m.session_id);
     const parentId = m.parent_id ?? null;
@@ -189,6 +199,7 @@ export default async function ChatPage(props: {
       audio_url: m.audio_url,
       created_at: m.created_at,
       author_handle: p?.handle ?? "Anonymous",
+      author_avatar_url: avatarMap.get(m.session_id) ?? null,
       author_last_seen:
         (requesterHides || p?.hide_presence === true)
           ? null
@@ -199,12 +210,12 @@ export default async function ChatPage(props: {
     };
   });
 
-  // Build initial members array
   const initialMembers = memberRows.map((m) => {
     const p = profilesMap.get(m.session_id);
     return {
       session_id: m.session_id,
       handle: p?.handle ?? "Anonymous",
+      avatar_url: avatarMap.get(m.session_id) ?? null,
       last_seen_at:
         (requesterHides || p?.hide_presence === true)
           ? null
@@ -213,20 +224,13 @@ export default async function ChatPage(props: {
     };
   });
 
-  // Build font + status maps so ChatRoom doesn't fetch them
   const initialFonts: Record<string, string> = {};
   const initialColors: Record<string, string> = {};
   const initialStatuses: Record<string, string> = {};
   for (const [id, p] of profilesMap.entries()) {
-    if (p.font_preference) {
-      initialFonts[p.handle] = p.font_preference;
-    }
-    if (p.text_color) {
-      initialColors[p.handle] = p.text_color;
-    }
-    if (p.status_line) {
-      initialStatuses[p.handle] = p.status_line;
-    }
+    if (p.font_preference) initialFonts[p.handle] = p.font_preference;
+    if (p.text_color) initialColors[p.handle] = p.text_color;
+    if (p.status_line) initialStatuses[p.handle] = p.status_line;
   }
 
   return (
