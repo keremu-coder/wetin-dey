@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { Alama } from "@/components/Alama";
@@ -48,17 +48,27 @@ const SIGNAL_LETTER: Record<"ready" | "away" | "dnd", { bg: string; letter: stri
   dnd: { bg: "var(--color-clay)", letter: "D", label: "Busy" }
 };
 
-const RECEIPT_STYLE = {
-  sent: "bg-surface3 text-muted",
-  delivered: "bg-primary-tint text-primary-ink",
-  read: "bg-primary text-white"
-} as const;
-
 /**
- * Signal badge sits in its own column between the avatar and the text
- * block. Both name and preview start after it, so they line up cleanly.
+ * BBM-style signal badge.
+ * If the last message in this chat was sent by me, it shows the receipt (D / R / S)
+ * in this slot. Otherwise, it falls back to the user's presence signal.
  */
-function SignalBadge({ signal }: { signal?: ChatSignal }) {
+function SignalBadge({ signal, receipt }: { signal?: ChatSignal, receipt?: "sent" | "delivered" | "read" }) {
+  if (receipt) {
+    const letter = receipt === "read" ? "R" : receipt === "delivered" ? "D" : "S";
+    const bg = receipt === "read" ? "var(--color-primary)" : "var(--color-surface3)";
+    const textColor = receipt === "read" ? "text-white" : "text-muted";
+    return (
+      <span
+        aria-label={receipt}
+        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold leading-none ${textColor}`}
+        style={{ background: bg }}
+      >
+        {letter}
+      </span>
+    );
+  }
+  
   if (signal === "live") {
     return (
       <span className="flex w-5 shrink-0 items-center justify-center" aria-label="Active now">
@@ -117,7 +127,7 @@ export function ChatRow({
         )}
       </div>
 
-      <SignalBadge signal={signal} />
+      <SignalBadge signal={signal} receipt={receipt} />
 
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 items-baseline gap-2">
@@ -139,13 +149,6 @@ export function ChatRow({
               {preview}
             </span>
           </p>
-          {receipt ? (
-            <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full ${RECEIPT_STYLE[receipt]}`} aria-label={receipt}>
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <path d="M5 12.5 9.5 17 19 7" />
-              </svg>
-            </span>
-          ) : null}
           {hasUnread ? (
             <span className="flex h-[22px] min-w-[22px] shrink-0 items-center justify-center rounded-full bg-primary px-1.5 text-[0.75rem] font-semibold leading-none text-white">
               {unread > 99 ? "99+" : unread}
