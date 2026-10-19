@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -378,22 +378,22 @@ export function SiteFooter() {
           Wetin Dey na community. Anonymous if you want. Talk your mind.
         </p>
         <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-[0.8125rem] text-faint">
-          <Link href="/terms" className="transition-colors hover:text-brand">
+          <Link href="/terms" className="transition-colors hover:text-brand active:text-brand">
             Terms
           </Link>
-          <Link href="/privacy" className="transition-colors hover:text-brand">
+          <Link href="/privacy" className="transition-colors hover:text-brand active:text-brand">
             Privacy
           </Link>
-          <Link
-            href="/guidelines"
-            className="transition-colors hover:text-brand"
-          >
+          <Link href="/guidelines" className="transition-colors hover:text-brand active:text-brand">
             Guidelines
           </Link>
-          <Link href="/takedown" className="transition-colors hover:text-brand">
+          <Link href="/safety" className="transition-colors hover:text-brand active:text-brand">
+            Child Safety
+          </Link>
+          <Link href="/takedown" className="transition-colors hover:text-brand active:text-brand">
             Takedown
           </Link>
-          <Link href="/support" className="transition-colors hover:text-brand">
+          <Link href="/support" className="transition-colors hover:text-brand active:text-brand">
             Support
           </Link>
           <span className="ml-auto text-[0.7rem] text-faint">

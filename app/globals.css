@@ -5,8 +5,8 @@
 /* =========================================
    NATIVE APP BASELINE (NO WEBSITE TELLS)
    ========================================= */
-* { 
-  box-sizing: border-box; 
+* {
+  box-sizing: border-box;
   -webkit-tap-highlight-color: transparent; /* Stops the blue/grey tap flash */
 }
 
@@ -19,6 +19,7 @@ html, body {
   -webkit-touch-callout: none; /* Kills the Safari "Save Image / Copy Link" popup */
   -webkit-user-select: none; /* Stops users from dragging to highlight text */
   user-select: none;
+  min-height: 100dvh; /* Fixes height issues when mobile keyboards open */
 }
 
 /* Hide all scrollbars but keep scrolling functionality */
@@ -30,6 +31,18 @@ html, body {
 * {
   scrollbar-width: none;
   -ms-overflow-style: none;
+}
+
+/* Disable sticky hover states on touch devices, rely on active tap feedback */
+@media (hover: none) {
+  .hover\:bg-ink\/5:hover { background-color: transparent !important; }
+  .hover\:border-border-strong:hover { border-color: var(--color-border) !important; }
+  .hover\:text-brand:hover { color: inherit !important; }
+  .hover\:bg-danger-soft\/40:hover { background-color: transparent !important; }
+  .hover\:opacity-80:hover { opacity: 1 !important; }
+  
+  /* Give instant feedback when tapped */
+  a:active, button:active { opacity: 0.7; }
 }
 
 /* Allow text selection ONLY inside inputs so users can still edit text */
@@ -103,7 +116,6 @@ body {
   font-family: var(--font-inter), "Noto Sans", system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  min-height: 100vh;
   transition: background-color 150ms ease, color 150ms ease;
   touch-action: manipulation; /* Removes 300ms delay and double-tap zoom */
 }

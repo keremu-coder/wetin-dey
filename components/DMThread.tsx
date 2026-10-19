@@ -140,7 +140,6 @@ export function DMThread({
 
       if (!res.ok) {
         toast.show(json.error || "Could not open media", "error");
-        // Mark as viewed locally so the UI updates
         setMessages(prev => prev.map(msg => msg.id === m.id ? { ...msg, viewed_at: new Date().toISOString() } : msg));
         return;
       }
@@ -187,7 +186,8 @@ export function DMThread({
 
   async function markRead() {
     const now = Date.now();
-    if (now - lastMarkRef.current < 3000) return;
+    // Reduced throttle from 3 seconds to 1 second for faster read receipts
+    if (now - lastMarkRef.current < 1000) return;
     lastMarkRef.current = now;
     try {
       await fetch(`/api/dm/threads/${threadId}/read`, { method: "POST" });
@@ -235,36 +235,44 @@ export function DMThread({
         .on(
           "postgres_changes",
           {
-            event: "INSERT",
+            event: "*", // Listen to INSERT and UPDATE
             schema: "public",
             table: "dm_messages",
             filter: `thread_id=eq.${threadId}`
           },
           (payload) => {
             if (cancelled) return;
-            const row = payload.new as Message;
 
-            if (row.sender_id === mySessionId) return;
-            if (row.held) return;
+            if (payload.eventType === "INSERT") {
+              const row = payload.new as Message;
+              if (row.sender_id === mySessionId) return;
+              if (row.held) return;
 
-            const p = prefsRef.current;
-            if (p.receive) playProfile(p.profile, "receive");
-            if (p.vibrate) void notifyFeedback();
+              const p = prefsRef.current;
+              if (p.receive) playProfile(p.profile, "receive");
+              if (p.vibrate) void notifyFeedback();
 
-            if (p.browserNotifications) {
-              showBrowserNotification(
-                `@${otherHandle} sent you a message`,
-                row.media_path ? "📷 View once media" : row.body.slice(0, 90),
-                `dm-${threadId}`
+              if (p.browserNotifications) {
+                showBrowserNotification(
+                  `@${otherHandle} sent you a message`,
+                  row.media_path ? "📷 View once media" : row.body.slice(0, 90),
+                  `dm-${threadId}`
+                );
+              }
+
+              setMessages((prev) => {
+                if (prev.some((m) => m.id === row.id)) return prev;
+                return [...prev, row];
+              });
+
+              void markRead();
+            } 
+            else if (payload.eventType === "UPDATE") {
+              const row = payload.new as any;
+              setMessages((prev) => 
+                prev.map((m) => m.id === row.id ? { ...m, read_at: row.read_at } : m)
               );
             }
-
-            setMessages((prev) => {
-              if (prev.some((m) => m.id === row.id)) return prev;
-              return [...prev, row];
-            });
-
-            void markRead();
           }
         )
         .subscribe();
@@ -293,7 +301,7 @@ export function DMThread({
   useEffect(() => {
     const t = setInterval(() => {
       void refresh();
-    }, 30000);
+    }, 4000); // Reduced from 30 seconds to 4 seconds for faster updates
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [threadId]);

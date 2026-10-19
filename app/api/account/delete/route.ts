@@ -1,4 +1,4 @@
-export const runtime = "nodejs";
+﻿export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionId } from "@/lib/session";
@@ -24,6 +24,13 @@ function supabaseStoragePath(url: string, bucket: string): string | null {
     /* ignore */
   }
   return null;
+}
+
+async function deleteOrFail(db: any, table: string, column: string, value: string) {
+  const { error } = await db.from(table).delete().eq(column, value);
+  if (error) {
+    throw new Error(`Failed to delete from ${table}: ${error.message}`);
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -98,23 +105,30 @@ export async function POST(req: NextRequest) {
         const { data: userReports } = await db.from("reports").select("id").eq("session_id", sessionId);
         if (userReports && userReports.length > 0) {
           const { deleteReportEvidence } = await import("@/lib/evidence-cleanup");
-          await Promise.all(userReports.map((r) => deleteReportEvidence(r.id).catch((e) => console.warn(e))));
+          await Promise.all(userReports.map((r) => deleteReportEvidence(r.id)));
         }
       } catch (e) {
         console.error("[account/delete] evidence batch failed:", e);
+        return Response.json({ error: "Could not delete your evidence files. Please try again." }, { status: 500 });
       }
     }
 
     // 3. Delete avatar and space avatar blobs
     if (session.avatar_url) {
       const path = supabaseStoragePath(session.avatar_url, "user-avatars");
-      if (path) await db.storage.from("user-avatars").remove([path]).catch(() => {});
+      if (path) {
+        const { error } = await db.storage.from("user-avatars").remove([path]);
+        if (error) return Response.json({ error: "Could not delete your profile photo." }, { status: 500 });
+      }
     }
     const { data: ownedCommunities } = await db.from("communities").select("id, avatar_url").eq("owner_session_id", sessionId);
     for (const c of ownedCommunities ?? []) {
       if (c.avatar_url) {
         const path = supabaseStoragePath(c.avatar_url, "space-avatars");
-        if (path) await db.storage.from("space-avatars").remove([path]).catch(() => {});
+        if (path) {
+          const { error } = await db.storage.from("space-avatars").remove([path]);
+          if (error) return Response.json({ error: "Could not delete a space avatar." }, { status: 500 });
+        }
       }
     }
 
@@ -123,10 +137,14 @@ export async function POST(req: NextRequest) {
     for (const b of broadcasts ?? []) {
       if (b.audio_url) {
         const path = supabaseStoragePath(b.audio_url, "voice-notes");
-        if (path) await db.storage.from("voice-notes").remove([path]).catch(() => {});
+        if (path) {
+          const { error } = await db.storage.from("voice-notes").remove([path]);
+          if (error) return Response.json({ error: "Could not delete a voice note." }, { status: 500 });
+        }
       }
     }
-    await db.from("broadcasts").delete().eq("session_id", sessionId);
+    const { error: bErr } = await db.from("broadcasts").delete().eq("session_id", sessionId);
+    if (bErr) return Response.json({ error: "Could not delete your broadcasts." }, { status: 500 });
 
     // 5. Delete chat voice notes and messages
     if (deleteContent) {
@@ -134,55 +152,74 @@ export async function POST(req: NextRequest) {
       for (const m of cmAudio ?? []) {
         if (m.audio_url) {
           const path = supabaseStoragePath(m.audio_url, "voice-notes");
-          if (path) await db.storage.from("voice-notes").remove([path]).catch(() => {});
+          if (path) {
+            const { error } = await db.storage.from("voice-notes").remove([path]);
+            if (error) return Response.json({ error: "Could not delete a chat voice note." }, { status: 500 });
+          }
         }
       }
-      await db.from("community_messages").delete().eq("session_id", sessionId);
+      const { error: cmErr } = await db.from("community_messages").delete().eq("session_id", sessionId);
+      if (cmErr) return Response.json({ error: "Could not delete your chat messages." }, { status: 500 });
     }
 
-    // 6. Delete all relations and rows owned by this session
-    await db.from("follows").delete().eq("follower_session_id", sessionId);
-    await db.from("follows").delete().eq("followed_session_id", sessionId);
-    await db.from("blocked_users").delete().eq("blocker_session_id", sessionId);
-    await db.from("blocked_users").delete().eq("blocked_session_id", sessionId);
-    await db.from("push_subscriptions").delete().eq("session_id", sessionId);
-    await db.from("native_push_tokens").delete().eq("session_id", sessionId);
-    await db.from("rate_events").delete().eq("session_id", sessionId);
-    await db.from("dm_violations").delete().eq("session_id", sessionId);
-    await db.from("report_replies").delete().eq("session_id", sessionId);
-    await db.from("post_votes").delete().eq("session_id", sessionId);
-    await db.from("comment_votes").delete().eq("session_id", sessionId);
-    await db.from("message_reactions").delete().eq("session_id", sessionId);
-    await db.from("reactions").delete().eq("session_id", sessionId);
-    await db.from("topic_follows").delete().eq("session_id", sessionId);
-    await db.from("daily_answers").delete().eq("session_id", sessionId);
-    await db.from("checkin_requests").delete().eq("session_id", sessionId);
-    await db.from("checkin_responses").delete().eq("session_id", sessionId);
-    await db.from("content_flags").delete().eq("session_id", sessionId);
-    await db.from("notifications").delete().eq("session_id", sessionId);
-    await db.from("flags").delete().eq("session_id", sessionId);
-    await db.from("me_toos").delete().eq("session_id", sessionId);
-    await db.from("radar_signals").delete().eq("sender_id", sessionId);
-    await db.from("radar_signals").delete().eq("recipient_id", sessionId);
-    await db.from("radar_contacts").delete().eq("owner_id", sessionId);
-    await db.from("radar_contacts").delete().eq("contact_id", sessionId);
-    await db.from("community_members").delete().eq("session_id", sessionId);
-
-    // 7. Handle Reports and Comments
+    // 6. Delete DM messages
     if (deleteContent) {
-      // APPLE COMPLIANCE: Actually delete the rows.
-      // Cascade delete will handle comments on those reports.
-      await db.from("reports").delete().eq("session_id", sessionId);
-      // Also delete any comments they made on OTHER people's reports.
-      await db.from("comments").delete().eq("session_id", sessionId);
+      const { error: dmErr } = await db.from("dm_messages").delete().eq("sender_id", sessionId);
+      if (dmErr) return Response.json({ error: "Could not delete your direct messages." }, { status: 500 });
     } else {
-      // ARCHIVE INTEGRITY: Tombstone the content so it stays visible
-      // but is detached from the deleted user.
-      await db.from("reports").update({ session_id: TOMBSTONE, author_handle: null }).eq("session_id", sessionId);
-      await db.from("comments").update({ session_id: TOMBSTONE }).eq("session_id", sessionId);
+      const { error: dmErr } = await db.from("dm_messages").update({ sender_id: TOMBSTONE }).eq("sender_id", sessionId);
+      if (dmErr) return Response.json({ error: "Could not anonymize your direct messages." }, { status: 500 });
     }
 
-    // 8. Scrub the sessions row (kept as ghost for DM FKs)
+    // 7. Delete all relations and rows owned by this session
+    try {
+      await deleteOrFail(db, "follows", "follower_session_id", sessionId);
+      await deleteOrFail(db, "follows", "followed_session_id", sessionId);
+      await deleteOrFail(db, "blocked_users", "blocker_session_id", sessionId);
+      await deleteOrFail(db, "blocked_users", "blocked_session_id", sessionId);
+      await deleteOrFail(db, "push_subscriptions", "session_id", sessionId);
+      await deleteOrFail(db, "native_push_tokens", "session_id", sessionId);
+      await deleteOrFail(db, "rate_events", "session_id", sessionId);
+      await deleteOrFail(db, "dm_violations", "session_id", sessionId);
+      await deleteOrFail(db, "report_replies", "session_id", sessionId);
+      await deleteOrFail(db, "post_votes", "session_id", sessionId);
+      await deleteOrFail(db, "comment_votes", "session_id", sessionId);
+      await deleteOrFail(db, "message_reactions", "session_id", sessionId);
+      await deleteOrFail(db, "reactions", "session_id", sessionId);
+      await deleteOrFail(db, "topic_follows", "session_id", sessionId);
+      await deleteOrFail(db, "daily_answers", "session_id", sessionId);
+      await deleteOrFail(db, "checkin_requests", "session_id", sessionId);
+      await deleteOrFail(db, "checkin_responses", "session_id", sessionId);
+      await deleteOrFail(db, "content_flags", "session_id", sessionId);
+      await deleteOrFail(db, "notifications", "session_id", sessionId);
+      await deleteOrFail(db, "flags", "session_id", sessionId);
+      await deleteOrFail(db, "me_toos", "session_id", sessionId);
+      await deleteOrFail(db, "radar_signals", "sender_id", sessionId);
+      await deleteOrFail(db, "radar_signals", "recipient_id", sessionId);
+      await deleteOrFail(db, "radar_contacts", "owner_id", sessionId);
+      await deleteOrFail(db, "radar_contacts", "contact_id", sessionId);
+      await deleteOrFail(db, "community_members", "session_id", sessionId);
+    } catch (err: any) {
+      console.error("[account/delete] DB deletion failed:", err);
+      return Response.json({ error: err.message }, { status: 500 });
+    }
+
+    // 8. Handle Reports and Comments
+    if (deleteContent) {
+      const { error: rErr } = await db.from("reports").delete().eq("session_id", sessionId);
+      if (rErr) return Response.json({ error: "Could not delete your reports." }, { status: 500 });
+      
+      const { error: cErr } = await db.from("comments").delete().eq("session_id", sessionId);
+      if (cErr) return Response.json({ error: "Could not delete your comments." }, { status: 500 });
+    } else {
+      const { error: rErr } = await db.from("reports").update({ session_id: TOMBSTONE, author_handle: null }).eq("session_id", sessionId);
+      if (rErr) return Response.json({ error: "Could not anonymize your reports." }, { status: 500 });
+      
+      const { error: cErr } = await db.from("comments").update({ session_id: TOMBSTONE }).eq("session_id", sessionId);
+      if (cErr) return Response.json({ error: "Could not anonymize your comments." }, { status: 500 });
+    }
+
+    // 9. Scrub the sessions row (kept as ghost for DM FKs)
     const scrubHandle = `deleted_${sessionId.slice(0, 8)}`;
     const { error: updErr } = await db.from("sessions").update({
       handle: scrubHandle,
@@ -209,7 +246,7 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: "Your sign-in was removed but the profile couldn't be scrubbed." }, { status: 500 });
     }
 
-    // 9. Clear the session cookie
+    // 10. Clear the session cookie
     const res = NextResponse.json({ ok: true, auth_deleted: authDeleted });
     res.cookies.set({
       name: COOKIE_NAME,

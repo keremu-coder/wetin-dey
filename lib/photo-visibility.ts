@@ -1,15 +1,24 @@
-export type PhotoVisibility = "private" | "followers" | "public";
+﻿export type PhotoVisibility = "private" | "followers" | "public";
 
 export function canSeePhoto(opts: {
   viewerId: string | null;
   targetId: string;
-  visibility: PhotoVisibility | null | undefined;
+  visibility: string | null | undefined; // Expanded to string to handle odd DB values
   isFollowing: boolean;
 }): boolean {
+  // Owner can always see their own photo
   if (opts.viewerId && opts.viewerId === opts.targetId) return true;
-  const v = opts.visibility ?? "private";
-  if (v === "public") return true;
-  if (v === "followers" && opts.isFollowing) return true;
+
+  // Normalize the stored value (lowercase, trim)
+  const v = (opts.visibility ?? "private").toString().toLowerCase().trim();
+
+  // Handle public aliases
+  if (v === "public" || v === "everyone") return true;
+  
+  // Handle followers
+  if (v === "followers" || v === "follower") return opts.isFollowing;
+
+  // Default to private
   return false;
 }
 

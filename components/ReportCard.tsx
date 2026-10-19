@@ -1,29 +1,14 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { formatNaira, nearestState } from "@/lib/constants";
 import type { Report } from "@/lib/types";
-import { Alama } from "@/components/Alama";
+import { canSeePhoto } from "@/lib/photo-visibility";
+import { ZoomableAvatar } from "./ZoomableAvatar";
 import { ReviewedFlag } from "./ReviewedFlag";
 import { StatusBadge } from "./StatusBadge";
 import { PostActions } from "./PostActions";
-
-function avatarColor(seed: string): string {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
-  const colors = [
-    "bg-[#C0392B]",
-    "bg-[#D97706]",
-    "bg-[#1F7A4D]",
-    "bg-[#7C3AED]",
-    "bg-[#0E7490]",
-    "bg-[#BE185D]",
-    "bg-[#4D7C0F]",
-    "bg-[#A16207]"
-  ];
-  return colors[Math.abs(h) % colors.length];
-}
 
 function timeAgo(date: string): string {
   const diff = Date.now() - new Date(date).getTime();
@@ -57,8 +42,18 @@ export function ReportCard({
   const hasHandle = !!handleRaw && handleRaw.length > 0;
   const isOwnPost = hasHandle && currentHandle === handleRaw;
   const authorLabel = hasHandle ? `@${handleRaw}` : "Anonymous member";
-  const avatarLetter = (hasHandle ? handleRaw!.charAt(0) : "A").toUpperCase();
-  const avatarBg = avatarColor(handleRaw || report.id);
+
+  // Attempt to extract avatar data if the DB query provides it
+  const authorAvatarUrl = (report as unknown as { author_avatar_url?: string | null }).author_avatar_url;
+  const authorPhotoVisibility = (report as unknown as { author_photo_visibility?: string | null }).author_photo_visibility;
+  
+  // targetId must be a non-empty string — fall back to report.id when anonymous
+  const canSeeAuthorPhoto = canSeePhoto({
+    viewerId: currentHandle ?? null,
+    targetId: handleRaw || report.id,
+    visibility: authorPhotoVisibility,
+    isFollowing: false
+  });
 
   const upvotes = (report as unknown as { upvotes?: number }).upvotes ?? 0;
   const downvotes = (report as unknown as { downvotes?: number }).downvotes ?? 0;
@@ -77,17 +72,22 @@ export function ReportCard({
           <div className="flex min-w-0 items-center gap-3">
             <Link
               href={hasHandle ? `/u/${encodeURIComponent(handleRaw)}` : postUrl}
-              className="h-10 w-10 shrink-0 overflow-hidden rounded-full shadow-sm transition-opacity hover:opacity-80"
+              className="shrink-0 transition-opacity hover:opacity-80"
             >
-              <Alama seed={handleRaw || report.id} size={40} title={authorLabel} />
+              <ZoomableAvatar
+                src={canSeeAuthorPhoto ? (authorAvatarUrl ?? null) : null}
+                seed={handleRaw || report.id}
+                size={40}
+                title={authorLabel}
+              />
             </Link>
             <div className="min-w-0">
               <p className="truncate text-[0.875rem] font-medium text-ink">
                 {authorLabel}
               </p>
               <p className="text-[0.75rem] text-faint">
-                {timeAgo(report.created_at)} Â· {report.state}
-                {report.lga ? ` Â· ${report.lga}` : ""}
+                {timeAgo(report.created_at)} · {report.state}
+                {report.lga ? ` · ${report.lga}` : ""}
               </p>
             </div>
           </div>
@@ -195,7 +195,7 @@ export function HomeFeed({
             setTab("near");
           }}
         >
-          {locating ? "Locating\u2026" : `Near you${nearState ? ` (${nearState})` : ""}`}
+          {locating ? "Locating…" : `Near you${nearState ? ` (${nearState})` : ""}`}
         </button>
         <button
           type="button"
@@ -255,3 +255,4 @@ export function HomeFeed({
     </div>
   );
 }
+
