@@ -92,14 +92,9 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: "Could not delete your evidence files. Please try again." }, { status: 500 });
     }
 
-    // 2. Avatar + status photos
-    if (session.avatar_url) {
-      const path = supabaseStoragePath(session.avatar_url, "user-avatars");
-      if (path) {
-        const { error } = await db.storage.from("user-avatars").remove([path]);
-        if (error) return Response.json({ error: "Could not delete your profile photo." }, { status: 500 });
-      } else storageErrors.push("Could not determine avatar path for deletion.");
-    }
+    // 2. Avatar (delete by prefix, no URL parsing) + status photos
+    const avatarErr = await removeAll(db, "user-avatars", sessionId);
+    if (avatarErr) return Response.json({ error: "Could not delete your profile photo." }, { status: 500 });
     const statusErr = await removeAll(db, "status-photos", sessionId);
     if (statusErr) storageErrors.push(statusErr);
 
@@ -115,10 +110,37 @@ export async function POST(req: NextRequest) {
         }
       }
       try {
+        // Delete evidence files attached to reports in this community
+        const { data: communityReports } = await db
+          .from("reports").select("id").eq("community_id", c.id);
+        if (communityReports && communityReports.length > 0) {
+          const { deleteReportEvidence } = await import("@/lib/evidence-cleanup");
+          await Promise.all(
+            communityReports.map((r) => deleteReportEvidence(r.id).catch(() => {}))
+          );
+        }
+
+        // Delete voice-note blobs referenced by community messages
+        const { data: cm } = await db
+          .from("community_messages")
+          .select("audio_url")
+          .eq("community_id", c.id)
+          .not("audio_url", "is", null);
+        for (const m of cm ?? []) {
+          const p = m.audio_url
+            ? supabaseStoragePath(m.audio_url, "voice-notes")
+            : null;
+          if (p) await db.storage.from("voice-notes").remove([p]).catch(() => {});
+        }
+
+        // Now safe to delete rows
+        await deleteOrFail(db, "reports", "community_id", c.id);
         await deleteOrFail(db, "community_messages", "community_id", c.id);
         await deleteOrFail(db, "community_members", "community_id", c.id);
         await deleteOrFail(db, "communities", "id", c.id);
-      } catch (err: any) { return Response.json({ error: err.message }, { status: 500 }); }
+      } catch (err: any) {
+        return Response.json({ error: err.message }, { status: 500 });
+      }
     }
 
     // 3. Broadcasts
@@ -274,3 +296,5 @@ async function findAuthUserByEmail(db: ReturnType<typeof createServiceClient>, e
   }
   return null;
 }
+
+

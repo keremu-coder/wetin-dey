@@ -1,4 +1,4 @@
-export const runtime = "nodejs";
+﻿export const runtime = "nodejs";
 
 import { NextRequest } from "next/server";
 import { nanoid } from "nanoid";
@@ -13,6 +13,11 @@ const MAX_BYTES = 2 * 1024 * 1024;
 const ALLOWED_MIMES = ["image/jpeg", "image/png", "image/webp"];
 
 function extractPath(url: string): string | null {
+  // New format: /api/avatar/{id}/{file}
+  const apiMatch = url.match(/^\/api\/avatar\/([\w-]{8,64}\/[\w-]{1,80}\.\w+)$/);
+  if (apiMatch) return apiMatch[1];
+
+  // Legacy: https://.../storage/v1/object/public/user-avatars/{id}/{file}
   try {
     const u = new URL(url);
     const marker = "/storage/v1/object/public/user-avatars/";
@@ -59,16 +64,10 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: "No image" }, { status: 400 });
     }
     if (file.size > MAX_BYTES) {
-      return Response.json(
-        { error: "Image too large (max 2MB)" },
-        { status: 400 }
-      );
+      return Response.json({ error: "Image too large (max 2MB)" }, { status: 400 });
     }
     if (!ALLOWED_MIMES.includes(file.type)) {
-      return Response.json(
-        { error: "Only JPG, PNG, or WebP" },
-        { status: 400 }
-      );
+      return Response.json({ error: "Only JPG, PNG, or WebP" }, { status: 400 });
     }
 
     const buf = Buffer.from(await file.arrayBuffer());
@@ -94,28 +93,21 @@ export async function POST(req: NextRequest) {
     if (existing?.avatar_url) {
       const oldPath = extractPath(existing.avatar_url);
       if (oldPath) {
-        await db.storage
-          .from("user-avatars")
-          .remove([oldPath])
-          .catch(() => {});
+        await db.storage.from("user-avatars").remove([oldPath]).catch(() => {});
       }
     }
 
     const path = `${sessionId}/${nanoid()}.jpg`;
     const up = await db.storage.from("user-avatars").upload(path, processed, {
       contentType: "image/jpeg",
-      upsert: false,
-      cacheControl: "31536000"
+      upsert: false
     });
     if (up.error) {
-      return Response.json(
-        { error: "Upload failed" },
-        { status: 500 }
-      );
+      return Response.json({ error: "Upload failed" }, { status: 500 });
     }
 
-    const url = db.storage.from("user-avatars").getPublicUrl(path).data
-      .publicUrl;
+    // Store a path to our privacy-aware proxy, not a public bucket URL
+    const url = `/api/avatar/${path}`;
 
     const { error } = await db
       .from("sessions")
@@ -165,17 +157,11 @@ export async function DELETE(req: NextRequest) {
     if (existing?.avatar_url) {
       const oldPath = extractPath(existing.avatar_url);
       if (oldPath) {
-        await db.storage
-          .from("user-avatars")
-          .remove([oldPath])
-          .catch(() => {});
+        await db.storage.from("user-avatars").remove([oldPath]).catch(() => {});
       }
     }
 
-    await db
-      .from("sessions")
-      .update({ avatar_url: null })
-      .eq("id", sessionId);
+    await db.from("sessions").update({ avatar_url: null }).eq("id", sessionId);
 
     return Response.json({ ok: true });
   } catch (e) {

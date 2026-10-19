@@ -17,6 +17,11 @@ import {
 } from "@/lib/terms-guard";
 import { serverError } from "@/lib/http";
 
+const MEDIA_PATH_RE = /^[\w-]+\/[\w-]+\.(jpg|jpeg|png|webp|heic|mp4|mov|webm)$/i;
+const VIDEO_EXTS = new Set(["mp4", "mov", "webm"]);
+const MAX_PHOTO = 5 * 1024 * 1024;
+const MAX_VIDEO = 15 * 1024 * 1024;
+
 export async function POST(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -45,14 +50,9 @@ export async function POST(
 
     const limit = await checkRateLimit(
       sessionId,
-      {
-        key: "dm_message",
-        limit: 30,
-        windowMs: 60 * 1000
-      },
+      { key: "dm_message", limit: 30, windowMs: 60 * 1000 },
       { ip: getRequestIp(req) }
     );
-
     if (!limit.ok) {
       return Response.json({ error: "Slow down — too many messages." }, { status: 429 });
     }
@@ -82,15 +82,11 @@ export async function POST(
       thread.session_a === sessionId ? thread.session_b : thread.session_a;
 
     const [blockedByMe, blockedByThem] = await Promise.all([
-      db
-        .from("blocked_users")
-        .select("id")
+      db.from("blocked_users").select("id")
         .eq("blocker_session_id", sessionId)
         .eq("blocked_session_id", recipientId)
         .maybeSingle(),
-      db
-        .from("blocked_users")
-        .select("id")
+      db.from("blocked_users").select("id")
         .eq("blocker_session_id", recipientId)
         .eq("blocked_session_id", sessionId)
         .maybeSingle()
@@ -124,7 +120,9 @@ export async function POST(
       );
     }
 
-    const analysis = isMedia ? { level: "pass", matches: [] } : analyzeMessage(text);
+    const analysis = isMedia
+      ? { level: "pass", matches: [] }
+      : analyzeMessage(text);
 
     if (analysis.level === "block") {
       const reason =
@@ -150,25 +148,6 @@ export async function POST(
     const mod = isMedia ? { hold: false, matches: [] } : analyzeModeration(text);
     const held = mod.hold;
 
-    // Verify actual uploaded file metadata (client could lie about size/mime)
-    if (isMedia && typeof body.media_path === "string") {
-      const pathParts = body.media_path.split("/");
-      const folder = pathParts.slice(0, -1).join("/");
-      const fileName = pathParts[pathParts.length - 1];
-      const { data: fileList, error: listErr } = await db.storage
-        .from("dm-media")
-        .list(folder, { search: fileName });
-      if (listErr || !fileList || fileList.length === 0) {
-        return Response.json({ error: "Uploaded file not found." }, { status: 400 });
-      }
-      const meta = fileList[0]?.metadata as { size?: number } | undefined;
-      const actualSize = meta?.size ?? 0;
-      const maxSize = body.media_type === "photo" ? 5 * 1024 * 1024 : 15 * 1024 * 1024;
-      if (actualSize > maxSize) {
-        return Response.json({ error: "File too large." }, { status: 400 });
-      }
-    }
-    
     if (held) {
       try {
         await db.from("dm_violations").insert({
@@ -181,6 +160,62 @@ export async function POST(
       } catch { /* non-fatal */ }
     }
 
+    // Verify uploaded media: path must be inside this thread, and we must
+    // trust the stored object's metadata — not the client-supplied values.
+    let verifiedMediaType: string | undefined;
+    let verifiedMediaSize: number | undefined;
+    let verifiedMediaMime: string | undefined;
+    let verifiedMediaPath: string | undefined;
+
+    if (isMedia && typeof body.media_path === "string") {
+      const mediaPath = body.media_path;
+
+      if (
+        !MEDIA_PATH_RE.test(mediaPath) ||
+        !mediaPath.startsWith(`${thread.id}/`)
+      ) {
+        return Response.json({ error: "Invalid media path." }, { status: 400 });
+      }
+
+      const parts = mediaPath.split("/");
+      const folder = parts.slice(0, -1).join("/");
+      const fileName = parts[parts.length - 1];
+
+      const { data: fileList, error: listErr } = await db.storage
+        .from("dm-media")
+        .list(folder, { search: fileName });
+
+      if (listErr || !fileList || fileList.length === 0) {
+        return Response.json({ error: "Uploaded file not found." }, { status: 400 });
+      }
+
+      const meta = fileList[0]?.metadata as
+        | { size?: number; mimetype?: string }
+        | undefined;
+
+      const actualSize = meta?.size ?? 0;
+      const actualMime = meta?.mimetype ?? "";
+      const ext = fileName.split(".").pop()!.toLowerCase();
+      const isVideo = VIDEO_EXTS.has(ext);
+      const maxSize = isVideo ? MAX_VIDEO : MAX_PHOTO;
+
+      if (actualSize === 0) {
+        await db.storage.from("dm-media").remove([mediaPath]).catch(() => {});
+        return Response.json({ error: "Invalid media file." }, { status: 400 });
+      }
+
+      if (actualSize > maxSize) {
+        await db.storage.from("dm-media").remove([mediaPath]).catch(() => {});
+        return Response.json({ error: "File too large." }, { status: 400 });
+      }
+
+      verifiedMediaPath = mediaPath;
+      verifiedMediaType = isVideo ? "video" : "photo";
+      verifiedMediaSize = actualSize;
+      verifiedMediaMime =
+        actualMime || (typeof body.media_mime === "string" ? body.media_mime : "");
+    }
+
     const id = nanoid();
     const { data, error } = await db
       .from("dm_messages")
@@ -191,11 +226,11 @@ export async function POST(
         body: isMedia ? "" : text,
         filter_level: analysis.level,
         held,
-        ...(isMedia && {
-          media_path: body.media_path as string,
-          media_type: body.media_type as string,
-          media_mime: body.media_mime as string,
-          media_size: body.media_size as number
+        ...(verifiedMediaPath && {
+          media_path: verifiedMediaPath,
+          media_type: verifiedMediaType,
+          media_mime: verifiedMediaMime,
+          media_size: verifiedMediaSize
         })
       })
       .select("id, sender_id, body, created_at, held, filter_level, read_at, media_path, media_type, viewed_at")
@@ -228,4 +263,3 @@ export async function POST(
     return serverError("dm/threads/[id]/messages", e);
   }
 }
-

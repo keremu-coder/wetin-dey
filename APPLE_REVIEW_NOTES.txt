@@ -10,21 +10,21 @@ Wetin Dey is a hybrid app built with Next.js and wrapped in Capacitor. While it 
 HOW TO TEST KEY FEATURES:
 
 Delete Account:
-  Open Settings (hamburger menu top-right) → Delete Account. Type DELETE to confirm.
+  Open the menu (hamburger top-right) → Settings → Delete Account. Type DELETE to confirm.
 
 Block a user:
   Open any DM → tap the ••• menu (top-right) → Block @handle.
   Or open a profile → tap ••• (top-right) → Block.
 
 Report a DM:
-  Open any DM → scroll to any incoming message → tap the small "Report" link below it.
+  Open any DM → scroll to any incoming message → tap "Report" under the message.
   Choose a reason and submit.
 
 Report a post or comment:
   Open any post → tap the ••• on the post → Report.
 
 Radar (background location):
-  Open the Radar tab → tap "Start a signal" → choose "Need help" → allow location "While Using" then "Always".
+  Open the Radar tab → tap "Need help" → allow location "While Using" then "Always".
   The signal auto-expires after 4 hours.
 
 Content moderation SLA:
@@ -33,5 +33,5 @@ Content moderation SLA:
 For testing, use the anonymous login option (Stay Anonymous) to bypass email requirements.
 
 If you need a test account with populated data, please use:
-Username: [YOUR TEST HANDLE]
-Recovery Code: [YOUR RECOVERY CODE]
+Username: ____ (fill in before submission)
+Recovery Code: ____ (fill in before submission)
