@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { Suspense } from "react";
 import { WetinMark } from "@/components/WetinMark";
 import { redirect } from "next/navigation";
@@ -9,8 +9,6 @@ import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getBlockedIds } from "@/lib/blocks";
 import { stripSession, type Report } from "@/lib/types";
-
-export const dynamic = "force-dynamic";
 
 const TALK_AM_TYPES = ["report_am", "ask", "help"];
 const COMMUNITY_TYPES = ["talk_am", "news", "talent", "rant"];
@@ -74,7 +72,7 @@ function TalkSkeleton() {
 }
 
 /**
- * Static shell — awaits only searchParams (~5ms) so the browser sees a
+ * Static shell â€” awaits only searchParams (~5ms) so the browser sees a
  * painted page instantly. The data-heavy <TalkData> streams in via Suspense.
  */
 export default async function TalkAmPage(props: {
@@ -203,16 +201,6 @@ async function TalkData({
     communityReports.forEach((r, i) => { communityReports[i] = attach(r); });
   }
 
-  // C10 fix: sort resolved reports to the top of each list within the
-  // current page batch. Resolved is the emotional peak of the product —
-  // a user landing on /talk should see "wetin we don settle" before
-  // "wetin still dey happen". The sort is stable within each group, so
-  // resolved reports still appear newest-first, and unresolved reports
-  // still appear newest-first.
-  //
-  // Cross-page sorting is deferred. Within-page is what users see
-  // first, and the query is paginated with PAGE_SIZE = 20, so the
-  // chance of a resolved report living on page 2 is already low.
   const sortResolvedFirst = (arr: Report[]): Report[] =>
     [...arr].sort((a, b) => {
       const aR = a.status === "resolved" ? 1 : 0;

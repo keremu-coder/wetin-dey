@@ -11,8 +11,6 @@ import { ChoosePath } from "@/components/ChoosePath";
 import { StatusBar } from "@/components/StatusBar";
 import type { Report } from "@/lib/types";
 
-export const dynamic = "force-dynamic";
-
 export default async function HomePage() {
   const jar = await cookies();
   const pathChosen = jar.get("wd_path_chosen")?.value;

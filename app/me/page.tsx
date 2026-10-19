@@ -1,12 +1,10 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { Suspense } from "react";
 import { Alama } from "@/components/Alama";
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { MeTabs } from "@/components/MeTabs";
-
-export const dynamic = "force-dynamic";
 
 function MeSkeleton() {
   return (
@@ -76,7 +74,7 @@ export default async function MePage(props: {
           href="/settings"
           className="text-[0.8125rem] font-medium text-brand hover:underline"
         >
-          Settings →
+          Settings â†’
         </Link>
       </div>
     </main>
