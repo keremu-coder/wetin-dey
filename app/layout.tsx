@@ -1,4 +1,4 @@
-import type { Metadata, Viewport } from "next";
+﻿import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import { Nav, SiteFooter } from "@/components/Nav";
 import { LiveStateProvider } from "@/components/LiveStateProvider";
@@ -49,6 +49,8 @@ export const viewport: Viewport = {
   themeColor: "#1E2F5C",
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover"
 };
 
@@ -86,38 +88,12 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/*
-          The theme bootstrap MUST run before first paint to avoid a
-          light/dark flash, so it is an inline script. It carries the
-          per-request CSP nonce from middleware.
-
-          suppressHydrationWarning on the <script> element is required
-          because browsers blank the nonce content attribute after
-          parsing (a security feature: CSS cannot exfiltrate the nonce
-          via attribute selectors). In dev, Next 15's overlay does a
-          second SSR pass for error replay without the x-csp-nonce
-          header, so the overlay compares an empty server nonce against
-          the real client nonce and logs a hydration mismatch.
-
-          Production renders the nonce correctly (verified in live HTML)
-          and never runs the replay pass. This attribute silences the
-          dev-only noise on this one element without affecting anything
-          else. Do not add suppressHydrationWarning elsewhere without a
-          specific reason.
-        */}
         <script
           nonce={nonce}
           suppressHydrationWarning
           dangerouslySetInnerHTML={{ __html: themeScript }}
         />
-
-        {/*
-          Next.js emits the apple-* PWA meta tag from metadata.appleWebApp.
-          Apple now asks for the unprefixed version too for forward compat.
-          Not emitted automatically, so we add it manually.
-        */}
         <meta name="mobile-web-app-capable" content="yes" />
-
         {supabaseHost ? (
           <>
             <link

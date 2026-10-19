@@ -1,37 +1,47 @@
-@tailwind base;
+﻿@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-* { box-sizing: border-box; }
+/* =========================================
+   NATIVE APP BASELINE (NO WEBSITE TELLS)
+   ========================================= */
+* { 
+  box-sizing: border-box; 
+  -webkit-tap-highlight-color: transparent; /* Stops the blue/grey tap flash */
+}
 
 html, body {
   margin: 0;
   padding: 0;
+  overscroll-behavior-y: none; /* Stops iOS/Android rubber-band bounce */
+  -webkit-text-size-adjust: 100%; /* Stops text auto-resizing on rotate */
+  text-size-adjust: 100%;
+  -webkit-touch-callout: none; /* Kills the Safari "Save Image / Copy Link" popup */
+  -webkit-user-select: none; /* Stops users from dragging to highlight text */
+  user-select: none;
 }
 
-/*
-  iOS notch/status-bar occupies the top ~44px when the PWA is installed
-  with viewport-fit=cover. Without this padding, page headers and back
-  arrows are hidden behind the notch. env() returns 0 on browsers that
-  don't support it.
+/* Hide all scrollbars but keep scrolling functionality */
+::-webkit-scrollbar {
+  display: none;
+  width: 0px;
+  background: transparent;
+}
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
 
-  We also paint the html element itself with the theme paper colour. The
-  native splash screen fades into the WKWebView; without this, the html
-  element paints white for one or two frames before React hydrates. This
-  is the single biggest "web app" tell at launch.
+/* Allow text selection ONLY inside inputs so users can still edit text */
+input, textarea, [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+  font-size: 16px !important; /* Prevents iOS auto-zoom when focusing inputs */
+}
 
-  Native-feel baseline:
-    - text-size-adjust 100% stops iOS from auto-scaling body text when
-      the device rotates.
-    - overscroll-behavior-y none stops the page from rubber-banding past
-      its ends, which is a browser-only visual.
-*/
 html {
   padding-top: env(safe-area-inset-top, 0px);
   background: var(--color-paper);
-  -webkit-text-size-adjust: 100%;
-  text-size-adjust: 100%;
-  overscroll-behavior-y: none;
 }
 
 /* LIGHT THEME */
@@ -87,18 +97,6 @@ html {
   --color-msg-meta: #8B9A91;
 }
 
-/*
-  Native-feel body rules:
-    - tap-highlight-color transparent removes the blue/grey flash that
-      Chrome and Safari paint over tapped links and buttons. No native
-      app has this; every tap on a tap-highlighted element reads as
-      "this is a website".
-    - touch-action manipulation removes the browser's double-tap-to-zoom
-      gesture on buttons and inputs, so quick repeat taps do nothing
-      weird.
-    - overscroll-behavior-y none (repeated from html) makes sure no inner
-      element accidentally re-enables rubber-band scroll.
-*/
 body {
   background: var(--color-paper);
   color: var(--color-ink);
@@ -107,9 +105,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
   transition: background-color 150ms ease, color 150ms ease;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-  overscroll-behavior-y: none;
+  touch-action: manipulation; /* Removes 300ms delay and double-tap zoom */
 }
 
 h1, h2, h3, h4 {
@@ -150,7 +146,6 @@ select {
   padding: 0.7rem 0.95rem;
   color: var(--color-ink);
   width: 100%;
-  font-size: 16px;
   font-family: inherit;
   transition: border-color 120ms ease, box-shadow 120ms ease;
 }
@@ -164,17 +159,6 @@ input:focus, textarea:focus, select:focus {
 }
 
 textarea { resize: vertical; min-height: 100px; line-height: 1.5; }
-
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb {
-  background: var(--color-border-strong);
-  border-radius: 8px;
-}
-::-webkit-scrollbar-thumb:hover { background: var(--color-muted); }
-
-.hide-scrollbar::-webkit-scrollbar { display: none; }
-.hide-scrollbar { scrollbar-width: none; }
 
 /* ANIMATIONS */
 @keyframes slide-in-right {
@@ -213,15 +197,8 @@ textarea { resize: vertical; min-height: 100px; line-height: 1.5; }
   animation: typing-dot 1.2s ease-in-out infinite;
 }
 
-/*
-  Honour the OS-level "reduce motion" setting. iOS Accessibility has it,
-  Android has "Remove animations". Apple reviewers look for this. When
-  it is on, kill every animation and transition on the page.
-*/
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
@@ -294,7 +271,6 @@ textarea { resize: vertical; min-height: 100px; line-height: 1.5; }
   font-weight: 600;
   font-size: 0.95rem;
   flex-shrink: 0;
-  user-select: none;
   position: relative;
 }
 
@@ -393,11 +369,7 @@ textarea { resize: vertical; min-height: 100px; line-height: 1.5; }
   border-color: color-mix(in srgb, var(--color-accent) 60%, transparent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 12%, transparent);
 }
-/* Native shell: use platform system fonts on form controls so buttons
-   and inputs feel like iOS/Android native controls instead of web form
-   elements. Headings and body text keep the branded Space Grotesk /
-   Inter pairing. The class is added to html by the themeScript in
-   app/layout.tsx when Capacitor reports isNativePlatform() === true. */
+
 html.native input,
 html.native textarea,
 html.native select,
@@ -501,78 +473,11 @@ html.native button {
   --danger-hot: #FF5A56;
 }
 
-
-
 /* === SKELETON SHIMMER === */
 :root { --skeleton-bg: rgba(0,0,0,0.06); }
 :root[data-theme="dark"] { --skeleton-bg: rgba(255,255,255,0.1); }
 .skeleton { background-color: var(--skeleton-bg); }
 
-/* Prevent iOS auto-zoom on inputs (requires >= 16px font size) */
-input, textarea, select {
-  font-size: 16px !important;
-}
-/* === NATIVE APP FEEL OVERRIDES === */
-/* Stop the blue tap highlight on mobile links/buttons */
-* {
-  -webkit-tap-highlight-color: transparent;
-}
-
-/* Prevent text selection (users can't drag-copy text easily) */
-body {
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-/* Allow text selection ONLY in inputs and textareas */
-input, textarea, [contenteditable="true"] {
-  user-select: text;
-  -webkit-user-select: text;
-}
-
-/* Hide scrollbars but keep scrolling */
-::-webkit-scrollbar {
-  display: none;
-}
-* {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-/* === FINAL NATIVE APP OVERRIDES === */
-/* Stop the blue tap highlight on mobile links/buttons */
-* {
-  -webkit-tap-highlight-color: transparent !important;
-}
-
-/* Prevent text selection (users can't drag-copy text easily) */
-body {
-  user-select: none;
-  -webkit-user-select: none;
-  /* Prevent iOS elastic scrolling bounce */
-  overscroll-behavior-y: none; 
-}
-
-/* Allow text selection ONLY in inputs and textareas */
-input, textarea, [contenteditable="true"] {
-  user-select: text;
-  -webkit-user-select: text;
-}
-
-/* Hide scrollbars but keep scrolling */
-::-webkit-scrollbar {
-  display: none;
-  width: 0px;
-  background: transparent;
-}
-* {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-/* Fix input zoom on iOS */
-input, select, textarea {
-  font-size: 16px !important;
-}
 /* === NATIVE BOTTOM SHEET ANIMATIONS === */
 @keyframes slideUp {
   from { transform: translateY(100%); }
