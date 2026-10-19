@@ -538,3 +538,38 @@ input, textarea, [contenteditable="true"] {
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
+/* === FINAL NATIVE APP OVERRIDES === */
+/* Stop the blue tap highlight on mobile links/buttons */
+* {
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+/* Prevent text selection (users can't drag-copy text easily) */
+body {
+  user-select: none;
+  -webkit-user-select: none;
+  /* Prevent iOS elastic scrolling bounce */
+  overscroll-behavior-y: none; 
+}
+
+/* Allow text selection ONLY in inputs and textareas */
+input, textarea, [contenteditable="true"] {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Hide scrollbars but keep scrolling */
+::-webkit-scrollbar {
+  display: none;
+  width: 0px;
+  background: transparent;
+}
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+/* Fix input zoom on iOS */
+input, select, textarea {
+  font-size: 16px !important;
+}
