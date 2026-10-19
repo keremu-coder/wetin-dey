@@ -1,8 +1,7 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 
 type IconProps = { active: boolean };
 
@@ -52,13 +51,6 @@ const HIDDEN_PREFIXES = [
 
 export function BottomNav() {
   const pathname = usePathname();
-  const router = useRouter();
-
-  useEffect(() => {
-    for (const tab of TABS) {
-      router.prefetch(tab.href);
-    }
-  }, [router]);
 
   if (HIDDEN_PREFIXES.some((p) => pathname.startsWith(p))) {
     return null;
@@ -75,7 +67,13 @@ export function BottomNav() {
         {TABS.map(({ href, label, Icon }) => {
           const active = isActive(href);
           return (
-            <Link key={href} href={href} prefetch onMouseEnter={() => router.prefetch(href)} onTouchStart={() => router.prefetch(href)} onFocus={() => router.prefetch(href)} className="flex min-h-[72px] flex-col items-center justify-center gap-1 py-2" aria-current={active ? "page" : undefined}>
+            <Link 
+              key={href} 
+              href={href} 
+              prefetch={false} 
+              className="flex min-h-[72px] flex-col items-center justify-center gap-1 py-2" 
+              aria-current={active ? "page" : undefined}
+            >
               <span className="flex h-8 items-center justify-center rounded-2xl px-4 transition-colors" style={{ background: active ? "var(--brand-ink-tint)" : "transparent" }}>
                 <span style={{ color: active ? "var(--brand-ink)" : "var(--color-faint)" }}>
                   <Icon />

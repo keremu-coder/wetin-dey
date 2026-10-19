@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   createContext,
@@ -12,17 +12,11 @@ import {
 
 /**
  * One shared poller for the whole app.
- *
- * Before this, Nav.tsx and BottomNav.tsx each polled /api/dm/unread every
- * 30s and restarted their interval on every pathname change, and
- * PresencePing.tsx added its own 60s ping interval. That's 3 timers per
- * user, re-created on every navigation.
- *
- * LiveStateProvider replaces all three:
- *   - polls unread every 30s
- *   - pings /api/ping every 60s (every 2nd tick of the same interval)
- *   - pauses when document.hidden, resumes on visibilitychange
- *   - does NOT restart on route change (context lives above the router)
+ * 
+ * UPDATED FOR PERFORMANCE:
+ * - Checks for slow connections (2G/Data Saver) and throttles polling to 2 mins.
+ * - Skips presence pings on slow connections.
+ * - Throttles focus/visibility events to prevent network spam.
  */
 
 type LiveState = {
@@ -40,7 +34,20 @@ const LiveStateContext = createContext<LiveState>({
 });
 
 const TICK_MS = 30_000;
+const SLOW_TICK_MS = 120_000; // 2 minutes for 2G
 const PRESENCE_EVERY_N_TICKS = 2; // every 2nd tick = 60s
+
+function isSlowConnection() {
+  if (typeof window === "undefined") return false;
+  if ("connection" in navigator) {
+    const conn = (navigator as any).connection;
+    if (conn) {
+      if (conn.saveData) return true;
+      if (conn.effectiveType === "slow-2g" || conn.effectiveType === "2g") return true;
+    }
+  }
+  return false;
+}
 
 async function fetchUnreadCount(): Promise<number | null> {
   try {
@@ -73,6 +80,7 @@ export function LiveStateProvider({ children }: { children: ReactNode }) {
   const [notificationsUnread, setNotificationsUnread] = useState(0);
   const aliveRef = useRef(true);
   const tickRef = useRef(0);
+  const lastFetchRef = useRef(0);
 
   const refreshUnread = useCallback(async () => {
     const n = await fetchUnreadCount();
@@ -87,33 +95,52 @@ export function LiveStateProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     aliveRef.current = true;
     tickRef.current = 0;
+    lastFetchRef.current = Date.now();
 
-    // Initial hit — both unread and presence
+    // Initial hit
     void refreshUnread();
     void refreshNotifications();
-    pingPresence();
+    if (!isSlowConnection()) {
+      pingPresence();
+    }
 
     const id = setInterval(() => {
       if (typeof document !== "undefined" && document.hidden) return;
-      tickRef.current += 1;
-      void refreshUnread();
-      void refreshNotifications();
-      if (tickRef.current % PRESENCE_EVERY_N_TICKS === 0) {
-        pingPresence();
+      
+      const now = Date.now();
+      const slow = isSlowConnection();
+      const minInterval = slow ? SLOW_TICK_MS : TICK_MS;
+
+      // Only fetch if enough time has passed based on connection speed
+      if (now - lastFetchRef.current >= minInterval) {
+        lastFetchRef.current = now;
+        tickRef.current += 1;
+        
+        void refreshUnread();
+        void refreshNotifications();
+        
+        if (!slow && tickRef.current % PRESENCE_EVERY_N_TICKS === 0) {
+          pingPresence();
+        }
       }
     }, TICK_MS);
 
     function onVisibility() {
       if (document.visibilityState === "visible") {
-        void refreshUnread();
-        void refreshNotifications();
-        pingPresence();
+        const now = Date.now();
+        const slow = isSlowConnection();
+        // Throttle to 10 seconds so rapid tab switching doesn't spam
+        if (now - lastFetchRef.current > 10_000) {
+          lastFetchRef.current = now;
+          void refreshUnread();
+          void refreshNotifications();
+          if (!slow) pingPresence();
+        }
       }
     }
 
     function onFocus() {
-      void refreshUnread();
-      void refreshNotifications();
+       onVisibility();
     }
 
     document.addEventListener("visibilitychange", onVisibility);
