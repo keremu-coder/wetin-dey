@@ -21,7 +21,7 @@ export function InviteSheet({
     const base =
       typeof window !== "undefined"
         ? window.location.origin
-        : "https://9jawatindey.vercel.app";
+        : "https://wetindey.app";
     setUrl(`${base}/c/${slug}`);
   }, [slug]);
 

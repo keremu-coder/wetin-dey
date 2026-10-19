@@ -4,7 +4,7 @@ Nigerian community platform. Anonymous civic reports with permanent URLs.
 Free-form community feed. Discord-style Spaces with live chat. Pidgin-first.
 No identity. No ads on Talk Am, ever.
 
-Live at: https://9jawatindey.vercel.app
+Live at: https://wetindey.app
 
 ## What this is
 

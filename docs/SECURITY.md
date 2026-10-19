@@ -235,7 +235,7 @@ was already noted in `SESSION_LOG.md` and remains true.
 Every remaining finding is in build-time or test-time tooling. None are
 user-exploitable in the production app:
 
-| Package | Severity | Runs in | Exploitable by a user of 9jawatindey.vercel.app? |
+| Package | Severity | Runs in | Exploitable by a user of wetindey.app? |
 |---|---|---|---|
 | `tinypool` | critical | vitest test runner | **No** — only runs during `npm test` |
 | `postcss` (via next) | high | build + CSS processing | **No** — requires attacker-controlled CSS input; app CSS is author-controlled |

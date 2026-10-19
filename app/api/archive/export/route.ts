@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
     const payload = {
       archive_version: "1.0",
       exported_at: new Date().toISOString(),
-      source: "https://9jawatindey.vercel.app",
+      source: "https://wetindey.app",
       license: "Public domain. Attribution appreciated: Wetin Dey",
       count: all.length,
       reports: all

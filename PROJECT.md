@@ -2,7 +2,7 @@
 
 ## What it is
 Nigerian community platform. Anonymous civic reports + social community + Discord-style spaces.
-Live at: https://9jawatindey.vercel.app
+Live at: https://wetindey.app
 Repo: https://github.com/keremu-coder/wetin-dey
 
 ## Login (for testing)

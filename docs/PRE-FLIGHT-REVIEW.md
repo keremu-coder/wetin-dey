@@ -20,7 +20,7 @@ time.
 Guideline: 4.2, also 4.2.2 for empty first screen.
 Trigger: shell loads a website and adds nothing a Safari bookmark can't do.
 Evidence:
-- capacitor.config.ts loads https://9jawatindey.vercel.app via server.url
+- capacitor.config.ts loads https://wetindey.app via server.url
 - native push claims to be the anti-wrapper feature, but push is not wired
   (no .entitlements, no AppDelegate forwarding, no google-services.json)
 - other native adds (haptics, share, splash, status bar) read as cosmetic

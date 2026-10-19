@@ -11,7 +11,7 @@ import {
 import { serverError } from "@/lib/http";
 
 const BATCH_SIZE = 5;
-const BASE_URL = "https://9jawatindey.vercel.app";
+const BASE_URL = "https://wetindey.app";
 
 function isAuthorized(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;

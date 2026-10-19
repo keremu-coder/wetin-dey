@@ -29,7 +29,7 @@ read this top to bottom before doing anything.
 ## Where we are right now
 
 - Repo: https://github.com/keremu-coder/wetin-dey
-- Live: https://9jawatindey.vercel.app
+- Live: https://wetindey.app
 - HEAD: latest commit after the textareaRef type fix (Vercel green).
 - Working tree: clean.
 - Docs synced this session: SESSION_LOG.md, PROJECT.md, BACKLOG.md.

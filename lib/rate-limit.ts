@@ -252,7 +252,7 @@ export async function checkRateLimit(
 const ALLOWED_ORIGINS = [
   "http://localhost:3000",
   "http://127.0.0.1:3000",
-  "https://9jawatindey.vercel.app",
+  "https://wetindey.app",
   "https://wetin-dey-gamma.vercel.app",
   "https://wetindey.vercel.app",
   "https://wetindey.app",
@@ -280,8 +280,8 @@ export async function checkIpRateLimit(
  * fall back to Referer.
  *
  * Referer comparison is by parsed `.origin`, NOT string prefix. A
- * prefix check with `startsWith("https://9jawatindey.vercel.app")`
- * would accept `https://9jawatindey.vercel.app.evil.com/page` - the
+ * prefix check with `startsWith("https://wetindey.app")`
+ * would accept `https://wetindey.app.evil.com/page` - the
  * attacker's DNS, matching your prefix. Parse and compare exactly.
  */
 export function sameOrigin(req: Request): boolean {

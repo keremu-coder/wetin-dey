@@ -76,7 +76,7 @@ export default function TakedownPage() {
               required
               value={postUrl}
               onChange={(e) => setPostUrl(e.target.value)}
-              placeholder="https://9jawatindey.vercel.app/r/..."
+              placeholder="https://wetindey.app/r/..."
             />
             <p className="mt-1 text-[0.75rem] text-faint">
               Copy the URL from the report page.
