@@ -347,3 +347,27 @@ export function moderationReason(result: ModerationResult): string | null {
       return "This message is held for review.";
   }
 }
+
+/**
+ * Convenience enforcement helper.
+ * Call this in your DM send route to determine if a message should be blocked.
+ */
+export function enforceDmPolicy(text: string) {
+  const analysis = analyzeMessage(text);
+  const mod = analyzeModeration(text);
+  
+  if (analysis.level === "block") {
+    return {
+      blocked: true,
+      reason: blockReason(analysis) ?? "This message contains contact info and can't be sent.",
+      kinds: analysis.matches.map((m) => m.kind),
+    };
+  }
+  
+  return {
+    blocked: false,
+    reason: null,
+    hold: mod.hold,
+    matches: mod.matches,
+  };
+}

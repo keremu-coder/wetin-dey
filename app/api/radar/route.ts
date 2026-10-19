@@ -5,6 +5,15 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { sameOrigin, checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 import { canSeePhoto } from "@/lib/photo-visibility";
 
+function sanitizeSignalForRecipient(signal: any, viewingSessionId: string, peopleMap: Map<string, any>) {
+  const safe = { ...signal };
+  if (!signal.location_sharing) {
+    delete safe.lat;
+    delete safe.lng;
+  }
+  return { ...safe, sender: peopleMap.get(signal.sender_id) ?? null };
+}
+
 export async function GET() {
   try {
     const sid = await getSessionId();
@@ -70,12 +79,7 @@ export async function GET() {
     // We redact lat/lng from the general GET payload for App Store compliance.
     // The client should render a "Location Shared" badge instead of a map pin
     // until the dedicated consent flow is built.
-    const redactedInbox = signals.map((s) => ({
-      ...s,
-      lat: null,
-      lng: null,
-      sender: people.get(s.sender_id as string) ?? null
-    }));
+    const redactedInbox = signals.map((s) => sanitizeSignalForRecipient(s, sid, people));
 
     const redactedMine = (mineRes.data ?? []).map((s) => ({
       ...s,
@@ -143,3 +147,4 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
+
