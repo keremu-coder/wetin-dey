@@ -734,7 +734,7 @@ export function ChatRoom({
     !inviteBannerDismissed && members.length < 5 && !inviteOpen;
 
   return (
-    <div className="fixed inset-0 z-50 flex h-[100dvh] flex-col bg-paper">
+    <div className="fixed inset-0 z-50 flex h-[100dvh] flex-col bg-paper" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
       <ChatHeader
         slug={slug}
         name={name}
@@ -797,7 +797,7 @@ export function ChatRoom({
             </p>
           </div>
         ) : (
-          <div className="mt-auto">
+          <div>
             {messages
               .filter((m) => !blockedHandles.has(m.author_handle))
               .map((m, idx, arr) => {
@@ -978,3 +978,4 @@ export function ChatRoom({
     </div>
   );
 }
+
