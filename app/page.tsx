@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { cookies } from "next/headers";
 import { getSessionId } from "@/lib/session";
 import { getChatsHome } from "@/lib/chats-data";
@@ -17,12 +17,23 @@ export default async function HomePage() {
   const jar = await cookies();
   const pathChosen = jar.get("wd_path_chosen")?.value;
 
-  if (!pathChosen) {
+  const sessionId = await getSessionId();
+  const db = createServiceClient();
+
+  // Check if the session is linked to an account (i.e. they have a handle)
+  const { data: session } = await db
+    .from("sessions")
+    .select("handle")
+    .eq("id", sessionId)
+    .maybeSingle();
+
+  const isLoggedIn = !!session?.handle;
+
+  // Only show ChoosePath if they are NOT logged in AND haven't chosen a path yet
+  if (!isLoggedIn && !pathChosen) {
     return <ChoosePath />;
   }
 
-  const sessionId = await getSessionId();
-  const db = createServiceClient();
   const { chats, suggestions } = await getChatsHome(sessionId);
 
   // Fetch statuses for the BBM feed
@@ -63,7 +74,7 @@ export default async function HomePage() {
     });
 
     return (
-      
+      <>
         <HomeLoggedOut
           reports={sorted.slice(0, 3)}
           suggestions={suggestions.map((s) => ({
@@ -74,12 +85,12 @@ export default async function HomePage() {
             meta: s.meta
           }))}
         />
-      
+      </>
     );
   }
 
   return (
-    
+    <>
       <main className="mx-auto max-w-2xl pb-24">
         <div className="px-5 pb-3 pt-2">
           <Link
@@ -140,6 +151,6 @@ export default async function HomePage() {
           </>
         ) : null}
       </main>
-    
+    </>
   );
 }
