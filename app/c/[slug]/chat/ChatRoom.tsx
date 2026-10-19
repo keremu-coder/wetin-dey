@@ -734,7 +734,7 @@ export function ChatRoom({
     !inviteBannerDismissed && members.length < 5 && !inviteOpen;
 
   return (
-    <div className="fixed inset-0 z-50 flex h-[100dvh] flex-col bg-paper" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
+    <div className="fixed inset-0 z-50 flex flex-col bg-paper overflow-hidden" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
       <ChatHeader
         slug={slug}
         name={name}
@@ -978,4 +978,5 @@ export function ChatRoom({
     </div>
   );
 }
+
 
