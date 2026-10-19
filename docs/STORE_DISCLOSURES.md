@@ -10,11 +10,11 @@ Last updated: 2026-10-11.
 
 ## URLs for the store listing
 
-- **Privacy policy URL:** https://9jawatindey.vercel.app/privacy
-- **Delete account URL:** https://9jawatindey.vercel.app/delete-account
-- **Terms of use URL:** https://9jawatindey.vercel.app/terms
-- **Community guidelines URL:** https://9jawatindey.vercel.app/guidelines
-- **Support URL:** https://9jawatindey.vercel.app/support
+- **Privacy policy URL:** https://wetindey.app/privacy
+- **Delete account URL:** https://wetindey.app/delete-account
+- **Terms of use URL:** https://wetindey.app/terms
+- **Community guidelines URL:** https://wetindey.app/guidelines
+- **Support URL:** https://wetindey.app/support
 
 ---
 
@@ -89,7 +89,7 @@ Yes.
 Yes.
 
 **Do you provide a way for users to request that their data is deleted?**
-Yes. https://9jawatindey.vercel.app/delete-account
+Yes. https://wetindey.app/delete-account
 
 ### Data types collected
 
@@ -103,7 +103,7 @@ Yes. https://9jawatindey.vercel.app/delete-account
 | Text (report body) | Yes | Yes - Groq (formalization), Telegram (public mirror of reviewed reports) | No | Civic reports |
 | Name (handle) | Yes | No | No | Public username |
 | User IDs (session id) | Yes | No | No | Session identification |
-| Approximate location | Yes | No | Yes | Near-you filtering (not stored) |
+| Approximate location | Yes | No | Yes | Near-you filtering; selected State/LGA is stored with civic reports. |
 | Precise location | Yes | No | Yes | Radar Need help / Police stop signals; visible only to chosen contacts (who must have added you back); stored up to 4h of sharing; deleted with account |
 | App interactions | Yes | No | No | Presence, last-seen |
 | Device or other IDs | No | - | - | - |

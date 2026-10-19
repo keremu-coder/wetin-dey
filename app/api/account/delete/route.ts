@@ -14,14 +14,7 @@ type DeleteBody = {
 
 const TOMBSTONE = "deleted";
 
-/**
- * Extracts the storage-relative path from a Supabase Storage public URL.
- * Returns null if the URL isn't from Supabase Storage.
- */
-function supabaseStoragePath(
-  url: string,
-  bucket: string
-): string | null {
+function supabaseStoragePath(url: string, bucket: string): string | null {
   try {
     const u = new URL(url);
     const marker = `/storage/v1/object/public/${bucket}/`;
@@ -50,10 +43,7 @@ export async function POST(req: NextRequest) {
       windowMs: 60 * 60 * 1000
     }, { ip: getRequestIp(req) });
     if (!limit.ok) {
-      return Response.json(
-        { error: "Too many attempts. Try again later." },
-        { status: 429 }
-      );
+      return Response.json({ error: "Too many attempts. Try again later." }, { status: 429 });
     }
 
     let body: DeleteBody = {};
@@ -64,10 +54,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (body.confirm !== "DELETE") {
-      return Response.json(
-        { error: 'Type "DELETE" exactly to confirm.' },
-        { status: 400 }
-      );
+      return Response.json({ error: 'Type "DELETE" exactly to confirm.' }, { status: 400 });
     }
 
     const deleteContent = body.delete_content === true;
@@ -79,35 +66,15 @@ export async function POST(req: NextRequest) {
       .eq("id", sessionId)
       .maybeSingle();
 
-    if (sessErr) {
-      return Response.json({ error: "Server error" }, { status: 500 });
-    }
-    if (!session) {
-      return Response.json({ error: "Session not found." }, { status: 404 });
-    }
+    if (sessErr) return Response.json({ error: "Server error" }, { status: 500 });
+    if (!session) return Response.json({ error: "Session not found." }, { status: 404 });
 
-    // ── 1. Delete Supabase Auth user ──
-    // Prefer the stored auth_user_id. If it's missing (pre-007 row that
-    // hasn't been backfilled), fall back to an email lookup. If we can't
-    // delete the Auth user for any reason, return 500 and do NOT proceed
-    // — the session must not be scrubbed while the login still works.
+    // 1. Delete Supabase Auth user
     let authDeleted = false;
     if (session.auth_user_id) {
-      const { error: authDelErr } = await db.auth.admin.deleteUser(
-        session.auth_user_id
-      );
+      const { error: authDelErr } = await db.auth.admin.deleteUser(session.auth_user_id);
       if (authDelErr) {
-        console.error(
-          "[account/delete] auth delete failed by id:",
-          authDelErr.message
-        );
-        return Response.json(
-          {
-            error:
-              "Could not delete your sign-in record. Try again in a minute, or email support@wetindey.app."
-          },
-          { status: 500 }
-        );
+        return Response.json({ error: "Could not delete your sign-in record." }, { status: 500 });
       }
       authDeleted = true;
     } else if (session.email) {
@@ -116,149 +83,68 @@ export async function POST(req: NextRequest) {
         if (match) {
           const { error: authDelErr } = await db.auth.admin.deleteUser(match);
           if (authDelErr) {
-            console.error(
-              "[account/delete] auth delete failed by email fallback:",
-              authDelErr.message
-            );
-            return Response.json(
-              {
-                error:
-                  "Could not delete your sign-in record. Try again in a minute, or email support@wetindey.app."
-              },
-              { status: 500 }
-            );
+            return Response.json({ error: "Could not delete your sign-in record." }, { status: 500 });
           }
           authDeleted = true;
         }
-        // If no Auth user found for the email, there's nothing to delete.
-        // Treat as success and move on.
       } catch (e) {
-        console.error(
-          "[account/delete] auth email fallback threw:",
-          (e as Error).message
-        );
-        return Response.json(
-          {
-            error:
-              "Could not check your sign-in record. Try again in a minute, or email support@wetindey.app."
-          },
-          { status: 500 }
-        );
+        return Response.json({ error: "Could not check your sign-in record." }, { status: 500 });
       }
     }
 
-    // Audit finding 4c: when the user opts to delete their content, also
-    // delete the evidence storage objects for every report they own.
-    // Without this, files stayed public at their URLs even after the
-    // account was gone.
-    //
-    // Best-effort: a storage failure logs but does not block the
-    // account deletion (which is the user's primary intent).
+    // 2. Delete Evidence Files (if content deletion is requested)
     if (deleteContent) {
       try {
-        const { data: userReports } = await db
-          .from("reports")
-          .select("id")
-          .eq("session_id", sessionId);
+        const { data: userReports } = await db.from("reports").select("id").eq("session_id", sessionId);
         if (userReports && userReports.length > 0) {
           const { deleteReportEvidence } = await import("@/lib/evidence-cleanup");
-          await Promise.all(
-            userReports.map((r) =>
-              deleteReportEvidence(r.id).catch((e) =>
-                console.warn("[account/delete] evidence cleanup:", e)
-              )
-            )
-          );
+          await Promise.all(userReports.map((r) => deleteReportEvidence(r.id).catch((e) => console.warn(e))));
         }
       } catch (e) {
         console.error("[account/delete] evidence batch failed:", e);
       }
     }
-    // ── 2. Delete avatar blobs ──
+
+    // 3. Delete avatar and space avatar blobs
     if (session.avatar_url) {
       const path = supabaseStoragePath(session.avatar_url, "user-avatars");
-      if (path) {
-        await db.storage
-          .from("user-avatars")
-          .remove([path])
-          .catch(() => {});
-      }
+      if (path) await db.storage.from("user-avatars").remove([path]).catch(() => {});
     }
-
-    // ── 3. Delete space avatar blobs for owned communities ──
-    const { data: ownedCommunities } = await db
-      .from("communities")
-      .select("id, avatar_url")
-      .eq("owner_session_id", sessionId);
-
+    const { data: ownedCommunities } = await db.from("communities").select("id, avatar_url").eq("owner_session_id", sessionId);
     for (const c of ownedCommunities ?? []) {
       if (c.avatar_url) {
         const path = supabaseStoragePath(c.avatar_url, "space-avatars");
-        if (path) {
-          await db.storage
-            .from("space-avatars")
-            .remove([path])
-            .catch(() => {});
-        }
+        if (path) await db.storage.from("space-avatars").remove([path]).catch(() => {});
       }
     }
 
-    // ── 4. Delete broadcast blobs + broadcasts ──
-    const { data: broadcasts } = await db
-      .from("broadcasts")
-      .select("id, audio_url")
-      .eq("session_id", sessionId);
-
+    // 4. Delete broadcast blobs + broadcasts
+    const { data: broadcasts } = await db.from("broadcasts").select("id, audio_url").eq("session_id", sessionId);
     for (const b of broadcasts ?? []) {
       if (b.audio_url) {
         const path = supabaseStoragePath(b.audio_url, "voice-notes");
-        if (path) {
-          await db.storage
-            .from("voice-notes")
-            .remove([path])
-            .catch(() => {});
-        }
+        if (path) await db.storage.from("voice-notes").remove([path]).catch(() => {});
       }
     }
     await db.from("broadcasts").delete().eq("session_id", sessionId);
 
-    // ── 5. Optional: delete user's own content (comments + chat) ──
+    // 5. Delete chat voice notes and messages
     if (deleteContent) {
-      // Remove voice-note files from storage before deleting rows.
-      // Without this, the public URLs keep working after account deletion.
-      const { data: cmAudio } = await db
-        .from("community_messages")
-        .select("audio_url")
-        .eq("session_id", sessionId)
-        .not("audio_url", "is", null);
+      const { data: cmAudio } = await db.from("community_messages").select("audio_url").eq("session_id", sessionId).not("audio_url", "is", null);
       for (const m of cmAudio ?? []) {
         if (m.audio_url) {
           const path = supabaseStoragePath(m.audio_url, "voice-notes");
-          if (path) {
-            await db.storage
-              .from("voice-notes")
-              .remove([path])
-              .catch(() => {});
-          }
+          if (path) await db.storage.from("voice-notes").remove([path]).catch(() => {});
         }
       }
-      await db
-        .from("community_messages")
-        .delete()
-        .eq("session_id", sessionId);
+      await db.from("community_messages").delete().eq("session_id", sessionId);
     }
 
-    // ── 6. Delete all relations and rows owned by this session ──
+    // 6. Delete all relations and rows owned by this session
     await db.from("follows").delete().eq("follower_session_id", sessionId);
     await db.from("follows").delete().eq("followed_session_id", sessionId);
-    await db
-      .from("blocked_users")
-      .delete()
-      .eq("blocker_session_id", sessionId);
-    await db
-      .from("blocked_users")
-      .delete()
-      .eq("blocked_session_id", sessionId);
+    await db.from("blocked_users").delete().eq("blocker_session_id", sessionId);
+    await db.from("blocked_users").delete().eq("blocked_session_id", sessionId);
     await db.from("push_subscriptions").delete().eq("session_id", sessionId);
     await db.from("native_push_tokens").delete().eq("session_id", sessionId);
     await db.from("rate_events").delete().eq("session_id", sessionId);
@@ -276,77 +162,54 @@ export async function POST(req: NextRequest) {
     await db.from("notifications").delete().eq("session_id", sessionId);
     await db.from("flags").delete().eq("session_id", sessionId);
     await db.from("me_toos").delete().eq("session_id", sessionId);
-    // Radar signals — new schema keys off sender/recipient, not session_id.
     await db.from("radar_signals").delete().eq("sender_id", sessionId);
     await db.from("radar_signals").delete().eq("recipient_id", sessionId);
     await db.from("radar_contacts").delete().eq("owner_id", sessionId);
     await db.from("radar_contacts").delete().eq("contact_id", sessionId);
-    await db
-      .from("community_members")
-      .delete()
-      .eq("session_id", sessionId);
+    await db.from("community_members").delete().eq("session_id", sessionId);
 
-    // ── 7. Tombstone reports + comments ──
-    // Set session_id to "deleted" so content is not linkable to the
-    // removed user, while keeping the reports/comments visible.
-    //
-    // Note: reports.session_id and comments.session_id have no FK to
-    // sessions, so a sentinel string is safe.
-    await db
-      .from("reports")
-      .update({ session_id: TOMBSTONE, author_handle: null })
-      .eq("session_id", sessionId);
-
-    await db
-      .from("comments")
-      .update({ session_id: TOMBSTONE })
-      .eq("session_id", sessionId);
-
-    // ── 8. What we do NOT do, and why ──
-    // DM messages: dm_messages.sender_id has an FK to sessions(id), so
-    // we cannot tombstone it. The sessions row is kept as a ghost (below),
-    // so the FK stays valid and the other participant still sees the
-    // conversation. The ghost has no email, no auth user, and a random
-    // handle — it cannot log back in.
-
-    // ── 9. Scrub the sessions row (kept as ghost) ──
-    const scrubHandle = `deleted_${sessionId.slice(0, 8)}`;
-    const { error: updErr } = await db
-      .from("sessions")
-      .update({
-        handle: scrubHandle,
-        handle_kind: "anonymous",
-        display_name: null,
-        email: null,
-        phone: null,
-        auth_provider: "none",
-        auth_user_id: null,
-        bio: null,
-        avatar_url: null,
-        status_line: null,
-        status_line_updated_at: null,
-        availability: null,
-        recovery_code: null,
-        recovery_code_hash: null,
-        previous_handles: null,
-        dm_policy: "everyone",
-        hide_presence: true,
-        accepted_terms_at: null
-      })
-      .eq("id", sessionId);
-
-    if (updErr) {
-      console.error("[account/delete] session scrub failed:", updErr.message);
-      return Response.json(
-        {
-          error:
-            "Your sign-in was removed but the profile couldn't be scrubbed. Email support@wetindey.app."
-        },
-        { status: 500 }
-      );
+    // 7. Handle Reports and Comments
+    if (deleteContent) {
+      // APPLE COMPLIANCE: Actually delete the rows.
+      // Cascade delete will handle comments on those reports.
+      await db.from("reports").delete().eq("session_id", sessionId);
+      // Also delete any comments they made on OTHER people's reports.
+      await db.from("comments").delete().eq("session_id", sessionId);
+    } else {
+      // ARCHIVE INTEGRITY: Tombstone the content so it stays visible
+      // but is detached from the deleted user.
+      await db.from("reports").update({ session_id: TOMBSTONE, author_handle: null }).eq("session_id", sessionId);
+      await db.from("comments").update({ session_id: TOMBSTONE }).eq("session_id", sessionId);
     }
 
-    // ── 10. Clear the session cookie ──
+    // 8. Scrub the sessions row (kept as ghost for DM FKs)
+    const scrubHandle = `deleted_${sessionId.slice(0, 8)}`;
+    const { error: updErr } = await db.from("sessions").update({
+      handle: scrubHandle,
+      handle_kind: "anonymous",
+      display_name: null,
+      email: null,
+      phone: null,
+      auth_provider: "none",
+      auth_user_id: null,
+      bio: null,
+      avatar_url: null,
+      status_line: null,
+      status_line_updated_at: null,
+      availability: null,
+      recovery_code: null,
+      recovery_code_hash: null,
+      previous_handles: null,
+      dm_policy: "everyone",
+      hide_presence: true,
+      accepted_terms_at: null
+    }).eq("id", sessionId);
+
+    if (updErr) {
+      return Response.json({ error: "Your sign-in was removed but the profile couldn't be scrubbed." }, { status: 500 });
+    }
+
+    // 9. Clear the session cookie
     const res = NextResponse.json({ ok: true, auth_deleted: authDeleted });
     res.cookies.set({
       name: COOKIE_NAME,
@@ -358,33 +221,22 @@ export async function POST(req: NextRequest) {
       maxAge: 0
     });
     return res;
+
   } catch (e) {
     console.error("[account/delete]", e);
     return serverError("account/delete", e);
   }
 }
 
-/**
- * Look up a Supabase Auth user id by email. Paginates through all pages
- * of users because the API caps at 1,000 per page.
- *
- * This is only used as a fallback for sessions whose auth_user_id wasn't
- * stored (pre-migration-007 rows that haven't been backfilled).
- */
-async function findAuthUserByEmail(
-  db: ReturnType<typeof createServiceClient>,
-  email: string
-): Promise<string | null> {
+async function findAuthUserByEmail(db: ReturnType<typeof createServiceClient>, email: string): Promise<string | null> {
   const target = email.toLowerCase();
   let page = 1;
   const perPage = 1000;
-  const MAX_PAGES = 50; // safety cap
+  const MAX_PAGES = 50;
   while (page <= MAX_PAGES) {
     const { data } = await db.auth.admin.listUsers({ page, perPage });
     const users = data?.users ?? [];
-    const match = users.find(
-      (u) => (u.email ?? "").toLowerCase() === target
-    );
+    const match = users.find((u) => (u.email ?? "").toLowerCase() === target);
     if (match) return match.id;
     if (users.length < perPage) return null;
     page++;
