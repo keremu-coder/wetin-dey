@@ -1,30 +1,41 @@
 ﻿import type { CapacitorConfig } from "@capacitor/cli";
 
-/**
- * Capacitor native shell configuration.
- * 
- * IMPORTANT FOR APPLE REVIEW:
- * - limitsNavigationsToAppBoundDomains is set to TRUE to comply with Guideline 4.2.
- * - You MUST add the following to your iOS Info.plist file (via Xcode):
- *   NSLocationWhenInUseUsageDescription: "Wetin Dey uses your location to share safety signals with your private circle."
- *   NSLocationAlwaysAndWhenInUseUsageDescription: "Wetin Dey uses background location to update your safety circle during active Radar signals."
- */
 const config: CapacitorConfig = {
-  appId: "app.wetindey",
+  appId: "com.wetindey.app",
   appName: "Wetin Dey",
   webDir: "public",
   server: {
     url: "https://wetindey.app",
     cleartext: false,
-    allowNavigation: ["wetindey.app"]
+    androidScheme: "https"
   },
   ios: {
-    limitsNavigationsToAppBoundDomains: true,
     contentInset: "always",
-    scheme: "WetinDey"
+    backgroundColor: "#0a0a0a",
+    limitsNavigationsToAppBoundDomains: true
   },
   android: {
-    allowMixedContent: false
+    useLegacyBridge: true,
+    backgroundColor: "#0a0a0a",
+    allowMixedContent: false,
+    captureInput: true,
+    webContentsDebuggingEnabled: false
+  },
+  plugins: {
+    SplashScreen: {
+      launchShowDuration: 800,
+      launchAutoHide: true,
+      launchFadeOutDuration: 250,
+      backgroundColor: "#0a0a0a",
+      androidSplashResourceName: "splash",
+      androidScaleType: "CENTER_CROP",
+      showSpinner: false,
+      splashFullScreen: true,
+      splashImmersive: true
+    },
+    PushNotifications: {
+      presentationOptions: ["badge", "sound", "alert"]
+    }
   }
 };
 
