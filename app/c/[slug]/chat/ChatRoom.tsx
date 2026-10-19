@@ -372,11 +372,15 @@ export function ChatRoom({
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 300;
-    if (nearBottom) {
-      el.scrollTop = el.scrollHeight;
-    }
-  }, [messages]);
+    // Add a slight delay to allow the layout to resize after keyboard opens
+    const t = setTimeout(() => {
+      const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 300;
+      if (nearBottom) {
+        el.scrollTop = el.scrollHeight;
+      }
+    }, 50);
+    return () => clearTimeout(t);
+  }, [messages, viewportHeight]);
 
   useEffect(() => {
     if (!autocorrectOn) {
@@ -1001,6 +1005,7 @@ export function ChatRoom({
     </div>
   );
 }
+
 
 
 
