@@ -236,6 +236,18 @@ export default function PrivacyPage() {
             the NDPA 2023 and the Cybercrimes Act 2015. It is not legal advice.
           </p>
         </div>
+              <section>
+          <h2 className="mb-2 font-serif text-[1.15rem] font-semibold text-ink">
+            Child Safety
+          </h2>
+          <p>
+            Wetin Dey has a zero-tolerance policy for child sexual abuse material (CSAM). For our full reporting, enforcement, and escalation procedures, please read our{" "}
+            <Link href="/safety" className="text-brand underline">
+              Child Safety Standards
+            </Link>.
+          </p>
+        </section>
+
       </article>
     </main>
   );

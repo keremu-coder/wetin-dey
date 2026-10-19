@@ -47,6 +47,20 @@ export default function SupportPage() {
           </p>
         </div>
       </div>
+            <div className="mt-6 rounded-2xl border border-brand/20 bg-brand-tint/20 p-5">
+          <h2 className="font-serif text-[1.15rem] font-semibold text-ink mb-2">
+            Child Safety Standards
+          </h2>
+          <p className="text-[0.9375rem] text-ink/80 mb-3">
+            We have a zero-tolerance policy for child sexual abuse material (CSAM) and the exploitation of minors. Read our full safety standards and reporting process.
+          </p>
+          <Link
+            href="/safety"
+            className="inline-flex items-center justify-center rounded-xl bg-brand px-4 py-2 text-[0.875rem] font-semibold text-white transition-opacity hover:opacity-90"
+          >
+            Read Child Safety Standards
+          </Link>
+        </div>
     </main>
   );
 }
