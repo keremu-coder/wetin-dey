@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 
 export const metadata = {
   title: "Privacy Policy — Wetin Dey"
@@ -42,7 +42,11 @@ export default function PrivacyPage() {
           <p>
             <strong>Anonymous activity:</strong> a random session identifier
             stored in a signed HTTP-only cookie. No phone number. No email
-            address. Our application does not log IP addresses for anonymous reports, comments, or messages. As with any web service, our hosting and database providers process request metadata (including IP) at the network layer for security and abuse prevention.
+            address. To protect the service from abuse and spam, our servers
+            process request metadata (including IP addresses) transiently for
+            rate-limiting. IP addresses are never attached to your public
+            reports, comments, or messages, and they are not stored in the
+            database alongside your content.
           </p>
           <p className="mt-2">
             <strong>Optional account recovery:</strong> you may attach an email
@@ -111,7 +115,7 @@ export default function PrivacyPage() {
           <ul className="ml-5 list-disc space-y-1">
             <li>Phone numbers (unless you add one for recovery)</li>
             <li>Email addresses (unless you add one for recovery)</li>
-            <li>IP addresses for anonymous reports</li>
+            <li>IP addresses attached to public reports, comments, or messages</li>
             <li>
               Tracking pixels, fingerprinting scripts, or third-party analytics
             </li>
@@ -183,11 +187,9 @@ export default function PrivacyPage() {
           </p>
           <p className="mt-2">
             <strong>
-              Direct messages you sent remain visible to the other participant
-            </strong>
-            , because removing them would erase their copy of the conversation
-            too. Their sender id points to a ghost profile with no email, no
-            login, and a generic handle — it cannot be logged into again.
+              Direct messages and DM media are permanently deleted
+            </strong>{" "}
+            if you choose the "Delete my content" option during account deletion. If you do not choose this option, your messages remain visible to the other participant but are anonymized with a generic handle that cannot be logged into again.
           </p>
         </section>
 
@@ -236,7 +238,8 @@ export default function PrivacyPage() {
             the NDPA 2023 and the Cybercrimes Act 2015. It is not legal advice.
           </p>
         </div>
-              <section>
+
+        <section>
           <h2 className="mb-2 font-serif text-[1.15rem] font-semibold text-ink">
             Child Safety
           </h2>

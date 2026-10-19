@@ -1,23 +1,14 @@
-import type { CapacitorConfig } from "@capacitor/cli";
+﻿import type { CapacitorConfig } from "@capacitor/cli";
 
 /**
  * Capacitor native shell configuration.
  *
- * Because Wetin Dey needs Next.js server features (SSR, route handlers,
- * server components), the WebView loads the production Vercel URL rather
- * than a local `out/` folder. `server.url` must point at the deployed
- * production URL — do not point it at a preview deployment, since those
- * expire.
- *
- * Native value beyond a WebView (Apple 4.2 anti-web-wrapper):
- *   - Native push notifications (APNs / FCM) — @capacitor/push-notifications
- *   - Native share sheet — @capacitor/share
- *   - Native haptics — @capacitor/haptics
- *   - Splash screen — @capacitor/splash-screen
- *   - Offline screen driven by @capacitor/network
- *
- * The native-specific wiring for each of these lives in components that
- * call `isNativePlatform()` before choosing the native or web path.
+ * Notes:
+ *  - server.url points at the deployed production URL. When submitting to the App Store,
+ *    set server.url to the canonical production domain and ensure the binary includes
+ *    genuine native functionality (push notifications, native share/haptics, offline behavior).
+ *  - ios.limitsNavigationsToAppBoundDomains MUST be true for App Store compliance to avoid being flagged
+ *    as a generic web wrapper. Ensure App‑Bound Domains are configured when building the iOS binary.
  */
 const config: CapacitorConfig = {
   appId: "com.wetindey.app",
@@ -31,7 +22,8 @@ const config: CapacitorConfig = {
   ios: {
     contentInset: "always",
     backgroundColor: "#0a0a0a",
-    limitsNavigationsToAppBoundDomains: false
+    // Prevent unrestricted navigation; limit to app‑bound domains to avoid web‑wrapper rejection.
+    limitsNavigationsToAppBoundDomains: true
   },
   android: {
     // Required for @capacitor-community/background-geolocation on Capacitor 8.

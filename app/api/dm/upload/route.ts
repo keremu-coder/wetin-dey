@@ -9,6 +9,19 @@ import { sameOrigin } from "@/lib/rate-limit";
 const MAX_PHOTO_SIZE = 5 * 1024 * 1024; // 5MB
 const MAX_VIDEO_SIZE = 15 * 1024 * 1024; // 15MB
 
+// Whitelist mapping from content-type -> extension (safe, canonical)
+const MIME_EXTENSION: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/heic": "heic",
+  "image/heif": "heif",
+  "image/gif": "gif",
+  "video/mp4": "mp4",
+  "video/quicktime": "mov",
+  "video/webm": "webm"
+};
+
 export async function POST(req: NextRequest) {
   try {
     if (!sameOrigin(req)) return NextResponse.json({ error: "bad origin" }, { status: 403 });
@@ -43,6 +56,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Only photos and videos are allowed." }, { status: 400 });
     }
 
+    // Enforce size limits
     if (isPhoto && file.size > MAX_PHOTO_SIZE) {
       return NextResponse.json({ error: "Photo is too large (max 5MB)." }, { status: 400 });
     }
@@ -50,9 +64,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Video is too large (max 15MB)." }, { status: 400 });
     }
 
-    // Upload to Supabase Storage
-    const ext = file.name.split(".").pop() || (isPhoto ? "jpg" : "mp4");
-    const fileName = `${threadId}/${nanoid()}.${ext}`;
+    // Determine extension based on content-type whitelist (do NOT trust user file.name)
+    const safeExt = MIME_EXTENSION[file.type];
+    if (!safeExt) {
+      return NextResponse.json({ error: "Unsupported media type." }, { status: 400 });
+    }
+
+    // Build a safe filename using only generated IDs
+    const fileName = `${threadId}/${nanoid()}.${safeExt}`;
     
     const buffer = Buffer.from(await file.arrayBuffer());
     const { error: uploadError } = await db.storage
