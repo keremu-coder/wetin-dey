@@ -61,7 +61,6 @@ const BroadcastRecorder = nextDynamic(
   { ssr: false }
 );
 
-
 export function ChatRoom({
   slug,
   name,
@@ -142,6 +141,27 @@ export function ChatRoom({
   const [blockedNotice, setBlockedNotice] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [viewingMedia, setViewingMedia] = useState<{url: string, type: string} | null>(null);
+  
+  // Track visual viewport for iOS keyboard
+  const [viewportHeight, setViewportHeight] = useState<string>("100dvh");
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.visualViewport) return;
+
+    const handleResize = () => {
+      setViewportHeight(`${window.visualViewport!.height}px`);
+      window.scrollTo(0, 0);
+    };
+
+    window.visualViewport.addEventListener("resize", handleResize);
+    window.visualViewport.addEventListener("scroll", handleResize);
+    handleResize(); // Initial call
+
+    return () => {
+      window.visualViewport?.removeEventListener("resize", handleResize);
+      window.visualViewport?.removeEventListener("scroll", handleResize);
+    };
+  }, []);
 
   async function handleViewMedia(m: Message) {
     if ((m as any).viewed_at) return;
@@ -204,29 +224,6 @@ export function ChatRoom({
   );
 
   const askedForNotificationsRef = useRef(false);
-
-  // Track iOS visual viewport to prevent keyboard pushing the layout up
-  const [viewportHeight, setViewportHeight] = useState<string>("100dvh");
-
-  useEffect(() => {
-    if (typeof window === "undefined" || !window.visualViewport) return;
-
-    const handleResize = () => {
-      // Set height to the exact visible area above the keyboard
-      setViewportHeight(`${window.visualViewport!.height}px`);
-      // Prevent scrolling the body behind the keyboard
-      window.scrollTo(0, 0);
-    };
-
-    window.visualViewport.addEventListener("resize", handleResize);
-    window.visualViewport.addEventListener("scroll", handleResize);
-    handleResize(); // Initial call
-
-    return () => {
-      window.visualViewport?.removeEventListener("resize", handleResize);
-      window.visualViewport?.removeEventListener("scroll", handleResize);
-    };
-  }, []);
 
   useEffect(() => {
     const initial = loadPrefs();
@@ -369,10 +366,10 @@ export function ChatRoom({
     }
   }, [slug, isMember, mySessionId, me, name]);
 
+  // Scroll to bottom when messages change OR keyboard opens (viewportHeight changes)
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    // Add a slight delay to allow the layout to resize after keyboard opens
     const t = setTimeout(() => {
       const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 300;
       if (nearBottom) {
@@ -761,7 +758,10 @@ export function ChatRoom({
     !inviteBannerDismissed && members.length < 5 && !inviteOpen;
 
   return (
-    <div className="fixed inset-x-0 top-0 z-50 flex flex-col bg-paper overflow-hidden" style={{ height: viewportHeight, paddingTop: "env(safe-area-inset-top, 0px)" }}>
+    <div 
+      className="fixed inset-x-0 top-0 z-50 flex flex-col bg-paper overflow-hidden" 
+      style={{ height: viewportHeight, paddingTop: "env(safe-area-inset-top, 0px)" }}
+    >
       <ChatHeader
         slug={slug}
         name={name}
@@ -812,7 +812,7 @@ export function ChatRoom({
 
       <div
         ref={scrollRef}
-        className="chat-log flex flex-1 flex-col overflow-y-auto py-4"
+        className="chat-log flex-1 overflow-y-auto pt-4 pb-12"
         style={{ overscrollBehavior: "contain" }}
       >
         {messages.length === 0 ? (
@@ -1005,7 +1005,3 @@ export function ChatRoom({
     </div>
   );
 }
-
-
-
-
