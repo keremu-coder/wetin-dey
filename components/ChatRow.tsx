@@ -56,8 +56,25 @@ const SIGNAL_LETTER: Record<"ready" | "away" | "dnd", { bg: string; letter: stri
 function SignalBadge({ signal, receipt }: { signal?: ChatSignal, receipt?: "sent" | "delivered" | "read" }) {
   if (receipt) {
     const letter = receipt === "read" ? "R" : receipt === "delivered" ? "D" : "S";
-    const bg = receipt === "read" ? "var(--color-primary)" : "var(--color-surface3)";
-    const textColor = receipt === "read" ? "text-white" : "text-muted";
+    
+    // R = Bright Green (like the original Ready badge)
+    // D = Soft Green background with dark green text
+    // S = Plain Grey
+    const isRead = receipt === "read";
+    const isDelivered = receipt === "delivered";
+    
+    const bg = isRead 
+      ? "var(--color-signal)" 
+      : isDelivered 
+        ? "var(--color-signal-soft)" 
+        : "var(--color-surface3)";
+        
+    const textColor = isRead 
+      ? "text-white" 
+      : isDelivered 
+        ? "text-[var(--color-signal-ink)]" 
+        : "text-muted";
+
     return (
       <span
         aria-label={receipt}
