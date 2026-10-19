@@ -124,7 +124,7 @@ export async function POST(
       );
     }
 
-    const analysis = isMedia ? { level: "ok", matches: [] } : analyzeMessage(text);
+    const analysis = isMedia ? { level: "pass", matches: [] } : analyzeMessage(text);
 
     if (analysis.level === "block") {
       const reason =
@@ -149,6 +149,25 @@ export async function POST(
 
     const mod = isMedia ? { hold: false, matches: [] } : analyzeModeration(text);
     const held = mod.hold;
+
+    // Verify actual uploaded file metadata (client could lie about size/mime)
+    if (isMedia && typeof body.media_path === "string") {
+      const pathParts = body.media_path.split("/");
+      const folder = pathParts.slice(0, -1).join("/");
+      const fileName = pathParts[pathParts.length - 1];
+      const { data: fileList, error: listErr } = await db.storage
+        .from("dm-media")
+        .list(folder, { search: fileName });
+      if (listErr || !fileList || fileList.length === 0) {
+        return Response.json({ error: "Uploaded file not found." }, { status: 400 });
+      }
+      const meta = fileList[0]?.metadata as { size?: number } | undefined;
+      const actualSize = meta?.size ?? 0;
+      const maxSize = body.media_type === "photo" ? 5 * 1024 * 1024 : 15 * 1024 * 1024;
+      if (actualSize > maxSize) {
+        return Response.json({ error: "File too large." }, { status: 400 });
+      }
+    }
     
     if (held) {
       try {
@@ -209,3 +228,4 @@ export async function POST(
     return serverError("dm/threads/[id]/messages", e);
   }
 }
+

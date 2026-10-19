@@ -7,7 +7,8 @@ const config: CapacitorConfig = {
   server: {
     url: "https://wetindey.app",
     cleartext: false,
-    androidScheme: "https"
+    androidScheme: "https",
+    errorPath: "offline.html"
   },
   ios: {
     contentInset: "always",
@@ -40,3 +41,4 @@ const config: CapacitorConfig = {
 };
 
 export default config;
+

@@ -15,6 +15,7 @@ import { MessageBody } from "./MessageBody";
 import { DMComposer } from "./DMComposer";
 import { FlagSheet } from "./FlagSheet";
 import { Avatar } from "./Avatar";
+import { DMReportButton } from "./DMReportButton";
 
 type Message = {
   id: string;
@@ -469,12 +470,15 @@ export function DMThread({
                         />
                       )}
                     </div>
-                    <p className={`mt-0.5 flex items-center gap-1 text-[0.65rem] text-faint ${mine ? "justify-end" : ""}`}>
+                    <p className={`mt-0.5 flex items-center gap-2 text-[0.65rem] text-faint ${mine ? "justify-end" : ""}`}>
                       <span>{m._pending ? "Sending" : m._failed ? "Failed" : timeAgoShort(m.created_at)}</span>
                       {isLastMine ? (
                         <span className="ml-1 text-[0.65rem] font-bold text-brand" title={lastMineSeen ? "Read" : "Delivered"}>
                           {lastMineSeen ? "R" : "D"}
                         </span>
+                      ) : null}
+                      {!mine && !m._pending && !m._failed ? (
+                        <DMReportButton messageId={m.id} />
                       ) : null}
                     </p>
                     {m._failed ? (
@@ -555,3 +559,5 @@ export function DMThread({
     </div>
   );
 }
+
+

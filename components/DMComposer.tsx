@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { DM_BODY_MAX } from "@/lib/dm";
+import { getBrowserClient } from "@/lib/supabase/client";
 import {
   unlockAudio,
   vibrate,
@@ -118,36 +119,36 @@ export function DMComposer({
     const cid = onStart(file.type.startsWith("image/") ? "📷 Photo" : "🎥 Video");
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("threadId", threadId);
-
-      const uploadRes = await fetch(`/api/dm/upload`, {
+      // 1. Request signed upload URL from server (bypasses Vercel 4.5MB limit)
+      const initRes = await fetch("/api/dm/upload", {
         method: "POST",
-        body: formData
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ threadId, mime: file.type, size: file.size })
       });
-      const uploadJson = await uploadRes.json();
+      const initJson = await initRes.json();
+      if (!initRes.ok) throw new Error(initJson.error || "Could not start upload");
 
-      if (!uploadRes.ok) {
-        throw new Error(uploadJson.error || "Upload failed");
-      }
+      // 2. Upload file directly from device to Supabase Storage
+      const supabase = getBrowserClient();
+      const { error: uploadErr } = await supabase.storage
+        .from("dm-media")
+        .uploadToSignedUrl(initJson.path, initJson.token, file);
+      if (uploadErr) throw new Error(uploadErr.message || "Upload failed");
 
+      // 3. Create the message record on the server
       const msgRes = await fetch(`/api/dm/threads/${threadId}/messages`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           body: "",
-          media_path: uploadJson.path,
-          media_type: uploadJson.type,
-          media_mime: uploadJson.mime,
-          media_size: uploadJson.size
+          media_path: initJson.path,
+          media_type: initJson.type,
+          media_mime: initJson.mime,
+          media_size: initJson.size
         })
       });
       const msgJson = await msgRes.json();
-
-      if (!msgRes.ok) {
-        throw new Error(msgJson.error || "Failed to send");
-      }
+      if (!msgRes.ok) throw new Error(msgJson.error || "Failed to send");
 
       onSuccess(cid, msgJson.message as SentMessage);
     } catch (err: any) {
@@ -220,3 +221,5 @@ export function DMComposer({
     </form>
   );
 }
+
+

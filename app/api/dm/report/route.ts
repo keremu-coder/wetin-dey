@@ -18,11 +18,14 @@ export async function POST(req: NextRequest) {
   // Verify the user is part of the thread before allowing a report
   const { data: msg } = await db
     .from("dm_messages")
-    .select("id, thread_id")
+    .select("id, thread_id, sender_id")
     .eq("id", body.messageId)
     .maybeSingle();
 
   if (!msg) return NextResponse.json({ error: "Message not found" }, { status: 404 });
+  if (msg.sender_id === sid) {
+    return NextResponse.json({ error: "You can't report your own message." }, { status: 400 });
+  }
 
   const { data: thread } = await db
     .from("dm_threads")
@@ -49,3 +52,4 @@ export async function POST(req: NextRequest) {
   }
   return NextResponse.json({ ok: true });
 }
+
