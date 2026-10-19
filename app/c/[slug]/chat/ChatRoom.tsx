@@ -205,6 +205,29 @@ export function ChatRoom({
 
   const askedForNotificationsRef = useRef(false);
 
+  // Track iOS visual viewport to prevent keyboard pushing the layout up
+  const [viewportHeight, setViewportHeight] = useState<string>("100dvh");
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.visualViewport) return;
+
+    const handleResize = () => {
+      // Set height to the exact visible area above the keyboard
+      setViewportHeight(`${window.visualViewport!.height}px`);
+      // Prevent scrolling the body behind the keyboard
+      window.scrollTo(0, 0);
+    };
+
+    window.visualViewport.addEventListener("resize", handleResize);
+    window.visualViewport.addEventListener("scroll", handleResize);
+    handleResize(); // Initial call
+
+    return () => {
+      window.visualViewport?.removeEventListener("resize", handleResize);
+      window.visualViewport?.removeEventListener("scroll", handleResize);
+    };
+  }, []);
+
   useEffect(() => {
     const initial = loadPrefs();
     setPrefs(initial);
@@ -734,7 +757,7 @@ export function ChatRoom({
     !inviteBannerDismissed && members.length < 5 && !inviteOpen;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-paper overflow-hidden" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
+    <div className="fixed inset-x-0 top-0 z-50 flex flex-col bg-paper overflow-hidden" style={{ height: viewportHeight, paddingTop: "env(safe-area-inset-top, 0px)" }}>
       <ChatHeader
         slug={slug}
         name={name}
@@ -978,5 +1001,6 @@ export function ChatRoom({
     </div>
   );
 }
+
 
 
