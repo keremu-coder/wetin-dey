@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -7,7 +7,7 @@ import Link from "next/link";
 export default function DeleteAccountPage() {
   const router = useRouter();
   const [confirm, setConfirm] = useState("");
-  const [deleteContent, setDeleteContent] = useState(false);
+  const [deleteContent, setDeleteContent] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -16,7 +16,7 @@ export default function DeleteAccountPage() {
     setError("");
 
     if (confirm !== "DELETE") {
-      setError("Type DELETE exactly — capital letters — to confirm.");
+      setError("Type DELETE exactly â€” capital letters â€” to confirm.");
       return;
     }
 
@@ -61,7 +61,7 @@ export default function DeleteAccountPage() {
           href="/settings"
           className="text-[0.7rem] text-faint hover:text-brand"
         >
-          ← Back to settings
+          â† Back to settings
         </Link>
         <h1 className="mt-4 font-serif text-[2rem] font-semibold leading-tight text-danger">
           Delete your account
@@ -77,14 +77,14 @@ export default function DeleteAccountPage() {
           What we delete right away:
         </p>
         <ul className="mt-1.5 space-y-1 text-[0.875rem] leading-relaxed text-ink/85">
-          <li>• Your email and phone number</li>
-          <li>• Your Supabase sign-in record</li>
-          <li>• Your avatar and any space avatars you uploaded</li>
-          <li>• Your voice broadcasts and their audio</li>
-          <li>• Your followers, following, and blocks</li>
-          <li>• Your push notification subscriptions</li>
-          <li>• Your check-ins, daily answers, radar signals, and profile status</li>
-          <li>• Your reaction history and votes</li>
+          <li>â€¢ Your email and phone number</li>
+          <li>â€¢ Your Supabase sign-in record</li>
+          <li>â€¢ Your avatar and any space avatars you uploaded</li>
+          <li>â€¢ Your voice broadcasts and their audio</li>
+          <li>â€¢ Your followers, following, and blocks</li>
+          <li>â€¢ Your push notification subscriptions</li>
+          <li>â€¢ Your check-ins, daily answers, radar signals, and profile status</li>
+          <li>â€¢ Your reaction history and votes</li>
         </ul>
 
         <p className="mt-3 text-[0.875rem] font-semibold text-ink">
@@ -92,11 +92,11 @@ export default function DeleteAccountPage() {
         </p>
         <ul className="mt-1.5 space-y-1 text-[0.875rem] leading-relaxed text-ink/85">
           <li>
-            • Your reports and comments stay visible, but they no longer carry
+            â€¢ Your reports and comments stay visible, but they no longer carry
             your session id or handle. We replace both with a placeholder.
           </li>
           <li>
-            • Your direct messages stay, so the other person doesn&apos;t lose
+            â€¢ Your direct messages stay, so the other person doesn&apos;t lose
             the conversation. Their sender id points to a ghost profile with
             no email, no login, and a generic handle.
           </li>
@@ -158,7 +158,7 @@ export default function DeleteAccountPage() {
             disabled={busy}
             className="flex-1 rounded-2xl bg-danger px-5 py-3 font-serif text-[1rem] font-semibold text-white shadow-button transition-all hover:opacity-90 disabled:opacity-60"
           >
-            {busy ? "Dey delete…" : "Delete my account"}
+            {busy ? "Dey deleteâ€¦" : "Delete my account"}
           </button>
           <Link
             href="/settings"

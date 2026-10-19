@@ -16,10 +16,17 @@ const TOMBSTONE = "deleted";
 
 function supabaseStoragePath(url: string, bucket: string): string | null {
   try {
-    const u = new URL(url);
-    const marker = `/storage/v1/object/public/${bucket}/`;
-    const i = u.pathname.indexOf(marker);
-    if (i >= 0) return u.pathname.slice(i + marker.length);
+    if (url.startsWith("http")) {
+      const u = new URL(url);
+      const marker = `/storage/v1/object/public/${bucket}/`;
+      const i = u.pathname.indexOf(marker);
+      if (i >= 0) return u.pathname.slice(i + marker.length);
+    } else {
+      // Handle relative paths like "/bucket/folder/file.jpg"
+      const marker = `/${bucket}/`;
+      const i = url.indexOf(marker);
+      if (i >= 0) return url.slice(i + marker.length);
+    }
   } catch {
     /* ignore */
   }
@@ -319,3 +326,4 @@ async function findAuthUserByEmail(db: ReturnType<typeof createServiceClient>, e
   }
   return null;
 }
+

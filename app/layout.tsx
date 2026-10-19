@@ -4,6 +4,7 @@ import { Nav, SiteFooter } from "@/components/Nav";
 import { LiveStateProvider } from "@/components/LiveStateProvider";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { PushRegistrar } from "@/components/PushRegistrar";
+import { NativePushRegister } from "@/components/NativePushRegister";
 import { NativeNetworkMonitor } from "@/components/NativeNetworkMonitor";
 import { BottomNav } from "@/components/BottomNav";
 import { RouteWarmup } from "@/components/RouteWarmup";
@@ -112,6 +113,7 @@ export default async function RootLayout({
             <StatusBarTheme />
             <SwipeBack />
             <PushRegistrar />
+            <NativePushRegister />
             <NativeNetworkMonitor />
             <RouteWarmup />
             <RouteRefresh />
@@ -133,6 +135,8 @@ export default async function RootLayout({
     </html>
   );
 }
+
+
 
 
 

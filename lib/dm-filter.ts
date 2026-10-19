@@ -94,6 +94,7 @@ function stripSeparators(text: string): string {
 /* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Contact-info patterns (DMs) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 const NG_PHONE_LOCAL = /0[7-9][0-1]\d{8}/;
+const GLOBAL_PHONE = /(?:\+\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/;
 const NG_PHONE_INTL = /234[7-9][0-1]\d{8}/;
 
 const EMAIL_STANDARD = /[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}/i;
@@ -371,3 +372,5 @@ export function enforceDmPolicy(text: string) {
     matches: mod.matches,
   };
 }
+
+
