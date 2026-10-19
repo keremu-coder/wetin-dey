@@ -76,22 +76,27 @@ export async function POST(req: NextRequest) {
     if (sessErr) return Response.json({ error: "Server error" }, { status: 500 });
     if (!session) return Response.json({ error: "Session not found." }, { status: 404 });
 
+    // 0. Ensure the TOMBSTONE session exists so Foreign Keys don't crash
+    await db.from("sessions").upsert({
+      id: TOMBSTONE,
+      handle: "deleted_user",
+      handle_lower: "deleted_user",
+      handle_kind: "anonymous",
+      hide_presence: true
+    }, { onConflict: "id", ignoreDuplicates: true });
+
     // 1. Delete Supabase Auth user
     let authDeleted = false;
     if (session.auth_user_id) {
       const { error: authDelErr } = await db.auth.admin.deleteUser(session.auth_user_id);
-      if (authDelErr) {
-        return Response.json({ error: "Could not delete your sign-in record." }, { status: 500 });
-      }
+      if (authDelErr) return Response.json({ error: "Could not delete your sign-in record." }, { status: 500 });
       authDeleted = true;
     } else if (session.email) {
       try {
         const match = await findAuthUserByEmail(db, session.email);
         if (match) {
           const { error: authDelErr } = await db.auth.admin.deleteUser(match);
-          if (authDelErr) {
-            return Response.json({ error: "Could not delete your sign-in record." }, { status: 500 });
-          }
+          if (authDelErr) return Response.json({ error: "Could not delete your sign-in record." }, { status: 500 });
           authDeleted = true;
         }
       } catch (e) {
@@ -113,7 +118,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 3. Delete avatar and space avatar blobs
+    // 3. Delete avatar, status photos, and space avatar blobs
     if (session.avatar_url) {
       const path = supabaseStoragePath(session.avatar_url, "user-avatars");
       if (path) {
@@ -121,6 +126,16 @@ export async function POST(req: NextRequest) {
         if (error) return Response.json({ error: "Could not delete your profile photo." }, { status: 500 });
       }
     }
+
+    // Delete status photos
+    const { data: statusFiles, error: statusListErr } = await db.storage.from("status-photos").list(sessionId);
+    if (statusListErr) return Response.json({ error: "Could not list status photos." }, { status: 500 });
+    if (statusFiles && statusFiles.length > 0) {
+      const paths = statusFiles.map(f => `${sessionId}/${f.name}`);
+      const { error: statusDelErr } = await db.storage.from("status-photos").remove(paths);
+      if (statusDelErr) return Response.json({ error: "Could not delete status photos." }, { status: 500 });
+    }
+
     const { data: ownedCommunities } = await db.from("communities").select("id, avatar_url").eq("owner_session_id", sessionId);
     for (const c of ownedCommunities ?? []) {
       if (c.avatar_url) {
@@ -171,7 +186,6 @@ export async function POST(req: NextRequest) {
     const threadIds = (dmThreads ?? []).map(t => t.id);
 
     if (threadIds.length > 0) {
-      // Enumerate and delete all media files in the dm-media bucket for these threads
       for (const tId of threadIds) {
         const { data: files, error: listErr } = await db.storage.from("dm-media").list(tId);
         if (listErr) return Response.json({ error: "Could not list your DM media files." }, { status: 500 });
@@ -184,14 +198,13 @@ export async function POST(req: NextRequest) {
       }
 
       if (deleteContent) {
-        // Delete the messages and the threads entirely
         const { error: msgErr } = await db.from("dm_messages").delete().in("thread_id", threadIds);
         if (msgErr) return Response.json({ error: "Could not delete your direct messages." }, { status: 500 });
 
         const { error: thrErr } = await db.from("dm_threads").delete().in("id", threadIds);
         if (thrErr) return Response.json({ error: "Could not delete your conversation threads." }, { status: 500 });
       } else {
-        // Tombstone the messages sent by the user
+        // Safe because we ensured the TOMBSTONE session exists in step 0
         const { error: msgErr } = await db.from("dm_messages").update({ sender_id: TOMBSTONE, body: "[deleted]" }).eq("sender_id", sessionId);
         if (msgErr) return Response.json({ error: "Could not anonymize your direct messages." }, { status: 500 });
       }
