@@ -1,7 +1,7 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 
 export const metadata = {
-  title: "Terms of Use — Wetin Dey"
+  title: "Terms of Use â€” Wetin Dey"
 };
 
 export default function TermsPage() {
@@ -13,7 +13,7 @@ export default function TermsPage() {
           className="flex h-9 w-9 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5"
           aria-label="Back"
         >
-          ←
+          â†
         </Link>
         <h1 className="font-serif text-[1.5rem] font-semibold text-ink">
           Terms of Use
@@ -72,7 +72,7 @@ export default function TermsPage() {
           <ul className="ml-5 list-disc space-y-1.5">
             <li>Threats of violence against any person or group</li>
             <li>
-              Doxxing — publishing someone&apos;s private contact info or home
+              Doxxing â€” publishing someone&apos;s private contact info or home
               address
             </li>
             <li>Any content naming a person under 18 years old</li>
@@ -97,7 +97,7 @@ export default function TermsPage() {
           </h2>
           <p>
             Wetin Dey does not allow attacks on any religion. Sharing personal
-            spiritual expression — testimony, prayer, faith practice — is
+            spiritual expression â€” testimony, prayer, faith practice â€” is
             allowed and protected. Stoking religious conflict is not.
           </p>
           <p className="mt-2">
@@ -140,7 +140,7 @@ export default function TermsPage() {
           <p>
             Reports are not deleted. They are published at a permanent,
             timestamped URL and remain publicly accessible at that URL forever
-            — <strong>unless they violate the content rules above</strong>. In
+            â€” <strong>unless they violate the content rules above</strong>. In
             that case, they are removed from public view within 24 hours and
             never shown to the public again. The underlying record is
             preserved in our internal records for legal and audit purposes.
@@ -164,10 +164,8 @@ export default function TermsPage() {
 
         <div className="rounded-2xl border border-gold/40 bg-gold-soft/40 p-4">
           <p className="text-[0.8125rem] leading-relaxed text-ink">
-            <strong>Draft notice:</strong> this copy is written in plain
-            language and is pending review by a Nigerian lawyer familiar with
-            the Cybercrimes Act 2015 and Nigerian defamation law. It is not
-            legal advice.
+            This policy has been prepared for publication and is the current version.
+            For legal questions, contact <a href="mailto:support@wetindey.app" className="text-brand underline">support@wetindey.app</a>.
           </p>
         </div>
       </article>

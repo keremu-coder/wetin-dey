@@ -1,11 +1,11 @@
-// Content filter for Wetin Dey.
+﻿// Content filter for Wetin Dey.
 //
 // Two classifiers live here:
 //
-//   1. analyzeMessage()   — contact-info detection, used by DMs. Prevents
+//   1. analyzeMessage()   â€” contact-info detection, used by DMs. Prevents
 //                           moving a conversation off-platform. Unchanged.
 //
-//   2. analyzeModeration() — profanity / hate / threat detection, used by
+//   2. analyzeModeration() â€” profanity / hate / threat detection, used by
 //                           community chat and comments. Held for moderator
 //                           review when matched.
 //
@@ -35,7 +35,7 @@ export type FilterResult = {
   reasons: string[];
 };
 
-/* ───────────── Normalization helpers ───────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Normalization helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 const DIGIT_WORDS: Record<string, string> = {
   zero: "0",
@@ -91,7 +91,7 @@ function stripSeparators(text: string): string {
   return text.replace(/[\s\-._()\[\],+]/g, "");
 }
 
-/* ───────────── Contact-info patterns (DMs) ───────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Contact-info patterns (DMs) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 const NG_PHONE_LOCAL = /0[7-9][0-1]\d{8}/;
 const NG_PHONE_INTL = /234[7-9][0-1]\d{8}/;
@@ -129,9 +129,9 @@ const EXTERNAL_LINK = new RegExp(
   "i"
 );
 
-/* ───────────── Moderation patterns (chat + comments) ───────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Moderation patterns (chat + comments) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
-// Common high-signal profanity. Deliberately conservative — Pidgin slang
+// Common high-signal profanity. Deliberately conservative â€” Pidgin slang
 // like "wahala", "abeg", "yeye" is NOT profanity and must not be flagged.
 const PROFANITY: RegExp[] = [
   /\bf+u+c+k+(ing|er|ed)?\b/i,
@@ -155,7 +155,7 @@ const THREAT: RegExp[] = [
   /\b(we|dem)\s+go\s+kill\s+(you|u|am)\b/i
 ];
 
-// Hate patterns. Only high-signal "kill all [group]" style — no slur list,
+// Hate patterns. Only high-signal "kill all [group]" style â€” no slur list,
 // for legal and false-positive reasons. A moderator-curated list can be
 // added later.
 const HATE: RegExp[] = [
@@ -164,7 +164,7 @@ const HATE: RegExp[] = [
   /\bdeath\s+to\s+(all\s+)?[a-z]{3,}s?\b/i
 ];
 
-/* ───────────── Contact-info classification ───────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Contact-info classification â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 export function analyzeMessage(raw: string): FilterResult {
   const matches: FilterMatch[] = [];
@@ -284,7 +284,7 @@ export function blockReason(result: FilterResult): string | null {
   }
 }
 
-/* ───────────── Moderation classification ───────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Moderation classification â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 export type ModerationResult = {
   hold: boolean;
