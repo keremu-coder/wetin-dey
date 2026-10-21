@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { normalizeMediaUrl } from "@/lib/media-url";
 import { useRouter } from "next/navigation";
 import { unlockAudio, vibrate } from "@/lib/sounds";
 
@@ -12,7 +13,7 @@ export function UserAvatarUploader({
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [preview, setPreview] = useState<string | null>(currentAvatarUrl);
+  const [preview, setPreview] = useState<string | null>(normalizeMediaUrl(currentAvatarUrl));
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   function pick() {
@@ -85,6 +86,7 @@ export function UserAvatarUploader({
           <img
             src={preview}
             alt="Your avatar"
+            onError={() => setPreview(null)}
             className="h-full w-full object-cover"
           />
         ) : (

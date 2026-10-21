@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { cookies } from "next/headers";
 import { getSessionId } from "@/lib/session";
 import { getChatsHome } from "@/lib/chats-data";
@@ -9,6 +9,8 @@ import { SuggestionRow } from "@/components/SuggestionRow";
 import { HomeLoggedOut } from "@/components/HomeLoggedOut";
 import { ChoosePath } from "@/components/ChoosePath";
 import { StatusBar } from "@/components/StatusBar";
+import { getBlockedIds } from "@/lib/blocks";
+import { isStatusPhotoActive, statusPhotoProxyUrl } from "@/lib/status-photo";
 import type { Report } from "@/lib/types";
 
 export default async function HomePage() {
@@ -21,7 +23,7 @@ export default async function HomePage() {
   // Check if the session is linked to an account (i.e. they have a handle)
   const { data: session } = await db
     .from("sessions")
-    .select("handle")
+    .select("handle, status_line, status_photo_url, status_photo_updated_at")
     .eq("id", sessionId)
     .maybeSingle();
 
@@ -35,20 +37,54 @@ export default async function HomePage() {
   const { chats, suggestions } = await getChatsHome(sessionId);
 
   // Fetch statuses for the BBM feed
-  const { data: statuses } = await db
+  let statusQuery = db
     .from("sessions")
     .select("id, handle, status_line, status_photo_url, status_photo_updated_at")
     .not("status_photo_url", "is", null)
-    .gt("status_photo_updated_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
-    .limit(15);
+    .gt("status_photo_updated_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+  if (sessionId) statusQuery = statusQuery.neq("id", sessionId);
+  const { data: statuses } = await statusQuery
+    .order("status_photo_updated_at", { ascending: false })
+    .limit(50);
 
-  const statusList = (statuses ?? []) as Array<{
+  const blockedIds = await getBlockedIds(sessionId);
+  const recentStatuses = (statuses ?? []) as Array<{
     id: string;
     handle: string;
     status_line: string | null;
     status_photo_url: string;
     status_photo_updated_at: string;
   }>;
+  const statusList = recentStatuses
+    .flatMap((status) => {
+      const photoUrl = statusPhotoProxyUrl(status.status_photo_url, status.id);
+      if (
+        blockedIds.has(status.id) ||
+        !photoUrl ||
+        !isStatusPhotoActive(status.status_photo_updated_at)
+      ) {
+        return [];
+      }
+      return [{ ...status, status_photo_url: photoUrl }];
+    })
+    .slice(0, 15);
+  const myPhotoUrl = sessionId
+    ? statusPhotoProxyUrl(session?.status_photo_url, sessionId)
+    : null;
+  const myStatus =
+    sessionId &&
+    session?.handle &&
+    myPhotoUrl &&
+    session.status_photo_updated_at &&
+    isStatusPhotoActive(session.status_photo_updated_at)
+      ? {
+          id: sessionId,
+          handle: session.handle,
+          status_line: session.status_line,
+          status_photo_url: myPhotoUrl,
+          status_photo_updated_at: session.status_photo_updated_at
+        }
+      : null;
 
   if (chats.length === 0) {
     const { data: recentReports } = await db
@@ -103,7 +139,7 @@ export default async function HomePage() {
           </Link>
         </div>
 
-        <StatusBar statuses={statusList} myHandle={"me"} />
+        <StatusBar statuses={statusList} myStatus={myStatus} myHandle={session?.handle ?? "you"} />
 
         <SectionHeader
           title="Chats"
