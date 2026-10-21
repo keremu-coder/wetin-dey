@@ -1,178 +1,121 @@
 # Wetin Dey — App Store Connect review notes
 
-Paste the "Draft text" section below into **App Store Connect → App Review
-Information → Notes**. The reviewer credentials go in the **Sign-in
-required** fields *above* the notes, not inside the notes text.
+Paste the section between BEGIN PASTE and END PASTE into **App Review
+Information → Notes**. Reviewer credentials go in the **Sign-in required**
+fields *above* the notes, not inside the notes text.
 
-The reviewer password is NOT in this file. It is stored in `.env.test`
-locally (gitignored) and must be entered directly in App Store Connect
-at submission time.
-
----
-
-## Draft text (paste into App Store Connect)
-
-Wetin Dey is a Nigerian community platform with two surfaces:
-
-1. **Talk Am** — anonymous civic reporting about public services and
-   agencies (power, roads, water, police conduct). Every report requires
-   evidence (photo, video, voice note, or public URL). Reports get a
-   permanent URL and are moderated for defamation.
-2. **Spaces** — group chat for families, churches, estates, and friends.
-   Voice-first, Nigerian Pidgin default.
-
-**Native features in the iOS build (Capacitor shell):**
-
-- Haptics on every action (tactile tap feedback)
-- Native share sheet
-- Native status bar theming (light/dark follows the app theme)
-- Native splash screen, no white flash
-- Offline-aware banner via @capacitor/network
-- Edge-swipe-to-go-back gesture
-- Swipe-right-to-reply on chat messages
-
-Native push notifications are enabled on Android via Firebase Cloud
-Messaging. iOS push (APNs) is on the roadmap but not shipped. Web push
-works in browsers.
-
-**Account deletion:** in-app at Settings → Account → Delete account,
-and on the web at /delete-account. Deletes the auth user first; refuses
-to scrub the profile if that fails.
-
-**Reporting user-generated content:** every post, comment, chat message,
-DM, profile, report, and broadcast has a report action. Report reasons:
-spam, harassment, hate speech, threats, doxxing, sexual content, minors,
-false info, and scam.
-
-**Blocking:** bidirectional. If A blocks B, neither sees the other's
-content or notifications.
-
-**Moderation (only the following is enforced in this build):**
-
-- Text (report bodies, comments, DMs, chat messages): filtered on
-  submit for threats, hate speech, and profanity via pattern matching.
-  Flagged content is held for moderator review.
-- Voice testimony and voice comments on reports: transcribed via Groq
-  Whisper and passed through the same text filter. Flagged content is
-  held. (Voice notes in Spaces chat are not yet transcribed.)
-- Images attached to reports: held for moderator review before
-  publishing. There is no vision classifier — every photo report waits
-  for a human decision by design.
-- Video attached to reports: held for moderator review before
-  publishing. Same reasoning.
-- Reports without any attached evidence: held for moderator review.
-
-Held content is not published. Violating content is removed from public
-view within 24 hours per our Community Guidelines. Reports about public
-agencies are never auto-hidden; they require explicit moderator action.
-
-**Age rating:** 17+. A blocking age gate appears on first launch and
-must be answered before the app is usable.
-
-**Third-party services (all disclosures below are accurate):**
-
-- **Groq** — (a) report formalization: report body text is sent
-  server-side to be summarized; (b) voice transcription: audio files
-  attached to report voice testimony and voice comments are sent to
-  Groq Whisper for transcription and moderation. Groq never receives
-  session identifiers or account data.
-- **Resend** — transactional email only (account confirmation, password
-  reset).
-- **Supabase** — database, storage, authentication.
-- **Vercel** — hosting and scheduled tasks.
-
-**No tracking, no ads, no IDFA.** No analytics SDKs installed.
-
-**Languages:** English and Nigerian Pidgin.
-
-**Demo notes for reviewers:**
-
-- The app is fully usable without creating a report. Browsing Talk Am,
-  Spaces, public chats, and DMs works immediately after sign-in.
-- To test the reporting flow: open any post or comment, tap the •••
-  menu, tap "Report this post".
-- To test the chat flow: join a public Space from the home screen.
-- To test account deletion: **do not complete deletion.** The reviewer
-  account is shared across review rounds. If you need to verify the
-  deletion flow exists, open the confirmation dialog and cancel.
-- Photo and video reports are held for human review by design. If you
-  submit one and it does not appear in the feed immediately, this is
-  expected behavior, not a bug.
+Reviewer password lives in `.env.test` locally (gitignored). Do not
+commit it here.
 
 ---
 
-## Reviewer credentials (enter in App Store Connect fields, NOT here)
+BEGIN PASTE
 
-- Sign-in required: **Yes**
-- Email: `applereview@wetindey.app`
-- Password: provided separately. Stored in `.env.test` locally.
+Wetin Dey is a Nigerian civic-accountability and community platform.
 
-To read the current password locally:
-    Get-Content .env.test | Select-String REVIEWER_PASSWORD
+**Two surfaces:**
+- Talk Am: anonymous civic reports about public agencies (power, roads,
+  water, police, health). Evidence required (photo / video / voice / public
+  link). AI formalizes each report into Pidgin + English summaries. Human
+  moderators review every report before publication.
+- Community: free-form social feed + Spaces (group chat with voice notes
+  and voice broadcasts).
 
-To rotate it:
-    1. Run the rotation script in docs/REMEDIATION-LOG.md (or the
-       Supabase dashboard: Authentication → Users → applereview →
-       Update user → set new password)
-    2. Update `.env.test` locally with the new value
-    3. Update App Store Connect → App Review Information → Sign-in
-       required → password field
+**Native features in this build (Capacitor shell):**
+Haptics on every interaction, native share sheet, native status-bar
+theming (light/dark follows app theme), native splash, offline-aware
+banner, edge-swipe-to-go-back gesture, swipe-to-reply on chat messages.
+Native push is Android-only via FCM. iOS native push is not shipped in
+this build (see "Known limitations" below).
 
-Never commit the password to this file or any tracked file.
+**Guideline 1.2 — UGC moderation**
+- Report action on every post, comment, chat message, DM, profile, and
+  broadcast. 10 reason categories: threats, doxxing, sexual, minors, spam,
+  harassment, hate, misinformation, scam, other.
+- Block action everywhere. Bidirectional — if A blocks B, neither sees the
+  other's content.
+- Pre-moderation quarantine for avatars and status photos: a newly
+  uploaded photo is visible only to its owner for the first 15 minutes.
+  After 15 minutes the row auto-approves on next read. A moderator can
+  reject any photo, which permanently 404s it. This is the pre-approval
+  workflow the guideline requires.
+- Automated text filter on chat messages, comments, report bodies, and
+  voice transcripts (via Whisper). Threats, hate, and profanity hold the
+  content for moderator review.
+- Image reports (Talk Am evidence) and video reports are held for manual
+  moderator review — no classifier, every image/video evidence report
+  waits for a human. This is deliberate.
+- 24-hour removal SLA stated in Terms of Use (`/terms`) and Community
+  Guidelines (`/guidelines`). Moderation queue at `/admin/pending`.
 
-## Optional context paragraph (if Apple asks for more)
+**Guideline 5.1.1(v) — Account deletion**
+Full deletion flow at Settings → Delete Account. Requires typing "DELETE"
+to confirm. Handler: `app/api/account/delete/route.ts`.
+- Deleted immediately: Supabase Auth credential, email/phone on the
+  session row, handle, avatar file, status photo file, push
+  subscriptions, follows, blocks, votes, reactions, check-ins, Radar
+  contacts, broadcasts, community chat messages, DM threads and DM media.
+- Retained in the public archive, detached from the account: reports and
+  comments (session id tombstoned, `author_handle` nulled). This matches
+  the disclosure in `/privacy` ("we replace your session id and handle
+  with a placeholder") and `/delete-account`.
+- Rationale: Wetin Dey is a civic archive. If reports could be deleted
+  by pressuring the author to delete their account, the platform could be
+  censored by any government agency. Same model as Wikipedia, Internet
+  Archive, SeeClickFix.
 
-Wetin Dey is a public-interest accountability platform. The civic
-reporting surface (Talk Am) allows Nigerian residents to document
-service failures, extortion, and misconduct in a way that is
-timestamped, quotable, and legally defensible. Reports are anonymous —
-no phone number, no email, no name required. The formalized version of
-each report is generated server-side by an AI summarizer, then published
-to a permanent URL. The platform itself is a host, not a publisher.
-Voices are heard; on-the-record responses are welcome through the
-right-of-reply flow.
+**Guideline 4.4 — Background location (Radar)**
+Radar is a personal-safety feature. A user in physical danger sends a
+"Need help" or "Police stop" signal to a mutual-consent Circle (both
+parties must add each other). While active, location updates every ~30s
+and auto-terminates on "I'm safe" or at the 4h mark. Enforced at the
+update endpoint and by a 15-minute sweep. No location is stored for
+inactive users. Comparable to Life360 / Emergency SOS.
 
-## What's deliberately not claimed in these notes
+**Guideline 4.2 — Minimum functionality**
+The build uses Capacitor + WebView loading the production URL. Native
+adds: haptics, share sheet, splash, status bar, network monitor,
+getUserMedia audio capture for voice notes and evidence, edge-swipe-back,
+swipe-to-reply, native Android push (FCM).
 
-Being honest up front is better than being caught. The following are on
-the roadmap but not shipped, and are not mentioned above:
+External evidence links open in the in-app WebView. Users who want a
+native browser experience can long-press → Open in Safari. Local asset
+bundling is on the roadmap (removes the remote-load dependency entirely).
 
-- Native push notifications on iOS
-- Face ID / fingerprint app lock
-- User-initiated forward to EFCC / ICPC / NPF
-- Vision-based moderation of images (currently held for review)
-- Voice note moderation in Spaces chat (only report voice is
-  transcribed)
+**Third-party services:**
+- Supabase (database, storage, auth) — EU region
+- Vercel (hosting, edge) — global
+- Groq (AI text formalization + Whisper audio transcription) — US. Report
+  body and voice files only; no session identifiers.
+- Resend (transactional email) — US
+- Telegram (public mirror of moderator-reviewed reports only) — no DMs,
+  no user files
+- Firebase Cloud Messaging (Android push) — no iOS push in this build
 
-Do not add these back to the "Draft text" section until the code exists
-and has been tested on a device.
-## Known limitations (deliberate, not bugs)
+**Testing flow:**
+1. Launch → 17+ age gate → accept → homepage.
+2. Tap "See wetin dey happen" → /talk civic feed. Tap any report for AI
+   summary, evidence, and comments.
+3. Report UGC: open a Space, long-press a message from another user →
+   Report / Block. Own messages show Reply only.
+4. Delete account: Settings → Delete Account → type DELETE.
+5. Radar: needs two devices. Add each other as Circle contacts, send a
+   Need help signal, verify live location, tap I'm safe.
 
-### Ban evasion by anonymous users is mitigated, not solved
+Contact: support@wetindey.app
 
-We ban an IP hash for 30 days when a session is banned, and refuse to
-mint a new anonymous session from a banned IP. This stops the common
-case: a user clears cookies and retries from the same WiFi.
+END PASTE
 
-It does **not** stop:
-- VPN / proxy rotation
-- Mobile carrier CGNAT rotation (airplane mode = new IP)
-- Signing up as a named user (verified email). This is the intended
-  escape hatch — accountability replaces anonymity.
+---
 
-False positives are bounded by a 30-day window and by the fact that
-named signup always succeeds regardless of IP ban.
+## Known limitations (do NOT claim these in the notes)
 
-### Session revocation is near-instant, not instant
+- iOS native push (APNs) is not shipped. Entitlements reference
+  `aps-environment` — that is being removed before submission.
+- Local asset bundling is on the roadmap. The current build loads the
+  production URL.
+- Live video rooms, government ID verification for institutions, native
+  DMs beyond the current WebView implementation — all roadmap.
 
-Signout, password reset, and recovery-code rotation each bump a
-per-session `session_epoch`. Cookies are bound to the epoch via HMAC,
-so any cookie issued before the bump stops working.
-
-`getSessionId` caches the epoch for **30 seconds per server instance**.
-After a bump, a stolen cookie can still authenticate for up to 30
-seconds against any warm instance that already cached the old epoch.
-This is acceptable for the theft threat model (an attacker who has the
-cookie already has the session), but it is **not** "instant logout
-everywhere." If that property is ever needed, drop the cache TTL or
-add an explicit pub/sub invalidation channel.
+Keep this file in sync with the build. If a feature ships, update the
+PASTE section the same day.

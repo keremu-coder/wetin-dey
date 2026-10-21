@@ -10,6 +10,7 @@ import { classifyImage } from "@/lib/image-moderation";
 import { transcribeAndModerate } from "@/lib/voice-moderation";
 import { stripMediaMetadata } from "@/lib/media-strip";
 import { audioContainerFor } from "@/lib/audio-container";
+import { videoContainerFor } from "@/lib/video-container";
 import { validateEvidenceLink } from "@/lib/evidence-link";
 import { jsonError, serverError } from "@/lib/http";
 import {
@@ -411,13 +412,15 @@ export async function POST(req: NextRequest) {
           console.warn("[reports] image moderation error:", e);
         }
       } else if (evidenceStaged.mime.startsWith("video/")) {
-        // Pre-existing behavior: always hold video for human review.
-        // Note: stripMediaMetadata is called with "mp4"; a .mov container
-        // from iPhone may fail there. That is pre-existing, unchanged here.
-        ext = "mp4";
-        contentType = "video/mp4";
+        // Always hold video for human review (no video classifier).
+        // Container must match the real input format: `-c copy` cannot
+        // put a QuickTime stream into an MP4 container, so a bare
+        // "mp4" argument made every iPhone video upload fail.
+        const container = videoContainerFor(evidenceStaged.mime);
+        ext = container.ext;
+        contentType = container.contentType;
         held = true;
-        uploadBuf = await stripMediaMetadata(evidenceStaged.buffer, "mp4");
+        uploadBuf = await stripMediaMetadata(evidenceStaged.buffer, container.ext);
       } else {
         const container = audioContainerFor(evidenceStaged.mime);
         ext = container.ext;
