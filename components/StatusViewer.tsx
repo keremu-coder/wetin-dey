@@ -43,7 +43,7 @@ export function StatusViewer({
 
   return (
     <div className="fixed inset-0 z-[100] flex flex-col bg-black/95">
-      <div className="flex items-center justify-between p-4 text-white">
+      <div className="flex items-center justify-between px-4 pb-4 text-white" style={{ paddingTop: "calc(1rem + env(safe-area-inset-top, 0px))" }}>
         <div className="flex items-center gap-3">
           <Link
             href={`/u/${encodeURIComponent(status.handle)}`}
@@ -142,7 +142,7 @@ export function StatusViewer({
       ) : null}
 
       {status.status_line && (
-        <div className="p-6 text-center bg-gradient-to-t from-black/80 to-transparent">
+        <div className="px-6 pt-6 text-center bg-gradient-to-t from-black/80 to-transparent" style={{ paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom, 0px))" }}>
           <p className="text-white text-[1rem] font-medium">{status.status_line}</p>
         </div>
       )}
