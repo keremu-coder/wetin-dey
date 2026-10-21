@@ -1,4 +1,4 @@
-﻿import { notFound, redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { unstable_cache } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -12,6 +12,7 @@ import { StartDMButton } from "@/components/StartDMButton";
 import { ProfileActions } from "@/components/ProfileActions";
 import { UnblockButton } from "@/components/UnblockButton";
 import { Avatar } from "@/components/Avatar";
+import { ZoomableAvatar } from "@/components/ZoomableAvatar";
 import { canSeePhoto } from "@/lib/photo-visibility";
 import { formatNaira } from "@/lib/constants";
 
@@ -363,12 +364,12 @@ export default async function ProfilePage(props: {
 
       <section className="rounded-2xl border border-border bg-surface p-6 shadow-card">
         <div className="flex items-start gap-4">
-          <Avatar
+          <ZoomableAvatar
             src={canSeeMainPhoto ? (profile as { avatar_url?: string | null }).avatar_url : null}
             seed={profile.id}
             size={64}
             title={`@${handle}`}
-            className="shadow-sm"
+            className="shadow-sm" border={false}
           />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
