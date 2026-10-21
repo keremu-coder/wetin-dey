@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ProfileActions } from "./ProfileActions";
@@ -20,11 +21,13 @@ export function StatusViewer({
   const [attempt, setAttempt] = useState(0);
   const [deleting, setDeleting] = useState(false);
 
+  // Reset when a different story is opened.
   useEffect(() => {
     setImgState("loading");
     setAttempt(0);
   }, [status?.photo_url]);
 
+  // Lock page scroll behind the full-screen viewer.
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -33,6 +36,7 @@ export function StatusViewer({
     };
   }, []);
 
+  // Close on escape key
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", handleEsc);
@@ -42,8 +46,12 @@ export function StatusViewer({
   if (!status) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col bg-black/95">
-      <div className="flex items-center justify-between px-4 pb-4 text-white" style={{ paddingTop: "calc(1rem + env(safe-area-inset-top, 0px))" }}>
+    <div 
+      className="fixed inset-0 z-[999] flex flex-col bg-black" 
+      style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-4 text-white">
         <div className="flex items-center gap-3">
           <Link
             href={`/u/${encodeURIComponent(status.handle)}`}
@@ -77,6 +85,7 @@ export function StatusViewer({
         </div>
       </div>
 
+      {/* Image */}
       <div className="relative flex flex-1 items-center justify-center p-4" onClick={onClose}>
         {imgState === "loading" ? (
           <span className="absolute h-8 w-8 animate-spin rounded-full border-2 border-white/70 border-t-transparent" />
@@ -110,7 +119,7 @@ export function StatusViewer({
       </div>
 
       {isMine && (onReplace || onDelete) ? (
-        <div className="flex justify-center gap-3 px-6 pb-6">
+        <div className="flex justify-center gap-3 px-6 py-4">
           {onReplace ? (
             <button
               type="button"
@@ -135,14 +144,15 @@ export function StatusViewer({
               }}
               className="rounded-xl bg-red-600/90 px-4 py-2 text-[0.85rem] font-semibold text-white disabled:opacity-60"
             >
-              {deleting ? "Deleting..." : "Delete"}
+              {deleting ? "Deleting…" : "Delete"}
             </button>
           ) : null}
         </div>
       ) : null}
 
+      {/* Caption */}
       {status.status_line && (
-        <div className="px-6 pt-6 text-center bg-gradient-to-t from-black/80 to-transparent" style={{ paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom, 0px))" }}>
+        <div className="px-6 pb-8 pt-4 text-center">
           <p className="text-white text-[1rem] font-medium">{status.status_line}</p>
         </div>
       )}
