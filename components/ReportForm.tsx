@@ -14,6 +14,7 @@ import {
   actualMime,
   extFromType
 } from "@/lib/voice-recorder";
+import { getBrowserClient } from "@/lib/supabase/client";
 
 async function stripExifInBrowser(file: File): Promise<Blob> {
   try {
@@ -76,6 +77,8 @@ const COMMUNITY_TYPES = [
 ];
 
 type TargetType = "public" | "private";
+
+type StagedUpload = { path: string };
 
 export function ReportForm({
   tab = "talk",
@@ -211,6 +214,50 @@ export function ReportForm({
   const hasEvidence =
     !!evidenceFile || !!testimonyFile || publicLink.trim().length > 0;
 
+  // Two-step upload: request a signed URL from the server, upload the
+  // file directly to Supabase Storage, keep the resulting path. The
+  // file never passes through a Vercel function, so the 4.5MB request
+  // body limit does not apply.
+  async function stageUpload(
+    kind: "evidence" | "voice_testimony",
+    file: File
+  ): Promise<StagedUpload | null> {
+    const initRes = await fetch("/api/reports/upload", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind,
+        mime: file.type || "application/octet-stream",
+        size: file.size
+      })
+    });
+    const initJson = (await initRes.json().catch(() => ({}))) as {
+      ok?: boolean;
+      path?: string;
+      token?: string;
+      error?: string;
+    };
+    if (
+      !initRes.ok ||
+      !initJson.ok ||
+      typeof initJson.path !== "string" ||
+      typeof initJson.token !== "string"
+    ) {
+      setError(initJson.error ?? "Could not start upload.");
+      return null;
+    }
+
+    const supabase = getBrowserClient();
+    const { error: upErr } = await supabase.storage
+      .from("evidence-staging")
+      .uploadToSignedUrl(initJson.path, initJson.token, file);
+    if (upErr) {
+      setError(upErr.message || "Upload failed. Try again.");
+      return null;
+    }
+    return { path: initJson.path };
+  }
+
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
@@ -222,50 +269,85 @@ export function ReportForm({
       return;
     }
 
+    if (evidenceFile && testimonyFile) {
+      setError("Attach either a file or a voice testimony, not both.");
+      return;
+    }
+
     setBusy(true);
+
+    // Step 1: upload any file payloads via signed URLs. Both must
+    // succeed before we POST to /api/reports, otherwise the report
+    // would reference a path that does not exist.
+    let evidencePath: string | null = null;
+    let voicePath: string | null = null;
+
+    if (evidenceFile) {
+      let uploadFile: File = evidenceFile;
+      if (evidenceFile.type.startsWith("image/")) {
+        try {
+          const clean = await stripExifInBrowser(evidenceFile);
+          uploadFile = new File([clean], "evidence.jpg", {
+            type: "image/jpeg"
+          });
+        } catch {
+          uploadFile = evidenceFile;
+        }
+      }
+      const staged = await stageUpload("evidence", uploadFile);
+      if (!staged) {
+        setBusy(false);
+        return;
+      }
+      evidencePath = staged.path;
+    }
+
+    if (testimonyFile) {
+      const staged = await stageUpload("voice_testimony", testimonyFile);
+      if (!staged) {
+        setBusy(false);
+        return;
+      }
+      voicePath = staged.path;
+    }
+
+    // Step 2: POST JSON (no multipart body, no file bytes).
     const form = e.currentTarget;
     const fd = new FormData(form);
 
-    fd.set("post_type", postType);
-    fd.set("target_type", targetType);
+    const payload: Record<string, unknown> = {
+      post_type: postType,
+      target_type: targetType,
+      category: fd.get("category") ?? "other",
+      agency: fd.get("agency") ?? title ?? "Community post",
+      state: fd.get("state") ?? "",
+      lga: fd.get("lga") ?? "",
+      body,
+      amount: fd.get("amount") ?? ""
+    };
+    if (communitySlug) payload.community_slug = communitySlug;
+    if (publicLink.trim()) payload.public_link = publicLink.trim();
+    if (evidencePath) payload.evidence_path = evidencePath;
+    if (voicePath) payload.voice_testimony_path = voicePath;
 
-    if (communitySlug) {
-      fd.set("community_slug", communitySlug);
+    let res: Response;
+    try {
+      res = await fetch("/api/reports", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+    } catch {
+      setError("Network error. Check your connection and try again.");
+      setBusy(false);
+      return;
     }
 
-    if (evidenceFile && evidenceFile.type.startsWith("image/")) {
-      try {
-        const clean = await stripExifInBrowser(evidenceFile);
-        fd.set(
-          "evidence",
-          new File([clean], "evidence.jpg", { type: "image/jpeg" })
-        );
-      } catch {
-        fd.set("evidence", evidenceFile);
-      }
-    } else if (evidenceFile) {
-      fd.set("evidence", evidenceFile);
-    }
-
-    if (testimonyFile) fd.set("voice_testimony", testimonyFile);
-    if (publicLink.trim()) fd.set("public_link", publicLink.trim());
-
-    fd.set("anonymous", "true");
-
-    const res = await fetch("/api/reports", { method: "POST", body: fd });
     let json: { id?: string; error?: string } = {};
     try {
       json = await res.json();
     } catch {
-      // Vercel rejects oversize bodies at the edge with a plain-text 413,
-      // not JSON. Fall back to a useful message.
-      if (res.status === 413) {
-        setError(
-          "File too large for upload. Attach a photo, record voice testimony, or paste a public link."
-        );
-      } else {
-        setError("Upload failed. Try again in a moment.");
-      }
+      setError("Upload failed. Try again in a moment.");
       setBusy(false);
       return;
     }
@@ -504,9 +586,7 @@ export function ReportForm({
                 ? "Minimum 50 characters."
                 : `${50 - bodyLength} more characters needed.`}
           </p>
-          <p className="text-[0.7rem] text-faint">
-            {bodyLength}/5000
-          </p>
+          <p className="text-[0.7rem] text-faint">{bodyLength}/5000</p>
         </div>
       </div>
 

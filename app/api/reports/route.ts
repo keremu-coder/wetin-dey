@@ -1,5 +1,5 @@
 export const runtime = "nodejs";
-export const maxDuration = 60; // seconds. Video evidence goes through a staging-bucket download, ffmpeg strip, and re-upload; the default 10s function timeout is not enough.
+export const maxDuration = 60;
 
 import { NextRequest } from "next/server";
 import { waitUntil } from "@vercel/functions";
@@ -41,6 +41,76 @@ const ALLOWED_TYPES = [
 ];
 
 const TALK_AM_TYPES = ["report_am", "ask", "help"];
+
+const MAX_EVIDENCE_BYTES = 25 * 1024 * 1024;
+const MAX_VOICE_BYTES = 10 * 1024 * 1024;
+
+const EVIDENCE_MIMES = new Set([
+  "image/jpeg", "image/png", "image/webp", "image/heic", "image/gif",
+  "video/mp4", "video/quicktime", "video/webm",
+  "audio/mp4", "audio/mpeg", "audio/webm", "audio/ogg", "audio/wav"
+]);
+
+const VOICE_MIMES = new Set([
+  "audio/mp4", "audio/mpeg", "audio/webm", "audio/ogg", "audio/wav"
+]);
+
+type StagedFile = {
+  path: string;
+  mime: string;
+  size: number;
+  buffer: Buffer;
+};
+
+// Download and verify a staged upload. Trusts the storage-layer metadata
+// (Blob.type / Blob.size), not the client's declared mime/size.
+async function downloadStaged(
+  db: ReturnType<typeof createServiceClient>,
+  sessionId: string,
+  rawPath: string,
+  kind: "evidence" | "voice_testimony"
+): Promise<{ ok: true; file: StagedFile } | { ok: false; error: string }> {
+  const expectedPrefix = `${sessionId}/${kind}/`;
+  if (!rawPath.startsWith(expectedPrefix)) {
+    return { ok: false, error: "Invalid upload path." };
+  }
+  if (rawPath.length > 200 || rawPath.includes("..")) {
+    return { ok: false, error: "Invalid upload path." };
+  }
+  if (!/^[\w\-./]+$/.test(rawPath)) {
+    return { ok: false, error: "Invalid upload path." };
+  }
+
+  const { data, error } = await db.storage
+    .from("evidence-staging")
+    .download(rawPath);
+
+  if (error || !data) {
+    return { ok: false, error: "Uploaded file not found. Upload again." };
+  }
+
+  // Blob.type and Blob.size come from the storage layer, not the client.
+  const actualMime = (data.type || "").toLowerCase();
+  const actualSize = data.size;
+
+  const max = kind === "voice_testimony" ? MAX_VOICE_BYTES : MAX_EVIDENCE_BYTES;
+  if (actualSize <= 0 || actualSize > max) {
+    await db.storage.from("evidence-staging").remove([rawPath]).catch(() => {});
+    return { ok: false, error: "File size is not accepted." };
+  }
+
+  const allowed = kind === "voice_testimony" ? VOICE_MIMES : EVIDENCE_MIMES;
+  if (!actualMime || !allowed.has(actualMime)) {
+    await db.storage.from("evidence-staging").remove([rawPath]).catch(() => {});
+    return { ok: false, error: "That file type is not accepted." };
+  }
+
+  const buffer = Buffer.from(await data.arrayBuffer());
+  return {
+    ok: true,
+    file: { path: rawPath, mime: actualMime, size: actualSize, buffer }
+  };
+}
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -92,8 +162,6 @@ export async function GET(req: NextRequest) {
   const { data, error } = await q;
   if (error) return jsonError("feed no load", 500);
 
-  // Strip session_id before returning to the client. The query needed
-  // it for filtering; the client never sees it.
   const cleaned = (data ?? []).map((r) => {
     const { session_id: _ignored, ...rest } = r as Record<string, unknown> & {
       session_id?: string;
@@ -103,6 +171,7 @@ export async function GET(req: NextRequest) {
 
   return Response.json({ reports: cleaned });
 }
+
 export async function POST(req: NextRequest) {
   if (!sameOrigin(req)) return jsonError("origin blocked", 403);
 
@@ -125,18 +194,11 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Rate limit BEFORE req.formData(). A flood here would otherwise
-  // buffer 25MB per request, run sharp, call Groq, and hit Supabase
-  // storage on every attempt. Two buckets: session (per-cookie) and
-  // IP (via getRequestIp, catches cookie-dropping). 20/hour per
-  // session, 40/hour per IP.
+  // Rate limit before touching the body. A flood here would otherwise
+  // download 25MB from staging, run sharp, and hit Groq on every attempt.
   const limit = await checkRateLimit(
     sessionId,
-    {
-      key: "report_create",
-      limit: 20,
-      windowMs: 60 * 60 * 1000
-    },
+    { key: "report_create", limit: 20, windowMs: 60 * 60 * 1000 },
     { ip: getRequestIp(req) }
   );
   if (!limit.ok) {
@@ -149,24 +211,38 @@ export async function POST(req: NextRequest) {
   const profile = await getOrCreateSessionProfile(sessionId);
   if (!profile) return jsonError("profile failed", 500);
 
-  let form: FormData;
+  // Fix 1: file payloads no longer travel in the request body — they go
+  // via signed uploads to evidence-staging. The main route only accepts
+  // JSON. Any legacy multipart call returns 400 and the client updates
+  // atomically with this deploy.
+  const contentType = req.headers.get("content-type") ?? "";
+  if (!contentType.includes("application/json")) {
+    return jsonError("Content-Type must be application/json.", 400);
+  }
+
+  let body: Record<string, unknown>;
   try {
-    form = await req.formData();
+    body = (await req.json()) as Record<string, unknown>;
   } catch {
     return jsonError("form parse error", 400);
   }
 
-  const postType = String(form.get("post_type") ?? "report_am");
-  const communitySlug = String(form.get("community_slug") ?? "").trim() || null;
-  const category = String(form.get("category") ?? "other");
-  const agency_raw = String(form.get("agency") ?? "").trim() || "Community post";
-  const state = String(form.get("state") ?? "");
-  const lga = String(form.get("lga") ?? "").trim() || null;
-  const body = String(form.get("body") ?? "").trim();
-  const amountRaw = String(form.get("amount") ?? "").trim();
-  const targetTypeRaw = String(form.get("target_type") ?? "public").trim();
+  const postType = String(body.post_type ?? "report_am");
+  const communitySlug = String(body.community_slug ?? "").trim() || null;
+  const category = String(body.category ?? "other");
+  const agency_raw =
+    String(body.agency ?? "").trim().slice(0, 200) || "Community post";
+  const state = String(body.state ?? "");
+  const lga = String(body.lga ?? "").trim().slice(0, 80) || null;
+  const bodyText = String(body.body ?? "").trim();
+  const amountRaw = String(body.amount ?? "").trim();
+  const targetTypeRaw = String(body.target_type ?? "public").trim();
   const targetType: "public" | "private" =
     targetTypeRaw === "private" ? "private" : "public";
+
+  const publicLink = String(body.public_link ?? "").trim();
+  const evidencePath = String(body.evidence_path ?? "").trim();
+  const voiceTestimonyPath = String(body.voice_testimony_path ?? "").trim();
 
   if (!ALLOWED_TYPES.includes(postType)) {
     return jsonError("post type no correct", 400);
@@ -175,28 +251,43 @@ export async function POST(req: NextRequest) {
   const isTalkReport = postType === "report_am";
   const requiresEvidence = isTalkReport;
 
-  const file = form.get("evidence");
-  const publicLink = String(form.get("public_link") ?? "").trim();
-  const voiceTestimony = form.get("voice_testimony");
+  if (evidencePath && voiceTestimonyPath) {
+    return jsonError(
+      "Attach either a file or a voice testimony, not both.",
+      400
+    );
+  }
 
   let evidenceType: string | null = null;
-  let evidenceUrl: string | null = null;
   let evidenceLink: string | null = null;
   let evidenceLabel = "";
 
-  if (file instanceof File && file.size > 0) {
-    const mime = file.type || "";
-    if (mime.startsWith("image/")) evidenceType = "photo";
-    else if (mime.startsWith("video/")) evidenceType = "video";
-    else if (mime.startsWith("audio/")) evidenceType = "audio";
+  const db = createServiceClient();
+  let evidenceStaged: StagedFile | null = null;
+  let voiceStaged: StagedFile | null = null;
+
+  if (evidencePath) {
+    const dl = await downloadStaged(db, sessionId, evidencePath, "evidence");
+    if (!dl.ok) return jsonError(dl.error, 400);
+    evidenceStaged = dl.file;
+
+    if (evidenceStaged.mime.startsWith("image/")) evidenceType = "photo";
+    else if (evidenceStaged.mime.startsWith("video/")) evidenceType = "video";
+    else if (evidenceStaged.mime.startsWith("audio/")) evidenceType = "audio";
     else return jsonError("File must be image, video, or audio.", 400);
-  } else if (voiceTestimony instanceof File && voiceTestimony.size > 0) {
+  } else if (voiceTestimonyPath) {
+    const dl = await downloadStaged(
+      db,
+      sessionId,
+      voiceTestimonyPath,
+      "voice_testimony"
+    );
+    if (!dl.ok) return jsonError(dl.error, 400);
+    voiceStaged = dl.file;
     evidenceType = "voice_testimony";
   } else if (publicLink) {
     const validated = validateEvidenceLink(publicLink);
-    if (!validated.ok) {
-      return jsonError(validated.error, 400);
-    }
+    if (!validated.ok) return jsonError(validated.error, 400);
     evidenceType = "public_link";
     evidenceLink = validated.url;
   }
@@ -224,7 +315,7 @@ export async function POST(req: NextRequest) {
   if (!NIGERIA_STATES.includes(state as (typeof NIGERIA_STATES)[number])) {
     return jsonError("state no correct", 400);
   }
-  if (body.length < 50 || body.length > 5000) {
+  if (bodyText.length < 50 || bodyText.length > 5000) {
     return jsonError("post must be 50–5000 characters", 400);
   }
 
@@ -237,7 +328,6 @@ export async function POST(req: NextRequest) {
     amount_kobo = Math.round(naira * 100);
   }
 
-  const db = createServiceClient();
   const id = nanoid();
 
   let communityId: string | null = null;
@@ -248,9 +338,7 @@ export async function POST(req: NextRequest) {
       .eq("slug", communitySlug)
       .maybeSingle();
 
-    if (!c) {
-      return jsonError("That space does not exist.", 400);
-    }
+    if (!c) return jsonError("That space does not exist.", 400);
 
     const { data: membership } = await db
       .from("community_members")
@@ -276,17 +364,17 @@ export async function POST(req: NextRequest) {
   const verification = scoreEvidence({
     evidenceType,
     evidenceLink,
-    body,
+    body: bodyText,
     agencyRaw: agency_raw,
     sessionPostCount: sessionPostCount ?? 0
   });
 
   const defamation = scoreDefamation({
-    body,
+    body: bodyText,
     agency_raw,
     agency_canonical: agency_raw,
     amount_kobo,
-    evidence_url: evidenceUrl,
+    evidence_url: null,
     public_link: evidenceLink
   });
 
@@ -295,123 +383,100 @@ export async function POST(req: NextRequest) {
     verification.requiresManualReview ||
     defamation.held;
 
-  if (file instanceof File && file.size > 0) {
-    try {
-      if (file.size > 25 * 1024 * 1024) {
-        return jsonError("File too large (max 25MB)", 400);
-      }
-      const buf = Buffer.from(await file.arrayBuffer());
-      let uploadBuf: Buffer = buf;
-      let ext = "bin";
-      let contentType = file.type || "application/octet-stream";
+  let evidenceUrl: string | null = null;
 
-      if (file.type.startsWith("image/")) {
-        uploadBuf = await stripExifServer(buf);
+  const cleanupStaging = async () => {
+    const paths: string[] = [];
+    if (evidenceStaged) paths.push(evidenceStaged.path);
+    if (voiceStaged) paths.push(voiceStaged.path);
+    if (paths.length > 0) {
+      await db.storage.from("evidence-staging").remove(paths).catch(() => {});
+    }
+  };
+
+  try {
+    if (evidenceStaged) {
+      let uploadBuf: Buffer = evidenceStaged.buffer;
+      let ext: string;
+      let contentType: string;
+
+      if (evidenceStaged.mime.startsWith("image/")) {
+        uploadBuf = await stripExifServer(evidenceStaged.buffer);
         ext = "jpg";
         contentType = "image/jpeg";
-
-        // Image moderation — Groq vision classifier.
-        // Best-effort: fails open on any error so a Groq outage
-        // never blocks a legitimate civic report.
         try {
           const imgMod = await classifyImage(uploadBuf);
-          if (imgMod.hold) {
-            held = true;
-            console.warn(
-              "[reports] image held for review:",
-              imgMod.reasons.join(" | ")
-            );
-          }
+          if (imgMod.hold) held = true;
         } catch (e) {
           console.warn("[reports] image moderation error:", e);
         }
-      } else if (file.type.startsWith("video/")) {
+      } else if (evidenceStaged.mime.startsWith("video/")) {
+        // Pre-existing behavior: always hold video for human review.
+        // Note: stripMediaMetadata is called with "mp4"; a .mov container
+        // from iPhone may fail there. That is pre-existing, unchanged here.
         ext = "mp4";
-
-        // Video moderation: hold for human review. We have no
-        // video classifier in the current stack (Groq has no video
-        // endpoint), so every video report waits for a moderator.
-        // Matches the Community Guidelines promise (24h review for
-        // media evidence).
+        contentType = "video/mp4";
         held = true;
-
-        // Strip metadata. MP4/MOV containers can carry GPS
-        // coordinates that identify a reporter's physical
-        // location. Fail-closed: any error bubbles to the outer
-        // catch and rejects the upload rather than storing raw.
-        uploadBuf = await stripMediaMetadata(buf, "mp4");
-      } else if (file.type.startsWith("audio/")) {
-        // Same for audio — M4A/MP3 tags can carry GPS. Fail-closed.
-        // The container must match the real format: `-c copy` cannot put
-        // iPhone AAC (audio/mp4) into WebM, so a fixed "webm" made every
-        // iPhone audio upload fail.
-        const container = audioContainerFor(file.type);
+        uploadBuf = await stripMediaMetadata(evidenceStaged.buffer, "mp4");
+      } else {
+        const container = audioContainerFor(evidenceStaged.mime);
         ext = container.ext;
         contentType = container.contentType;
-        uploadBuf = await stripMediaMetadata(buf, container.ext);
+        uploadBuf = await stripMediaMetadata(
+          evidenceStaged.buffer,
+          container.ext
+        );
       }
 
-      const path = `${id}.${ext}`;
-      const up = await db.storage.from("evidence").upload(path, uploadBuf, {
-        contentType,
-        upsert: false
-      });
+      const finalPath = `${id}.${ext}`;
+      const up = await db.storage
+        .from("evidence")
+        .upload(finalPath, uploadBuf, {
+          contentType,
+          upsert: false
+        });
       if (up.error) {
+        await cleanupStaging();
         return jsonError("Upload failed", 500);
       }
-      evidenceUrl = db.storage.from("evidence").getPublicUrl(path).data
-        .publicUrl;
-    } catch (e) {
-      return jsonError("Upload error", 500);
-    }
-  } else if (voiceTestimony instanceof File && voiceTestimony.size > 0) {
-    try {
-      if (voiceTestimony.size > 10 * 1024 * 1024) {
-        return jsonError("Voice too large", 400);
-      }
-      const rawBuf = Buffer.from(await voiceTestimony.arrayBuffer());
-      // Strip container metadata (M4A/MP3 tags can carry GPS). Fail-closed.
-      // Container matches the real format (iPhone records audio/mp4).
-      const voiceContainer = audioContainerFor(voiceTestimony.type);
-      const buf = await stripMediaMetadata(rawBuf, voiceContainer.ext);
-
-      // Voice moderation — Whisper transcribe + text filter.
-      // Best-effort: fails open on any error so a Groq outage
-      // never blocks a legitimate voice testimony.
+      evidenceUrl = db.storage
+        .from("evidence")
+        .getPublicUrl(finalPath).data.publicUrl;
+    } else if (voiceStaged) {
+      const voiceContainer = audioContainerFor(voiceStaged.mime);
+      const buf = await stripMediaMetadata(
+        voiceStaged.buffer,
+        voiceContainer.ext
+      );
       try {
-        const voiceMod = await transcribeAndModerate(
-          buf,
-          voiceTestimony.type || "audio/webm"
-        );
-        if (voiceMod.hold) {
-          held = true;
-          console.warn(
-            "[reports] voice held for review:",
-            voiceMod.reasons.join(" | ")
-          );
-        }
+        const voiceMod = await transcribeAndModerate(buf, voiceStaged.mime);
+        if (voiceMod.hold) held = true;
       } catch (e) {
         console.warn("[reports] voice moderation error:", e);
       }
-
-      const path = `${id}-testimony.${voiceContainer.ext}`;
-      const up = await db.storage.from("evidence").upload(path, buf, {
-        contentType: voiceContainer.contentType,
-        upsert: false
-      });
+      const finalPath = `${id}-testimony.${voiceContainer.ext}`;
+      const up = await db.storage
+        .from("evidence")
+        .upload(finalPath, buf, {
+          contentType: voiceContainer.contentType,
+          upsert: false
+        });
       if (up.error) {
+        await cleanupStaging();
         return jsonError("Voice upload failed", 500);
       }
-      evidenceUrl = db.storage.from("evidence").getPublicUrl(path).data
-        .publicUrl;
-    } catch (e) {
-      return jsonError("Voice error", 500);
+      evidenceUrl = db.storage
+        .from("evidence")
+        .getPublicUrl(finalPath).data.publicUrl;
     }
+  } catch (e) {
+    await cleanupStaging();
+    console.error("[reports] staging→final move failed:", e);
+    return jsonError("Upload error", 500);
   }
 
-  // No evidence → hold for review. Matches the SPEC rule
-  // "every report requires evidence". The row still gets created,
-  // but it stays out of the public feed until a moderator clears it.
+  await cleanupStaging();
+
   if (!evidenceUrl && !evidenceLink) {
     held = true;
     console.warn("[reports] no evidence — holding for review");
@@ -431,7 +496,7 @@ export async function POST(req: NextRequest) {
     agency_canonical: agency_raw,
     state,
     lga,
-    body,
+    body: bodyText,
     amount_kobo,
     evidence_url: evidenceUrl,
     evidence_type: evidenceType,
@@ -462,6 +527,16 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error) {
+    // If the row failed, the evidence object is orphaned. Best-effort
+    // cleanup so we don't leave public files behind.
+    if (evidenceUrl) {
+      const marker = "/storage/v1/object/public/evidence/";
+      const idx = evidenceUrl.indexOf(marker);
+      if (idx >= 0) {
+        const p = evidenceUrl.slice(idx + marker.length);
+        await db.storage.from("evidence").remove([p]).catch(() => {});
+      }
+    }
     if (String(error.message).toLowerCase().includes("rate limit")) {
       return jsonError("slow down — too many posts this hour", 429);
     }
@@ -476,44 +551,44 @@ export async function POST(req: NextRequest) {
           category,
           agency_raw,
           state,
-          body,
+          body: bodyText,
           amount_kobo
         })
-        .then(async (output) => {
-          if (output && output.confidence >= 0.5) {
-            const aiRisk =
-              typeof output.defamation_risk === "number"
-                ? output.defamation_risk
-                : 0;
-            const combinedRisk = Math.max(defamation.risk, aiRisk);
-            const combinedReasons = Array.from(
-              new Set([
-                ...defamation.reasons,
-                ...(Array.isArray(output.defamation_reasons)
-                  ? output.defamation_reasons
-                  : [])
-              ])
-            );
-            const heldByAi = combinedRisk >= 0.6;
+          .then(async (output) => {
+            if (output && output.confidence >= 0.5) {
+              const aiRisk =
+                typeof output.defamation_risk === "number"
+                  ? output.defamation_risk
+                  : 0;
+              const combinedRisk = Math.max(defamation.risk, aiRisk);
+              const combinedReasons = Array.from(
+                new Set([
+                  ...defamation.reasons,
+                  ...(Array.isArray(output.defamation_reasons)
+                    ? output.defamation_reasons
+                    : [])
+                ])
+              );
+              const heldByAi = combinedRisk >= 0.6;
 
-            const stillHeld = held || heldByAi;
+              const stillHeld = held || heldByAi;
 
-            await db
-              .from("reports")
-              .update({
-                summary_pidgin: output.summary_pidgin,
-                summary_english: output.summary_english,
-                agency_canonical: output.agency_canonical,
-                incident_date: output.incident_date,
-                formalization_confidence: output.confidence,
-                reviewed: !stillHeld && output.confidence >= 0.7,
-                defamation_risk: combinedRisk,
-                defamation_reasons: combinedReasons,
-                held: stillHeld
-              })
-              .eq("id", id);
-          }
-        })
+              await db
+                .from("reports")
+                .update({
+                  summary_pidgin: output.summary_pidgin,
+                  summary_english: output.summary_english,
+                  agency_canonical: output.agency_canonical,
+                  incident_date: output.incident_date,
+                  formalization_confidence: output.confidence,
+                  reviewed: !stillHeld && output.confidence >= 0.7,
+                  defamation_risk: combinedRisk,
+                  defamation_reasons: combinedReasons,
+                  held: stillHeld
+                })
+                .eq("id", id);
+            }
+          })
           .catch(() => {})
       );
     } catch {
