@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import nextDynamic from "next/dynamic";
@@ -42,6 +42,7 @@ import { ChatRoomMembers } from "@/components/ChatRoomMembers";
 import { MessageRow } from "@/components/MessageRow";
 import { ChatHeader } from "@/components/ChatHeader";
 import { ChatComposer } from "@/components/ChatComposer";
+import { VoiceRoom } from "@/components/VoiceRoom";
 
 const InviteSheet = nextDynamic(
   () => import("@/components/InviteSheet").then((m) => m.InviteSheet),
@@ -141,6 +142,7 @@ export function ChatRoom({
   const [blockedNotice, setBlockedNotice] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [viewingMedia, setViewingMedia] = useState<{url: string, type: string} | null>(null);
+  const [voiceRoomOpen, setVoiceRoomOpen] = useState(false);
   
   // Track visual viewport for iOS keyboard
   const [viewportHeight, setViewportHeight] = useState<string>("100dvh");
@@ -885,7 +887,16 @@ export function ChatRoom({
         </div>
       ) : null}
 
-      <ChatComposer
+      <div className="px-3 py-2 bg-paper border-t border-border flex justify-end">
+          <button
+            type="button"
+            onClick={() => setVoiceRoomOpen(true)}
+            className="flex items-center gap-2 rounded-full bg-brand px-4 py-2 text-[0.875rem] font-semibold text-white shadow-button transition-transform active:scale-95"
+          >
+            <span className="text-[1.1rem]">🎙️</span> Join Voice & Games
+          </button>
+        </div>
+        <ChatComposer
         slug={slug}
         isPublic={false}
         onMediaStart={(cid) => {
@@ -980,6 +991,16 @@ export function ChatRoom({
         }}
         statusByHandle={statusByHandle}
       />
+
+      {voiceRoomOpen ? (
+        <VoiceRoom
+          roomName={slug}
+          spaceName={name}
+          communityId={slug} // Using slug as communityId for simplicity in this scope
+          currentSessionId={mySessionId ?? ""}
+          onClose={() => setVoiceRoomOpen(false)}
+        />
+      ) : null}
 
       {viewingMedia ? (
         <div 
