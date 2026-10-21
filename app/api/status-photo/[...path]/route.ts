@@ -9,7 +9,20 @@ import {
   statusPhotoStoragePath
 } from "@/lib/status-photo";
 import { imageContentType } from "@/lib/media-url";
+import { PHOTO_PENDING_AUTO_APPROVE_MS } from "@/lib/photo-visibility";
 
+/**
+ * GET /api/status-photo/{ownerId}/{file}
+ *
+ * Streams a story image to a signed-in viewer. Only the owner's current,
+ * unexpired (24h) photo is served. Blocks in either direction are
+ * respected. Bytes are served from this origin (no redirect) so the story
+ * loads inside the iOS/Android WebView regardless of CSP or
+ * app-bound-domain settings.
+ *
+ * Review gate mirrors /api/avatar: pending photos are owner-only during
+ * the auto-approve window, then lazily approved on the next read.
+ */
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ path: string[] }> }
@@ -38,7 +51,9 @@ export async function GET(
   const db = createServiceClient();
   const { data: owner, error } = await db
     .from("sessions")
-    .select("status_photo_url, status_photo_updated_at")
+    .select(
+      "status_photo_url, status_photo_updated_at, status_photo_review_status, status_photo_submitted_at"
+    )
     .eq("id", ownerId)
     .maybeSingle();
 
@@ -51,6 +66,7 @@ export async function GET(
   const currentFilename = extractStatusPhotoFilename(owner.status_photo_url, ownerId);
   if (currentFilename !== filename) return notFound("not current status photo");
 
+  // Blocks in both directions (owner can always see their own).
   if (viewerId !== ownerId) {
     const { data: blocks } = await db
       .from("blocked_users")
@@ -60,6 +76,34 @@ export async function GET(
       )
       .limit(1);
     if (blocks && blocks.length > 0) return notFound("blocked");
+  }
+
+  // Review gate.
+  const reviewStatus =
+    (owner as { status_photo_review_status?: string | null })
+      .status_photo_review_status ?? "approved";
+  const submittedAt =
+    (owner as { status_photo_submitted_at?: string | null })
+      .status_photo_submitted_at;
+
+  if (reviewStatus === "rejected") return notFound("rejected by moderator");
+
+  if (reviewStatus === "pending") {
+    const ageMs = submittedAt
+      ? Date.now() - new Date(submittedAt).getTime()
+      : Number.POSITIVE_INFINITY;
+    const isOwner = viewerId === ownerId;
+    if (ageMs >= PHOTO_PENDING_AUTO_APPROVE_MS) {
+      await db
+        .from("sessions")
+        .update({
+          status_photo_review_status: "approved",
+          status_photo_submitted_at: null
+        })
+        .eq("id", ownerId);
+    } else if (!isOwner) {
+      return notFound("pending review");
+    }
   }
 
   const { data: blob, error: dlErr } = await db.storage

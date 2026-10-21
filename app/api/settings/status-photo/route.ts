@@ -79,7 +79,9 @@ export async function POST(req: NextRequest) {
 
     const { error: updateError } = await db.from("sessions").update({
       status_photo_url: url,
-      status_photo_updated_at: new Date().toISOString()
+      status_photo_updated_at: new Date().toISOString(),
+      status_photo_review_status: "pending",
+      status_photo_submitted_at: new Date().toISOString()
     }).eq("id", sessionId);
 
     if (updateError) {

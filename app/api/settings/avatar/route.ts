@@ -1,4 +1,4 @@
-﻿export const runtime = "nodejs";
+export const runtime = "nodejs";
 
 import { NextRequest } from "next/server";
 import { nanoid } from "nanoid";
@@ -111,7 +111,11 @@ export async function POST(req: NextRequest) {
 
     const { error } = await db
       .from("sessions")
-      .update({ avatar_url: url })
+      .update({
+        avatar_url: url,
+        avatar_review_status: "pending",
+        avatar_submitted_at: new Date().toISOString()
+      })
       .eq("id", sessionId);
 
     if (error) {
