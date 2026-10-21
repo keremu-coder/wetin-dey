@@ -163,11 +163,23 @@ export async function GET(req: NextRequest) {
   const { data, error } = await q;
   if (error) return jsonError("feed no load", 500);
 
+  const sessionIds = Array.from(new Set((data ?? []).map(r => r.session_id).filter(Boolean)));
+  const sessionMap = new Map();
+  if (sessionIds.length > 0) {
+    const { data: profiles } = await db.from("sessions").select("id, avatar_url, photo_visibility").in("id", sessionIds);
+    for (const p of profiles ?? []) sessionMap.set(p.id, p);
+  }
+
   const cleaned = (data ?? []).map((r) => {
     const { session_id: _ignored, ...rest } = r as Record<string, unknown> & {
       session_id?: string;
     };
-    return rest;
+    const prof = _ignored ? sessionMap.get(_ignored) : null;
+    return {
+      ...rest,
+      author_avatar_url: prof?.avatar_url || null,
+      author_photo_visibility: prof?.photo_visibility || "private"
+    };
   });
 
   return Response.json({ reports: cleaned });

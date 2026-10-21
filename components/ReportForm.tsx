@@ -24,8 +24,16 @@ async function stripExifInBrowser(file: File): Promise<Blob> {
   }
   const bitmap = await createImageBitmap(file);
   const canvas = document.createElement("canvas");
-  canvas.width = bitmap.width;
-  canvas.height = bitmap.height;
+  const MAX_DIM = 2000;
+  let w = bitmap.width;
+  let h = bitmap.height;
+  if (w > MAX_DIM || h > MAX_DIM) {
+    const ratio = Math.min(MAX_DIM / w, MAX_DIM / h);
+    w = Math.round(w * ratio);
+    h = Math.round(h * ratio);
+  }
+  canvas.width = w;
+  canvas.height = h;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("canvas");
   ctx.drawImage(bitmap, 0, 0);
@@ -357,12 +365,7 @@ export function ReportForm({
       return;
     }
 
-    void fetch("/api/formalize", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ id: json.id }),
-      keepalive: true
-    });
+    
 
     if (communitySlug) {
       router.push(`/c/${communitySlug}`);

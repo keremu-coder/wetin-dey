@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { Suspense } from "react";
 import { WetinMark } from "@/components/WetinMark";
 import { redirect } from "next/navigation";
@@ -176,15 +176,32 @@ async function TalkData({
 
   const currentHandle = meResult.data?.handle ?? null;
 
-  const civicReports = ((civicResult.data ?? []) as Report[])
+  const rawCivic = ((civicResult.data ?? []) as Report[])
     .filter(
       (r) => r.reviewed || allowUnreviewed || r.session_id === sessionId
-    )
-    .map((r) => stripSession(r) as Report);
+    );
 
-  const communityReports = ((communityResult.data ?? []) as Report[]).map(
-    (r) => stripSession(r) as Report
-  );
+  const rawComm = ((communityResult.data ?? []) as Report[]);
+
+  const allSessIds = Array.from(new Set([...rawCivic, ...rawComm].map(r => r.session_id).filter(Boolean)));
+  const sessionMap = new Map();
+  if (allSessIds.length > 0) {
+    const { data: profiles } = await db.from("sessions").select("id, avatar_url, photo_visibility").in("id", allSessIds);
+    for (const p of profiles ?? []) sessionMap.set(p.id, p);
+  }
+
+  const injectAvatar = (r: Report) => {
+    const prof = r.session_id ? sessionMap.get(r.session_id) : null;
+    return {
+      ...stripSession(r) as Report,
+      author_avatar_url: prof?.avatar_url || null,
+      author_photo_visibility: prof?.photo_visibility || "private"
+    };
+  };
+
+  const civicReports = rawCivic.map(injectAvatar);
+
+  const communityReports = rawComm.map(injectAvatar);
 
   // Batch-fetch the viewer own votes so PostActions does not fire one GET per card.
   const reportIds = [...civicReports, ...communityReports].map((r) => r.id);
@@ -196,7 +213,7 @@ async function TalkData({
       .in("post_id", reportIds);
     const voteMap = new Map<string, string>();
     for (const v of voteRows ?? []) voteMap.set(v.post_id, v.vote);
-    const attach = (r: Report) => ({ ...r, my_vote: voteMap.get(r.id) ?? null });
+    const attach = (r: any) => ({ ...r, my_vote: voteMap.get(r.id) ?? null });
     civicReports.forEach((r, i) => { civicReports[i] = attach(r); });
     communityReports.forEach((r, i) => { communityReports[i] = attach(r); });
   }

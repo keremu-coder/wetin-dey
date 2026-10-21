@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { checkIpRateLimit } from "@/lib/rate-limit";
 import { createClient } from "@supabase/supabase-js";
 import { isValidFontId, DEFAULT_FONT_ID } from "@/lib/fonts-registry";
 
@@ -25,6 +26,8 @@ function sb() {
 }
 
 export async function GET(req: Request) {
+  const limit = await checkIpRateLimit(req, { key: "sessions_lookup", limit: 60, windowMs: 60000 });
+  if (!limit.ok) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   try {
     const url = new URL(req.url);
     const handlesParam = url.searchParams.get("handles") ?? "";

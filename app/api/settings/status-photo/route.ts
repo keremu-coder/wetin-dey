@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
 
     const form = await req.formData();
     const file = form.get("photo");
-
+    
     if (!(file instanceof File) || file.size === 0) {
       return Response.json({ error: "No image" }, { status: 400 });
     }
@@ -106,11 +106,6 @@ export async function POST(req: NextRequest) {
   }
 }
 
-/**
- * DELETE — remove my current status photo immediately.
- * Gives users control over their own story (App Review 1.2 / 5.1.1) and
- * frees the storage object instead of waiting for replacement/expiry.
- */
 export async function DELETE(req: NextRequest) {
   try {
     if (!sameOrigin(req)) return Response.json({ error: "bad origin" }, { status: 403 });
