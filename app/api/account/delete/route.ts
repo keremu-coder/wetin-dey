@@ -1,4 +1,4 @@
-﻿export const runtime = "nodejs";
+export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionId } from "@/lib/session";
@@ -73,32 +73,28 @@ export async function POST(req: NextRequest) {
     if (sessErr) return Response.json({ error: "Server error" }, { status: 500 });
     if (!session) return Response.json({ error: "Session not found." }, { status: 404 });
 
+    // Tombstone session: reports and comments will be re-pointed here so
+    // they no longer link to the user. Kept in the archive, detached from
+    // the account — the retention promise in /privacy and /delete-account.
     await db.from("sessions").upsert({
       id: TOMBSTONE, handle: "deleted_user", handle_lower: "deleted_user",
       handle_kind: "anonymous", hide_presence: true
     }, { onConflict: "id", ignoreDuplicates: true });
 
-    const storageErrors: string[] = [];
+    // NOTE: the previous version of this handler deleted every report's
+    // evidence here. That contradicted the retention promise (reports stay
+    // in the archive), so evidence is now kept with the report. Evidence
+    // for reports in communities this user OWNS is still deleted inside
+    // the community-deletion block below, because those reports are
+    // deleted along with the community.
 
-    // 1. Evidence
-    try {
-      const { data: userReports } = await db.from("reports").select("id").eq("session_id", sessionId);
-      if (userReports && userReports.length > 0) {
-        const { deleteReportEvidence } = await import("@/lib/evidence-cleanup");
-        await Promise.all(userReports.map((r) => deleteReportEvidence(r.id)));
-      }
-    } catch (e) {
-      console.error("[account/delete] evidence:", e);
-      return Response.json({ error: "Could not delete your evidence files. Please try again." }, { status: 500 });
-    }
-
-    // 2. Avatar (delete by prefix, no URL parsing) + status photos
+    // 1. Avatar and status photos
     const avatarErr = await removeAll(db, "user-avatars", sessionId);
     if (avatarErr) return Response.json({ error: "Could not delete your profile photo." }, { status: 500 });
-    const statusErr = await removeAll(db, "status-photos", sessionId);
-    if (statusErr) storageErrors.push(statusErr);
+    const statusErr = await removeAll(db, "user-avatars", `status/${sessionId}`);
+    if (statusErr) return Response.json({ error: "Could not delete your status photo." }, { status: 500 });
 
-    // 2b. Owned communities: child rows first, then parent
+    // 2. Owned communities: child rows first, then parent
     const { data: ownedCommunities } = await db
       .from("communities").select("id, avatar_url").eq("owner_session_id", sessionId);
     for (const c of ownedCommunities ?? []) {
@@ -214,7 +210,12 @@ export async function POST(req: NextRequest) {
       await deleteOrFail(db, "checkin_requests", "session_id", sessionId);
       await deleteOrFail(db, "checkin_responses", "session_id", sessionId);
       await deleteOrFail(db, "content_flags", "session_id", sessionId);
-      await deleteOrFail(db, "notifications", "session_id", sessionId);
+      // Notifications: recipient_id and actor_id are separate columns.
+      // Deleting both directions also drops any reference to the scrubbed
+      // session. Pre-existing bug: the old code used "session_id" here,
+      // which does not exist on this table and would 500 at this step.
+      await deleteOrFail(db, "notifications", "recipient_id", sessionId);
+      await deleteOrFail(db, "notifications", "actor_id", sessionId);
       await deleteOrFail(db, "flags", "session_id", sessionId);
       await deleteOrFail(db, "me_toos", "session_id", sessionId);
       await deleteOrFail(db, "radar_signals", "sender_id", sessionId);
@@ -224,18 +225,28 @@ export async function POST(req: NextRequest) {
       await deleteOrFail(db, "community_members", "session_id", sessionId);
     } catch (err: any) { return Response.json({ error: err.message }, { status: 500 }); }
 
-    // 7. Chat messages, reports, comments
+    // 7. Chat messages: deleted (transient — the privacy policy says they
+    // stay "until you or a moderator deletes them", and account deletion
+    // is that).
     const { error: cmErr } = await db.from("community_messages").delete().eq("session_id", sessionId);
     if (cmErr) return Response.json({ error: "Could not delete your chat messages." }, { status: 500 });
-    const { error: rErr } = await db.from("reports").delete().eq("session_id", sessionId);
-    if (rErr) return Response.json({ error: "Could not delete your reports." }, { status: 500 });
-    const { error: cErr } = await db.from("comments").delete().eq("session_id", sessionId);
-    if (cErr) return Response.json({ error: "Could not delete your comments." }, { status: 500 });
 
-    if (storageErrors.length > 0) {
-      console.error("[account/delete] storage errors:", storageErrors);
-      return Response.json({ error: "Storage deletion could not be confirmed.", details: storageErrors }, { status: 500 });
-    }
+    // 7b. Reports and comments: ANONYMIZED, not deleted. The civic archive
+    // keeps every non-violating report at its permanent URL, detached from
+    // the author. Matches /privacy ("we replace your session id and handle
+    // with a placeholder") and /delete-account. Do NOT switch this back to
+    // .delete() — it would resurrect the 5.1.1(v) rejection risk.
+    const { error: rErr } = await db
+      .from("reports")
+      .update({ session_id: TOMBSTONE, author_handle: null })
+      .eq("session_id", sessionId);
+    if (rErr) return Response.json({ error: "Could not detach your reports from your account." }, { status: 500 });
+
+    const { error: cErr } = await db
+      .from("comments")
+      .update({ session_id: TOMBSTONE })
+      .eq("session_id", sessionId);
+    if (cErr) return Response.json({ error: "Could not detach your comments from your account." }, { status: 500 });
 
     // 8. Scrub sessions row
     const scrubHandle = `deleted_${sessionId.slice(0, 8)}`;
@@ -243,6 +254,7 @@ export async function POST(req: NextRequest) {
       handle: scrubHandle, handle_kind: "anonymous", display_name: null,
       email: null, phone: null, auth_provider: "none", auth_user_id: null,
       bio: null, avatar_url: null, status_line: null, status_line_updated_at: null,
+      status_photo_url: null, status_photo_updated_at: null,
       availability: null, recovery_code: null, recovery_code_hash: null,
       previous_handles: null, dm_policy: "everyone", hide_presence: true, accepted_terms_at: null
     }).eq("id", sessionId);
@@ -296,5 +308,3 @@ async function findAuthUserByEmail(db: ReturnType<typeof createServiceClient>, e
   }
   return null;
 }
-
-

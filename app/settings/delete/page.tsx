@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -19,7 +19,7 @@ export default function DeleteAccountPage() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           confirm: "DELETE",
-          delete_content: true // ALWAYS delete everything
+          delete_content: true
         })
       });
       const json = await res.json();
@@ -55,18 +55,28 @@ export default function DeleteAccountPage() {
           This cannot be undone.
         </p>
         <p className="mt-2 text-[0.875rem] leading-relaxed text-ink/85">
-          Deleting your account will permanently remove:
+          Deleting your account will:
         </p>
         <ul className="mt-3 ml-5 list-disc space-y-1 text-[0.875rem] text-ink/85">
-          <li>Your handle and profile</li>
-          <li>All your posts, reports, and comments</li>
-          <li>All your direct messages and DM media</li>
-          <li>All your community memberships</li>
-          <li>Your Radar contacts and signals</li>
-          <li>Your push subscriptions</li>
+          <li>Remove your handle, profile, avatar, and status photo immediately</li>
+          <li>
+            Detach your reports and comments from your identity &mdash; they
+            stay in the public archive, no longer linked to you
+          </li>
+          <li>Delete your direct messages, DM media, and community chat messages</li>
+          <li>Delete any space avatars you uploaded as an owner</li>
+          <li>Delete your community memberships, Radar contacts, and push subscriptions</li>
         </ul>
         <p className="mt-3 text-[0.875rem] font-semibold text-ink">
-          Everything you have uploaded will be deleted immediately and permanently.
+          Your identity is removed from everything you&apos;ve posted. The
+          civic archive keeps the records, detached from you.
+        </p>
+        <p className="mt-2 text-[0.75rem] leading-relaxed text-muted">
+          Full detail in the{" "}
+          <Link href="/privacy" className="underline hover:text-brand">
+            Privacy Policy
+          </Link>
+          .
         </p>
       </div>
 
