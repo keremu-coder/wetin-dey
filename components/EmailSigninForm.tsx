@@ -1,10 +1,9 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { clearWhoAmICache } from "@/lib/whoami-cache";
 
 export function EmailSigninForm() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -27,8 +26,10 @@ export function EmailSigninForm() {
         setBusy(false);
         return;
       }
-      router.push("/");
-      router.refresh();
+      // Clear the stale anonymous handle from the Nav cache
+      clearWhoAmICache();
+      // Hard reload to guarantee fresh session state
+      window.location.href = "/";
     } catch {
       setError("Network error. Try again.");
       setBusy(false);
