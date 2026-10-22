@@ -1,4 +1,4 @@
-﻿@tailwind base;
+@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
@@ -504,4 +504,26 @@ html.native button {
 }
 .animate-fade-in {
   animation: fadeIn 0.2s ease-out forwards;
+}
+
+/* SECURE MEDIA FLICKER (Anti-Screenshot) */
+@keyframes secureFlicker {
+  0% { opacity: 1; }
+  15% { opacity: 0; }
+  30% { opacity: 1; }
+  45% { opacity: 0; }
+  60% { opacity: 1; }
+  75% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+.secure-media-flicker {
+  animation: secureFlicker 0.1s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .secure-media-flicker {
+    animation: none;
+    opacity: 1;
+  }
 }

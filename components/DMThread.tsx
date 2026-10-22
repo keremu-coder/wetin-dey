@@ -17,6 +17,7 @@ import { FlagSheet } from "./FlagSheet";
 import { Avatar } from "./Avatar";
 import { DMReportButton } from "./DMReportButton";
 import { VoiceRoom } from "./VoiceRoom";
+import { SecureMediaViewer } from "./SecureMediaViewer";
 
 type Message = {
   id: string;
@@ -549,35 +550,12 @@ export function DMThread({
       ) : null}
 
       {viewingMedia ? (
-        <div 
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95"
-          onClick={() => setViewingMedia(null)}
-        >
-          <div className="relative max-h-full max-w-full p-4">
-            <button 
-              className="absolute -top-12 right-0 p-2 text-white/70 hover:text-white"
-              onClick={() => setViewingMedia(null)}
-            >
-              Close
-            </button>
-            {viewingMedia.type === "video" ? (
-              <video 
-                src={viewingMedia.url} 
-                autoPlay 
-                controls 
-                playsInline
-                className="max-h-[85vh] max-w-full rounded-lg object-contain"
-              />
-            ) : (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img 
-                src={viewingMedia.url} 
-                alt="View once media" 
-                className="max-h-[85vh] max-w-full rounded-lg object-contain"
-              />
-            )}
-          </div>
-        </div>
+        <SecureMediaViewer
+          url={viewingMedia.url}
+          type={viewingMedia.type}
+          viewerHandle={otherHandle}
+          onClose={() => setViewingMedia(null)}
+        />
       ) : null}
     </div>
   );
