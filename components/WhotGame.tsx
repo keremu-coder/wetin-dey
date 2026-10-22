@@ -41,6 +41,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
   const [isProcessing, setIsProcessing] = useState(false);
   const [lastAction, setLastAction] = useState<string>("Game started");
   
+  const [handles, setHandles] = useState<Record<string, string>>({});
   const [wins, setWins] = useState(0);
   const [losses, setLosses] = useState(0);
   
@@ -63,6 +64,21 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
     setWins(Number(localStorage.getItem("whot_wins") || 0));
     setLosses(Number(localStorage.getItem("whot_losses") || 0));
   }, []);
+
+  // Fetch real handles for all players
+  useEffect(() => {
+    const fetchHandles = async () => {
+      const ids = game.players.filter((p: string) => p !== "bot");
+      if (ids.length === 0) return;
+      const { data } = await supabase.from("sessions").select("id, handle").in("id", ids);
+      if (data) {
+        const map: Record<string, string> = {};
+        for (const p of data) map[p.id] = p.handle;
+        setHandles(map);
+      }
+    };
+    fetchHandles();
+  }, [game.players]);
 
   // Save Score
   useEffect(() => {
@@ -567,7 +583,11 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
       {state.status === "finished" && (
         <div className="absolute inset-0 z-[60] bg-black/90 flex flex-col items-center justify-center p-6 text-center">
           <div className="text-6xl mb-4">{state.winner === sessionId ? "🏆" : "😔"}</div>
-          <h2 className="text-3xl font-black text-white mb-2">{state.winner === sessionId ? "YOU WON!" : "BOT WON"}</h2>
+          <h2 className="text-3xl font-black text-white mb-2">
+            {state.winner === "bot" 
+              ? "🤖 Bot Won!" 
+              : `@${handles[state.winner || ""] || "Player"} Won!`}
+          </h2>
           
           <div className="flex gap-4 mb-8 bg-white/10 px-6 py-3 rounded-2xl border border-white/20">
              <div className="text-center">
