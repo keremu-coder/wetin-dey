@@ -49,6 +49,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
 
   const [dragState, setDragState] = useState<{ id: string, x: number, y: number } | null>(null);
   const dragStartPos = useRef({ x: 0, y: 0 });
+  const pressedCardRef = useRef<WhotCard | null>(null);
   const isDraggingRef = useRef(false);
 
   const topCard = state?.discard[state.discard.length - 1];
@@ -170,30 +171,49 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
   // Global Pointer Handlers
   useEffect(() => {
     function onPointerMove(e: PointerEvent) {
-      if (!dragState) return;
+      if (!pressedCardRef.current) return;
+      
       const dx = e.clientX - dragStartPos.current.x;
       const dy = e.clientY - dragStartPos.current.y;
-      if (Math.sqrt(dx*dx + dy*dy) > DRAG_THRESHOLD) {
-        isDraggingRef.current = true;
+
+      if (!isDraggingRef.current) {
+        // If moving mostly horizontally, cancel drag and let the list scroll
+        if (Math.abs(dx) > Math.abs(dy) + 5) {
+          pressedCardRef.current = null;
+          dragStartPos.current = { x: 0, y: 0 };
+          return;
+        }
+        // If moving up by more than 10px, start dragging
+        if (dy < -10) {
+          isDraggingRef.current = true;
+          setDragState({ id: pressedCardRef.current.id, x: e.clientX, y: e.clientY });
+        }
       }
-      setDragState(prev => prev ? { ...prev, x: e.clientX, y: e.clientY } : null);
+
+      if (isDraggingRef.current) {
+        setDragState(prev => prev ? { ...prev, x: e.clientX, y: e.clientY } : null);
+      }
     }
 
     function onPointerUp(e: PointerEvent) {
-      if (!dragState) return;
-      const wasDragging = isDraggingRef.current;
-      const cardId = dragState.id;
-      setDragState(null);
-      isDraggingRef.current = false;
-
-      const card = (state.hands[sessionId] || []).find(c => c.id === cardId);
+      const card = pressedCardRef.current;
       if (!card) return;
+      
+      const wasDragging = isDraggingRef.current;
+      
+      // Reset state
+      pressedCardRef.current = null;
+      dragStartPos.current = { x: 0, y: 0 };
+      isDraggingRef.current = false;
+      setDragState(null);
 
       if (!wasDragging) {
+        // It was a tap
         tryPlayCard(card);
         return;
       }
 
+      // It was a drag, check if dropped on pile
       const el = document.elementFromPoint(e.clientX, e.clientY);
       const isOverDiscard = el?.closest('#discard-pile');
       if (isOverDiscard) {
@@ -213,7 +233,8 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
     if (!isMyTurn || isProcessing) return;
     dragStartPos.current = { x: e.clientX, y: e.clientY };
     isDraggingRef.current = false;
-    setDragState({ id: card.id, x: e.clientX, y: e.clientY });
+    pressedCardRef.current = card;
+    // Do NOT setDragState here. We wait to see if they scroll or drag.
   }
 
   function tryPlayCard(card: WhotCard) {
@@ -349,7 +370,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
     const isWhot = card.value === 20;
     return (
       <div
-        style={{ touchAction: 'none', ...style }}
+        style={{ ...style }}
         className={`relative flex flex-col justify-between items-center bg-[#FDFBF7] rounded-md overflow-hidden select-none shadow-md border-2 border-gray-200 w-16 h-24 shrink-0 transition-transform`}
       >
         <div className="absolute top-1 left-1.5 flex flex-col items-center leading-none text-[#8B3A2B]">
