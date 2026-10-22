@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { getBrowserClient } from "@/lib/supabase/client";
 import { WhotCard, WhotSuit, canPlayCard, WhotState, getNextTurn } from "@/lib/whot";
 import { getBotMove } from "@/lib/whot-bot";
@@ -25,6 +25,8 @@ function getCardName(card: WhotCard): string {
   return `${card.value} of ${card.suit.toUpperCase()}`;
 }
 
+const DRAG_THRESHOLD = 10; // pixels to move before it counts as a drag
+
 export function WhotGame({ game, isPlayer, sessionId }: { game: any, isPlayer: boolean, sessionId: string }) {
   const supabase = getBrowserClient();
   const state: WhotState = game.game_state;
@@ -32,6 +34,12 @@ export function WhotGame({ game, isPlayer, sessionId }: { game: any, isPlayer: b
   const [selectedCard, setSelectedCard] = useState<WhotCard | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [lastAction, setLastAction] = useState<string>("Game started");
+  
+  // Drag and drop state
+  const [dragState, setDragState] = useState<{ id: string, x: number, y: number } | null>(null);
+  const dragStartPos = useRef({ x: 0, y: 0 });
+  const isDraggingRef = useRef(false);
+  const discardRef = useRef<HTMLDivElement>(null);
 
   const topCard = state?.discard[state.discard.length - 1];
   const isMyTurn = state?.turn === sessionId;
@@ -41,7 +49,6 @@ export function WhotGame({ game, isPlayer, sessionId }: { game: any, isPlayer: b
     unlockAudio();
   }, []);
 
-  // Alert when it becomes your turn
   useEffect(() => {
     if (isMyTurn && state?.status === "playing") {
       playProfile("bbm", "mention");
@@ -94,7 +101,6 @@ export function WhotGame({ game, isPlayer, sessionId }: { game: any, isPlayer: b
         } else if (move.card.value === 8) {
           nextTurn = getNextTurn(game.players, nextTurn);
         } else if (move.card.value === 14) {
-          // General market: everyone else picks 1
           for (const p of game.players) {
             if (p !== "bot") nextHands[p] = [...nextHands[p], ...newDeck.splice(0, 1)];
           }
@@ -118,20 +124,88 @@ export function WhotGame({ game, isPlayer, sessionId }: { game: any, isPlayer: b
         await supabase.from("space_games").update({ game_state: newState }).eq("id", game.id);
       }
       setIsProcessing(false);
-    }, 1800); // 1.8 seconds feels like a real person thinking
+    }, 1800);
 
     return () => clearTimeout(timer);
   }, [isBotTurn, state, topCard, isProcessing, game.id, game.players]);
 
-  if (!state || !state.hands) return <div className="text-center text-muted p-4">Dealing cards...</div>;
+  function tryPlayCard(card: WhotCard) {
+    if (!isMyTurn || isProcessing) return;
+    if (!canPlayCard(card, topCard, state.calledSuit)) {
+      vibrate([50, 50]); // Error buzz
+      return;
+    }
+    
+    if (card.value === 20) {
+      setSelectedCard(card);
+      setSuitPickerOpen(true);
+    } else {
+      playCard(card);
+    }
+  }
 
-  const myHand = state.hands[sessionId] || [];
+  // Drag Handlers
+  function onPointerDown(e: React.PointerEvent<HTMLButtonElement>, card: WhotCard) {
+    if (!isMyTurn || isProcessing) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    
+    dragStartPos.current = { x: e.clientX, y: e.clientY };
+    isDraggingRef.current = false;
+    
+    setDragState({
+      id: card.id,
+      x: e.clientX,
+      y: e.clientY
+    });
+  }
+
+  function onPointerMove(e: React.PointerEvent<HTMLButtonElement>) {
+    if (!dragState) return;
+    
+    const dx = e.clientX - dragStartPos.current.x;
+    const dy = e.clientY - dragStartPos.current.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    
+    if (dist > DRAG_THRESHOLD) {
+      isDraggingRef.current = true;
+    }
+
+    setDragState(prev => prev ? { ...prev, x: e.clientX, y: e.clientY } : null);
+  }
+
+  function onPointerUp(e: React.PointerEvent<HTMLButtonElement>, card: WhotCard) {
+    if (!dragState) return;
+    
+    const wasDragging = isDraggingRef.current;
+    setDragState(null);
+    isDraggingRef.current = false;
+
+    // 1. If it was just a tap (no drag), play it immediately
+    if (!wasDragging) {
+      tryPlayCard(card);
+      return;
+    }
+
+    // 2. If it was a drag, check if they dropped it on the pile
+    if (!discardRef.current) return;
+    
+    const rect = discardRef.current.getBoundingClientRect();
+    const isOverDiscard = 
+      e.clientX >= rect.left - 30 && 
+      e.clientX <= rect.right + 30 && 
+      e.clientY >= rect.top - 30 && 
+      e.clientY <= rect.bottom + 30;
+
+    if (isOverDiscard) {
+      tryPlayCard(card);
+    }
+  }
 
   async function playCard(card: WhotCard, calledSuit: WhotSuit | null = null) {
     if (!isMyTurn || isProcessing) return;
     setIsProcessing(true);
     
-    const newHand = myHand.filter(c => c.id !== card.id);
+    const newHand = (state.hands[sessionId] || []).filter(c => c.id !== card.id);
     const newHands: Record<string, WhotCard[]> = { ...state.hands, [sessionId]: newHand };
     const newDiscard = [...state.discard, card];
 
@@ -182,7 +256,7 @@ export function WhotGame({ game, isPlayer, sessionId }: { game: any, isPlayer: b
     setIsProcessing(true);
     
     let newDeck = [...state.deck];
-    let newHand = [...myHand];
+    let newHand = [...(state.hands[sessionId] || [])];
     
     if (newDeck.length === 0) newDeck = [...state.discard.slice(0, -1)].sort(() => Math.random() - 0.5);
 
@@ -205,52 +279,41 @@ export function WhotGame({ game, isPlayer, sessionId }: { game: any, isPlayer: b
     setIsProcessing(false);
   }
 
-  function handleCardClick(card: WhotCard) {
-    if (!isMyTurn || isProcessing) return;
-    if (!canPlayCard(card, topCard, state.calledSuit)) {
-      // Just a subtle feedback if they try to play an invalid card
-      vibrate([50, 50]);
-      return;
-    }
-    
-    if (card.value === 20) {
-      setSelectedCard(card);
-      setSuitPickerOpen(true);
-    } else {
-      playCard(card);
-    }
-  }
+  if (!state || !state.hands) return <div className="text-center text-muted p-4">Dealing cards...</div>;
 
-  const CardUI = ({ card, isPlayable, onClick }: { card: WhotCard, isPlayable?: boolean, onClick?: () => void }) => {
+  const myHand = state.hands[sessionId] || [];
+
+  const CardUI = ({ card, isDragging, onPointerDown, onPointerMove, onPointerUp, style }: any) => {
     const isWhot = card.value === 20;
     return (
       <button
-        onClick={onClick}
-        disabled={!isPlayable && onClick != null}
-        className={`relative flex flex-col justify-between items-center bg-[#FDFBF7] rounded-md overflow-hidden select-none transition-transform ${
-          onClick ? (isPlayable ? "shadow-md -translate-y-2 border-2 border-[#8B3A2B] cursor-pointer" : "bg-gray-200 opacity-60") : "border border-gray-300 w-16 h-24 shadow-xl"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        style={{ touchAction: 'none', ...style }}
+        className={`relative flex flex-col justify-between items-center bg-[#FDFBF7] rounded-md overflow-hidden select-none shadow-md border border-gray-300 w-12 h-18 shrink-0 ${
+          isDragging ? 'z-50 shadow-2xl scale-110 cursor-grabbing opacity-90 fixed pointer-events-none' : 'cursor-grab hover:-translate-y-1 transition-transform'
         }`}
-        style={{ width: onClick ? '3rem' : '4rem', height: onClick ? '4.5rem' : '6rem' }}
       >
         <div className="absolute top-1 left-1 flex flex-col items-center leading-none text-[#8B3A2B]">
-          <span className="text-[0.7rem] font-bold">{card.value}</span>
-          <span className="text-[0.6rem]">{SUIT_ICONS[card.suit as keyof typeof SUIT_ICONS]}</span>
+          <span className="text-[0.65rem] font-bold">{card.value}</span>
+          <span className="text-[0.55rem]">{SUIT_ICONS[card.suit as keyof typeof SUIT_ICONS]}</span>
         </div>
         <div className="flex-1 flex items-center justify-center">
-           <span className={`text-[#8B3A2B] ${isWhot ? 'font-black text-lg tracking-tighter' : 'text-3xl'}`}>
+           <span className={`text-[#8B3A2B] ${isWhot ? 'font-black text-sm tracking-tighter' : 'text-2xl'}`}>
              {SUIT_ICONS[card.suit as keyof typeof SUIT_ICONS]}
            </span>
         </div>
         <div className="absolute bottom-1 right-1 flex flex-col items-center leading-none text-[#8B3A2B] rotate-180">
-          <span className="text-[0.7rem] font-bold">{card.value}</span>
-          <span className="text-[0.6rem]">{SUIT_ICONS[card.suit as keyof typeof SUIT_ICONS]}</span>
+          <span className="text-[0.65rem] font-bold">{card.value}</span>
+          <span className="text-[0.55rem]">{SUIT_ICONS[card.suit as keyof typeof SUIT_ICONS]}</span>
         </div>
       </button>
     );
   };
 
   return (
-    <div className="w-full h-full flex flex-col bg-[#0a2e16] rounded-xl overflow-hidden relative">
+    <div className="w-full h-full flex flex-col bg-[#0a2e16] rounded-xl overflow-hidden relative select-none">
       {/* Top Bar / Opponents */}
       <div className="flex justify-between items-center text-white/90 text-xs p-2 bg-black/40 shrink-0">
         {game.players.filter((p: string) => p !== sessionId).map((pid: string) => {
@@ -288,7 +351,7 @@ export function WhotGame({ game, isPlayer, sessionId }: { game: any, isPlayer: b
           </div>
         </button>
 
-        <div className="relative">
+        <div ref={discardRef} className="relative">
            <CardUI card={topCard} />
            {state.calledSuit && (
             <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[0.6rem] text-yellow-300 font-bold whitespace-nowrap bg-black/60 px-2 py-1 rounded-full uppercase">
@@ -299,18 +362,18 @@ export function WhotGame({ game, isPlayer, sessionId }: { game: any, isPlayer: b
       </div>
 
       {/* My Hand */}
-      <div className="h-28 bg-black/40 p-2 flex gap-1.5 overflow-x-auto items-center shrink-0" style={{ touchAction: 'pan-x' }}>
-        {myHand.map((card) => {
-          const playable = isMyTurn && canPlayCard(card, topCard, state.calledSuit);
-          return (
-            <CardUI 
-              key={card.id} 
-              card={card} 
-              isPlayable={playable} 
-              onClick={() => handleCardClick(card)} 
-            />
-          );
-        })}
+      <div className="h-28 bg-black/40 p-2 flex gap-2 overflow-x-auto items-center shrink-0" style={{ touchAction: 'pan-x' }}>
+        {myHand.map((card) => (
+          <CardUI 
+            key={card.id} 
+            card={card} 
+            isDragging={dragState?.id === card.id}
+            style={dragState?.id === card.id ? { left: dragState.x - 24, top: dragState.y - 40 } : {}}
+            onPointerDown={(e: any) => onPointerDown(e, card)}
+            onPointerMove={onPointerMove}
+            onPointerUp={(e: any) => onPointerUp(e, card)}
+          />
+        ))}
       </div>
 
       {/* Whot Suit Picker */}
