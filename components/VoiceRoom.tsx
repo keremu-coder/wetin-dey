@@ -198,12 +198,12 @@ export function VoiceRoom({
               <span className="text-sm font-medium text-white">Include Whot 20 (Anyplay)</span>
             </label>
             
-            <div className="flex flex-col gap-3 w-full max-w-[250px]">
-              <button onClick={() => startGame(false)} disabled={isStarting} className="rounded-xl bg-brand px-8 py-4 font-semibold text-white shadow-lg active:scale-95 transition-transform disabled:opacity-50">
-                {isStarting ? "Starting..." : "Start Multiplayer Game"}
+            <div className="flex flex-col gap-3 w-full max-w-xs mt-4">
+              <button onClick={() => startGame(true)} disabled={isStarting} className="flex items-center justify-center gap-2 rounded-xl bg-[#1F7A4D] border border-[#0A6B43] text-white px-6 py-4 font-semibold shadow-md active:scale-95 transition-transform disabled:opacity-50">
+                <span>🤖</span> Play Solo (vs Bot)
               </button>
-              <button onClick={() => startGame(true)} disabled={isStarting} className="rounded-xl bg-[#1F7A4D] border border-[#0A6B43] text-white px-8 py-4 font-semibold shadow-lg active:scale-95 transition-transform disabled:opacity-50">
-                Play Solo (vs Bot)
+              <button onClick={() => startGame(false)} disabled={isStarting} className="rounded-xl bg-brand px-6 py-3 text-[0.8125rem] font-medium text-white shadow-sm active:scale-95 transition-transform disabled:opacity-50">
+                {isStarting ? "Starting..." : "Host Multiplayer Game"}
               </button>
             </div>
           </div>

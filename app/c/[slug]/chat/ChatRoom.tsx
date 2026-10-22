@@ -889,13 +889,13 @@ export function ChatRoom({
         </div>
       ) : null}
 
-      <div className="px-3 py-2 bg-paper border-t border-border flex justify-end">
+      <div className="px-3 py-2 bg-paper border-t border-border flex items-center justify-center shrink-0">
           <button
             type="button"
             onClick={() => setVoiceRoomOpen(true)}
-            className="flex items-center gap-2 rounded-full bg-brand px-4 py-2 text-[0.875rem] font-semibold text-white shadow-button transition-transform active:scale-95"
+            className="flex w-full max-w-sm items-center justify-center gap-2 rounded-xl bg-brand px-4 py-3 text-[0.875rem] font-semibold text-white shadow-sm transition-transform active:scale-95"
           >
-            <span className="text-[1.1rem]">🎙️</span> Join Voice & Games
+            <span className="text-[1.2rem]">🎙️</span> Join Voice & Games
           </button>
         </div>
         <ChatComposer

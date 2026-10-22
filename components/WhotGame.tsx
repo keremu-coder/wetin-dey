@@ -5,13 +5,14 @@ import { getBrowserClient } from "@/lib/supabase/client";
 import { WhotCard, WhotSuit, canPlayCard, WhotState, getNextTurn } from "@/lib/whot";
 import { getBotMove } from "@/lib/whot-bot";
 
+// Using classic shapes and matching the terracotta color from the physical cards
 const SUIT_ICONS = {
-  circle: "⭕",
-  triangle: "🔺",
-  cross: "✖️",
-  square: "🟦",
-  star: "⭐",
-  whot: "🃏"
+  circle: "⬤",
+  triangle: "▲",
+  cross: "✖",
+  square: "◼",
+  star: "★",
+  whot: "WHOT"
 };
 
 export function WhotGame({ game, isPlayer, sessionId }: { game: any, isPlayer: boolean, sessionId: string }) {
@@ -186,6 +187,40 @@ export function WhotGame({ game, isPlayer, sessionId }: { game: any, isPlayer: b
     }
   }
 
+  // Component to render a card visually (matches physical card style)
+  const CardUI = ({ card, isPlayable, onClick }: { card: WhotCard, isPlayable?: boolean, onClick?: () => void }) => {
+    const isWhot = card.value === 20;
+    return (
+      <button
+        onClick={onClick}
+        disabled={!isPlayable && onClick != null}
+        className={`relative flex flex-col justify-between items-center bg-[#FDFBF7] rounded-md overflow-hidden select-none transition-transform ${
+          onClick ? (isPlayable ? "shadow-md -translate-y-2 border-2 border-[#8B3A2B] cursor-pointer" : "bg-gray-200 opacity-60") : "border border-gray-300 w-16 h-24 shadow-xl"
+        }`}
+        style={{ width: onClick ? '3rem' : '4rem', height: onClick ? '4.5rem' : '6rem' }}
+      >
+        {/* Top Left */}
+        <div className="absolute top-1 left-1 flex flex-col items-center leading-none text-[#8B3A2B]">
+          <span className="text-[0.7rem] font-bold">{card.value}</span>
+          <span className="text-[0.6rem]">{SUIT_ICONS[card.suit as keyof typeof SUIT_ICONS]}</span>
+        </div>
+
+        {/* Center */}
+        <div className="flex-1 flex items-center justify-center">
+           <span className={`text-[#8B3A2B] ${isWhot ? 'font-black text-lg tracking-tighter' : 'text-3xl'}`}>
+             {SUIT_ICONS[card.suit as keyof typeof SUIT_ICONS]}
+           </span>
+        </div>
+
+        {/* Bottom Right */}
+        <div className="absolute bottom-1 right-1 flex flex-col items-center leading-none text-[#8B3A2B] rotate-180">
+          <span className="text-[0.7rem] font-bold">{card.value}</span>
+          <span className="text-[0.6rem]">{SUIT_ICONS[card.suit as keyof typeof SUIT_ICONS]}</span>
+        </div>
+      </button>
+    );
+  };
+
   return (
     <div className="w-full h-full flex flex-col bg-[#0a2e16] rounded-xl overflow-hidden relative">
       {/* Opponents */}
@@ -202,43 +237,41 @@ export function WhotGame({ game, isPlayer, sessionId }: { game: any, isPlayer: b
       </div>
 
       {/* Center Table */}
-      <div className="flex-1 flex items-center justify-center gap-4">
+      <div className="flex-1 flex items-center justify-center gap-6">
+        {/* Market Deck */}
         <button 
           onClick={pickFromMarket}
           disabled={!isMyTurn || isProcessing}
-          className="w-14 h-20 bg-black/50 border-2 border-white/20 rounded-lg flex flex-col items-center justify-center text-white disabled:opacity-50"
+          className="relative w-16 h-24 bg-[#8B3A2B] rounded-md shadow-lg border-2 border-[#5A2217] flex items-center justify-center text-white disabled:opacity-50"
         >
-          <span className="text-[10px] uppercase">Market</span>
-          <span className="text-xs font-bold">({state.deck.length})</span>
+          <span className="text-xs font-bold rotate-[-15deg] text-white/30 uppercase tracking-widest">Whot</span>
+          <div className="absolute -bottom-6 text-white text-xs font-semibold bg-black/50 px-2 py-1 rounded-full whitespace-nowrap">
+            {state.deck.length} left
+          </div>
         </button>
 
-        <div className="w-16 h-24 bg-white rounded-lg shadow-lg flex flex-col items-center justify-center relative border-2 border-gray-300">
-          <span className="text-2xl">{SUIT_ICONS[topCard.suit as keyof typeof SUIT_ICONS]}</span>
-          <span className="text-xl font-bold text-black">{topCard.value}</span>
-          {state.calledSuit && (
-            <div className="absolute -bottom-5 text-[10px] text-yellow-300 font-bold whitespace-nowrap bg-black/50 px-1 rounded">
-              {state.calledSuit}
+        {/* Discard Pile */}
+        <div className="relative">
+           <CardUI card={topCard} />
+           {state.calledSuit && (
+            <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[0.65rem] text-yellow-300 font-bold whitespace-nowrap bg-black/60 px-2 py-1 rounded-full uppercase">
+              Play: {state.calledSuit}
             </div>
           )}
         </div>
       </div>
 
       {/* My Hand */}
-      <div className="h-28 bg-black/40 p-2 flex gap-1 overflow-x-auto items-center shrink-0" style={{ touchAction: 'pan-x' }}>
+      <div className="h-28 bg-black/40 p-2 flex gap-2 overflow-x-auto items-center shrink-0" style={{ touchAction: 'pan-x' }}>
         {myHand.map((card) => {
           const playable = isMyTurn && canPlayCard(card, topCard, state.calledSuit);
           return (
-            <button
-              key={card.id}
-              onClick={() => handleCardClick(card)}
-              disabled={!playable || isProcessing}
-              className={`shrink-0 w-12 h-20 rounded flex flex-col items-center justify-center transition-transform ${
-                playable ? "bg-white shadow-md -translate-y-1 border-2 border-yellow-400" : "bg-gray-400 opacity-60"
-              }`}
-            >
-              <span className="text-xl">{SUIT_ICONS[card.suit]}</span>
-              <span className="text-lg font-bold text-black">{card.value}</span>
-            </button>
+            <CardUI 
+              key={card.id} 
+              card={card} 
+              isPlayable={playable} 
+              onClick={() => handleCardClick(card)} 
+            />
           );
         })}
       </div>
@@ -246,20 +279,20 @@ export function WhotGame({ game, isPlayer, sessionId }: { game: any, isPlayer: b
       {/* Whot Suit Picker */}
       {suitPickerOpen && (
         <div className="absolute inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4">
-          <h3 className="text-white font-bold mb-4">Call a Suit!</h3>
-          <div className="grid grid-cols-2 gap-2 w-full max-w-[250px]">
+          <h3 className="text-white font-bold mb-4 text-xl">Call a Suit!</h3>
+          <div className="grid grid-cols-2 gap-3 w-full max-w-[280px]">
             {(["circle", "triangle", "cross", "square", "star"] as WhotSuit[]).map(s => (
               <button
                 key={s}
                 onClick={() => playCard(selectedCard!, s)}
-                className="p-3 bg-white rounded-lg text-xl flex flex-col items-center active:bg-gray-300"
+                className="p-4 bg-[#FDFBF7] rounded-xl text-xl flex flex-col items-center text-[#8B3A2B] font-bold active:scale-95 transition-transform"
               >
-                {SUIT_ICONS[s]}
-                <span className="text-[10px] uppercase font-bold text-black">{s}</span>
+                <span className="text-3xl mb-1">{SUIT_ICONS[s]}</span>
+                <span className="text-[0.65rem] uppercase">{s}</span>
               </button>
             ))}
           </div>
-          <button onClick={() => setSuitPickerOpen(false)} className="mt-4 text-sm text-red-400 font-bold">Cancel</button>
+          <button onClick={() => setSuitPickerOpen(false)} className="mt-6 text-sm text-red-400 font-bold hover:text-white">Cancel</button>
         </div>
       )}
     </div>
