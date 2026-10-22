@@ -15,22 +15,33 @@ export function getBotMove(
   
   if (playable.length === 0) return { action: "pick" };
 
-  const minOpponentCards = opponentCardCounts.length > 0 ? Math.min(...opponentCardCounts) : 99;
+  const minOppCards = opponentCardCounts.length > 0 ? Math.min(...opponentCardCounts) : 99;
 
-  // 1. DEFENSIVE PLAY: If opponent has 1 or 2 cards, hit them with a penalty card
-  if (minOpponentCards <= 2) {
-    const blockCard = playable.find(c => c.value === 8 || c.value === 2 || c.value === 5);
+  // 1. WIN THE GAME: If we have 1 card left and it's playable, play it.
+  if (hand.length === 1) {
+    return { action: "play", card: playable[0] };
+  }
+
+  // 2. DEFENSIVE PLAY: If opponent has 1 or 2 cards left, hit them with a penalty card!
+  if (minOppCards <= 2) {
+    const blockCard = playable.find(c => c.value === 5) // Pick 3
+      || playable.find(c => c.value === 2)             // Pick 2
+      || playable.find(c => c.value === 8)             // Suspension
+      || playable.find(c => c.value === 14);           // General Market
     if (blockCard) return { action: "play", card: blockCard };
   }
 
-  // 2. CHAOS PLAY: Play special cards (1, 2, 5, 8, 14) to control the game (but save Whot 20)
-  const specialOrder = [1, 8, 2, 5, 14];
-  for (const val of specialOrder) {
-    const specialCard = playable.find(c => c.value === val);
+  // 3. TACTICAL PLAY: Play "Hold On" (1) if we have other cards to play next
+  const holdOn = playable.find(c => c.value === 1);
+  if (holdOn && hand.length > 2) return { action: "play", card: holdOn };
+
+  // 4. CHAOS PLAY: Play special cards (2, 5, 8, 14) to control the game
+  if (hand.length > 3) {
+    const specialCard = playable.find(c => [2, 5, 8, 14].includes(c.value));
     if (specialCard) return { action: "play", card: specialCard };
   }
 
-  // 3. NORMAL PLAY: Play a normal card, preferring to stick to the current suit
+  // 5. NORMAL PLAY: Play a normal card, preferring to stick to the current suit
   const normalCards = playable.filter(c => c.value !== 20);
   if (normalCards.length > 0) {
     const suitMatch = normalCards.find(c => c.suit === topCard.suit || c.suit === calledSuit);
@@ -38,14 +49,13 @@ export function getBotMove(
     return { action: "play", card: normalCards[0] };
   }
 
-  // 4. EMERGENCY: Only use Whot 20 if there are no other options
+  // 6. EMERGENCY: Only use Whot 20 if there are no other options
   const whotCard = playable.find(c => c.value === 20);
   if (whotCard) {
     const suitCounts: Record<string, number> = { circle: 0, triangle: 0, cross: 0, square: 0, star: 0 };
     for (const c of hand) {
       if (c.suit !== "whot") suitCounts[c.suit]++;
     }
-    
     let bestSuit: WhotSuit = "circle";
     let maxCount = -1;
     for (const [suit, count] of Object.entries(suitCounts)) {
@@ -54,7 +64,6 @@ export function getBotMove(
         bestSuit = suit as WhotSuit;
       }
     }
-    
     return { action: "play", card: whotCard, calledSuit: bestSuit };
   }
 
