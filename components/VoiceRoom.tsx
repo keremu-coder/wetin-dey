@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { LiveKitRoom, useConnectionState, useLocalParticipant, useParticipants } from "@livekit/components-react";
+import { LiveKitRoom, useConnectionState, useLocalParticipant, useParticipants, StartMediaButton } from "@livekit/components-react";
 import { ConnectionState } from "livekit-client";
 import "@livekit/components-styles";
 import { getBrowserClient } from "@/lib/supabase/client";
@@ -265,6 +265,9 @@ export function VoiceRoom({
         data-lk-theme="default" 
         style={{ height: 'auto' }}
       >
+        <div className="flex justify-center mt-2 mb-1">
+          <StartMediaButton label="🔊 Tap to hear voice" className="bg-brand text-white px-4 py-2 rounded-full text-sm font-semibold animate-pulse" />
+        </div>
         {livekitError ? (
           <div className="flex items-center justify-center text-red-400 text-sm font-semibold mx-4 mb-2 p-4 bg-red-500/10 rounded-xl border border-red-500/20">
             Audio failed to connect.
