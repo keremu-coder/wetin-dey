@@ -14,13 +14,18 @@ const AVATAR_SEEDS = ["mama", "oga", "boy", "lady", "pastor", "alhaji", "market_
 function CustomAudioBar({ spaceName, onLeave }: { spaceName: string, onLeave: () => void }) {
   const { localParticipant } = useLocalParticipant();
   const participants = useParticipants();
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
 
   async function toggleMute() {
     if (!localParticipant) return;
     const nextState = !isMuted;
     setIsMuted(nextState);
     await localParticipant.setMicrophoneEnabled(!nextState);
+    
+    // Force resume all audio elements to bypass autoplay blocks
+    document.querySelectorAll('audio').forEach(a => {
+      a.play().catch(() => {});
+    });
   }
 
   return (
@@ -274,6 +279,7 @@ export function VoiceRoom({
         data-lk-theme="default" 
         style={{ height: 'auto' }}
       >
+        <RoomAudioRenderer />
         <div className="flex justify-center mt-2 mb-1">
           <StartMediaButton label="🔊 Tap to hear voice" className="bg-brand text-white px-4 py-2 rounded-full text-sm font-semibold animate-pulse" />
         </div>
