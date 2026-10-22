@@ -34,7 +34,7 @@ function getCardName(card: WhotCard): string {
 
 const DRAG_THRESHOLD = 10;
 
-export function WhotGame({ game, isPlayer, sessionId, onQuit }: { game: any, isPlayer: boolean, sessionId: string, onQuit: () => void }) {
+export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: any, isPlayer: boolean, sessionId: string, onQuit: () => void, mySeed?: string }) {
   const supabase = getBrowserClient();
   const state: WhotState = game.game_state;
   const [suitPickerOpen, setSuitPickerOpen] = useState(false);
@@ -419,7 +419,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit }: { game: any, isP
             <div className="text-[10px] text-white/50">{myHand.length} cards</div>
           </div>
           <div className="relative">
-            <Alama seed={sessionId} size={32} />
+            <Alama seed={mySeed || sessionId} size={32} />
             <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-[#0a2e16] ${state.turn === sessionId ? 'bg-yellow-500' : 'bg-gray-500'}`} />
           </div>
         </div>
@@ -458,16 +458,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit }: { game: any, isP
           )}
         </div>
 
-        {/* Close Game X Button */}
-        <button 
-          onClick={confirmQuit} 
-          className="absolute right-2 top-2 z-50 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white/70 hover:text-white transition-colors"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
+        
       </div>
 
       {/* My Hand */}

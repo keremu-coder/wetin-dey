@@ -41,8 +41,9 @@ import {
 import { ChatRoomMembers } from "@/components/ChatRoomMembers";
 import { MessageRow } from "@/components/MessageRow";
 import { ChatHeader } from "@/components/ChatHeader";
+const VoiceRoom = nextDynamic(() => import("@/components/VoiceRoom").then(m => m.VoiceRoom), { ssr: false });
 import { ChatComposer } from "@/components/ChatComposer";
-import { VoiceRoom } from "@/components/VoiceRoom";
+
 
 const InviteSheet = nextDynamic(
   () => import("@/components/InviteSheet").then((m) => m.InviteSheet),
