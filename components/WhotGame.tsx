@@ -26,7 +26,6 @@ function getCardName(card: WhotCard): string {
   if (card.value === 20) return "WHOT 20";
   if (card.value === 1) return "HOLD ON";
   if (card.value === 2) return "PICK 2";
-  if (card.value === 5) return "PICK 3";
   if (card.value === 8) return card.suit === "star" ? "STAR 8" : "SUSPENSION";
   if (card.value === 14) return "GENERAL MARKET";
   return `${card.value} ${card.suit.toUpperCase()}`;

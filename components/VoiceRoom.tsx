@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { LiveKitRoom, useConnectionState, useLocalParticipant, useParticipants, StartMediaButton } from "@livekit/components-react";
+import { LiveKitRoom, useConnectionState, useLocalParticipant, useParticipants, StartMediaButton, RoomAudioRenderer } from "@livekit/components-react";
 import { ConnectionState } from "livekit-client";
 import "@livekit/components-styles";
 import { getBrowserClient } from "@/lib/supabase/client";

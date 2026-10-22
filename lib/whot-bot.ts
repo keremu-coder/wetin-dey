@@ -40,7 +40,7 @@ export function getBotMove(
   if (holdOn && hand.length > 2) return { action: "play", card: holdOn };
 
   if (hand.length > 3) {
-    const specialCard = playable.find(c => [2, 5, 8, 14].includes(c.value));
+    const specialCard = playable.find(c => [2, 8, 14].includes(c.value));
     if (specialCard) return { action: "play", card: specialCard };
   }
 
