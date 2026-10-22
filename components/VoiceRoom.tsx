@@ -225,7 +225,16 @@ export function VoiceRoom({
             )}
             
             <div className="w-full flex-1 relative min-h-[400px]">
-              <WhotGame game={activeGame} isPlayer={isPlayer} sessionId={currentSessionId} />
+              <WhotGame 
+                game={activeGame} 
+                isPlayer={isPlayer} 
+                sessionId={currentSessionId} 
+                onQuit={async () => {
+                  const supabase = getBrowserClient();
+                  await supabase.from("space_games").delete().eq("id", activeGame.id);
+                  setActiveGame(null);
+                }} 
+              />
             </div>
           </div>
         )}
