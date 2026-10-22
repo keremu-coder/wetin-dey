@@ -45,7 +45,6 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
   const [wins, setWins] = useState(0);
   const [losses, setLosses] = useState(0);
   
-  // Use a ref to store the declaration so closures don't lose it
   const declaredRef = useRef(false);
   const [hasDeclaredLastCard, setHasDeclaredLastCard] = useState(false);
   const [showQuitModal, setShowQuitModal] = useState(false);
@@ -87,7 +86,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
         const newWins = wins + 1;
         setWins(newWins);
         localStorage.setItem("whot_wins", String(newWins));
-      } else if (state.winner === "bot") {
+      } else if (state.winner === "bot" || (state.winner && state.winner !== sessionId)) {
         const newLosses = losses + 1;
         setLosses(newLosses);
         localStorage.setItem("whot_losses", String(newLosses));
@@ -431,6 +430,11 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
     <div className="w-5 h-7 bg-[#8B3A2B] border border-[#5A2217] rounded-[2px] shadow-sm shrink-0" />
   );
 
+  const opponentId = game.players.find((p: string) => p !== sessionId) || "bot";
+  const isOpponentBot = opponentId === "bot";
+  const opponentHandle = isOpponentBot ? "🤖 Bot" : `@${handles[opponentId] || "Player"}`;
+  const myHandle = `@${handles[sessionId] || "You"}`;
+
   return (
     <div className="w-full h-full flex flex-col bg-[#0a2e16] rounded-xl overflow-hidden relative select-none">
       
@@ -438,12 +442,12 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
       <div className="flex justify-between items-center text-white/90 text-xs p-2 bg-black/40 shrink-0">
         <div className="flex items-center gap-3">
           <div className="relative">
-            <Alama seed="bot" size={32} />
-            <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-[#0a2e16] ${state.turn === "bot" ? 'bg-yellow-500' : 'bg-gray-500'}`} />
+            <Alama seed={opponentId} size={32} />
+            <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-[#0a2e16] ${state.turn === opponentId ? 'bg-yellow-500' : 'bg-gray-500'}`} />
           </div>
           <div>
-            <span className={`px-2 py-1 rounded font-bold ${state.turn === "bot" ? 'text-yellow-500' : 'text-white/70'}`}>
-              Bot
+            <span className={`px-2 py-1 rounded font-bold ${state.turn === opponentId ? 'text-yellow-500' : 'text-white/70'}`}>
+              {opponentHandle}
             </span>
             <div className="flex -space-x-2 mt-1">
               {Array.from({ length: Math.min(botHandCount, 8) }).map((_, i) => (
@@ -470,7 +474,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
         <div className="flex items-center gap-3">
           <div className="text-right">
             <span className={`px-2 py-1 rounded font-bold ${state.turn === sessionId ? 'text-yellow-500' : 'text-white/70'}`}>
-              You
+              {myHandle}
             </span>
             <div className="text-[10px] text-white/50">{myHand.length} cards</div>
           </div>
@@ -517,6 +521,17 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
             </div>
           )}
         </div>
+
+        {/* Quit Button */}
+        <button 
+          onClick={() => setShowQuitModal(true)} 
+          className="absolute right-2 top-2 z-50 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white/70 hover:text-white transition-colors"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
       </div>
 
       {/* My Hand */}
@@ -569,6 +584,20 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
         </div>
       )}
 
+      {/* Custom Quit Modal */}
+      {showQuitModal && (
+        <div className="absolute inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
+          <div className="bg-surface p-6 rounded-2xl max-w-sm w-full text-center border border-border shadow-2xl">
+            <p className="text-ink font-bold text-lg mb-2">Quit Game?</p>
+            <p className="text-muted text-sm mb-6">Are you sure you want to leave? Your progress will be lost.</p>
+            <div className="flex gap-2">
+              <button onClick={() => setShowQuitModal(false)} className="flex-1 py-2 rounded-xl bg-ink/5 text-ink font-semibold transition-colors hover:bg-ink/10">Cancel</button>
+              <button onClick={onQuit} className="flex-1 py-2 rounded-xl bg-danger text-white font-semibold transition-colors hover:bg-danger/90">Quit</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Game Over Overlay */}
       {state.status === "finished" && (
         <div className="absolute inset-0 z-[60] bg-black/90 flex flex-col items-center justify-center p-6 text-center">
@@ -576,7 +605,9 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
           <h2 className="text-3xl font-black text-white mb-2">
             {state.winner === "bot" 
               ? "🤖 Bot Won!" 
-              : `@${handles[state.winner || ""] || "Player"} Won!`}
+              : state.winner === sessionId
+                ? "You Won!"
+                : `@${handles[state.winner || ""] || "Player"} Won!`}
           </h2>
           
           <div className="flex gap-4 mb-8 bg-white/10 px-6 py-3 rounded-2xl border border-white/20">
