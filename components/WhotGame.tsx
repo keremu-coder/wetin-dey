@@ -7,7 +7,6 @@ import { getBotMove } from "@/lib/whot-bot";
 import { playProfile, unlockAudio, vibrate } from "@/lib/sounds";
 import { Alama } from "./Alama";
 
-// SVG Icons matching the physical shapes (ball, angle, cross, carpet, star)
 const SvgBall = () => <svg viewBox="0 0 24 24" className="w-full h-full fill-current"><circle cx="12" cy="12" r="10"/></svg>;
 const SvgAngle = () => <svg viewBox="0 0 24 24" className="w-full h-full fill-current"><polygon points="12,2 23,22 1,22"/></svg>;
 const SvgCross = () => <svg viewBox="0 0 24 24" className="w-full h-full fill-current"><path d="M5 3 L12 10 L19 3 L21 5 L14 12 L21 19 L19 21 L12 14 L5 21 L3 19 L10 12 L3 5 Z"/></svg>;
@@ -28,9 +27,9 @@ function getCardName(card: WhotCard): string {
   if (card.value === 1) return "HOLD ON";
   if (card.value === 2) return "PICK 2";
   if (card.value === 5) return "PICK 3";
-  if (card.value === 8) return card.suit === "star" ? "STAR 8 (SKIP 2)" : "SUSPENSION";
+  if (card.value === 8) return card.suit === "star" ? "STAR 8" : "SUSPENSION";
   if (card.value === 14) return "GENERAL MARKET";
-  return `${card.value} of ${card.suit.toUpperCase()}`;
+  return `${card.value} ${card.suit.toUpperCase()}`;
 }
 
 const DRAG_THRESHOLD = 10;
@@ -43,6 +42,9 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit }: { game: any, isP
   const [isProcessing, setIsProcessing] = useState(false);
   const [lastAction, setLastAction] = useState<string>("Game started");
   
+  const [wins, setWins] = useState(0);
+  const [losses, setLosses] = useState(0);
+
   const [dragState, setDragState] = useState<{ id: string, x: number, y: number } | null>(null);
   const dragStartPos = useRef({ x: 0, y: 0 });
   const isDraggingRef = useRef(false);
@@ -53,7 +55,24 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit }: { game: any, isP
 
   useEffect(() => {
     unlockAudio();
+    setWins(Number(localStorage.getItem("whot_wins") || 0));
+    setLosses(Number(localStorage.getItem("whot_losses") || 0));
   }, []);
+
+  // Save Score
+  useEffect(() => {
+    if (state?.status === "finished") {
+      if (state.winner === sessionId) {
+        const newWins = wins + 1;
+        setWins(newWins);
+        localStorage.setItem("whot_wins", String(newWins));
+      } else if (state.winner === "bot") {
+        const newLosses = losses + 1;
+        setLosses(newLosses);
+        localStorage.setItem("whot_losses", String(newLosses));
+      }
+    }
+  }, [state?.status, state?.winner, sessionId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (isMyTurn && state?.status === "playing") {
@@ -88,7 +107,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit }: { game: any, isP
           penaltyType: null
         };
 
-        setLastAction(`🤖 Bot went to Market and picked ${drawAmount}.`);
+        setLastAction(`🤖 Bot picked ${drawAmount} card(s).`);
         playProfile("bbm", "receive");
         await supabase.from("space_games").update({ game_state: newState }).eq("id", game.id);
       } 
@@ -116,10 +135,10 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit }: { game: any, isP
         } else if (move.card.value === 8) {
           if (move.card.suit === "star") {
             nextTurn = getNextTurn(game.players, nextTurn, 2);
-            actionText += ". Next 2 players suspended!";
+            actionText += ". Skip 2!";
           } else {
             nextTurn = getNextTurn(game.players, nextTurn);
-            actionText += ". You are suspended!";
+            actionText += ". You skip!";
           }
         } else if (move.card.value === 14) {
           for (const p of game.players) {
@@ -128,7 +147,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit }: { game: any, isP
           actionText += ". You pick 1!";
         } else if (move.card.value === 1) {
           nextTurn = "bot";
-          actionText += ". Continue playing.";
+          actionText += ". Continue.";
         }
 
         const newState: WhotState = {
@@ -181,7 +200,6 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit }: { game: any, isP
         return;
       }
 
-      // Reliable drop check using elementFromPoint
       const el = document.elementFromPoint(e.clientX, e.clientY);
       const isOverDiscard = el?.closest('#discard-pile');
       if (isOverDiscard) {
@@ -243,10 +261,10 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit }: { game: any, isP
     } else if (card.value === 8) {
       if (card.suit === "star") {
         nextTurn = getNextTurn(game.players, nextTurn, 2);
-        actionText += ". Next 2 players suspended!";
+        actionText += ". Skip 2!";
       } else {
         nextTurn = getNextTurn(game.players, nextTurn);
-        actionText += ". Bot suspended!";
+        actionText += ". Bot skips!";
       }
     } else if (card.value === 14) {
       for (const p of game.players) {
@@ -255,7 +273,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit }: { game: any, isP
       actionText += ". Bot picks 1!";
     } else if (card.value === 1) {
       nextTurn = sessionId;
-      actionText += ". Continue playing.";
+      actionText += ". Continue.";
     }
 
     const newState: WhotState = {
@@ -304,11 +322,17 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit }: { game: any, isP
       penaltyType: null
     };
 
-    setLastAction(`You went to market and picked ${drawAmount}.`);
+    setLastAction(`You picked ${drawAmount} card(s).`);
     playProfile("bbm", "send");
     await supabase.from("space_games").update({ game_state: newState }).eq("id", game.id);
     
     setIsProcessing(false);
+  }
+
+  function confirmQuit() {
+    if (window.confirm("Are you sure you want to leave the game? Your progress will be lost.")) {
+      onQuit();
+    }
   }
 
   if (!state || !state.hands) return <div className="text-center text-muted p-4">Dealing cards...</div>;
@@ -354,7 +378,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit }: { game: any, isP
   return (
     <div className="w-full h-full flex flex-col bg-[#0a2e16] rounded-xl overflow-hidden relative select-none">
       
-      {/* Players Top Bar with Alama Avatars */}
+      {/* Top Bar / Opponents / Close Button */}
       <div className="flex justify-between items-center text-white/90 text-xs p-2 bg-black/40 shrink-0">
         <div className="flex items-center gap-3">
           <div className="relative">
@@ -375,6 +399,15 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit }: { game: any, isP
                 </div>
               )}
             </div>
+          </div>
+        </div>
+
+        {/* Scoreboard */}
+        <div className="flex flex-col items-center bg-black/30 px-3 py-1 rounded-lg border border-white/10">
+          <span className="text-[0.6rem] text-white/50 uppercase tracking-widest mb-0.5">Score</span>
+          <div className="flex gap-3 font-mono font-bold">
+            <span className="text-green-400">{wins}W</span>
+            <span className="text-red-400">{losses}L</span>
           </div>
         </div>
 
@@ -404,7 +437,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit }: { game: any, isP
       </div>
 
       {/* Center Table */}
-      <div className="flex-1 flex items-center justify-center gap-6">
+      <div className="flex-1 flex items-center justify-center gap-6 relative">
         <button 
           onClick={pickFromMarket}
           disabled={!isMyTurn || isProcessing}
@@ -424,6 +457,17 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit }: { game: any, isP
             </div>
           )}
         </div>
+
+        {/* Close Game X Button */}
+        <button 
+          onClick={confirmQuit} 
+          className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white/70 hover:text-white transition-colors"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
       </div>
 
       {/* My Hand */}
@@ -476,15 +520,26 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit }: { game: any, isP
         </div>
       )}
 
-      {/* Game Over Overlay (Fixes the Quit bug by overlaying directly on the table) */}
+      {/* Game Over Overlay */}
       {state.status === "finished" && (
-        <div className="absolute inset-0 z-[60] bg-black/85 flex flex-col items-center justify-center p-6 text-center">
+        <div className="absolute inset-0 z-[60] bg-black/90 flex flex-col items-center justify-center p-6 text-center">
           <div className="text-6xl mb-4">{state.winner === sessionId ? "🏆" : "😔"}</div>
-          <h2 className="text-2xl font-black text-white mb-2">{state.winner === sessionId ? "YOU WON!" : "BOT WON"}</h2>
-          <p className="text-white/60 mb-8">{state.winner === sessionId ? "You don show them say you be Whot master." : "The bot got lucky this time. Try again!"}</p>
+          <h2 className="text-3xl font-black text-white mb-2">{state.winner === sessionId ? "YOU WON!" : "BOT WON"}</h2>
           
+          <div className="flex gap-4 mb-8 bg-white/10 px-6 py-3 rounded-2xl border border-white/20">
+             <div className="text-center">
+               <p className="text-[0.65rem] text-white/50 uppercase tracking-wider">Wins</p>
+               <p className="text-2xl font-bold text-green-400">{wins}</p>
+             </div>
+             <div className="w-px bg-white/20"></div>
+             <div className="text-center">
+               <p className="text-[0.65rem] text-white/50 uppercase tracking-wider">Losses</p>
+               <p className="text-2xl font-bold text-red-400">{losses}</p>
+             </div>
+          </div>
+
           <div className="flex flex-col gap-3 w-full max-w-[200px]">
-            <button onClick={onQuit} className="rounded-xl bg-brand px-6 py-3 font-semibold text-white shadow-lg active:scale-95">Back to Lobby</button>
+            <button onClick={onQuit} className="rounded-xl bg-brand px-6 py-3 font-semibold text-white shadow-lg active:scale-95 transition-transform">Exit to Lobby</button>
           </div>
         </div>
       )}
