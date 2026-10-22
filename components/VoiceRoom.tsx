@@ -174,7 +174,7 @@ export function VoiceRoom({
   }
 
   async function joinGame() {
-    if (activeGame.players.length >= 4) return;
+    if (activeGame.players.length >= maxPlayers) return;
     if (activeGame.players.includes(currentSessionId)) return;
     if (activeGame.status !== "waiting") return;
 
@@ -224,6 +224,7 @@ export function VoiceRoom({
     );
   }
 
+  const maxPlayers = dmThreadId ? 2 : 4;
   const isPlayer = activeGame?.players?.includes(currentSessionId);
   const isHost = activeGame?.created_by === currentSessionId;
 
@@ -325,7 +326,7 @@ export function VoiceRoom({
                 Play Solo (vs Bot)
               </button>
               <button onClick={() => startGame(false)} disabled={isStarting} className="rounded-xl bg-brand px-8 py-2.5 text-[0.8125rem] font-medium text-white shadow-sm active:scale-95 transition-transform disabled:opacity-50">
-                {isStarting ? "Starting..." : "Host Multiplayer Game"}
+                {isStarting ? "Starting..." : dmThreadId ? "Start Private Game" : "Host Multiplayer Game"}
               </button>
             </div>
           </div>
@@ -334,7 +335,7 @@ export function VoiceRoom({
             {activeGame.status === "waiting" && (
               <div className="absolute inset-0 z-20 bg-[#0B0E17] flex flex-col items-center justify-center p-6">
                 <h3 className="text-white font-bold text-xl mb-2">Waiting for players...</h3>
-                <p className="text-white/70 mb-6">{activeGame.players.length} / 4 joined</p>
+                <p className="text-white/70 mb-6">{activeGame.players.length} / {maxPlayers} joined</p>
                 
                 {isHost ? (
                   <p className="text-white/50 text-sm mb-6 text-center">You are the host.<br/>Waiting for others to join this room.</p>
