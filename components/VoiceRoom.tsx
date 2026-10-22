@@ -12,8 +12,8 @@ function AudioStatus() {
   const connectionState = useConnectionState();
   if (connectionState === ConnectionState.Connected) return null;
   return (
-    <div className="flex h-full items-center justify-center text-white/70 text-sm">
-      {connectionState === ConnectionState.Connecting ? "Connecting to live audio..." : "Audio disconnected"}
+    <div className="flex h-full items-center justify-center text-white/50 text-sm animate-pulse">
+      {connectionState === ConnectionState.Connecting ? "Connecting to live audio..." : "Audio disconnected (Check Keys)"}
     </div>
   );
 }
@@ -126,6 +126,12 @@ export function VoiceRoom({
       .eq("id", activeGame.id);
   }
 
+  async function cancelGame() {
+    const supabase = getBrowserClient();
+    await supabase.from("space_games").update({ status: "finished" }).eq("id", activeGame.id);
+    setActiveGame(null);
+  }
+
   if (error) {
     return (
       <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 p-6 text-white text-center">
@@ -139,13 +145,14 @@ export function VoiceRoom({
 
   if (!token) {
     return (
-      <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 text-white">
-        <p>Connecting to voice...</p>
+      <div className="fixed inset-0 z-[200] flex items-center justify-center bg-[#0B0E17] text-white">
+        <p className="animate-pulse">Connecting to voice...</p>
       </div>
     );
   }
 
   const isPlayer = activeGame?.players?.includes(currentSessionId);
+  const isHost = activeGame?.created_by === currentSessionId;
 
   return (
     <div className="fixed inset-0 z-[200] flex flex-col bg-[#0B0E17]">
@@ -195,7 +202,7 @@ export function VoiceRoom({
               <button onClick={() => startGame(false)} disabled={isStarting} className="rounded-xl bg-brand px-8 py-4 font-semibold text-white shadow-lg active:scale-95 transition-transform disabled:opacity-50">
                 {isStarting ? "Starting..." : "Start Multiplayer Game"}
               </button>
-              <button onClick={() => startGame(true)} disabled={isStarting} className="rounded-xl bg-surface border border-brand text-brand px-8 py-4 font-semibold shadow-lg active:scale-95 transition-transform disabled:opacity-50">
+              <button onClick={() => startGame(true)} disabled={isStarting} className="rounded-xl bg-[#1F7A4D] border border-[#0A6B43] text-white px-8 py-4 font-semibold shadow-lg active:scale-95 transition-transform disabled:opacity-50">
                 Play Solo (vs Bot)
               </button>
             </div>
@@ -203,15 +210,17 @@ export function VoiceRoom({
         ) : (
           <div className="w-full flex-1 flex flex-col items-center">
             {activeGame.status === "waiting" && (
-              <div className="absolute inset-0 z-10 bg-black/90 flex flex-col items-center justify-center p-6">
+              <div className="absolute inset-0 z-20 bg-[#0B0E17] flex flex-col items-center justify-center p-6">
                 <h3 className="text-white font-bold text-xl mb-2">Waiting for players...</h3>
                 <p className="text-white/70 mb-6">{activeGame.players.length} / 4 joined</p>
-                <button onClick={joinGame} className="rounded-xl bg-brand px-8 py-3 font-semibold text-white mb-4 shadow-lg">Join Game</button>
-                <button onClick={async () => {
-                  const supabase = getBrowserClient();
-                  await supabase.from("space_games").update({ status: "finished" }).eq("id", activeGame.id);
-                  setActiveGame(null);
-                }} className="text-white/40 text-sm">Cancel Game</button>
+                
+                {isHost ? (
+                  <p className="text-white/50 text-sm mb-6 text-center">You are the host.<br/>Waiting for others to join this room.</p>
+                ) : (
+                  <button onClick={joinGame} className="rounded-xl bg-brand px-8 py-3 font-semibold text-white mb-4 shadow-lg">Join Game</button>
+                )}
+                
+                <button onClick={cancelGame} className="text-white/40 text-sm hover:text-white/80">Cancel Game</button>
               </div>
             )}
             
