@@ -996,7 +996,7 @@ export function ChatRoom({
         <VoiceRoom
           roomName={slug}
           spaceName={name}
-          communityId={slug} // Using slug as communityId for simplicity in this scope
+          communityId={communityId} // Using slug as communityId for simplicity in this scope
           currentSessionId={mySessionId ?? ""}
           onClose={() => setVoiceRoomOpen(false)}
         />
