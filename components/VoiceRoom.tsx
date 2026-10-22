@@ -182,9 +182,19 @@ export function VoiceRoom({
   }
 
   async function quitGame() {
-    const supabase = getBrowserClient();
-    await supabase.from("space_games").delete().eq("id", activeGame.id);
+    if (!activeGame) return;
+    const gameId = activeGame.id;
+    
+    // Instantly clear the UI
     setActiveGame(null);
+    
+    // Delete from database in the background
+    const supabase = getBrowserClient();
+    try {
+      await supabase.from("space_games").delete().eq("id", gameId);
+    } catch (err) {
+      console.error("Failed to delete game", err);
+    }
   }
 
   if (error) {

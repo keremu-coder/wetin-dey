@@ -45,6 +45,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
   const [wins, setWins] = useState(0);
   const [losses, setLosses] = useState(0);
   const [hasDeclaredLastCard, setHasDeclaredLastCard] = useState(false);
+  const [showQuitModal, setShowQuitModal] = useState(false);
 
   const [dragState, setDragState] = useState<{ id: string, x: number, y: number } | null>(null);
   const dragStartPos = useRef({ x: 0, y: 0 });
@@ -334,11 +335,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
     setIsProcessing(false);
   }
 
-  function confirmQuit() {
-    if (window.confirm("Are you sure you want to leave the game? Your progress will be lost.")) {
-      onQuit();
-    }
-  }
+
 
   if (!state || !state.hands) return <div className="text-center text-muted p-4">Dealing cards...</div>;
 
@@ -465,7 +462,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
 
         {/* Quit Button */}
         <button 
-          onClick={confirmQuit} 
+          onClick={() => setShowQuitModal(true)} 
           className="absolute right-2 top-2 z-50 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white/70 hover:text-white transition-colors"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -526,6 +523,20 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
       )}
 
       {/* Game Over Overlay */}
+      {/* Custom Quit Modal */}
+      {showQuitModal && (
+        <div className="absolute inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
+          <div className="bg-surface p-6 rounded-2xl max-w-sm w-full text-center border border-border shadow-2xl">
+            <p className="text-ink font-bold text-lg mb-2">Quit Game?</p>
+            <p className="text-muted text-sm mb-6">Are you sure you want to leave? Your progress will be lost.</p>
+            <div className="flex gap-2">
+              <button onClick={() => setShowQuitModal(false)} className="flex-1 py-2 rounded-xl bg-ink/5 text-ink font-semibold transition-colors hover:bg-ink/10">Cancel</button>
+              <button onClick={onQuit} className="flex-1 py-2 rounded-xl bg-danger text-white font-semibold transition-colors hover:bg-danger/90">Quit</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {state.status === "finished" && (
         <div className="absolute inset-0 z-[60] bg-black/90 flex flex-col items-center justify-center p-6 text-center">
           <div className="text-6xl mb-4">{state.winner === sessionId ? "🏆" : "😔"}</div>
