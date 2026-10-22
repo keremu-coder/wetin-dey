@@ -150,11 +150,6 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
           penaltyType = "2";
           actionText += ` (Stack: ${activePenalty})`;
           nextTurn = getNextTurn(game.players, "bot");
-        } else if (move.card.value === 5) {
-          activePenalty = (state.penaltyType === "5" ? state.activePenalty : 0) + 3;
-          penaltyType = "5";
-          actionText += ` (Stack: ${activePenalty})`;
-          nextTurn = getNextTurn(game.players, "bot");
         } else if (move.card.value === 8) {
           if (move.card.suit === "star") {
             nextTurn = getNextTurn(game.players, "bot", 2);
@@ -280,7 +275,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
 
   async function playCard(card: WhotCard, calledSuit: WhotSuit | null = null) {
     // Last Card Rule Check (using the ref to avoid stale state)
-    if ((state.hands[sessionId] || []).length === 1 && !declaredRef.current) {
+    if ((state.hands[sessionId] || []).length === 2 && !declaredRef.current) {
       alert("⚠️ You didn't call LAST CARD! You must draw 1 penalty card.");
       const newDeck = [...state.deck];
       const drawn = newDeck.splice(0, 1);
@@ -312,11 +307,6 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
     if (card.value === 2) {
       activePenalty = (state.penaltyType === "2" ? state.activePenalty : 0) + 2;
       penaltyType = "2";
-      actionText += ` (Stack: ${activePenalty})`;
-      nextTurn = getNextTurn(game.players, sessionId);
-    } else if (card.value === 5) {
-      activePenalty = (state.penaltyType === "5" ? state.activePenalty : 0) + 3;
-      penaltyType = "5";
       actionText += ` (Stack: ${activePenalty})`;
       nextTurn = getNextTurn(game.players, sessionId);
     } else if (card.value === 8) {
@@ -493,12 +483,12 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
 
       {/* Game Log / Alert Banner */}
       <div className={`text-center py-2 text-xs font-bold shrink-0 transition-colors flex items-center justify-center gap-2 ${isMyTurn ? 'bg-yellow-500 text-black' : 'bg-black/20 text-white/70'}`}>
-        {isLast && isMyTurn ? (
+        {isSemiLast && isMyTurn ? (
           <button onClick={() => { setHasDeclaredLastCard(true); declaredRef.current = true; playProfile("bbm", "mention"); }} className={`px-3 py-1 rounded ${hasDeclaredLastCard ? 'bg-green-600 text-white' : 'bg-red-600 text-white animate-pulse'}`}>
             {hasDeclaredLastCard ? "✓ Last Card Declared" : "⚠️ TAP TO SAY LAST CARD"}
           </button>
         ) :
-         isSemiLast && isMyTurn ? "⚠️ SEMI LAST CARD! Play wisely." :
+         isLast && isMyTurn ? "🚨 PLAY YOUR LAST CARD!" :
          isMyTurn ? (
           state.activePenalty > 0 ? `⚠️ PICK ${state.activePenalty}! Play a ${state.penaltyType} or pick.` : "⚡ YOUR TURN!"
         ) : (
