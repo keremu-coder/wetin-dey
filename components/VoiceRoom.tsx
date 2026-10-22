@@ -86,7 +86,7 @@ export function VoiceRoom({
     return () => { supabase.removeChannel(channel); };
   }, [communityId]);
 
-  async function startGame() {
+  async function startGame(withBot: boolean = false) {
     if (isStarting) return;
     setIsStarting(true);
     const supabase = getBrowserClient();
@@ -97,8 +97,8 @@ export function VoiceRoom({
       community_id: communityId,
       game_type: "whot",
       created_by: currentSessionId,
-      players: [currentSessionId],
-      status: "waiting",
+      players: withBot ? [currentSessionId, "bot"] : [currentSessionId],
+      status: withBot ? "playing" : "waiting",
       game_state: initialState
     }).select().single();
 
@@ -184,9 +184,14 @@ export function VoiceRoom({
               <input type="checkbox" checked={useAnyplay} onChange={(e) => setUseAnyplay(e.target.checked)} className="w-5 h-5 accent-brand" />
               <span className="text-sm font-medium text-white">Include Whot 20 (Anyplay)</span>
             </label>
-            <button onClick={startGame} disabled={isStarting} className="rounded-xl bg-brand px-8 py-4 font-semibold text-white shadow-lg active:scale-95 transition-transform disabled:opacity-50">
-              {isStarting ? "Starting..." : "Start Whot Game"}
-            </button>
+            <div className="flex flex-col gap-3 w-full max-w-[250px]">
+              <button onClick={() => startGame(false)} disabled={isStarting} className="rounded-xl bg-brand px-8 py-4 font-semibold text-white shadow-lg active:scale-95 transition-transform disabled:opacity-50">
+                {isStarting ? "Starting..." : "Start Multiplayer Game"}
+              </button>
+              <button onClick={() => startGame(true)} disabled={isStarting} className="rounded-xl bg-surface border border-brand text-brand px-8 py-4 font-semibold shadow-lg active:scale-95 transition-transform disabled:opacity-50">
+                Play Solo (vs Bot)
+              </button>
+            </div>
           </div>
         ) : (
           <div className="w-full flex-1 flex flex-col items-center">
