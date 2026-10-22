@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -16,6 +16,7 @@ import { DMComposer } from "./DMComposer";
 import { FlagSheet } from "./FlagSheet";
 import { Avatar } from "./Avatar";
 import { DMReportButton } from "./DMReportButton";
+import { VoiceRoom } from "./VoiceRoom";
 
 type Message = {
   id: string;
@@ -73,6 +74,7 @@ export function DMThread({
   const [flagOpen, setFlagOpen] = useState(false);
   const [blocking, setBlocking] = useState(false);
   const [viewingMedia, setViewingMedia] = useState<{url: string, type: string} | null>(null);
+  const [voiceRoomOpen, setVoiceRoomOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const lastMarkRef = useRef<number>(0);
   const scrollDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -375,44 +377,55 @@ export function DMThread({
           </div>
         </Link>
 
-        <div className="relative">
+        <div className="flex items-center gap-1">
           <button
             type="button"
-            onClick={() => setMenuOpen((v) => !v)}
-            className="flex h-10 w-10 items-center justify-center rounded-full text-faint transition-colors hover:bg-ink/5 hover:text-ink"
-            aria-label="More options"
+            onClick={() => setVoiceRoomOpen(true)}
+            className="flex h-9 items-center justify-center gap-1.5 rounded-full bg-brand px-3 text-white transition-transform active:scale-95"
           >
-          {"\u2022\u2022\u2022"}</button>
+            <span className="text-[1.1rem]">🎙️</span>
+            <span className="text-[0.75rem] font-semibold">Games</span>
+          </button>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setMenuOpen((v) => !v)}
+              className="flex h-10 w-10 items-center justify-center rounded-full text-faint transition-colors hover:bg-ink/5 hover:text-ink"
+              aria-label="More options"
+            >
+              {"\u2022\u2022\u2022"}
+            </button>
 
-          {menuOpen ? (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
-              <div className="absolute right-0 top-full z-50 mt-1 w-56 rounded-xl border border-border bg-surface p-1 shadow-card-hover">
-                <Link
-                  href={`/u/${encodeURIComponent(otherHandle)}`}
-                  onClick={() => setMenuOpen(false)}
-                  className="block rounded-lg px-3 py-2 text-left text-[0.8125rem] text-ink hover:bg-ink/5"
-                >
-                  View @{otherHandle}
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => { setMenuOpen(false); setFlagOpen(true); }}
-                  className="block w-full rounded-lg px-3 py-2 text-left text-[0.8125rem] text-ink hover:bg-ink/5"
-                >
-                  Report conversation
-                </button>
-                <button
-                  type="button"
-                  onClick={blockUser}
-                  disabled={blocking}
-                  className="block w-full rounded-lg px-3 py-2 text-left text-[0.8125rem] text-danger hover:bg-danger-soft disabled:opacity-60"
-                >
-                  {blocking ? "Dey block…" : `Block @${otherHandle}`}
-                </button>
-              </div>
-            </>
-          ) : null}
+            {menuOpen ? (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+                <div className="absolute right-0 top-full z-50 mt-1 w-56 rounded-xl border border-border bg-surface p-1 shadow-card-hover">
+                  <Link
+                    href={`/u/${encodeURIComponent(otherHandle)}`}
+                    onClick={() => setMenuOpen(false)}
+                    className="block rounded-lg px-3 py-2 text-left text-[0.8125rem] text-ink hover:bg-ink/5"
+                  >
+                    View @{otherHandle}
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => { setMenuOpen(false); setFlagOpen(true); }}
+                    className="block w-full rounded-lg px-3 py-2 text-left text-[0.8125rem] text-ink hover:bg-ink/5"
+                  >
+                    Report conversation
+                  </button>
+                  <button
+                    type="button"
+                    onClick={blockUser}
+                    disabled={blocking}
+                    className="block w-full rounded-lg px-3 py-2 text-left text-[0.8125rem] text-danger hover:bg-danger-soft disabled:opacity-60"
+                  >
+                    {blocking ? "Dey block…" : `Block @${otherHandle}`}
+                  </button>
+                </div>
+              </>
+            ) : null}
+          </div>
         </div>
       </header>
 
@@ -522,6 +535,16 @@ export function DMThread({
           targetId={threadId}
           targetLabel={`conversation with @${otherHandle}`}
           onClose={() => setFlagOpen(false)}
+        />
+      ) : null}
+
+      {voiceRoomOpen ? (
+        <VoiceRoom
+          roomName={`dm_${threadId}`}
+          spaceName={`Chat with @${otherHandle}`}
+          dmThreadId={threadId}
+          currentSessionId={mySessionId}
+          onClose={() => setVoiceRoomOpen(false)}
         />
       ) : null}
 

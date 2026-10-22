@@ -59,12 +59,14 @@ export function VoiceRoom({
   roomName,
   spaceName,
   communityId,
+  dmThreadId,
   currentSessionId,
   onClose,
 }: {
   roomName: string;
   spaceName: string;
-  communityId: string;
+  communityId?: string;
+  dmThreadId?: string;
   currentSessionId: string;
   onClose: () => void;
 }) {
@@ -115,10 +117,13 @@ export function VoiceRoom({
   useEffect(() => {
     const supabase = getBrowserClient();
     
+    const col = dmThreadId ? "dm_thread_id" : "community_id";
+    const val = dmThreadId || communityId;
+
     supabase
       .from("space_games")
       .select("*")
-      .eq("community_id", communityId)
+      .eq(col, val)
       .in("status", ["waiting", "playing"])
       .order("created_at", { ascending: false })
       .limit(1)
@@ -126,8 +131,8 @@ export function VoiceRoom({
       .then(({ data }) => { if (data) setActiveGame(data); });
 
     const channel = supabase
-      .channel(`space_games:${communityId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "space_games", filter: `community_id=eq.${communityId}` }, (payload) => {
+      .channel(`space_games:${val}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "space_games", filter: `${col}=eq.${val}` }, (payload) => {
         if (payload.eventType === "INSERT" || payload.eventType === "UPDATE") {
           const game = payload.new;
           if (game.status === "finished") setActiveGame(null);
@@ -137,19 +142,22 @@ export function VoiceRoom({
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [communityId]);
+  }, [communityId, dmThreadId]);
 
   async function startGame(withBot: boolean = false) {
     if (isStarting) return;
     setIsStarting(true);
     const supabase = getBrowserClient();
     
-    await supabase.from("space_games").delete().eq("community_id", communityId).eq("status", "finished");
+    const col = dmThreadId ? "dm_thread_id" : "community_id";
+    const val = dmThreadId || communityId;
+
+    await supabase.from("space_games").delete().eq(col, val).eq("status", "finished");
 
     const initialState = startWhotGame(withBot ? [currentSessionId, "bot"] : [currentSessionId], useAnyplay);
     
     const { data, error } = await supabase.from("space_games").insert({
-      community_id: communityId,
+      [col]: val,
       game_type: "whot",
       created_by: currentSessionId,
       players: withBot ? [currentSessionId, "bot"] : [currentSessionId],
