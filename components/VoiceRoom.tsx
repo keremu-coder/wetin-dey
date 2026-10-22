@@ -13,7 +13,7 @@ function AudioStatus() {
   if (connectionState === ConnectionState.Connected) return null;
   return (
     <div className="flex h-full items-center justify-center text-white/70 text-sm">
-      {connectionState === ConnectionState.Connecting ? "Connecting to live audio..." : "Audio disconnected (Check Vercel Keys)"}
+      {connectionState === ConnectionState.Connecting ? "Connecting to live audio..." : "Audio disconnected"}
     </div>
   );
 }
@@ -36,6 +36,7 @@ export function VoiceRoom({
   const [activeGame, setActiveGame] = useState<any>(null);
   const [useAnyplay, setUseAnyplay] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
+  const [livekitError, setLivekitError] = useState(false);
 
   const livekitUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL;
 
@@ -90,9 +91,8 @@ export function VoiceRoom({
     if (isStarting) return;
     setIsStarting(true);
     const supabase = getBrowserClient();
-    const initialState = startWhotGame([currentSessionId], useAnyplay);
+    const initialState = startWhotGame(withBot ? [currentSessionId, "bot"] : [currentSessionId], useAnyplay);
     
-    // We use .select().single() to get the newly created row back immediately
     const { data, error } = await supabase.from("space_games").insert({
       community_id: communityId,
       game_type: "whot",
@@ -106,7 +106,6 @@ export function VoiceRoom({
       alert("Could not start game:\n" + error.message);
       setIsStarting(false);
     } else {
-      // Update the screen instantly
       setActiveGame(data);
     }
   }
@@ -162,18 +161,25 @@ export function VoiceRoom({
       </header>
 
       <div className="border-b border-white/10 bg-black p-2 h-24 shrink-0 overflow-y-auto">
-        <LiveKitRoom 
-          video={false} 
-          audio={true} 
-          token={token} 
-          serverUrl={livekitUrl} 
-          onDisconnected={onClose} 
-          data-lk-theme="default" 
-          style={{ height: '100%' }}
-        >
-          <AudioConference />
-          <AudioStatus />
-        </LiveKitRoom>
+        {livekitError ? (
+          <div className="flex h-full items-center justify-center text-red-400 text-sm font-semibold">
+            Audio failed to connect. Check Vercel keys.
+          </div>
+        ) : (
+          <LiveKitRoom 
+            video={false} 
+            audio={true} 
+            token={token} 
+            serverUrl={livekitUrl} 
+            onDisconnected={() => setLivekitError(true)} 
+            onError={() => setLivekitError(true)}
+            data-lk-theme="default" 
+            style={{ height: '100%' }}
+          >
+            <AudioConference />
+            <AudioStatus />
+          </LiveKitRoom>
+        )}
       </div>
 
       <div className="flex-1 flex flex-col p-4 overflow-y-auto relative">
@@ -184,6 +190,7 @@ export function VoiceRoom({
               <input type="checkbox" checked={useAnyplay} onChange={(e) => setUseAnyplay(e.target.checked)} className="w-5 h-5 accent-brand" />
               <span className="text-sm font-medium text-white">Include Whot 20 (Anyplay)</span>
             </label>
+            
             <div className="flex flex-col gap-3 w-full max-w-[250px]">
               <button onClick={() => startGame(false)} disabled={isStarting} className="rounded-xl bg-brand px-8 py-4 font-semibold text-white shadow-lg active:scale-95 transition-transform disabled:opacity-50">
                 {isStarting ? "Starting..." : "Start Multiplayer Game"}

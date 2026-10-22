@@ -2,23 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { COOKIE_NAME } from "./lib/constants";
 import { issueSessionCookieValue, sessionCookieOptions, verifySessionValue } from "./lib/session";
 
-/**
- * Build the CSP with a per-request nonce. Every inline <script> the app
- * renders (only the theme bootstrap in app/layout.tsx today) must carry
- * this nonce; Next.js automatically attaches the same nonce to its own
- * runtime scripts because it reads the `x-csp-nonce` request header.
- *
- * script-src drops 'unsafe-inline' and uses a nonce + strict-dynamic.
- * style-src keeps 'unsafe-inline' because Next injects an inline style
- * block at boot; that's a lower-severity class of issue.
- *
- * 'unsafe-eval' is added ONLY outside production. Next.js dev mode uses
- * eval() in react-refresh-utils for hot module reloading, and
- * 'strict-dynamic' forbids eval unless 'unsafe-eval' is also listed.
- * Production builds do not eval, so the keyword never ships live.
- *
- * Vercel's preview toolbar (vercel.live) is only allowed outside production.
- */
 const IS_PROD = process.env.NODE_ENV === "production";
 const DEV_LIVE = IS_PROD ? "" : " https://vercel.live";
 const DEV_EVAL = IS_PROD ? "" : " 'unsafe-eval'";
@@ -31,6 +14,7 @@ function buildCsp(nonce: string): string {
     "font-src 'self' https://fonts.gstatic.com data:",
     "img-src 'self' data: blob: https://*.supabase.co",
     "media-src 'self' blob: https://*.supabase.co",
+    // FIX: Added *.livekit.cloud so WebSockets can connect
     `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.livekit.cloud wss://*.livekit.cloud${DEV_LIVE}`,
     `frame-src ${IS_PROD ? "'none'" : "https://vercel.live"}`,
     "frame-ancestors 'none'",
