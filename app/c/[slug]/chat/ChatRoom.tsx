@@ -63,6 +63,7 @@ const BroadcastRecorder = nextDynamic(
 );
 
 export function ChatRoom({
+  communityId,
   slug,
   name,
   emoji,
@@ -77,6 +78,7 @@ export function ChatRoom({
   initialColors,
   initialStatuses
 }: {
+  communityId: string;
   slug: string;
   name: string;
   emoji: string;
@@ -996,7 +998,7 @@ export function ChatRoom({
         <VoiceRoom
           roomName={slug}
           spaceName={name}
-          communityId={communityId} // Using slug as communityId for simplicity in this scope
+          communityId={communityId}
           currentSessionId={mySessionId ?? ""}
           onClose={() => setVoiceRoomOpen(false)}
         />

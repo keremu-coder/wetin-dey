@@ -235,6 +235,7 @@ export default async function ChatPage(props: {
 
   return (
     <ChatRoom
+      communityId={community.id}
       slug={community.slug}
       name={community.name}
       emoji={community.emoji}
