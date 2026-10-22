@@ -3,7 +3,7 @@ export type WhotSuit = "circle" | "triangle" | "cross" | "square" | "star";
 export type WhotCard = {
   id: string;
   suit: WhotSuit | "whot";
-  value: number; // 1 to 14, plus 20 for Whot
+  value: number;
 };
 
 export type WhotState = {
@@ -15,6 +15,8 @@ export type WhotState = {
   status: "waiting" | "playing" | "finished";
   winner: string | null;
   useAnyplay: boolean;
+  activePenalty: number;
+  penaltyType: "2" | "5" | null;
 };
 
 const SUITS: WhotSuit[] = ["circle", "triangle", "cross", "square", "star"];
@@ -68,21 +70,31 @@ export function startWhotGame(players: string[], useAnyplay: boolean): WhotState
     calledSuit: null,
     status: "playing",
     winner: null,
-    useAnyplay
+    useAnyplay,
+    activePenalty: 0,
+    penaltyType: null
   };
 }
 
-export function canPlayCard(card: WhotCard, topCard: WhotCard, calledSuit: WhotSuit | null): boolean {
-  if (card.value === 20) return true; // Whot is always playable
+export function canPlayCard(
+  card: WhotCard, 
+  topCard: WhotCard, 
+  calledSuit: WhotSuit | null, 
+  activePenalty: number, 
+  penaltyType: string | null
+): boolean {
+  if (card.value === 20) return true;
   
-  // If a suit was called by a Whot 20
+  if (activePenalty > 0 && penaltyType) {
+    return card.value === Number(penaltyType); // Must play same penalty
+  }
+
   if (calledSuit) {
     if (card.suit === calledSuit) return true;
     if (card.value === topCard.value) return true; 
     return false;
   }
 
-  // Normal match rules
   return card.suit === topCard.suit || card.value === topCard.value;
 }
 

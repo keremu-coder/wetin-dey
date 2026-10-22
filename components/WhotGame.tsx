@@ -44,13 +44,16 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
   
   const [wins, setWins] = useState(0);
   const [losses, setLosses] = useState(0);
+  
+  // Use a ref to store the declaration so closures don't lose it
+  const declaredRef = useRef(false);
   const [hasDeclaredLastCard, setHasDeclaredLastCard] = useState(false);
   const [showQuitModal, setShowQuitModal] = useState(false);
 
   const [dragState, setDragState] = useState<{ id: string, x: number, y: number } | null>(null);
   const dragStartPos = useRef({ x: 0, y: 0 });
-  const pressedCardRef = useRef<WhotCard | null>(null);
   const isDraggingRef = useRef(false);
+  const pressedCardRef = useRef<WhotCard | null>(null);
 
   const topCard = state?.discard[state.discard.length - 1];
   const isMyTurn = state?.turn === sessionId;
@@ -90,24 +93,27 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
     const timer = setTimeout(async () => {
       setIsProcessing(true);
       const opponentCounts = game.players.filter((p: string) => p !== "bot").map((p: string) => state.hands[p]?.length || 0);
-      const move = getBotMove(state.hands["bot"] || [], topCard, state.calledSuit, opponentCounts);
+      const move = getBotMove(state.hands["bot"] || [], topCard, state.calledSuit, state.activePenalty, state.penaltyType, opponentCounts);
 
       if (move && move.action === "pick") {
         let newDeck = [...state.deck];
         let newHand = [...(state.hands["bot"] || [])];
         if (newDeck.length === 0) newDeck = [...state.discard.slice(0, -1)].sort(() => Math.random() - 0.5);
         
-        const drawn = newDeck.splice(0, 1);
+        const drawAmount = state.activePenalty > 0 ? state.activePenalty : 1;
+        const drawn = newDeck.splice(0, drawAmount);
         newHand.push(...drawn);
         
         const newState: WhotState = {
           ...state,
           deck: newDeck,
           hands: { ...state.hands, ["bot"]: newHand },
-          turn: getNextTurn(game.players, "bot")
+          turn: getNextTurn(game.players, "bot"),
+          activePenalty: 0,
+          penaltyType: null
         };
 
-        setLastAction(`🤖 Bot picked 1 card.`);
+        setLastAction(`🤖 Bot picked ${drawAmount} card(s).`);
         playProfile("bbm", "receive");
         await supabase.from("space_games").update({ game_state: newState }).eq("id", game.id);
       } 
@@ -120,31 +126,42 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
         let newDeck = [...state.deck];
         let nextHands: Record<string, WhotCard[]> = { ...newHands };
         let actionText = `🤖 Bot played ${getCardName(move.card)}`;
+        
+        let activePenalty = state.activePenalty;
+        let penaltyType = state.penaltyType;
 
         if (move.card.value === 2) {
-          nextHands[nextTurn] = [...nextHands[nextTurn], ...newDeck.splice(0, 2)];
-          nextTurn = getNextTurn(game.players, nextTurn);
-          actionText += ". You pick 2!";
+          activePenalty = (state.penaltyType === "2" ? state.activePenalty : 0) + 2;
+          penaltyType = "2";
+          actionText += ` (Stack: ${activePenalty})`;
+          nextTurn = getNextTurn(game.players, "bot");
         } else if (move.card.value === 5) {
-          nextHands[nextTurn] = [...nextHands[nextTurn], ...newDeck.splice(0, 3)];
-          nextTurn = getNextTurn(game.players, nextTurn);
-          actionText += ". You pick 3!";
+          activePenalty = (state.penaltyType === "5" ? state.activePenalty : 0) + 3;
+          penaltyType = "5";
+          actionText += ` (Stack: ${activePenalty})`;
+          nextTurn = getNextTurn(game.players, "bot");
         } else if (move.card.value === 8) {
           if (move.card.suit === "star") {
-            nextTurn = getNextTurn(game.players, nextTurn, 2);
-            actionText += ". Skip 2!";
+            nextTurn = getNextTurn(game.players, "bot", 2);
+            actionText += ". Next 2 players suspended!";
           } else {
-            nextTurn = getNextTurn(game.players, nextTurn);
-            actionText += ". You skip!";
+            nextTurn = getNextTurn(game.players, "bot", 2);
+            actionText += ". You are suspended!";
           }
+          activePenalty = 0; penaltyType = null;
         } else if (move.card.value === 14) {
           for (const p of game.players) {
             if (p !== "bot") nextHands[p] = [...nextHands[p], ...newDeck.splice(0, 1)];
           }
           actionText += ". You pick 1!";
+          nextTurn = "bot"; // Bot continues
+          activePenalty = 0; penaltyType = null;
         } else if (move.card.value === 1) {
           nextTurn = "bot";
-          actionText += ". Continue.";
+          actionText += ". Bot holds on.";
+          activePenalty = 0; penaltyType = null;
+        } else {
+          activePenalty = 0; penaltyType = null;
         }
 
         const newState: WhotState = {
@@ -155,7 +172,9 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
           turn: nextTurn,
           calledSuit: move.calledSuit || null,
           winner: newHand.length === 0 ? "bot" : null,
-          status: newHand.length === 0 ? "finished" : "playing"
+          status: newHand.length === 0 ? "finished" : "playing",
+          activePenalty,
+          penaltyType
         };
 
         setLastAction(actionText);
@@ -177,13 +196,11 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
       const dy = e.clientY - dragStartPos.current.y;
 
       if (!isDraggingRef.current) {
-        // If moving mostly horizontally, cancel drag and let the list scroll
         if (Math.abs(dx) > Math.abs(dy) + 5) {
           pressedCardRef.current = null;
           dragStartPos.current = { x: 0, y: 0 };
           return;
         }
-        // If moving up by more than 10px, start dragging
         if (dy < -10) {
           isDraggingRef.current = true;
           setDragState({ id: pressedCardRef.current.id, x: e.clientX, y: e.clientY });
@@ -201,19 +218,16 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
       
       const wasDragging = isDraggingRef.current;
       
-      // Reset state
       pressedCardRef.current = null;
       dragStartPos.current = { x: 0, y: 0 };
       isDraggingRef.current = false;
       setDragState(null);
 
       if (!wasDragging) {
-        // It was a tap
         tryPlayCard(card);
         return;
       }
 
-      // It was a drag, check if dropped on pile
       const el = document.elementFromPoint(e.clientX, e.clientY);
       const isOverDiscard = el?.closest('#discard-pile');
       if (isOverDiscard) {
@@ -227,18 +241,17 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
     };
-  }, [dragState, state.hands, sessionId]);
+  }, [state.hands, sessionId, state.calledSuit, state.activePenalty, state.penaltyType]);
 
   function handlePointerDown(e: React.PointerEvent, card: WhotCard) {
     if (!isMyTurn || isProcessing) return;
     dragStartPos.current = { x: e.clientX, y: e.clientY };
     isDraggingRef.current = false;
     pressedCardRef.current = card;
-    // Do NOT setDragState here. We wait to see if they scroll or drag.
   }
 
   function tryPlayCard(card: WhotCard) {
-    if (!canPlayCard(card, topCard, state.calledSuit)) {
+    if (!canPlayCard(card, topCard, state.calledSuit, state.activePenalty, state.penaltyType)) {
       vibrate([50, 50]);
       return;
     }
@@ -251,10 +264,9 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
   }
 
   async function playCard(card: WhotCard, calledSuit: WhotSuit | null = null) {
-    // Last Card Rule Check
-    if ((state.hands[sessionId] || []).length === 1 && !hasDeclaredLastCard) {
+    // Last Card Rule Check (using the ref to avoid stale state)
+    if ((state.hands[sessionId] || []).length === 1 && !declaredRef.current) {
       alert("⚠️ You didn't call LAST CARD! You must draw 1 penalty card.");
-      // Draw penalty, skip turn
       const newDeck = [...state.deck];
       const drawn = newDeck.splice(0, 1);
       const newHand = [...(state.hands[sessionId] || []), ...drawn];
@@ -278,31 +290,42 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
     let newDeck = [...state.deck];
     let nextHands: Record<string, WhotCard[]> = { ...newHands };
     let actionText = `You played ${getCardName(card)}`;
+    
+    let activePenalty = state.activePenalty;
+    let penaltyType = state.penaltyType;
 
     if (card.value === 2) {
-      nextHands[nextTurn] = [...nextHands[nextTurn], ...newDeck.splice(0, 2)];
-      nextTurn = getNextTurn(game.players, nextTurn);
-      actionText += ". Bot picks 2!";
+      activePenalty = (state.penaltyType === "2" ? state.activePenalty : 0) + 2;
+      penaltyType = "2";
+      actionText += ` (Stack: ${activePenalty})`;
+      nextTurn = getNextTurn(game.players, sessionId);
     } else if (card.value === 5) {
-      nextHands[nextTurn] = [...nextHands[nextTurn], ...newDeck.splice(0, 3)];
-      nextTurn = getNextTurn(game.players, nextTurn);
-      actionText += ". Bot picks 3!";
+      activePenalty = (state.penaltyType === "5" ? state.activePenalty : 0) + 3;
+      penaltyType = "5";
+      actionText += ` (Stack: ${activePenalty})`;
+      nextTurn = getNextTurn(game.players, sessionId);
     } else if (card.value === 8) {
       if (card.suit === "star") {
-        nextTurn = getNextTurn(game.players, nextTurn, 2);
-        actionText += ". Skip 2!";
+        nextTurn = getNextTurn(game.players, sessionId, 2);
+        actionText += ". Next 2 players suspended!";
       } else {
-        nextTurn = getNextTurn(game.players, nextTurn);
-        actionText += ". Bot skips!";
+        nextTurn = getNextTurn(game.players, sessionId, 2);
+        actionText += ". Bot suspended!";
       }
+      activePenalty = 0; penaltyType = null;
     } else if (card.value === 14) {
       for (const p of game.players) {
         if (p !== sessionId) nextHands[p] = [...nextHands[p], ...newDeck.splice(0, 1)];
       }
       actionText += ". Bot picks 1!";
+      nextTurn = sessionId; // You continue
+      activePenalty = 0; penaltyType = null;
     } else if (card.value === 1) {
       nextTurn = sessionId;
-      actionText += ". Continue.";
+      actionText += ". You hold on.";
+      activePenalty = 0; penaltyType = null;
+    } else {
+      activePenalty = 0; penaltyType = null;
     }
 
     const newState: WhotState = {
@@ -313,7 +336,9 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
       turn: nextTurn,
       calledSuit: calledSuit,
       winner: newHand.length === 0 ? sessionId : null,
-      status: newHand.length === 0 ? "finished" : "playing"
+      status: newHand.length === 0 ? "finished" : "playing",
+      activePenalty,
+      penaltyType
     };
 
     setLastAction(actionText);
@@ -336,26 +361,30 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
     
     if (newDeck.length === 0) newDeck = [...state.discard.slice(0, -1)].sort(() => Math.random() - 0.5);
 
-    const drawn = newDeck.splice(0, 1);
+    const drawAmount = state.activePenalty > 0 ? state.activePenalty : 1;
+    const drawn = newDeck.splice(0, drawAmount);
     newHand.push(...drawn);
     
     const newState: WhotState = {
       ...state,
       deck: newDeck,
       hands: { ...state.hands, [sessionId]: newHand },
-      turn: getNextTurn(game.players, sessionId)
+      turn: getNextTurn(game.players, sessionId), // Turn passes to the player who played the penalty
+      activePenalty: 0,
+      penaltyType: null
     };
 
-    setLastAction(`You picked 1 card.`);
+    setLastAction(`You picked ${drawAmount} card(s).`);
     playProfile("bbm", "send");
-    setHasDeclaredLastCard(false); // Reset because hand size increases
     
+    // Reset Last Card declaration because hand size increased
+    declaredRef.current = false;
+    setHasDeclaredLastCard(false);
+
     await supabase.from("space_games").update({ game_state: newState }).eq("id", game.id);
     
     setIsProcessing(false);
   }
-
-
 
   if (!state || !state.hands) return <div className="text-center text-muted p-4">Dealing cards...</div>;
 
@@ -450,12 +479,16 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
       {/* Game Log / Alert Banner */}
       <div className={`text-center py-2 text-xs font-bold shrink-0 transition-colors flex items-center justify-center gap-2 ${isMyTurn ? 'bg-yellow-500 text-black' : 'bg-black/20 text-white/70'}`}>
         {isLast && isMyTurn ? (
-          <button onClick={() => { setHasDeclaredLastCard(true); playProfile("bbm", "mention"); }} className={`px-3 py-1 rounded ${hasDeclaredLastCard ? 'bg-green-600 text-white' : 'bg-red-600 text-white animate-pulse'}`}>
+          <button onClick={() => { setHasDeclaredLastCard(true); declaredRef.current = true; playProfile("bbm", "mention"); }} className={`px-3 py-1 rounded ${hasDeclaredLastCard ? 'bg-green-600 text-white' : 'bg-red-600 text-white animate-pulse'}`}>
             {hasDeclaredLastCard ? "✓ Last Card Declared" : "⚠️ TAP TO SAY LAST CARD"}
           </button>
         ) :
          isSemiLast && isMyTurn ? "⚠️ SEMI LAST CARD! Play wisely." :
-         isMyTurn ? "⚡ YOUR TURN! Play a card or go to market." : lastAction}
+         isMyTurn ? (
+          state.activePenalty > 0 ? `⚠️ PICK ${state.activePenalty}! Play a ${state.penaltyType} or pick.` : "⚡ YOUR TURN!"
+        ) : (
+          lastAction
+        )}
       </div>
 
       {/* Center Table */}
@@ -463,7 +496,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
         <button 
           onClick={pickFromMarket}
           disabled={!isMyTurn || isProcessing}
-          className="relative w-16 h-24 bg-[#8B3A2B] rounded-md shadow-lg border-2 border-[#5A2217] flex items-center justify-center text-white disabled:opacity-50 active:scale-95 transition-transform"
+          className={`relative w-16 h-24 bg-[#8B3A2B] rounded-md shadow-lg border-2 border-[#5A2217] flex items-center justify-center text-white disabled:opacity-50 active:scale-95 transition-transform ${state.activePenalty > 0 ? 'ring-4 ring-red-500 animate-pulse' : ''}`}
         >
           <span className="text-[10px] font-bold rotate-[-15deg] text-white/40 uppercase tracking-widest">Whot</span>
           <div className="absolute -bottom-5 text-white text-[10px] font-semibold bg-black/50 px-2 py-0.5 rounded-full whitespace-nowrap">
@@ -479,23 +512,12 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
             </div>
           )}
         </div>
-
-        {/* Quit Button */}
-        <button 
-          onClick={() => setShowQuitModal(true)} 
-          className="absolute right-2 top-2 z-50 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white/70 hover:text-white transition-colors"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
       </div>
 
       {/* My Hand */}
       <div className="h-32 bg-black/40 p-2 flex gap-2 overflow-x-auto items-center shrink-0" style={{ touchAction: 'pan-x' }}>
         {myHand.map((card) => {
-          const isPlayable = isMyTurn && canPlayCard(card, topCard, state.calledSuit);
+          const isPlayable = isMyTurn && canPlayCard(card, topCard, state.calledSuit, state.activePenalty, state.penaltyType);
           const isDragging = dragState?.id === card.id;
           return (
             <div 
@@ -543,20 +565,6 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
       )}
 
       {/* Game Over Overlay */}
-      {/* Custom Quit Modal */}
-      {showQuitModal && (
-        <div className="absolute inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
-          <div className="bg-surface p-6 rounded-2xl max-w-sm w-full text-center border border-border shadow-2xl">
-            <p className="text-ink font-bold text-lg mb-2">Quit Game?</p>
-            <p className="text-muted text-sm mb-6">Are you sure you want to leave? Your progress will be lost.</p>
-            <div className="flex gap-2">
-              <button onClick={() => setShowQuitModal(false)} className="flex-1 py-2 rounded-xl bg-ink/5 text-ink font-semibold transition-colors hover:bg-ink/10">Cancel</button>
-              <button onClick={onQuit} className="flex-1 py-2 rounded-xl bg-danger text-white font-semibold transition-colors hover:bg-danger/90">Quit</button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {state.status === "finished" && (
         <div className="absolute inset-0 z-[60] bg-black/90 flex flex-col items-center justify-center p-6 text-center">
           <div className="text-6xl mb-4">{state.winner === sessionId ? "🏆" : "😔"}</div>
