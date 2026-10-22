@@ -7,14 +7,13 @@ import { getBotMove } from "@/lib/whot-bot";
 import { playProfile, unlockAudio, vibrate } from "@/lib/sounds";
 
 // Pure SVG Icons for perfect rendering on all devices
-const SvgCircle = () => <svg viewBox="0 0 24 24" className="w-8 h-8 fill-current"><circle cx="12" cy="12" r="10"/></svg>;
-const SvgTriangle = () => <svg viewBox="0 0 24 24" className="w-8 h-8 fill-current"><polygon points="12,2 23,22 1,22"/></svg>;
-const SvgCross = () => <svg viewBox="0 0 24 24" className="w-8 h-8 fill-current"><path d="M4 4 L20 20 M4 20 L20 4" stroke="currentColor" strokeWidth="4" strokeLinecap="round"/></svg>;
-const SvgSquare = () => <svg viewBox="0 0 24 24" className="w-8 h-8 fill-current"><rect x="2" y="2" width="20" height="20"/></svg>;
-const SvgStar = () => <svg viewBox="0 0 24 24" className="w-8 h-8 fill-current"><polygon points="12,2 15,9 22,9 16,14 18,21 12,17 6,21 8,14 2,9 9,9"/></svg>;
+const SvgCircle = () => <svg viewBox="0 0 24 24" className="w-full h-full fill-current"><circle cx="12" cy="12" r="10"/></svg>;
+const SvgTriangle = () => <svg viewBox="0 0 24 24" className="w-full h-full fill-current"><polygon points="12,2 23,22 1,22"/></svg>;
+const SvgCross = () => <svg viewBox="0 0 24 24" className="w-full h-full fill-current"><path d="M4 4 L20 20 M4 20 L20 4" stroke="currentColor" strokeWidth="4" strokeLinecap="round"/></svg>;
+const SvgSquare = () => <svg viewBox="0 0 24 24" className="w-full h-full fill-current"><rect x="2" y="2" width="20" height="20"/></svg>;
+const SvgStar = () => <svg viewBox="0 0 24 24" className="w-full h-full fill-current"><polygon points="12,2 15,9 22,9 16,14 18,21 12,17 6,21 8,14 2,9 9,9"/></svg>;
 
-function SuitIcon({ suit, className = "w-8 h-8" }: { suit: string, className?: string }) {
-  const props = { className };
+function SuitIcon({ suit }: { suit: string }) {
   if (suit === "circle") return <SvgCircle />;
   if (suit === "triangle") return <SvgTriangle />;
   if (suit === "cross") return <SvgCross />;
@@ -43,6 +42,7 @@ export function WhotGame({ game, isPlayer, sessionId }: { game: any, isPlayer: b
   const [isProcessing, setIsProcessing] = useState(false);
   const [lastAction, setLastAction] = useState<string>("Game started");
   
+  // Drag state
   const [dragState, setDragState] = useState<{ id: string, x: number, y: number } | null>(null);
   const dragStartPos = useRef({ x: 0, y: 0 });
   const isDraggingRef = useRef(false);
@@ -142,30 +142,15 @@ export function WhotGame({ game, isPlayer, sessionId }: { game: any, isPlayer: b
     return () => clearTimeout(timer);
   }, [isBotTurn, state, topCard, isProcessing, game.id, game.players]);
 
-  function tryPlayCard(card: WhotCard) {
+  // ---- Pointer Logic (Mouse + Touch) ----
+  function handlePointerDown(e: React.PointerEvent<HTMLDivElement>, card: WhotCard) {
     if (!isMyTurn || isProcessing) return;
-    if (!canPlayCard(card, topCard, state.calledSuit)) {
-      vibrate([50, 50]);
-      return;
-    }
-    
-    if (card.value === 20) {
-      setSelectedCard(card);
-      setSuitPickerOpen(true);
-    } else {
-      playCard(card);
-    }
-  }
-
-  function onPointerDown(e: React.PointerEvent<HTMLButtonElement>, card: WhotCard) {
-    if (!isMyTurn || isProcessing) return;
-    e.currentTarget.setPointerCapture(e.pointerId);
     dragStartPos.current = { x: e.clientX, y: e.clientY };
     isDraggingRef.current = false;
     setDragState({ id: card.id, x: e.clientX, y: e.clientY });
   }
 
-  function onPointerMove(e: React.PointerEvent<HTMLButtonElement>) {
+  function handlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
     if (!dragState) return;
     const dx = e.clientX - dragStartPos.current.x;
     const dy = e.clientY - dragStartPos.current.y;
@@ -175,17 +160,19 @@ export function WhotGame({ game, isPlayer, sessionId }: { game: any, isPlayer: b
     setDragState(prev => prev ? { ...prev, x: e.clientX, y: e.clientY } : null);
   }
 
-  function onPointerUp(e: React.PointerEvent<HTMLButtonElement>, card: WhotCard) {
+  function handlePointerUp(e: React.PointerEvent<HTMLDivElement>, card: WhotCard) {
     if (!dragState) return;
     const wasDragging = isDraggingRef.current;
     setDragState(null);
     isDraggingRef.current = false;
 
+    // 1. If it was a click (no drag), try to play it
     if (!wasDragging) {
       tryPlayCard(card);
       return;
     }
 
+    // 2. If it was a drag, check if they dropped it on the pile
     if (!discardRef.current) return;
     const rect = discardRef.current.getBoundingClientRect();
     if (
@@ -196,8 +183,20 @@ export function WhotGame({ game, isPlayer, sessionId }: { game: any, isPlayer: b
     }
   }
 
+  function tryPlayCard(card: WhotCard) {
+    if (!canPlayCard(card, topCard, state.calledSuit)) {
+      vibrate([50, 50]); // Error buzz
+      return;
+    }
+    if (card.value === 20) {
+      setSelectedCard(card);
+      setSuitPickerOpen(true);
+    } else {
+      playCard(card);
+    }
+  }
+
   async function playCard(card: WhotCard, calledSuit: WhotSuit | null = null) {
-    if (!isMyTurn || isProcessing) return;
     setIsProcessing(true);
     
     const newHand = (state.hands[sessionId] || []).filter(c => c.id !== card.id);
@@ -288,31 +287,31 @@ export function WhotGame({ game, isPlayer, sessionId }: { game: any, isPlayer: b
   const CardUI = ({ card, isDragging, onPointerDown, onPointerMove, onPointerUp, style }: any) => {
     const isWhot = card.value === 20;
     return (
-      <button
+      <div
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         style={{ touchAction: 'none', ...style }}
-        className={`relative flex flex-col justify-between items-center bg-[#FDFBF7] rounded-md overflow-hidden select-none shadow-md border border-gray-300 w-16 h-24 shrink-0 ${
-          isDragging ? 'z-50 shadow-2xl scale-110 cursor-grabbing opacity-90 fixed pointer-events-none' : 'cursor-grab hover:-translate-y-1 transition-transform'
+        className={`relative flex flex-col justify-between items-center bg-[#FDFBF7] rounded-md overflow-hidden select-none shadow-md border-2 border-gray-200 w-16 h-24 shrink-0 ${
+          isDragging ? 'z-50 shadow-2xl scale-110 cursor-grabbing opacity-90 fixed pointer-events-none' : 'cursor-pointer hover:-translate-y-1 transition-transform'
         }`}
       >
-        <div className="absolute top-1 left-1 flex flex-col items-center leading-none text-[#8B3A2B]">
-          <span className="text-[0.8rem] font-bold">{card.value}</span>
-          <SuitIcon suit={card.suit} className="w-3 h-3 mt-0.5" />
+        <div className="absolute top-1 left-1.5 flex flex-col items-center leading-none text-[#8B3A2B]">
+          <span className="text-[0.9rem] font-bold">{card.value}</span>
         </div>
-        <div className="flex-1 flex items-center justify-center">
+        <div className="flex-1 flex items-center justify-center w-full px-2">
            {isWhot ? (
-             <span className="text-[#8B3A2B] font-black text-lg tracking-tighter">WHOT</span>
+             <span className="text-[#8B3A2B] font-black text-lg tracking-tighter text-center leading-none">WHOT</span>
            ) : (
-             <SuitIcon suit={card.suit} className="w-8 h-8 text-[#8B3A2B]" />
+             <div className="w-9 h-9 text-[#8B3A2B]">
+               <SuitIcon suit={card.suit} />
+             </div>
            )}
         </div>
-        <div className="absolute bottom-1 right-1 flex flex-col items-center leading-none text-[#8B3A2B] rotate-180">
-          <span className="text-[0.8rem] font-bold">{card.value}</span>
-          <SuitIcon suit={card.suit} className="w-3 h-3 mt-0.5" />
+        <div className="absolute bottom-1 right-1.5 flex flex-col items-center leading-none text-[#8B3A2B] rotate-180">
+          <span className="text-[0.9rem] font-bold">{card.value}</span>
         </div>
-      </button>
+      </div>
     );
   };
 
@@ -321,7 +320,17 @@ export function WhotGame({ game, isPlayer, sessionId }: { game: any, isPlayer: b
   );
 
   return (
-    <div className="w-full h-full flex flex-col bg-[#0a2e16] rounded-xl overflow-hidden relative select-none">
+    <div 
+      className="w-full h-full flex flex-col bg-[#0a2e16] rounded-xl overflow-hidden relative select-none"
+      onPointerMove={handlePointerMove}
+      onPointerUp={(e) => {
+         // Fallback for pointer up outside the card
+         if (dragState) {
+            const card = (state.hands[sessionId] || []).find(c => c.id === dragState.id);
+            if (card) handlePointerUp(e, card);
+         }
+      }}
+    >
       
       {/* Opponent Hand */}
       <div className="flex justify-between items-center text-white/90 text-xs p-2 bg-black/40 shrink-0">
@@ -384,9 +393,8 @@ export function WhotGame({ game, isPlayer, sessionId }: { game: any, isPlayer: b
             card={card} 
             isDragging={dragState?.id === card.id}
             style={dragState?.id === card.id ? { left: dragState.x - 32, top: dragState.y - 48 } : {}}
-            onPointerDown={(e: any) => onPointerDown(e, card)}
-            onPointerMove={onPointerMove}
-            onPointerUp={(e: any) => onPointerUp(e, card)}
+            onPointerDown={(e: any) => handlePointerDown(e, card)}
+            onPointerUp={(e: any) => handlePointerUp(e, card)}
           />
         ))}
       </div>
@@ -402,7 +410,9 @@ export function WhotGame({ game, isPlayer, sessionId }: { game: any, isPlayer: b
                 onClick={() => playCard(selectedCard!, s)}
                 className="p-4 bg-[#FDFBF7] rounded-xl text-xl flex flex-col items-center text-[#8B3A2B] font-bold active:scale-95 transition-transform"
               >
-                <SuitIcon suit={s} className="w-8 h-8 mb-1 text-[#8B3A2B]" />
+                <div className="w-8 h-8 mb-1 text-[#8B3A2B]">
+                  <SuitIcon suit={s} />
+                </div>
                 <span className="text-[0.65rem] uppercase">{s}</span>
               </button>
             ))}
