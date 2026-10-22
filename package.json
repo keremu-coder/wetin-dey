@@ -15,6 +15,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",
     "@capacitor-community/background-geolocation": "^1.2.26",
+    "@capacitor-community/privacy-screen": "^8.0.0",
     "@capacitor/app": "^8.1.2",
     "@capacitor/core": "^8.5.3",
     "@capacitor/haptics": "^8.0.2",

@@ -1,4 +1,4 @@
-﻿import type { Metadata, Viewport } from "next";
+import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import { Nav, SiteFooter } from "@/components/Nav";
 import { LiveStateProvider } from "@/components/LiveStateProvider";
@@ -6,6 +6,7 @@ import { InstallPrompt } from "@/components/InstallPrompt";
 import { PushRegistrar } from "@/components/PushRegistrar";
 import { NativePushRegister } from "@/components/NativePushRegister";
 import { NativeNetworkMonitor } from "@/components/NativeNetworkMonitor";
+import { NativeScreenshotBlocker } from "@/components/NativeScreenshotBlocker";
 import { BottomNav } from "@/components/BottomNav";
 import { RouteWarmup } from "@/components/RouteWarmup";
 import { RouteRefresh } from "@/components/RouteRefresh";
@@ -115,6 +116,7 @@ export default async function RootLayout({
             <PushRegistrar />
             <NativePushRegister />
             <NativeNetworkMonitor />
+            <NativeScreenshotBlocker />
             <RouteWarmup />
             <RouteRefresh />
             <RouteProgress />
