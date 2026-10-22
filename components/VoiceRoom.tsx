@@ -35,6 +35,7 @@ export function VoiceRoom({
   const [error, setError] = useState("");
   const [activeGame, setActiveGame] = useState<any>(null);
   const [useAnyplay, setUseAnyplay] = useState(true);
+  const [isStarting, setIsStarting] = useState(false);
 
   const livekitUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL;
 
@@ -86,20 +87,27 @@ export function VoiceRoom({
   }, [communityId]);
 
   async function startGame() {
+    if (isStarting) return;
+    setIsStarting(true);
     const supabase = getBrowserClient();
     const initialState = startWhotGame([currentSessionId], useAnyplay);
     
-    const { error } = await supabase.from("space_games").insert({
+    // We use .select().single() to get the newly created row back immediately
+    const { data, error } = await supabase.from("space_games").insert({
       community_id: communityId,
       game_type: "whot",
       created_by: currentSessionId,
       players: [currentSessionId],
       status: "waiting",
       game_state: initialState
-    });
+    }).select().single();
 
     if (error) {
-      alert("Could not start game. Did you run the SQL for space_games?\n\n" + error.message);
+      alert("Could not start game:\n" + error.message);
+      setIsStarting(false);
+    } else {
+      // Update the screen instantly
+      setActiveGame(data);
     }
   }
 
@@ -142,7 +150,6 @@ export function VoiceRoom({
 
   return (
     <div className="fixed inset-0 z-[200] flex flex-col bg-[#0B0E17]">
-      {/* FIX: Added safe-area padding, truncated text, and flex-shrink-0 */}
       <header 
         className="flex items-center justify-between border-b border-white/10 px-4 pb-3 shrink-0"
         style={{ paddingTop: "calc(1rem + env(safe-area-inset-top, 0px))" }}
@@ -154,7 +161,6 @@ export function VoiceRoom({
         <button onClick={onClose} className="shrink-0 rounded-full bg-red-500/20 px-4 py-2 text-[0.8125rem] font-semibold text-red-400">Leave</button>
       </header>
 
-      {/* Audio Area with minimum height and explicit background */}
       <div className="border-b border-white/10 bg-black p-2 h-24 shrink-0 overflow-y-auto">
         <LiveKitRoom 
           video={false} 
@@ -178,7 +184,9 @@ export function VoiceRoom({
               <input type="checkbox" checked={useAnyplay} onChange={(e) => setUseAnyplay(e.target.checked)} className="w-5 h-5 accent-brand" />
               <span className="text-sm font-medium text-white">Include Whot 20 (Anyplay)</span>
             </label>
-            <button onClick={startGame} className="rounded-xl bg-brand px-8 py-4 font-semibold text-white shadow-lg active:scale-95 transition-transform">Start Whot Game</button>
+            <button onClick={startGame} disabled={isStarting} className="rounded-xl bg-brand px-8 py-4 font-semibold text-white shadow-lg active:scale-95 transition-transform disabled:opacity-50">
+              {isStarting ? "Starting..." : "Start Whot Game"}
+            </button>
           </div>
         ) : (
           <div className="w-full flex-1 flex flex-col items-center">
@@ -190,6 +198,7 @@ export function VoiceRoom({
                 <button onClick={async () => {
                   const supabase = getBrowserClient();
                   await supabase.from("space_games").update({ status: "finished" }).eq("id", activeGame.id);
+                  setActiveGame(null);
                 }} className="text-white/40 text-sm">Cancel Game</button>
               </div>
             )}
