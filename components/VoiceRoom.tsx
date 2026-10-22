@@ -177,7 +177,7 @@ export function VoiceRoom({
   return (
     <div 
       className="fixed inset-x-0 bottom-0 z-[200] flex flex-col bg-[#0B0E17] rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)] border-t border-white/10"
-      style={{ height: "85vh" }}
+      style={{ height: "70vh" }}
     >
       {/* Drag Handle */}
       <div className="w-full flex justify-center py-2 shrink-0 cursor-pointer" onClick={onClose}>

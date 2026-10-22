@@ -10,6 +10,7 @@ export type ChatHeaderProps = {
   onlineHandles: string[];
   memberCount: number;
   onOpenMembers: () => void;
+  onOpenVoice: () => void;
 };
 
 export function ChatHeader({
@@ -19,7 +20,8 @@ export function ChatHeader({
   avatarUrl,
   onlineHandles,
   memberCount,
-  onOpenMembers
+  onOpenMembers,
+  onOpenVoice
 }: ChatHeaderProps) {
   return (
     <header className="flex items-center justify-between gap-2 border-b border-border bg-paper/90 px-3 py-2.5 backdrop-blur-xl">
@@ -76,6 +78,15 @@ export function ChatHeader({
       </div>
 
       <div className="flex shrink-0 items-center gap-1">
+        <button
+          type="button"
+          onClick={onOpenVoice}
+          className="flex h-9 items-center justify-center gap-1.5 rounded-full bg-brand px-3.5 text-white transition-transform active:scale-95"
+          aria-label="Voice & Games"
+        >
+          <span className="text-[1.1rem]">🎙️</span>
+          <span className="text-[0.75rem] font-semibold">Games</span>
+        </button>
         <button
           type="button"
           onClick={onOpenMembers}

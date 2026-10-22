@@ -774,6 +774,7 @@ export function ChatRoom({
         onlineHandles={onlineHandles}
         memberCount={members.length}
         onOpenMembers={() => setMembersOpen(true)}
+        onOpenVoice={() => setVoiceRoomOpen(true)}
       />
 
       <BroadcastBanner
@@ -889,15 +890,7 @@ export function ChatRoom({
         </div>
       ) : null}
 
-      <div className="absolute bottom-20 right-4 z-40">
-          <button
-            type="button"
-            onClick={() => setVoiceRoomOpen(true)}
-            className="flex items-center gap-2 rounded-full bg-[#1E2F5C] px-5 py-3 text-[0.8125rem] font-semibold text-white shadow-xl transition-transform active:scale-95"
-          >
-            <span className="text-[1.2rem]">🎙️</span> Voice & Games
-          </button>
-        </div>
+      
         <ChatComposer
         slug={slug}
         isPublic={false}
