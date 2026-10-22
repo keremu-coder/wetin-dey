@@ -319,9 +319,6 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
     setLastAction(actionText);
     playProfile("bbm", "send");
     vibrate(30);
-    
-    // Reset Last Card declaration
-    setHasDeclaredLastCard(false);
 
     await supabase.from("space_games").update({ game_state: newState }).eq("id", game.id);
     
@@ -351,6 +348,8 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
 
     setLastAction(`You picked 1 card.`);
     playProfile("bbm", "send");
+    setHasDeclaredLastCard(false); // Reset because hand size increases
+    
     await supabase.from("space_games").update({ game_state: newState }).eq("id", game.id);
     
     setIsProcessing(false);
@@ -450,12 +449,12 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
 
       {/* Game Log / Alert Banner */}
       <div className={`text-center py-2 text-xs font-bold shrink-0 transition-colors flex items-center justify-center gap-2 ${isMyTurn ? 'bg-yellow-500 text-black' : 'bg-black/20 text-white/70'}`}>
-        {isSemiLast && isMyTurn ? (
+        {isLast && isMyTurn ? (
           <button onClick={() => { setHasDeclaredLastCard(true); playProfile("bbm", "mention"); }} className={`px-3 py-1 rounded ${hasDeclaredLastCard ? 'bg-green-600 text-white' : 'bg-red-600 text-white animate-pulse'}`}>
-            {hasDeclaredLastCard ? "Last Card Declared ✓" : "⚠️ TAP TO SAY LAST CARD"}
+            {hasDeclaredLastCard ? "✓ Last Card Declared" : "⚠️ TAP TO SAY LAST CARD"}
           </button>
         ) :
-         isLast && isMyTurn ? "🚨 PLAY YOUR LAST CARD!" :
+         isSemiLast && isMyTurn ? "⚠️ SEMI LAST CARD! Play wisely." :
          isMyTurn ? "⚡ YOUR TURN! Play a card or go to market." : lastAction}
       </div>
 
