@@ -44,6 +44,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
   
   const [wins, setWins] = useState(0);
   const [losses, setLosses] = useState(0);
+  const [hasDeclaredLastCard, setHasDeclaredLastCard] = useState(false);
 
   const [dragState, setDragState] = useState<{ id: string, x: number, y: number } | null>(null);
   const dragStartPos = useRef({ x: 0, y: 0 });
@@ -87,27 +88,24 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
     const timer = setTimeout(async () => {
       setIsProcessing(true);
       const opponentCounts = game.players.filter((p: string) => p !== "bot").map((p: string) => state.hands[p]?.length || 0);
-      const move = getBotMove(state.hands["bot"] || [], topCard, state.calledSuit, state.activePenalty, state.penaltyType, opponentCounts);
+      const move = getBotMove(state.hands["bot"] || [], topCard, state.calledSuit, opponentCounts);
 
       if (move && move.action === "pick") {
         let newDeck = [...state.deck];
         let newHand = [...(state.hands["bot"] || [])];
         if (newDeck.length === 0) newDeck = [...state.discard.slice(0, -1)].sort(() => Math.random() - 0.5);
         
-        const drawAmount = state.activePenalty > 0 ? state.activePenalty : 1;
-        const drawn = newDeck.splice(0, drawAmount);
+        const drawn = newDeck.splice(0, 1);
         newHand.push(...drawn);
         
         const newState: WhotState = {
           ...state,
           deck: newDeck,
           hands: { ...state.hands, ["bot"]: newHand },
-          turn: getNextTurn(game.players, "bot"),
-          activePenalty: 0,
-          penaltyType: null
+          turn: getNextTurn(game.players, "bot")
         };
 
-        setLastAction(`🤖 Bot picked ${drawAmount} card(s).`);
+        setLastAction(`🤖 Bot picked 1 card.`);
         playProfile("bbm", "receive");
         await supabase.from("space_games").update({ game_state: newState }).eq("id", game.id);
       } 
@@ -120,18 +118,15 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
         let newDeck = [...state.deck];
         let nextHands: Record<string, WhotCard[]> = { ...newHands };
         let actionText = `🤖 Bot played ${getCardName(move.card)}`;
-        
-        let activePenalty = 0;
-        let penaltyType: "2" | "5" | null = null;
 
         if (move.card.value === 2) {
-          activePenalty = (state.penaltyType === "2" ? state.activePenalty : 0) + 2;
-          penaltyType = "2";
-          actionText += ` (Stack: ${activePenalty})`;
+          nextHands[nextTurn] = [...nextHands[nextTurn], ...newDeck.splice(0, 2)];
+          nextTurn = getNextTurn(game.players, nextTurn);
+          actionText += ". You pick 2!";
         } else if (move.card.value === 5) {
-          activePenalty = (state.penaltyType === "5" ? state.activePenalty : 0) + 3;
-          penaltyType = "5";
-          actionText += ` (Stack: ${activePenalty})`;
+          nextHands[nextTurn] = [...nextHands[nextTurn], ...newDeck.splice(0, 3)];
+          nextTurn = getNextTurn(game.players, nextTurn);
+          actionText += ". You pick 3!";
         } else if (move.card.value === 8) {
           if (move.card.suit === "star") {
             nextTurn = getNextTurn(game.players, nextTurn, 2);
@@ -158,9 +153,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
           turn: nextTurn,
           calledSuit: move.calledSuit || null,
           winner: newHand.length === 0 ? "bot" : null,
-          status: newHand.length === 0 ? "finished" : "playing",
-          activePenalty,
-          penaltyType
+          status: newHand.length === 0 ? "finished" : "playing"
         };
 
         setLastAction(actionText);
@@ -223,7 +216,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
   }
 
   function tryPlayCard(card: WhotCard) {
-    if (!canPlayCard(card, topCard, state.calledSuit, state.activePenalty, state.penaltyType)) {
+    if (!canPlayCard(card, topCard, state.calledSuit)) {
       vibrate([50, 50]);
       return;
     }
@@ -236,6 +229,23 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
   }
 
   async function playCard(card: WhotCard, calledSuit: WhotSuit | null = null) {
+    // Last Card Rule Check
+    if ((state.hands[sessionId] || []).length === 1 && !hasDeclaredLastCard) {
+      alert("⚠️ You didn't call LAST CARD! You must draw 1 penalty card.");
+      // Draw penalty, skip turn
+      const newDeck = [...state.deck];
+      const drawn = newDeck.splice(0, 1);
+      const newHand = [...(state.hands[sessionId] || []), ...drawn];
+      const newState = {
+        ...state,
+        deck: newDeck,
+        hands: { ...state.hands, [sessionId]: newHand },
+        turn: getNextTurn(game.players, sessionId)
+      };
+      await supabase.from("space_games").update({ game_state: newState }).eq("id", game.id);
+      return;
+    }
+
     setIsProcessing(true);
     
     const newHand = (state.hands[sessionId] || []).filter(c => c.id !== card.id);
@@ -246,18 +256,15 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
     let newDeck = [...state.deck];
     let nextHands: Record<string, WhotCard[]> = { ...newHands };
     let actionText = `You played ${getCardName(card)}`;
-    
-    let activePenalty = 0;
-    let penaltyType: "2" | "5" | null = null;
 
     if (card.value === 2) {
-      activePenalty = (state.penaltyType === "2" ? state.activePenalty : 0) + 2;
-      penaltyType = "2";
-      actionText += ` (Stack: ${activePenalty})`;
+      nextHands[nextTurn] = [...nextHands[nextTurn], ...newDeck.splice(0, 2)];
+      nextTurn = getNextTurn(game.players, nextTurn);
+      actionText += ". Bot picks 2!";
     } else if (card.value === 5) {
-      activePenalty = (state.penaltyType === "5" ? state.activePenalty : 0) + 3;
-      penaltyType = "5";
-      actionText += ` (Stack: ${activePenalty})`;
+      nextHands[nextTurn] = [...nextHands[nextTurn], ...newDeck.splice(0, 3)];
+      nextTurn = getNextTurn(game.players, nextTurn);
+      actionText += ". Bot picks 3!";
     } else if (card.value === 8) {
       if (card.suit === "star") {
         nextTurn = getNextTurn(game.players, nextTurn, 2);
@@ -284,14 +291,15 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
       turn: nextTurn,
       calledSuit: calledSuit,
       winner: newHand.length === 0 ? sessionId : null,
-      status: newHand.length === 0 ? "finished" : "playing",
-      activePenalty,
-      penaltyType
+      status: newHand.length === 0 ? "finished" : "playing"
     };
 
     setLastAction(actionText);
     playProfile("bbm", "send");
     vibrate(30);
+    
+    // Reset Last Card declaration
+    setHasDeclaredLastCard(false);
 
     await supabase.from("space_games").update({ game_state: newState }).eq("id", game.id);
     
@@ -309,20 +317,17 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
     
     if (newDeck.length === 0) newDeck = [...state.discard.slice(0, -1)].sort(() => Math.random() - 0.5);
 
-    const drawAmount = state.activePenalty > 0 ? state.activePenalty : 1;
-    const drawn = newDeck.splice(0, drawAmount);
+    const drawn = newDeck.splice(0, 1);
     newHand.push(...drawn);
     
     const newState: WhotState = {
       ...state,
       deck: newDeck,
       hands: { ...state.hands, [sessionId]: newHand },
-      turn: getNextTurn(game.players, sessionId),
-      activePenalty: 0,
-      penaltyType: null
+      turn: getNextTurn(game.players, sessionId)
     };
 
-    setLastAction(`You picked ${drawAmount} card(s).`);
+    setLastAction(`You picked 1 card.`);
     playProfile("bbm", "send");
     await supabase.from("space_games").update({ game_state: newState }).eq("id", game.id);
     
@@ -378,7 +383,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
   return (
     <div className="w-full h-full flex flex-col bg-[#0a2e16] rounded-xl overflow-hidden relative select-none">
       
-      {/* Top Bar / Opponents / Close Button */}
+      {/* Top Bar / Opponents */}
       <div className="flex justify-between items-center text-white/90 text-xs p-2 bg-black/40 shrink-0">
         <div className="flex items-center gap-3">
           <div className="relative">
@@ -426,14 +431,14 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
       </div>
 
       {/* Game Log / Alert Banner */}
-      <div className={`text-center py-2 text-xs font-bold shrink-0 transition-colors ${isMyTurn ? 'bg-yellow-500 text-black' : 'bg-black/20 text-white/70'}`}>
-        {isSemiLast && isMyTurn ? "⚠️ SEMI LAST CARD! Play wisely." :
-         isLast && isMyTurn ? "🚨 LAST CARD! You are about to win." :
-         isMyTurn ? (
-          state.activePenalty > 0 ? `⚠️ PICK ${state.activePenalty}! Play a ${state.penaltyType} or pick.` : "⚡ YOUR TURN!"
-        ) : (
-          lastAction
-        )}
+      <div className={`text-center py-2 text-xs font-bold shrink-0 transition-colors flex items-center justify-center gap-2 ${isMyTurn ? 'bg-yellow-500 text-black' : 'bg-black/20 text-white/70'}`}>
+        {isSemiLast && isMyTurn ? (
+          <button onClick={() => { setHasDeclaredLastCard(true); playProfile("bbm", "mention"); }} className={`px-3 py-1 rounded ${hasDeclaredLastCard ? 'bg-green-600 text-white' : 'bg-red-600 text-white animate-pulse'}`}>
+            {hasDeclaredLastCard ? "Last Card Declared ✓" : "⚠️ TAP TO SAY LAST CARD"}
+          </button>
+        ) :
+         isLast && isMyTurn ? "🚨 PLAY YOUR LAST CARD!" :
+         isMyTurn ? "⚡ YOUR TURN! Play a card or go to market." : lastAction}
       </div>
 
       {/* Center Table */}
@@ -441,7 +446,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
         <button 
           onClick={pickFromMarket}
           disabled={!isMyTurn || isProcessing}
-          className={`relative w-16 h-24 bg-[#8B3A2B] rounded-md shadow-lg border-2 border-[#5A2217] flex items-center justify-center text-white disabled:opacity-50 active:scale-95 transition-transform ${state.activePenalty > 0 ? 'ring-4 ring-red-500 animate-pulse' : ''}`}
+          className="relative w-16 h-24 bg-[#8B3A2B] rounded-md shadow-lg border-2 border-[#5A2217] flex items-center justify-center text-white disabled:opacity-50 active:scale-95 transition-transform"
         >
           <span className="text-[10px] font-bold rotate-[-15deg] text-white/40 uppercase tracking-widest">Whot</span>
           <div className="absolute -bottom-5 text-white text-[10px] font-semibold bg-black/50 px-2 py-0.5 rounded-full whitespace-nowrap">
@@ -458,13 +463,22 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
           )}
         </div>
 
-        
+        {/* Quit Button */}
+        <button 
+          onClick={confirmQuit} 
+          className="absolute right-2 top-2 z-50 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white/70 hover:text-white transition-colors"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
       </div>
 
       {/* My Hand */}
       <div className="h-32 bg-black/40 p-2 flex gap-2 overflow-x-auto items-center shrink-0" style={{ touchAction: 'pan-x' }}>
         {myHand.map((card) => {
-          const isPlayable = isMyTurn && canPlayCard(card, topCard, state.calledSuit, state.activePenalty, state.penaltyType);
+          const isPlayable = isMyTurn && canPlayCard(card, topCard, state.calledSuit);
           const isDragging = dragState?.id === card.id;
           return (
             <div 

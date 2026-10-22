@@ -15,8 +15,6 @@ export type WhotState = {
   status: "waiting" | "playing" | "finished";
   winner: string | null;
   useAnyplay: boolean;
-  activePenalty: number;
-  penaltyType: "2" | "5" | null;
 };
 
 const SUITS: WhotSuit[] = ["circle", "triangle", "cross", "square", "star"];
@@ -70,26 +68,13 @@ export function startWhotGame(players: string[], useAnyplay: boolean): WhotState
     calledSuit: null,
     status: "playing",
     winner: null,
-    useAnyplay,
-    activePenalty: 0,
-    penaltyType: null
+    useAnyplay
   };
 }
 
-export function canPlayCard(
-  card: WhotCard, 
-  topCard: WhotCard, 
-  calledSuit: WhotSuit | null, 
-  activePenalty: number, 
-  penaltyType: string | null
-): boolean {
+export function canPlayCard(card: WhotCard, topCard: WhotCard, calledSuit: WhotSuit | null): boolean {
   if (card.value === 20) return true; // Whot is always playable
   
-  // If there is an active penalty, you can ONLY play the same penalty card to stack it
-  if (activePenalty > 0 && penaltyType) {
-    return card.value === Number(penaltyType);
-  }
-
   // If a suit was called by a Whot 20
   if (calledSuit) {
     if (card.suit === calledSuit) return true;

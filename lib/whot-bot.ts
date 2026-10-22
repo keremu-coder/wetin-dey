@@ -9,18 +9,11 @@ export function getBotMove(
   hand: WhotCard[],
   topCard: WhotCard,
   calledSuit: WhotSuit | null,
-  activePenalty: number,
-  penaltyType: "2" | "5" | null,
   opponentCardCounts: number[]
 ): BotAction {
-  const playable = hand.filter(c => canPlayCard(c, topCard, calledSuit, activePenalty, penaltyType));
+  const playable = hand.filter(c => canPlayCard(c, topCard, calledSuit));
   
   if (playable.length === 0) return { action: "pick" };
-
-  // If there is an active penalty, the bot MUST play the penalty card if it has it
-  if (activePenalty > 0) {
-    return { action: "play", card: playable[0] };
-  }
 
   const minOppCards = opponentCardCounts.length > 0 ? Math.min(...opponentCardCounts) : 99;
 

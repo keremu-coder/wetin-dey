@@ -166,13 +166,13 @@ export function VoiceRoom({
   }
 
   async function joinGame() {
-    if (activeGame.players.length >= 4) return;
+    if (activeGame.players.length >= 4) return; // Max 4
     if (activeGame.players.includes(currentSessionId)) return;
     if (activeGame.status !== "waiting") return;
 
     const newPlayers = [...activeGame.players, currentSessionId];
     const newState = startWhotGame(newPlayers, activeGame.game_state.useAnyplay);
-    const newStatus = newPlayers.length >= 2 ? "playing" : "waiting";
+    const newStatus = newPlayers.length >= 2 ? "playing" : "waiting"; // Min 2 to start
 
     const supabase = getBrowserClient();
     await supabase
