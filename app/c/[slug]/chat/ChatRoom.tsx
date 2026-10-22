@@ -372,6 +372,17 @@ export function ChatRoom({
   }, [slug, isMember, mySessionId, me, name]);
 
   // Scroll to bottom when messages change OR keyboard opens (viewportHeight changes)
+  // Scroll to bottom on initial mount and when keyboard opens
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const t = setTimeout(() => {
+      el.scrollTop = el.scrollHeight;
+    }, 100);
+    return () => clearTimeout(t);
+  }, [viewportHeight]);
+
+  // Soft scroll when new messages arrive
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -382,7 +393,7 @@ export function ChatRoom({
       }
     }, 50);
     return () => clearTimeout(t);
-  }, [messages, viewportHeight]);
+  }, [messages]);
 
   useEffect(() => {
     if (!autocorrectOn) {

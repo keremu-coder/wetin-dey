@@ -166,13 +166,13 @@ export function VoiceRoom({
   }
 
   async function joinGame() {
-    if (activeGame.players.length >= 4) return; // Max 4
+    if (activeGame.players.length >= 4) return;
     if (activeGame.players.includes(currentSessionId)) return;
     if (activeGame.status !== "waiting") return;
 
     const newPlayers = [...activeGame.players, currentSessionId];
     const newState = startWhotGame(newPlayers, activeGame.game_state.useAnyplay);
-    const newStatus = newPlayers.length >= 2 ? "playing" : "waiting"; // Min 2 to start
+    const newStatus = newPlayers.length >= 2 ? "playing" : "waiting";
 
     const supabase = getBrowserClient();
     await supabase
@@ -221,7 +221,7 @@ export function VoiceRoom({
 
   return (
     <div 
-      className={`fixed inset-x-0 bottom-0 z-[200] flex flex-col bg-[#0B0E17] rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)] border-t border-white/10 transition-all duration-300 ${isFullScreen ? 'h-[100dvh] rounded-none' : 'h-[70vh]'}`}
+      className={`fixed inset-x-0 bottom-0 z-[200] flex flex-col bg-[#0B0E17] rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)] border-t border-white/10 transition-all duration-300 ${isFullScreen ? 'h-[100dvh] rounded-none' : 'h-[55vh]'}`}
     >
       {/* Drag Handle */}
       <div className="w-full flex justify-center py-2 shrink-0 cursor-pointer" onClick={onClose}>
@@ -235,6 +235,13 @@ export function VoiceRoom({
         </div>
         
         <div className="flex items-center gap-2">
+          {/* Quick Chat Button */}
+          <button 
+            onClick={onClose} 
+            className="flex h-8 items-center justify-center rounded-full bg-white/10 px-3 text-white/70 hover:bg-white/20 text-xs font-semibold"
+          >
+            Chat
+          </button>
           <button onClick={() => setIsFullScreen(!isFullScreen)} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white/70 hover:bg-white/20">
             {isFullScreen ? "↓" : "↑"}
           </button>
@@ -272,16 +279,15 @@ export function VoiceRoom({
           <div className="flex-1 flex flex-col items-center justify-center">
             
             {/* Avatar Picker */}
-            <div className="relative mb-6">
+            <div className="relative mb-4">
               <div 
                 className="flex flex-col items-center cursor-pointer group"
                 onClick={() => setShowAvatarPicker(!showAvatarPicker)}
               >
                 <div className="relative">
-                  <Alama seed={mySeed} size={72} title="Change Avatar" />
+                  <Alama seed={mySeed} size={64} title="Change Avatar" />
                   <div className="absolute bottom-0 right-0 bg-brand text-white text-[10px] font-bold px-2 py-0.5 rounded-full border border-white">Edit</div>
                 </div>
-                <p className="text-white/50 text-xs mt-2">Tap to change character</p>
               </div>
 
               {showAvatarPicker && (
@@ -298,16 +304,16 @@ export function VoiceRoom({
               )}
             </div>
 
-            <label className="flex items-center gap-2 mb-6 bg-white/5 px-4 py-3 rounded-xl border border-white/10 cursor-pointer">
-              <input type="checkbox" checked={useAnyplay} onChange={(e) => setUseAnyplay(e.target.checked)} className="w-5 h-5 accent-brand" />
-              <span className="text-sm font-medium text-white">Include Whot 20 (Anyplay)</span>
+            <label className="flex items-center gap-2 mb-4 bg-white/5 px-4 py-2 rounded-xl border border-white/10 cursor-pointer">
+              <input type="checkbox" checked={useAnyplay} onChange={(e) => setUseAnyplay(e.target.checked)} className="w-4 h-4 accent-brand" />
+              <span className="text-xs font-medium text-white">Include Whot 20</span>
             </label>
             
-            <div className="flex flex-col gap-3 w-full max-w-[250px]">
-              <button onClick={() => startGame(true)} disabled={isStarting} className="rounded-xl bg-[#1F7A4D] border border-[#0A6B43] text-white px-8 py-4 font-semibold shadow-lg active:scale-95 transition-transform disabled:opacity-50">
+            <div className="flex flex-col gap-2 w-full max-w-[250px]">
+              <button onClick={() => startGame(true)} disabled={isStarting} className="rounded-xl bg-[#1F7A4D] border border-[#0A6B43] text-white px-8 py-3 font-semibold shadow-lg active:scale-95 transition-transform disabled:opacity-50 text-sm">
                 Play Solo (vs Bot)
               </button>
-              <button onClick={() => startGame(false)} disabled={isStarting} className="rounded-xl bg-brand px-8 py-3 text-[0.8125rem] font-medium text-white shadow-sm active:scale-95 transition-transform disabled:opacity-50">
+              <button onClick={() => startGame(false)} disabled={isStarting} className="rounded-xl bg-brand px-8 py-2.5 text-[0.8125rem] font-medium text-white shadow-sm active:scale-95 transition-transform disabled:opacity-50">
                 {isStarting ? "Starting..." : "Host Multiplayer Game"}
               </button>
             </div>
@@ -329,7 +335,7 @@ export function VoiceRoom({
               </div>
             )}
             
-            <div className="w-full flex-1 relative min-h-[400px]">
+            <div className="w-full flex-1 relative min-h-[350px]">
               <WhotGame 
                 game={activeGame} 
                 isPlayer={isPlayer} 
