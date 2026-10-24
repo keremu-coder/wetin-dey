@@ -52,6 +52,16 @@ export async function POST(req: NextRequest) {
       if (!(await canAccess(communityId, dmThreadId))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       const { data } = await db.from("space_games").select("*").eq(col, val)
         .in("status", ["waiting", "playing"]).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      
+      if (data) {
+        const age = Date.now() - new Date(data.created_at).getTime();
+        const isStale = data.status === "waiting" ? age > 10 * 60 * 1000 : age > 60 * 60 * 1000;
+        if (isStale) {
+          await db.from("space_games").delete().eq("id", data.id);
+          return NextResponse.json({ game: null, handles: {} });
+        }
+      }
+
       return NextResponse.json({ game: data ?? null, handles: data ? await handlesFor(data.players) : {} });
     }
 
@@ -60,7 +70,16 @@ export async function POST(req: NextRequest) {
       const useAnyplay = !(game_state && game_state.useAnyplay === false);
       const { data: live } = await db.from("space_games").select("*").eq(col, val)
         .in("status", ["waiting", "playing"]).order("created_at", { ascending: false }).limit(1).maybeSingle();
-      if (live) return NextResponse.json({ game: live });
+      
+      if (live) {
+        const age = Date.now() - new Date(live.created_at).getTime();
+        const isStale = live.status === "waiting" ? age > 10 * 60 * 1000 : age > 60 * 60 * 1000;
+        if (isStale) {
+          await db.from("space_games").delete().eq("id", live.id);
+        } else {
+          return NextResponse.json({ game: live });
+        }
+      }
       const withBot = Array.isArray(players) && players.includes("bot");
       const seats = withBot ? [sid, "bot"] : [sid];
       await db.from("space_games").delete().eq(col, val).eq("status", "finished");
