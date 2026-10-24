@@ -67,8 +67,20 @@ export async function GET(
   if (currentFilename !== filename) return notFound("not current status photo");
 
   // Respect owner's photo privacy setting
-  if (viewerId !== ownerId && !canSeePhoto(owner.photo_visibility)) {
-    return notFound("private visibility");
+  if (viewerId !== ownerId) {
+    const { data: follow } = await db
+      .from("follows")
+      .select("follower_session_id")
+      .eq("follower_session_id", viewerId)
+      .eq("followed_session_id", ownerId)
+      .maybeSingle();
+    const allowed = canSeePhoto({
+      viewerId,
+      targetId: ownerId,
+      visibility: owner.photo_visibility,
+      isFollowing: !!follow
+    });
+    if (!allowed) return notFound("private visibility");
   }
 
   // Blocks in both directions (owner can always see their own).
