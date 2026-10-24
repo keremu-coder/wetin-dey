@@ -11,7 +11,6 @@ const config: CapacitorConfig = {
     errorPath: "offline.html"
   },
   ios: {
-    useSPM: false,
     contentInset: "always",
     backgroundColor: "#0a0a0a",
     limitsNavigationsToAppBoundDomains: true
