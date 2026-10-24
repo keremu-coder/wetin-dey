@@ -27,7 +27,10 @@ import { createServiceClient } from "@/lib/supabase/server";
  * Voice notes in chat/comments/broadcasts live in a different bucket
  * (`voice-notes`) and are not touched here — deferred to a follow-up.
  */
-export async function deleteReportEvidence(reportId: string): Promise<void> {
+export async function deleteReportEvidence(
+  reportId: string,
+  opts: { strict?: boolean } = {}
+): Promise<void> {
   const db = createServiceClient();
 
   const { data, error } = await db
@@ -36,7 +39,11 @@ export async function deleteReportEvidence(reportId: string): Promise<void> {
     .eq("id", reportId)
     .maybeSingle();
 
-  if (error || !data) return;
+  if (error) {
+    if (opts.strict) throw new Error(`Could not read report ${reportId}: ${error.message}`);
+    return;
+  }
+  if (!data) return;
 
   const url = data.evidence_url as string | null;
   const type = data.evidence_type as string | null;
@@ -57,5 +64,6 @@ export async function deleteReportEvidence(reportId: string): Promise<void> {
   const { error: rmErr } = await db.storage.from("evidence").remove([path]);
   if (rmErr) {
     console.error("[evidence-cleanup] storage remove failed:", rmErr.message);
+    if (opts.strict) throw new Error(`Could not delete evidence for report ${reportId}`);
   }
 }

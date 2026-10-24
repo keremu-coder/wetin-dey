@@ -1,4 +1,4 @@
-# Wetin Dey — Store Disclosures & Data Collection
+﻿# Wetin Dey — Store Disclosures & Data Collection
 
 This document outlines the data collected by the Wetin Dey application for App Store and Google Play compliance.
 
@@ -21,3 +21,11 @@ Wetin Dey is built using a hybrid architecture (Next.js wrapped in Capacitor) to
 ## 4. Data Deletion
 - Users can initiate account deletion directly in the app (Settings > Delete Account).
 - The current flow deletes DM threads/messages and the user's community messages. Public reports and comments are detached from the account and retained in the archive. There is no "Delete content" checkbox.
+
+## 5. App Privacy answers (must match ios/App/App/PrivacyInfo.xcprivacy)
+Every item below is collected and **linked to the user** (tied to their handle/session); none is used for tracking:
+- Email address (only if the user adds one)
+- User ID (session id / handle)
+- Device ID (push token, stored against the session)
+- Precise location (Radar signals only) and coarse location (state-level on reports)
+- Photos or videos, Audio data, Other user content (reports, comments, messages)

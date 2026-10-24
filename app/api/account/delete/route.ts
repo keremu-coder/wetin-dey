@@ -25,8 +25,9 @@ function supabaseStoragePath(url: string, bucket: string): string | null {
   return null;
 }
 
-async function deleteOrFail(db: any, table: string, column: string, value: string) {
-  const { error } = await db.from(table).delete().eq(column, value);
+async function deleteOrFail(db: any, table: string, column: string, value: string | string[]) {
+  const q = db.from(table).delete();
+  const { error } = Array.isArray(value) ? await q.in(column, value) : await q.eq(column, value);
   if (error) throw new Error(`Failed to delete from ${table}: ${error.message}`);
 }
 
@@ -106,30 +107,54 @@ export async function POST(req: NextRequest) {
         }
       }
       try {
-        // Delete evidence files attached to reports in this community
-        const { data: communityReports } = await db
+        // Reports in this community, plus everything referencing them
+        // WITHOUT ON DELETE CASCADE (migrations/001). Delete those first.
+        const { data: communityReports, error: crErr } = await db
           .from("reports").select("id").eq("community_id", c.id);
-        if (communityReports && communityReports.length > 0) {
+        if (crErr) throw new Error("Could not read community reports.");
+        const reportIds = (communityReports ?? []).map((r) => r.id as string);
+
+        if (reportIds.length > 0) {
           const { deleteReportEvidence } = await import("@/lib/evidence-cleanup");
-          await Promise.all(
-            communityReports.map((r) => deleteReportEvidence(r.id).catch(() => {}))
-          );
+          for (const rid of reportIds) await deleteReportEvidence(rid, { strict: true });
+
+          for (let i = 0; i < reportIds.length; i += 100) {
+            const ids = reportIds.slice(i, i + 100);
+
+            const { data: cmts, error: cmtErr } = await db
+              .from("comments").select("audio_url").in("report_id", ids).not("audio_url", "is", null);
+            if (cmtErr) throw new Error("Could not read comment audio.");
+            for (const m of cmts ?? []) {
+              const p = m.audio_url ? supabaseStoragePath(m.audio_url, "voice-notes") : null;
+              if (p) {
+                const { error } = await db.storage.from("voice-notes").remove([p]);
+                if (error) throw new Error("Could not delete a comment voice note.");
+              }
+            }
+
+            for (const table of ["comments", "me_toos", "flags", "disputes", "formalization_log"]) {
+              await deleteOrFail(db, table, "report_id", ids);
+            }
+          }
         }
 
-        // Delete voice-note blobs referenced by community messages
-        const { data: cm } = await db
+        const { data: cm, error: cmReadErr } = await db
           .from("community_messages")
           .select("audio_url")
           .eq("community_id", c.id)
           .not("audio_url", "is", null);
+        if (cmReadErr) throw new Error("Could not read community messages.");
         for (const m of cm ?? []) {
-          const p = m.audio_url
-            ? supabaseStoragePath(m.audio_url, "voice-notes")
-            : null;
-          if (p) await db.storage.from("voice-notes").remove([p]).catch(() => {});
+          const p = m.audio_url ? supabaseStoragePath(m.audio_url, "voice-notes") : null;
+          if (p) {
+            const { error } = await db.storage.from("voice-notes").remove([p]);
+            if (error) throw new Error("Could not delete a community voice note.");
+          }
         }
 
-        // Now safe to delete rows
+        const mediaErr = await removeAll(db, "community-media", `chat/${c.id}`);
+        if (mediaErr) throw new Error(mediaErr);
+
         await deleteOrFail(db, "reports", "community_id", c.id);
         await deleteOrFail(db, "community_messages", "community_id", c.id);
         await deleteOrFail(db, "community_members", "community_id", c.id);
@@ -189,9 +214,9 @@ export async function POST(req: NextRequest) {
     // 6. All rows owned by this session
     try {
       await deleteOrFail(db, "admins", "session_id", sessionId);
-      await deleteOrFail(db, "disputes", "session_id", sessionId);
-      await deleteOrFail(db, "formalization_log", "session_id", sessionId);
-      await deleteOrFail(db, "moderation_actions", "moderator_session_id", sessionId);
+      // disputes, formalization_log and moderation_actions have NO session
+      // column (migrations/001_initial.sql): nothing to delete by session.
+      // Deleting by a missing column aborted every account deletion.
       await deleteOrFail(db, "follows", "follower_session_id", sessionId);
       await deleteOrFail(db, "follows", "followed_session_id", sessionId);
       await deleteOrFail(db, "blocked_users", "blocker_session_id", sessionId);
@@ -224,6 +249,20 @@ export async function POST(req: NextRequest) {
       await deleteOrFail(db, "radar_contacts", "contact_id", sessionId);
       await deleteOrFail(db, "community_members", "session_id", sessionId);
     } catch (err: any) { return Response.json({ error: err.message }, { status: 500 }); }
+
+    // 6b. The user's own view-once media in OTHER people's spaces.
+    // (42703 = column missing in this database; nothing to clean then.)
+    const { data: myMedia, error: myMediaErr } = await db
+      .from("community_messages").select("media_path")
+      .eq("session_id", sessionId).not("media_path", "is", null);
+    if (myMediaErr && (myMediaErr as any).code !== "42703") {
+      return Response.json({ error: "Could not read your chat media." }, { status: 500 });
+    }
+    const mediaPaths = (myMedia ?? []).map((m: any) => m.media_path as string).filter(Boolean);
+    for (let i = 0; i < mediaPaths.length; i += 100) {
+      const { error } = await db.storage.from("community-media").remove(mediaPaths.slice(i, i + 100));
+      if (error) return Response.json({ error: "Could not delete your chat media." }, { status: 500 });
+    }
 
     // 7. Chat messages: deleted (transient — the privacy policy says they
     // stay "until you or a moderator deletes them", and account deletion

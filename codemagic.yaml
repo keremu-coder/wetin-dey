@@ -17,6 +17,8 @@
         script: npm run build
       - name: Capacitor Sync
         script: npx cap sync ios
+      - name: Add Firebase and privacy manifest to the Xcode project
+        script: node scripts/patch-ios-project.mjs
       - name: Load Firebase configuration
         script: |
           echo $IOS_FIREBASE_SECRET > $CM_BUILD_DIR/ios/App/App/GoogleService-Info.plist
