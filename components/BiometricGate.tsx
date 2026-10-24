@@ -8,7 +8,7 @@ export function BiometricGate({ children }: { children: React.ReactNode }) {
   const [isNative, setIsNative] = useState(false);
 
   useEffect(() => {
-    // TODO: Remove this iOS bypass once the app is built with CocoaPods on a Mac
+    // TODO: Remove this iOS bypass once a biometric plugin with Swift Package Manager (SPM) support is available and linked.
     if (Capacitor.getPlatform() === "ios") {
       setIsAuthenticated(true);
       return;
