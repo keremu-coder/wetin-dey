@@ -479,13 +479,18 @@ export async function getOrCreateSessionProfile(
     if (!error) return created as SessionProfile;
 
     if (error.code === "23505" && /sessions_pkey/i.test(error.message ?? "")) {
-      const { data: raced } = await db
-        .from("sessions")
-        .select("*")
-        .eq("id", sessionId)
-        .maybeSingle();
-      if (raced) return raced as SessionProfile;
-    }
+        // Race condition: another request inserted this session.
+        // Retry to handle read-replica lag.
+        for (let i = 0; i < 5; i++) {
+          const { data: raced } = await db
+            .from("sessions")
+            .select("*")
+            .eq("id", sessionId)
+            .maybeSingle();
+          if (raced) return raced as SessionProfile;
+          await new Promise((r) => setTimeout(r, 100));
+        }
+      }
 
     if (
       error.code === "23505" &&
