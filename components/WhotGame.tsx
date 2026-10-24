@@ -129,7 +129,11 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
 
         setLastAction(`🤖 Bot picked ${drawAmount} card(s).`);
         playProfile("bbm", "receive");
-        await supabase.from("space_games").update({ game_state: newState }).eq("id", game.id);
+        await fetch("/api/space-games", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "update_state", gameId: game.id, game_state: newState })
+      });
       } 
       else if (move && move.action === "play") {
         const newHand = (state.hands["bot"] || []).filter(c => c.id !== move.card.id);
@@ -188,7 +192,11 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
 
         setLastAction(actionText);
         playProfile("bbm", "receive");
-        await supabase.from("space_games").update({ game_state: newState }).eq("id", game.id);
+        await fetch("/api/space-games", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "update_state", gameId: game.id, game_state: newState })
+      });
       }
       setIsProcessing(false);
     }, 1800);
@@ -285,7 +293,11 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
         hands: { ...state.hands, [sessionId]: newHand },
         turn: getNextTurn(game.players, sessionId)
       };
-      await supabase.from("space_games").update({ game_state: newState }).eq("id", game.id);
+      await fetch("/api/space-games", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "update_state", gameId: game.id, game_state: newState })
+      });
       return;
     }
 
@@ -349,7 +361,11 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
     playProfile("bbm", "send");
     vibrate(30);
 
-    await supabase.from("space_games").update({ game_state: newState }).eq("id", game.id);
+    await fetch("/api/space-games", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "update_state", gameId: game.id, game_state: newState })
+      });
     
     setSuitPickerOpen(false);
     setSelectedCard(null);
@@ -385,7 +401,11 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
     declaredRef.current = false;
     setHasDeclaredLastCard(false);
 
-    await supabase.from("space_games").update({ game_state: newState }).eq("id", game.id);
+    await fetch("/api/space-games", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "update_state", gameId: game.id, game_state: newState })
+      });
     
     setIsProcessing(false);
   }

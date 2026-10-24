@@ -187,11 +187,11 @@ export function VoiceRoom({
     const newState = startWhotGame(newPlayers, activeGame.game_state.useAnyplay);
     const newStatus = newPlayers.length >= 2 ? "playing" : "waiting";
 
-    const supabase = getBrowserClient();
-    await supabase
-      .from("space_games")
-      .update({ players: newPlayers, game_state: newState, status: newStatus })
-      .eq("id", activeGame.id);
+    await fetch("/api/space-games", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action: "join", gameId: activeGame.id, players: newPlayers, game_state: newState, status: newStatus })
+    });
   }
 
   async function quitGame() {
@@ -202,9 +202,12 @@ export function VoiceRoom({
     setActiveGame(null);
     
     // Delete from database in the background
-    const supabase = getBrowserClient();
     try {
-      await supabase.from("space_games").delete().eq("id", gameId);
+      await fetch("/api/space-games", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "delete", gameId })
+      });
     } catch (err) {
       console.error("Failed to delete game", err);
     }
