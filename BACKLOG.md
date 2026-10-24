@@ -2,6 +2,9 @@
 
 ## Post-launch security follow-ups (from audit #2)
 
+- [ ] **Ignore zod DoS (GHSA-mrhx-c7xc-m3w5).** Transitive dependency of @vercel/functions. Vercel will patch this in a future SDK release. Risk accepted: DoS only, no data leak, isolated by Vercel serverless limits.
+
+
 - [ ] **`space_games` RLS (audit #8) - CONFIRMED.** Live DB:
       `relrowsecurity = false`, 0 policies, 3 rows. Anyone with the anon
       key can read/write every game, including DM games. Fix order:
