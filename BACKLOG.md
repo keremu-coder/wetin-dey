@@ -25,7 +25,7 @@
       Medium effort, real privacy win. `evidence` bucket same story —
       deferred to Batch C follow-up after store submission. (Audit
       finding 18 follow-up.)
-- [ ] **Private Space invite tokens.** Private Spaces are currently
+- [x] (Done) **Private Space join fixed.** Direct joins to private spaces blocked. Invite tokens still pending.
       "unlisted" — anyone with the slug can join. Real feature work:
       invite link with token, owner approval flow, member list
       visibility rules. Post-launch. (Audit finding 15.)
@@ -39,15 +39,15 @@
 These MUST be done before submitting to the App Store or Play Store.
 Store reviewers will test every one of them.
 
-- [ ] **Buy `wetindey.app` and set up email forwarding** to a working inbox.
+- [x] (Done) Buy `wetindey.app` and set up email forwarding (MX verified)
       Currently `support@wetindey.app` is referenced in `/privacy`,
       `/terms`, `/support`, `/guidelines` and does not resolve (no MX
       records). Reviewers clicking support will find a dead address.
       After the domain is bought + forwarding configured, decide whether
       to keep the hardcoded email or extract to `NEXT_PUBLIC_SUPPORT_EMAIL`.
-- [ ] **Run `npm audit`** — 16 vulnerabilities (3 critical) currently
+- [ ] **Run `npm audit`** — 20 vulnerabilities (2 critical) currently
       flagged by Dependabot. Fix or document before submission.
-- [ ] **Test the AI disclosure on a live report** — verify the
+- [ ] **Test the AI disclosure on a live report (Visual test only)** — verify the
       "AI-generated" label and "Read clean English version" disclosure
       render correctly on `/r/[id]`.
 

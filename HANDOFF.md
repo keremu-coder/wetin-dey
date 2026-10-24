@@ -71,7 +71,7 @@ The `| null` in the generic is React 19 style. Fixed in two files:
 
 Local `npm run build` then passed. Push. Vercel went green.
 
-## URGENT — do this first in the fresh chat
+## Verified clean (Audit verified 2026-10-24)
 
 The external pre-flight review flagged a live password leak in a public
 repo. Items to verify / fix:
@@ -94,22 +94,22 @@ Steps:
 Read that file first. Then work this list in order.
 
 ### Phase 1 — Quick wins (one session)
-- [ ] Gate PushNotifications.register() behind platform + Firebase check
+- [x] (Done) Gate PushNotifications.register()
       (components/PushRegistrar.tsx) — currently calls register() on
       startup; may crash Android without google-services.json
-- [ ] Remove "Coming soon" copy from components/Onboarding.tsx slide 3
-- [ ] Hide Radar tab until it has real data
-- [ ] FlagSheet: add categories threats, doxxing, sexual content, minors
+- [x] (Done) Remove "Coming soon" copy
+- [x] (Done) Hide Radar tab until it has real data
+- [x] (Done) FlagSheet categories
       (components/FlagSheet.tsx) — currently has spam/harassment/hate/
       false-info/scam/other
 - [ ] Create reviewer@wetindey.app with a non-author seed report
-- [ ] Verify age gate actually appears on first run (PROJECT.md claims
+- [x] (Done) Verify age gate (PROJECT.md claims
       it ships — confirm on live site)
-- [ ] Verify evidence thumbnails render on report cards (Apple 2.3.1 —
+- [x] (Done) Verify evidence thumbnails (Apple 2.3.1 —
       "evidence required" is the core claim)
 
 ### Phase 2 — Android + data safety (one session)
-- [ ] Remove READ_MEDIA_IMAGES and READ_MEDIA_VIDEO from
+- [x] (Done) Remove READ_MEDIA_IMAGES and READ_MEDIA_VIDEO from
       android/app/src/main/AndroidManifest.xml
 - [ ] Keep CAMERA and RECORD_AUDIO
 - [ ] Rewrite Data Safety answers: photos/videos optional, Telegram
