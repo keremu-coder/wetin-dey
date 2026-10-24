@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { LiveKitRoom, useConnectionState, useLocalParticipant, useParticipants, StartMediaButton, RoomAudioRenderer } from "@livekit/components-react";
 import { ConnectionState } from "livekit-client";
 import "@livekit/components-styles";
-import { getBrowserClient } from "@/lib/supabase/client";
 import { WhotGame } from "./WhotGame";
 import { startWhotGame } from "@/lib/whot";
 import { Alama } from "./Alama";
@@ -120,61 +119,53 @@ export function VoiceRoom({
   }, [roomName, livekitUrl]);
 
   useEffect(() => {
-    const supabase = getBrowserClient();
-    
-    const col = dmThreadId ? "dm_thread_id" : "community_id";
-    const val = dmThreadId || communityId;
-
-    supabase
-      .from("space_games")
-      .select("*")
-      .eq(col, val)
-      .in("status", ["waiting", "playing"])
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => { if (data) setActiveGame(data); });
-
-    const channel = supabase
-      .channel(`space_games:${val}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "space_games", filter: `${col}=eq.${val}` }, (payload) => {
-        if (payload.eventType === "INSERT" || payload.eventType === "UPDATE") {
-          const game = payload.new;
-          if (game.status === "finished") setActiveGame(null);
-          else setActiveGame(game);
-        }
-      })
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
+    let cancelled = false;
+    async function load() {
+      try {
+        const res = await fetch("/api/space-games", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ action: "get", communityId, dmThreadId })
+        });
+        if (!res.ok || cancelled) return;
+        const json = await res.json();
+        if (!cancelled) setActiveGame(json.game ?? null);
+      } catch { /* retry on next tick */ }
+    }
+    void load();
+    const t = setInterval(load, 1500);
+    return () => { cancelled = true; clearInterval(t); };
   }, [communityId, dmThreadId]);
 
   async function startGame(withBot: boolean = false) {
     if (isStarting) return;
     setIsStarting(true);
-    const supabase = getBrowserClient();
-    
-    const col = dmThreadId ? "dm_thread_id" : "community_id";
-    const val = dmThreadId || communityId;
 
-    await supabase.from("space_games").delete().eq(col, val).eq("status", "finished");
+    const players = withBot ? [currentSessionId, "bot"] : [currentSessionId];
+    const initialState = startWhotGame(players, useAnyplay);
 
-    const initialState = startWhotGame(withBot ? [currentSessionId, "bot"] : [currentSessionId], useAnyplay);
-    
-    const { data, error } = await supabase.from("space_games").insert({
-      [col]: val,
-      game_type: "whot",
-      created_by: currentSessionId,
-      players: withBot ? [currentSessionId, "bot"] : [currentSessionId],
-      status: withBot ? "playing" : "waiting",
-      game_state: initialState
-    }).select().single();
-
-    if (error) {
-      alert("Could not start game:\n" + error.message);
+    try {
+      const res = await fetch("/api/space-games", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          action: "start",
+          communityId,
+          dmThreadId,
+          players,
+          game_state: initialState
+        })
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.game) {
+        alert("Could not start game. Try again.");
+        setIsStarting(false);
+      } else {
+        setActiveGame(json.game);
+      }
+    } catch {
+      alert("Could not start game. Check your connection.");
       setIsStarting(false);
-    } else {
-      setActiveGame(data);
     }
   }
 

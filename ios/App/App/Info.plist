@@ -76,6 +76,8 @@
     Review reads to justify the request.
   -->
 
+  <key>NSFaceIDUsageDescription</key>
+  <string>Wetin Dey uses Face ID to keep the app locked to you.</string>
   <key>NSMicrophoneUsageDescription</key>
   <string>Wetin Dey uses the microphone to record voice notes, broadcasts, and voice comments on civic reports.</string>
 

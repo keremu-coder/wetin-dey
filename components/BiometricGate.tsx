@@ -17,12 +17,19 @@ export function BiometricGate({ children }: { children: React.ReactNode }) {
   }, []);
 
   async function authenticate() {
+    // If the plugin is missing or biometrics cannot be queried, never lock the user out.
+    let available = false;
     try {
       const result = await NativeBiometric.isAvailable();
-      if (!result.isAvailable) {
-        setIsAuthenticated(true);
-        return;
-      }
+      available = !!result.isAvailable;
+    } catch (err) {
+      console.error("Biometric check unavailable", err);
+    }
+    if (!available) {
+      setIsAuthenticated(true);
+      return;
+    }
+    try {
       await NativeBiometric.verifyIdentity({
         reason: "Unlock Wetin Dey",
         title: "Authentication Required",
