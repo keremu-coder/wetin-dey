@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useRef, useState } from "react";
 import { DM_BODY_MAX } from "@/lib/dm";
@@ -13,6 +13,15 @@ import {
   subscribePrefs,
   type SoundPrefs
 } from "@/lib/sound-prefs";
+
+async function stripPhoto(file: File): Promise<Blob> {
+  if (!file.type.startsWith("image/") || file.type === "image/heic") return file;
+  const bmp = await createImageBitmap(file);
+  const c = document.createElement("canvas");
+  c.width = bmp.width; c.height = bmp.height;
+  c.getContext("2d")!.drawImage(bmp, 0, 0);
+  return await new Promise<Blob>((res) => c.toBlob((b) => res(b ?? file), "image/jpeg", 0.9));
+}
 
 const DEFAULT_PREFS: SoundPrefs = {
   profile: "bbm",
@@ -119,11 +128,14 @@ export function DMComposer({
     const cid = onStart(file.type.startsWith("image/") ? "📷 Photo" : "🎥 Video");
 
     try {
+      // Strip EXIF metadata from photos before upload (audit #7)
+      const uploadBlob = await stripPhoto(file);
+
       // 1. Request signed upload URL from server (bypasses Vercel 4.5MB limit)
       const initRes = await fetch("/api/dm/upload", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ threadId, mime: file.type, size: file.size })
+        body: JSON.stringify({ threadId, mime: uploadBlob.type, size: uploadBlob.size })
       });
       const initJson = await initRes.json();
       if (!initRes.ok) throw new Error(initJson.error || "Could not start upload");
@@ -132,7 +144,7 @@ export function DMComposer({
       const supabase = getBrowserClient();
       const { error: uploadErr } = await supabase.storage
         .from("dm-media")
-        .uploadToSignedUrl(initJson.path, initJson.token, file);
+        .uploadToSignedUrl(initJson.path, initJson.token, uploadBlob);
       if (uploadErr) throw new Error(uploadErr.message || "Upload failed");
 
       // 3. Create the message record on the server
