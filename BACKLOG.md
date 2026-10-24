@@ -2,6 +2,16 @@
 
 ## Post-launch security follow-ups (from audit #2)
 
+- [ ] **`space_games` RLS (audit #8) - CONFIRMED.** Live DB:
+      `relrowsecurity = false`, 0 policies, 3 rows. Anyone with the anon
+      key can read/write every game, including DM games. Fix order:
+      (1) refactor `WhotGame.tsx` + `VoiceRoom.tsx` to call
+      `/api/space-games/*` via `createServiceClient`; (2) migration
+      041 with schema backfill (038 missing) + `enable row level
+      security` + zero policies; (3) apply to live DB. WARNING: do
+      NOT enable RLS before step 1 - auth.uid() is null, RLS with
+      `USING (true)` is no better than no RLS. Est 3-4 sessions.
+
 - [ ] **Per-target-email rate limit on signin / forgot-password.** The
       current limiter buckets by session + IP, both of which rotate
       freely (new cookie + new IPv6 /64). A targeted attacker can still
