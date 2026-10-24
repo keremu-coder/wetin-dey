@@ -32,5 +32,5 @@ Content moderation SLA:
 For testing, use the anonymous login option (Stay Anonymous) to bypass email requirements.
 
 If you need a test account with populated data, please use:
-Username: ____ (fill in before submission)
-Recovery Code: ____ (fill in before submission)
+Username: reviewer@wetindey.app
+Password: AppleReview2026!
