@@ -56,6 +56,18 @@ export async function GET(
   if (error) return nf(`db error: ${error.message}`);
   if (!owner || !owner.avatar_url) return nf("no owner/avatar_url");
 
+  // Blocks in both directions (owner can always see their own).
+  if (viewer && viewer !== ownerId) {
+    const { data: blocks } = await db
+      .from("blocked_users")
+      .select("blocker_session_id, blocked_session_id")
+      .or(
+        `and(blocker_session_id.eq.${viewer},blocked_session_id.eq.${ownerId}),and(blocker_session_id.eq.${ownerId},blocked_session_id.eq.${viewer})`
+      )
+      .limit(1);
+    if (blocks && blocks.length > 0) return nf("blocked");
+  }
+
   // Only serve the current avatar. Strip query/hash so a cache-buster
   // cannot break the match.
   const stored = owner.avatar_url.split(/[?#]/, 1)[0].split("/").pop();
