@@ -4,7 +4,7 @@ import { Nav, SiteFooter } from "@/components/Nav";
 import { LiveStateProvider } from "@/components/LiveStateProvider";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { PushRegistrar } from "@/components/PushRegistrar";
-import { NativePushRegister } from "@/components/NativePushRegister";
+
 import { NativeNetworkMonitor } from "@/components/NativeNetworkMonitor";
 import { NativeScreenshotBlocker } from "@/components/NativeScreenshotBlocker";
 import { BottomNav } from "@/components/BottomNav";
@@ -112,19 +112,18 @@ export default async function RootLayout({
       <body className={`min-h-screen font-sans ${FONT_VARIABLE_CLASSES}`}>
         <ToastProvider>
           <LiveStateProvider>
+              <BiometricGate>
             <StatusBarTheme />
             <SwipeBack />
             <PushRegistrar />
-            <NativePushRegister />
+            
             <NativeNetworkMonitor />
             <NativeScreenshotBlocker />
             <RouteWarmup />
             <RouteRefresh />
             <RouteProgress />
             <AudioUnlock />
-            <BiometricGate>
-              <AgeGate />
-            </BiometricGate>
+            <AgeGate />
             <Onboarding />
             <InstallPrompt />
             <TermsGate />
@@ -134,7 +133,8 @@ export default async function RootLayout({
             </AppLock>
             <SiteFooter />
             <BottomNav />
-          </LiveStateProvider>
+                        </BiometricGate>
+            </LiveStateProvider>
         </ToastProvider>
       </body>
     </html>
