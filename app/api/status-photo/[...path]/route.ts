@@ -9,7 +9,7 @@ import {
   statusPhotoStoragePath
 } from "@/lib/status-photo";
 import { imageContentType } from "@/lib/media-url";
-import { PHOTO_PENDING_AUTO_APPROVE_MS } from "@/lib/photo-visibility";
+import { PHOTO_PENDING_AUTO_APPROVE_MS, canSeePhoto } from "@/lib/photo-visibility";
 
 /**
  * GET /api/status-photo/{ownerId}/{file}
@@ -52,7 +52,7 @@ export async function GET(
   const { data: owner, error } = await db
     .from("sessions")
     .select(
-      "status_photo_url, status_photo_updated_at, status_photo_review_status, status_photo_submitted_at"
+      "status_photo_url, status_photo_updated_at, status_photo_review_status, status_photo_submitted_at, photo_visibility"
     )
     .eq("id", ownerId)
     .maybeSingle();
@@ -65,6 +65,11 @@ export async function GET(
 
   const currentFilename = extractStatusPhotoFilename(owner.status_photo_url, ownerId);
   if (currentFilename !== filename) return notFound("not current status photo");
+
+  // Respect owner's photo privacy setting
+  if (viewerId !== ownerId && !canSeePhoto(owner.photo_visibility)) {
+    return notFound("private visibility");
+  }
 
   // Blocks in both directions (owner can always see their own).
   if (viewerId !== ownerId) {
