@@ -46,7 +46,7 @@ export async function POST(req: NextRequest,
   const db = createServiceClient();
   const { data: community } = await db
     .from("communities")
-    .select("id, owner_session_id")
+    .select("id, owner_session_id, is_public")
     .eq("slug", params.slug)
     .maybeSingle();
 
@@ -75,7 +75,10 @@ export async function POST(req: NextRequest,
     .maybeSingle();
 
   if (!existing) {
-    const { error: insertErr } = await db.from("community_members").insert({
+    if (!community.is_public) {
+        return Response.json({ error: "This space is private. Invite only." }, { status: 403 });
+      }
+      const { error: insertErr } = await db.from("community_members").insert({
       id: nanoid(),
       community_id: community.id,
       session_id: sessionId,
