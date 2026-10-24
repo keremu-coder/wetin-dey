@@ -19,6 +19,7 @@ import { PullToRefresh } from "@/components/PullToRefresh";
 import { ToastProvider } from "@/components/Toast";
 import { StatusBarTheme } from "@/components/StatusBarTheme";
 import { SwipeBack } from "@/components/SwipeBack";
+import { EasyModeInit } from "@/components/EasyMode";
 import { FONT_VARIABLE_CLASSES } from "@/lib/fonts";
 import "./globals.css";
 
@@ -115,6 +116,7 @@ export default async function RootLayout({
               <BiometricGate>
             <StatusBarTheme />
             <SwipeBack />
+            <EasyModeInit />
             <PushRegistrar />
             
             <NativeNetworkMonitor />

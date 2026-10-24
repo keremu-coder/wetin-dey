@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -82,9 +82,7 @@ export function ReportCard({
               />
             </Link>
             <div className="min-w-0">
-              <p className="truncate text-[0.875rem] font-medium text-ink">
-                {authorLabel}
-              </p>
+              {hasHandle ? (<Link href={`/u/${encodeURIComponent(handleRaw)}`} className="block truncate text-[0.875rem] font-medium text-ink hover:text-brand">{authorLabel}</Link>) : (<p className="truncate text-[0.875rem] font-medium text-ink">{authorLabel}</p>)}
               <p className="text-[0.75rem] text-faint">
                 {timeAgo(report.created_at)} · {report.state}
                 {report.lga ? ` · ${report.lga}` : ""}

@@ -112,7 +112,7 @@ export default function SoundSettingsPage() {
         href="/settings"
         className="text-[0.7rem] text-faint hover:text-brand"
       >
-        â† Settings
+        ← Settings
       </Link>
 
       <header className="mt-4 mb-6">
@@ -120,7 +120,7 @@ export default function SoundSettingsPage() {
           Sounds &amp; notifications
         </h1>
         <p className="mt-1 text-[0.875rem] text-muted">
-          Pick your ping. Default is BBM â€” that classic Nigerian two-tone.
+          Pick your ping. Default is BBM — that classic Nigerian two-tone.
         </p>
       </header>
 
@@ -149,7 +149,7 @@ export default function SoundSettingsPage() {
                   }`}
                 >
                   {selected ? (
-                    <span className="text-[0.7rem] font-bold text-white">âœ“</span>
+                    <span className="text-[0.7rem] font-bold text-white">✓</span>
                   ) : null}
                 </span>
                 <div className="min-w-0 flex-1">
@@ -179,7 +179,7 @@ export default function SoundSettingsPage() {
         </p>
         <div className="overflow-hidden rounded-2xl border border-border bg-surface">
           <Row
-            icon="ðŸ“¤"
+            icon="📤"
             label="When I send a message"
             hint="Little confirmation ping"
             value={prefs.send}
@@ -187,7 +187,7 @@ export default function SoundSettingsPage() {
             onPreview={() => preview("send")}
           />
           <Row
-            icon="ðŸ“¥"
+            icon="📥"
             label="When I receive a message"
             hint="Someone sent something new"
             value={prefs.receive}
@@ -197,13 +197,13 @@ export default function SoundSettingsPage() {
           <Row
             icon="@"
             label="When someone @mentions me"
-            hint="Louder â€” for your attention"
+            hint="Louder — for your attention"
             value={prefs.mention}
             onChange={(v) => update("mention", v)}
             onPreview={() => preview("mention")}
           />
           <Row
-            icon="ðŸ””"
+            icon="🔔"
             label="Other notifications"
             hint="Me-too thresholds, status changes"
             value={prefs.notification}
@@ -211,7 +211,7 @@ export default function SoundSettingsPage() {
             onPreview={() => preview("notification")}
           />
           <Row
-            icon="ðŸ“³"
+            icon="📳"
             label="Vibrate"
             hint="Haptic tap on mention and send"
             value={prefs.vibrate}
@@ -292,7 +292,7 @@ export default function SoundSettingsPage() {
               {Capacitor.isNativePlatform() ? null : (
           <p className="mt-4 text-[0.7rem] leading-relaxed text-faint">
                 iPhone users: add Wetin Dey to your home screen first (tap
-                Share â†’ Add to Home Screen), then return here and enable.
+                Share → Add to Home Screen), then return here and enable.
                 Safari blocks push for non-installed web apps.
               </p>
         )}

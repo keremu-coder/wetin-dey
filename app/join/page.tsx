@@ -91,7 +91,7 @@ export default function JoinPage() {
         </h1>
         <p className="mt-3 text-[0.9375rem] leading-relaxed text-muted">
           If you want to build a name here, sign up. If you want to stay quiet,
-          stay anonymous â€” e still work. You fit upgrade anytime.
+          stay anonymous — e still work. You fit upgrade anytime.
         </p>
       </div>
 
@@ -100,7 +100,7 @@ export default function JoinPage() {
           <p className="text-[0.8125rem] leading-relaxed text-brand">
             <strong className="font-semibold">Named account:</strong> You get a
             profile, followers, and people fit follow your posts. Your handle
-            shows on everything you post publicly â€” you can still post
+            shows on everything you post publicly — you can still post
             anonymously when you want.
           </p>
         </div>
@@ -123,7 +123,7 @@ export default function JoinPage() {
           />
           <p className="mt-1.5 text-[0.75rem] leading-relaxed text-faint">
             We&apos;ll send a verification link. You can use Wetin Dey right
-            away â€” but password reset only works after you verify.
+            away — but password reset only works after you verify.
           </p>
         </div>
 
@@ -144,7 +144,7 @@ export default function JoinPage() {
             minLength={8}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+            placeholder="••••••••"
             autoComplete="new-password"
           />
         </div>
@@ -156,7 +156,7 @@ export default function JoinPage() {
           >
             Handle{" "}
             <span className="ml-2 text-[0.75rem] font-normal text-faint">
-              3â€“20 chars, letters/numbers/_
+              3–20 chars, letters/numbers/_
             </span>
           </label>
           <div className="relative">
@@ -220,7 +220,7 @@ export default function JoinPage() {
           disabled={busy || !agreed}
           className="w-full rounded-2xl bg-warm px-5 py-4 font-serif text-[1.05rem] font-semibold text-white shadow-button transition-all hover:bg-warm-deep hover:shadow-card disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {busy ? "Dey create accountâ€¦" : "Create account"}
+          {busy ? "Dey create account…" : "Create account"}
         </button>
 
         <p className="text-center text-[0.75rem] text-faint">

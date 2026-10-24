@@ -1,7 +1,7 @@
 ﻿import Link from "next/link";
 
 export const metadata = {
-  title: "Terms of Use â€” Wetin Dey"
+  title: "Terms of Use — Wetin Dey"
 };
 
 export default function TermsPage() {
@@ -13,7 +13,7 @@ export default function TermsPage() {
           className="flex h-9 w-9 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5"
           aria-label="Back"
         >
-          â†
+          ←
         </Link>
         <h1 className="font-serif text-[1.5rem] font-semibold text-ink">
           Terms of Use
@@ -72,7 +72,7 @@ export default function TermsPage() {
           <ul className="ml-5 list-disc space-y-1.5">
             <li>Threats of violence against any person or group</li>
             <li>
-              Doxxing â€” publishing someone&apos;s private contact info or home
+              Doxxing — publishing someone&apos;s private contact info or home
               address
             </li>
             <li>Any content naming a person under 18 years old</li>
@@ -97,7 +97,7 @@ export default function TermsPage() {
           </h2>
           <p>
             Wetin Dey does not allow attacks on any religion. Sharing personal
-            spiritual expression â€” testimony, prayer, faith practice â€” is
+            spiritual expression — testimony, prayer, faith practice — is
             allowed and protected. Stoking religious conflict is not.
           </p>
           <p className="mt-2">
@@ -140,7 +140,7 @@ export default function TermsPage() {
           <p>
             Reports are not deleted. They are published at a permanent,
             timestamped URL and remain publicly accessible at that URL forever
-            â€” <strong>unless they violate the content rules above</strong>. In
+            — <strong>unless they violate the content rules above</strong>. In
             that case, they are removed from public view within 24 hours and
             never shown to the public again. The underlying record is
             preserved in our internal records for legal and audit purposes.

@@ -72,7 +72,7 @@ function TalkSkeleton() {
 }
 
 /**
- * Static shell â€” awaits only searchParams (~5ms) so the browser sees a
+ * Static shell — awaits only searchParams (~5ms) so the browser sees a
  * painted page instantly. The data-heavy <TalkData> streams in via Suspense.
  */
 export default async function TalkAmPage(props: {

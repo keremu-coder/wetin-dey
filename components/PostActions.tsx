@@ -189,7 +189,7 @@ export function PostActions({
         )}
 
         <Link
-          href={`/r/${postId}`}
+          href={`/r/${postId}#comment`}
           className="inline-flex items-center gap-1.5 rounded-full bg-ink/5 px-3 py-1.5 text-[0.75rem] font-medium text-muted transition-colors hover:bg-ink/10"
         >
           {"\uD83D\uDCAC"} {commentCount}
@@ -202,6 +202,7 @@ export function PostActions({
         >
           {"\uD83D\uDD17"} Share
         </button>
+        {!isOwnPost ? (<button type="button" onClick={() => setFlagOpen(true)} className="inline-flex items-center gap-1.5 rounded-full bg-ink/5 px-3 py-1.5 text-[0.75rem] font-medium text-muted transition-colors hover:bg-danger-soft hover:text-danger">{"\uD83D\uDEA9"} Report</button>) : null}
         <div className="relative ml-auto">
           <button
             type="button"

@@ -180,8 +180,8 @@ export default function CheckinPage(props: {
     return (
       <main className="mx-auto max-w-2xl px-4 py-10 pb-24">
         <div className="empty-state">
-          <div className="empty-state-icon">â³</div>
-          <p className="empty-state-text">Loadingâ€¦</p>
+          <div className="empty-state-icon">⏳</div>
+          <p className="empty-state-text">Loading…</p>
         </div>
       </main>
     );
@@ -194,7 +194,7 @@ export default function CheckinPage(props: {
           href={`/c/${slug}`}
           className="text-[0.7rem] text-faint hover:text-brand"
         >
-          â† Back to space
+          ← Back to space
         </Link>
         <div className="mt-6 rounded-2xl border border-danger/30 bg-danger-soft p-6">
           <p className="text-[0.875rem] text-danger">
@@ -211,7 +211,7 @@ export default function CheckinPage(props: {
         href={`/c/${slug}`}
         className="text-[0.7rem] text-faint hover:text-brand"
       >
-        â† {data.community.name}
+        ← {data.community.name}
       </Link>
 
       <header className="mt-4 mb-6">
@@ -227,7 +227,7 @@ export default function CheckinPage(props: {
 
       {data.request == null ? (
         <div className="rounded-2xl border border-border bg-surface p-6 text-center">
-          <div className="text-[2.5rem]">ðŸ </div>
+          <div className="text-[2.5rem]">🏠</div>
           <p className="mt-3 font-serif text-[1.15rem] font-semibold text-ink">
             No check-in active
           </p>
@@ -252,14 +252,14 @@ export default function CheckinPage(props: {
           {/* Active request banner */}
           <div className="rounded-2xl border border-gold/40 bg-gold-soft/40 p-4">
             <div className="flex items-start gap-3">
-              <span className="text-[1.5rem]">ðŸ””</span>
+              <span className="text-[1.5rem]">🔔</span>
               <div className="min-w-0 flex-1">
                 <p className="text-[0.9375rem] font-semibold text-ink">
                   Check-in in progress
                 </p>
                 <p className="mt-0.5 text-[0.75rem] text-ink/70">
-                  @{data.request.started_by_handle} Â·{" "}
-                  {checkinAge(data.request.created_at)} Â·{" "}
+                  @{data.request.started_by_handle} ·{" "}
+                  {checkinAge(data.request.created_at)} ·{" "}
                   {checkinExpiresIn(data.request.expires_at)}
                 </p>
                 {data.request.reason ? (
@@ -314,7 +314,7 @@ export default function CheckinPage(props: {
                     disabled={busy}
                     className="flex flex-col items-center gap-1 rounded-2xl border-2 border-brand/40 bg-brand-tint py-4 transition-colors hover:border-brand disabled:opacity-50"
                   >
-                    <span className="text-[1.75rem]">âœ…</span>
+                    <span className="text-[1.75rem]">✅</span>
                     <span className="text-[0.8125rem] font-semibold text-ink">
                       Safe
                     </span>
@@ -325,7 +325,7 @@ export default function CheckinPage(props: {
                     disabled={busy}
                     className="flex flex-col items-center gap-1 rounded-2xl border-2 border-gold/40 bg-gold-soft py-4 transition-colors hover:border-gold disabled:opacity-50"
                   >
-                    <span className="text-[1.75rem]">ðŸ‘Œ</span>
+                    <span className="text-[1.75rem]">👌</span>
                     <span className="text-[0.8125rem] font-semibold text-ink">
                       Ok
                     </span>
@@ -336,7 +336,7 @@ export default function CheckinPage(props: {
                     disabled={busy}
                     className="flex flex-col items-center gap-1 rounded-2xl border-2 border-danger/40 bg-danger-soft py-4 transition-colors hover:border-danger disabled:opacity-50"
                   >
-                    <span className="text-[1.75rem]">ðŸ†˜</span>
+                    <span className="text-[1.75rem]">🆘</span>
                     <span className="text-[0.8125rem] font-semibold text-ink">
                       Need help
                     </span>
@@ -440,7 +440,7 @@ export default function CheckinPage(props: {
                           @{m.handle}
                         </p>
                         <span className="shrink-0 text-[0.65rem] text-faint">
-                          â³ pending
+                          ⏳ pending
                         </span>
                       </div>
                     );
@@ -520,7 +520,7 @@ export default function CheckinPage(props: {
                 disabled={ownerBusy}
                 className="flex-1 rounded-xl bg-brand py-3 text-[0.875rem] font-semibold text-white transition-colors hover:bg-brand-soft disabled:opacity-50"
               >
-                {ownerBusy ? "Startingâ€¦" : "Send to everyone"}
+                {ownerBusy ? "Starting…" : "Send to everyone"}
               </button>
             </div>
           </div>

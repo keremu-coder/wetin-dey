@@ -146,6 +146,11 @@ export function ChatRoom({
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [viewingMedia, setViewingMedia] = useState<{url: string, type: string} | null>(null);
   const [voiceRoomOpen, setVoiceRoomOpen] = useState(false);
+  const [playInvite, setPlayInvite] = useState(false);
+  const [joiningInvite, setJoiningInvite] = useState(false);
+  useEffect(() => {
+    try { if (new URLSearchParams(window.location.search).get("play") === "1") { setPlayInvite(true); if (isMember) setVoiceRoomOpen(true); } } catch {}
+  }, [isMember]);
   
   // Track visual viewport for iOS keyboard
   const [viewportHeight, setViewportHeight] = useState<string>("100dvh");
@@ -747,6 +752,23 @@ export function ChatRoom({
     } catch {}
   }
 
+  async function joinFromInvite() {
+    setJoiningInvite(true);
+    try { const r = await fetch("/api/communities/" + slug + "/join", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "join" }) }); if (r.ok) { window.location.reload(); return; } } catch {}
+    setJoiningInvite(false);
+  }
+  if (!isMember && playInvite) {
+    return (
+      <main className="mx-auto max-w-md px-5 py-12 pb-24 text-center">
+        <div className="text-[3rem]">🎴</div>
+        <h1 className="mt-3 font-serif text-[1.5rem] font-semibold text-ink">You are invited to play Whot</h1>
+        <p className="mt-2 text-[1rem] text-muted">{name} is playing now. You can join the game without an account.</p>
+        <button type="button" onClick={() => { unlockAudio(); setVoiceRoomOpen(true); }} className="mt-8 w-full rounded-2xl bg-brand px-6 py-4 text-[1.0625rem] font-semibold text-white">Play now</button>
+        <button type="button" onClick={joinFromInvite} disabled={joiningInvite} className="mt-3 w-full rounded-2xl border border-border-strong px-6 py-4 text-[1.0625rem] font-semibold text-ink disabled:opacity-60">{joiningInvite ? "Joining..." : "Join the " + name + " community"}</button>
+        {voiceRoomOpen ? (<VoiceRoom roomName={slug} spaceName={name} communityId={communityId} currentSessionId={mySessionId ?? ""} onClose={() => setVoiceRoomOpen(false)} />) : null}
+      </main>
+    );
+  }
   if (!isMember) {
     return (
       <main className="mx-auto max-w-2xl px-4 py-10 pb-24">

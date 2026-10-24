@@ -1,7 +1,7 @@
 ﻿import Link from "next/link";
 
 export const metadata = {
-  title: "Community Guidelines â€” Wetin Dey"
+  title: "Community Guidelines — Wetin Dey"
 };
 
 export default function GuidelinesPage() {
@@ -13,7 +13,7 @@ export default function GuidelinesPage() {
           className="flex h-9 w-9 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5"
           aria-label="Back"
         >
-          â†
+          ←
         </Link>
         <h1 className="font-serif text-[1.5rem] font-semibold text-ink">
           Community Guidelines
@@ -67,7 +67,7 @@ export default function GuidelinesPage() {
           <ul className="ml-5 list-disc space-y-1.5">
             <li>Threats of violence against any person or group</li>
             <li>
-              Someone&apos;s private info â€” phone number, home address,
+              Someone&apos;s private info — phone number, home address,
               financial details
             </li>
             <li>Anything naming a person under 18 years old</li>
@@ -86,7 +86,7 @@ export default function GuidelinesPage() {
             Religion and politics
           </h2>
           <p>
-            Personal spiritual expression â€” testimony, prayer, faith practice â€”
+            Personal spiritual expression — testimony, prayer, faith practice —
             is welcome and protected. Attacks on any religion are not.
           </p>
           <p className="mt-2">
@@ -114,7 +114,7 @@ export default function GuidelinesPage() {
             <li>
               <strong>Reports that do not violate the rules are not deleted.</strong>{" "}
               If a report is contested or false, it gets labelled{" "}
-              <strong>Disputed</strong> â€” visible to every reader.
+              <strong>Disputed</strong> — visible to every reader.
             </li>
             <li>
               <strong>We don&apos;t have AI with ban or delete authority.</strong>{" "}

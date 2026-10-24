@@ -527,3 +527,7 @@ html.native button {
     opacity: 1;
   }
 }
+
+html[data-easy="1"] {
+  font-size: 120%;
+}

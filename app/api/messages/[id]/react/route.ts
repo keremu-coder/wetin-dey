@@ -9,7 +9,7 @@ import { serverError } from "@/lib/http";
 import { sameOrigin, checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 
 // Real emojis — must match QUICK_EMOJI in ChatRoom.tsx exactly.
-// These were previously stored as mojibake (ðŸ˜‚ etc.), which broke
+// These were previously stored as mojibake (😂 etc.), which broke
 // reactions whenever the client sent the correct character.
 const ALLOWED = ["😂", "😢", "😮", "❤️", "🔥", "👍", "👏", "🙏"];
 

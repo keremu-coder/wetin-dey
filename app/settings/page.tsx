@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { EasyModeToggle } from "@/components/EasyMode";
 
 export const dynamic = "force-dynamic";
 
@@ -46,19 +47,19 @@ export default async function SettingsPage() {
       rows: [
         {
           href: "/settings/account",
-          icon: "ðŸ‘¤",
+          icon: "👤",
           label: "Profile",
           hint: "Your handle, picture, and status line"
         },
         {
           href: "/settings/security",
-          icon: "ðŸ”’",
+          icon: "🔒",
           label: "Security",
-          hint: "Optional â€” add a recovery method"
+          hint: "Optional — add a recovery method"
         },
         {
           href: "/settings/notifications",
-          icon: "ðŸ””",
+          icon: "🔔",
           label: "Notifications",
           hint: "Mentions, replies, weekly digest"
         }
@@ -69,25 +70,25 @@ export default async function SettingsPage() {
       rows: [
         {
           href: "/settings/privacy",
-          icon: "ðŸ›¡ï¸",
+          icon: "🛡️",
           label: "Privacy",
           hint: "What people can see about you"
         },
         {
           href: "/settings/dm",
-          icon: "âœ‰ï¸",
+          icon: "✉️",
           label: "Direct messages",
           hint: "Who can start a conversation with you"
         },
         {
           href: "/settings/presence",
-          icon: "ðŸ‘ï¸",
+          icon: "👁️",
           label: "Presence",
           hint: "Hide your online status"
         },
         {
           href: "/settings/blocked",
-          icon: "ðŸš«",
+          icon: "🚫",
           label: "Blocked users",
           hint: blocked > 0 ? `${blocked} blocked` : "Nobody blocked"
         }
@@ -98,7 +99,7 @@ export default async function SettingsPage() {
       rows: [
         {
           href: "/me",
-          icon: "ðŸ“°",
+          icon: "📰",
           label: "Your reports",
           hint:
             reports > 0
@@ -107,13 +108,13 @@ export default async function SettingsPage() {
         },
         {
           href: "/settings/agencies",
-          icon: "ðŸ›ï¸",
+          icon: "🏛️",
           label: "Agencies you've reported",
           hint: "Public offices you have flagged"
         },
         {
           href: "/settings/following",
-          icon: "ðŸ‘¥",
+          icon: "👥",
           label: "Following",
           hint:
             following > 0 ? `${following} following` : "Not following anyone yet"
@@ -125,13 +126,13 @@ export default async function SettingsPage() {
       rows: [
         {
           href: "/settings/data",
-          icon: "ðŸ“Š",
+          icon: "📊",
           label: "Download or delete your data",
           hint: "Export a copy or request removal"
         },
         {
           href: "/settings/delete",
-          icon: "âš ï¸",
+          icon: "⚠️",
           label: "Delete account",
           hint: "Permanent. This cannot be undone.",
           danger: true
@@ -143,7 +144,7 @@ export default async function SettingsPage() {
       rows: [
         {
           href: "/support",
-          icon: "ðŸ’¬",
+          icon: "💬",
           label: "Help & support",
           hint: "Report a problem, appeal moderation"
         }
@@ -159,7 +160,7 @@ export default async function SettingsPage() {
           className="flex h-9 w-9 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5"
           aria-label="Back"
         >
-          â†
+          ←
         </Link>
         <h1 className="font-serif text-[1.5rem] font-semibold text-ink">
           Settings
@@ -182,7 +183,7 @@ export default async function SettingsPage() {
               {profile.handle_kind === "named" ? "Named account" : "Anonymous"}
             </p>
           </div>
-          <span className="text-muted">â€º</span>
+          <span className="text-muted">›</span>
         </div>
       </Link>
 
@@ -232,11 +233,14 @@ export default async function SettingsPage() {
           <div className="p-3">
             <ThemeToggle />
           </div>
+          <div className="border-t border-border p-4">
+            <EasyModeToggle />
+          </div>
           <Link
             href="/settings/font"
             className="flex items-center gap-3 border-t border-border px-4 py-4 transition-colors hover:bg-ink/5"
           >
-            <span className={`text-[1.25rem] ${iconClass}`}>ðŸ…°ï¸</span>
+            <span className={`text-[1.25rem] ${iconClass}`}>🅰️</span>
             <div className="min-w-0 flex-1">
               <p className="text-[0.9375rem] font-medium text-ink">
                 Message font
@@ -245,7 +249,7 @@ export default async function SettingsPage() {
                 Your messages show up in this font for everyone
               </p>
             </div>
-            <span className="text-faint">â€º</span>
+            <span className="text-faint">›</span>
           </Link>
           <Link
               href="/settings/textcolor"
@@ -277,7 +281,7 @@ export default async function SettingsPage() {
             href="/settings/sounds"
             className="flex items-center gap-3 border-t border-border px-4 py-4 transition-colors hover:bg-ink/5"
           >
-            <span className={`text-[1.25rem] ${iconClass}`}>ðŸ”Š</span>
+            <span className={`text-[1.25rem] ${iconClass}`}>🔊</span>
             <div className="min-w-0 flex-1">
               <p className="text-[0.9375rem] font-medium text-ink">
                 Sounds
@@ -286,7 +290,7 @@ export default async function SettingsPage() {
                 Pick your message tones
               </p>
             </div>
-            <span className="text-faint">â€º</span>
+            <span className="text-faint">›</span>
           </Link>
         </div>
       </div>
@@ -322,7 +326,7 @@ export default async function SettingsPage() {
                       <p className="text-[0.75rem] text-muted">{row.hint}</p>
                     ) : null}
                   </div>
-                  <span className="text-faint">â€º</span>
+                  <span className="text-faint">›</span>
                 </Link>
               );
             })}
@@ -340,7 +344,7 @@ export default async function SettingsPage() {
         <Link href="/guidelines" className="hover:text-brand">
           Guidelines
         </Link>
-        <span className="font-mono">Wetin Dey Â· v1.0</span>
+        <span className="font-mono">Wetin Dey · v1.0</span>
       </div>
     </main>
   );

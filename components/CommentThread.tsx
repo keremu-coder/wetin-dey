@@ -8,12 +8,12 @@ import {
   extFromType
 } from "@/lib/voice-recorder";
 import { BlockButton } from "./BlockButton";
-import { MessageBody } from "./MessageBody";
-
-// Lazy-loaded â€” the flag sheet is only shown when the user taps report.
-const FlagSheet = nextDynamic(
-  () => import("./FlagSheet").then((m) => m.FlagSheet),
-  { ssr: false }
+import { MessageBody } from "./MessageBody";
+
+// Lazy-loaded — the flag sheet is only shown when the user taps report.
+const FlagSheet = nextDynamic(
+  () => import("./FlagSheet").then((m) => m.FlagSheet),
+  { ssr: false }
 );
 
 type Comment = {
@@ -71,6 +71,8 @@ export function CommentThread({ reportId }: { reportId: string }) {
   const [audioPreviewUrl, setAudioPreviewUrl] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [replyBody, setReplyBody] = useState("");
+  const commentRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => { if (typeof window === "undefined" || window.location.hash !== "#comment") return; const t = window.setTimeout(() => { const el = commentRef.current; if (el) { el.scrollIntoView({ block: "center" }); el.focus({ preventScroll: true }); } }, 600); return () => window.clearTimeout(t); }, []);
   const [replyBusy, setReplyBusy] = useState(false);
   const [blockedHandles, setBlockedHandles] = useState<Set<string>>(new Set());
   const [flagTarget, setFlagTarget] = useState<{
@@ -372,17 +374,17 @@ export function CommentThread({ reportId }: { reportId: string }) {
                 >
                   🚩
                 </button>
-                <BlockButton
-                  handle={handle}
-                  className="inline-flex items-center gap-1 rounded-full bg-ink/5 px-2.5 py-1 text-[0.75rem] text-muted transition-colors hover:bg-danger-soft hover:text-danger"
-                  label="Block"
-                  onBlocked={(h) => {
-                    setBlockedHandles((prev) => {
-                      const next = new Set(prev);
-                      next.add(h);
-                      return next;
-                    });
-                  }}
+                <BlockButton
+                  handle={handle}
+                  className="inline-flex items-center gap-1 rounded-full bg-ink/5 px-2.5 py-1 text-[0.75rem] text-muted transition-colors hover:bg-danger-soft hover:text-danger"
+                  label="Block"
+                  onBlocked={(h) => {
+                    setBlockedHandles((prev) => {
+                      const next = new Set(prev);
+                      next.add(h);
+                      return next;
+                    });
+                  }}
                 />
                 {(c.score ?? 0) !== 0 ? (
                   <span className="text-[0.7rem] text-faint">
@@ -453,6 +455,8 @@ export function CommentThread({ reportId }: { reportId: string }) {
         ) : null}
 
         <textarea
+          ref={commentRef}
+          id="comment"
           value={body}
           onChange={(e) => setBody(e.target.value)}
           placeholder={

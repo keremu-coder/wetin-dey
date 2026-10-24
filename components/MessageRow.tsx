@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import nextDynamic from "next/dynamic";
@@ -187,10 +187,8 @@ export function MessageRow({
           isGroupStart ? "chat-msg-group-start" : ""
         } ${m._pending ? "opacity-70" : ""} ${showReactions ? "chat-msg-open" : ""}`}
       >
-        {isGroupStart ? (
-          <Link
-            href={`/u/${encodeURIComponent(m.author_handle)}`}
-            className="relative shrink-0"
+        {!m._pending && !m._failed ? (<button type="button" aria-label="Message options: reply, report, block" onClick={() => onToggleReactions(showReactions ? null : m.id)} className="absolute right-1 top-1 z-10 flex h-8 w-8 items-center justify-center rounded-full text-[1.1rem] leading-none text-faint hover:bg-ink/10 hover:text-ink">{"\u22EF"}</button>) : null}
+        {isGroupStart ? (<Link href={`/u/${encodeURIComponent(m.author_handle)}`} className="relative shrink-0"
             aria-label={`View @${m.author_handle}`}
           >
             {m.author_avatar_url ? (

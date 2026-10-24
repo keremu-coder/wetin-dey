@@ -79,6 +79,7 @@ export function VoiceRoom({
   const [activeGame, setActiveGame] = useState<any>(null);
   const [useAnyplay, setUseAnyplay] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
+  const [inviteNote, setInviteNote] = useState("");
   const [livekitError, setLivekitError] = useState(false);
   
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -129,7 +130,7 @@ export function VoiceRoom({
         });
         if (!res.ok || cancelled) return;
         const json = await res.json();
-        if (!cancelled) setActiveGame(json.game ?? null);
+        if (!cancelled) setActiveGame(json.game ? { ...json.game, handles: json.handles ?? {} } : null);
       } catch { /* retry on next tick */ }
     }
     void load();
@@ -169,22 +170,18 @@ export function VoiceRoom({
     }
   }
 
-  async function joinGame() {
-    if (activeGame.players.length >= maxPlayers) return;
-    if (activeGame.players.includes(currentSessionId)) return;
-    if (activeGame.status !== "waiting") return;
-
-    const newPlayers = [...activeGame.players, currentSessionId];
-    const newState = startWhotGame(newPlayers, activeGame.game_state.useAnyplay);
-    const newStatus = newPlayers.length >= 2 ? "playing" : "waiting";
-
-    await fetch("/api/space-games", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ action: "join", gameId: activeGame.id, players: newPlayers, game_state: newState, status: newStatus })
-    });
+  async function gameAction(action: string, extra: Record<string, unknown> = {}) {
+    try { await fetch("/api/space-games", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action, gameId: activeGame?.id, ...extra }) }); } catch {}
   }
-
+  async function joinGame() { if (!activeGame || activeGame.status !== "waiting") return; await gameAction("join"); }
+  async function beginGame() { if (!activeGame || activeGame.status !== "waiting") return; await gameAction("begin"); }
+  async function leaveLobby() { const id = activeGame?.id; if (!id) return; setActiveGame(null); await gameAction("leave", { gameId: id }); }
+  async function inviteFriends() {
+    const url = window.location.origin + "/c/" + roomName + "/chat?play=1";
+    try { if (navigator.share) { await navigator.share({ title: "Whot on Wetin Dey", text: "Come play Whot with me", url }); return; } } catch { return; }
+    try { await navigator.clipboard.writeText(url); setInviteNote("Link copied!"); } catch { window.prompt("Copy link", url); }
+    setTimeout(() => setInviteNote(""), 2500);
+  }
   async function quitGame() {
     if (!activeGame) return;
     const gameId = activeGame.id;
@@ -333,20 +330,29 @@ export function VoiceRoom({
         ) : (
           <div className="w-full flex-1 flex flex-col items-center relative">
             {activeGame.status === "waiting" && (
-              <div className="absolute inset-0 z-20 bg-[#0B0E17] flex flex-col items-center justify-center p-6">
-                <h3 className="text-white font-bold text-xl mb-2">Waiting for players...</h3>
-                <p className="text-white/70 mb-6">{activeGame.players.length} / {maxPlayers} joined</p>
-                
-                {isHost ? (
-                  <p className="text-white/50 text-sm mb-6 text-center">You are the host.<br/>Waiting for others to join this room.</p>
-                ) : (
-                  <button onClick={joinGame} className="rounded-xl bg-brand px-8 py-3 font-semibold text-white mb-4 shadow-lg">Join Game</button>
-                )}
-                
-                <button onClick={quitGame} className="text-white/40 text-sm hover:text-white/80">Cancel Game</button>
+              <div className="absolute inset-0 z-20 bg-[#0B0E17] flex flex-col items-center justify-center p-6 overflow-y-auto">
+                <h3 className="text-white font-bold text-xl mb-1">Whot lobby</h3>
+                <p className="text-white/70 mb-4 text-base">{activeGame.players.length} / {maxPlayers} joined</p>
+                <ul className="w-full max-w-[300px] mb-5 space-y-2">
+                  {activeGame.players.map((p: string) => (
+                    <li key={p} className="flex items-center gap-3 rounded-xl bg-white/5 px-3 py-2">
+                      <Alama seed={p === currentSessionId ? mySeed : p} size={32} />
+                      <span className="text-white text-base font-semibold truncate">
+                        {activeGame.handles?.[p] ? "@" + activeGame.handles[p] : "Player"}
+                        {p === currentSessionId ? " (you)" : ""}
+                        {p === activeGame.created_by ? " · host" : ""}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                {!isPlayer ? (<button onClick={joinGame} className="rounded-xl bg-brand px-8 py-3 text-base font-semibold text-white mb-4 shadow-lg">Join Game</button>) : isHost ? (
+                  <button onClick={beginGame} disabled={activeGame.players.length < 2} className="rounded-xl bg-[#1F7A4D] px-8 py-3 text-base font-semibold text-white mb-2 shadow-lg disabled:opacity-40">{activeGame.players.length < 2 ? "Waiting for a second player" : "Start game (" + activeGame.players.length + " players)"}</button>
+                ) : (<p className="text-white/60 text-sm mb-4 text-center">Waiting for host to start.</p>)}
+                {!dmThreadId && communityId ? (<button onClick={inviteFriends} className="rounded-xl border border-white/20 px-6 py-2.5 text-sm font-semibold text-white mb-2">Invite friends</button>) : null}
+                {inviteNote ? <p className="text-green-400 text-sm mb-2">{inviteNote}</p> : null}
+                <button onClick={isHost ? quitGame : leaveLobby} className="text-white/50 text-sm hover:text-white/80 mt-2">{isHost ? "Cancel game" : "Leave"}</button>
               </div>
             )}
-            
             <div className="w-full flex-1 relative min-h-[350px]">
               <WhotGame 
                 game={activeGame} 

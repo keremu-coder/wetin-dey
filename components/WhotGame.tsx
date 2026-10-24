@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { getBrowserClient } from "@/lib/supabase/client";
 import { WhotCard, WhotSuit, canPlayCard, WhotState, getNextTurn } from "@/lib/whot";
 import { getBotMove } from "@/lib/whot-bot";
 import { playProfile, unlockAudio, vibrate } from "@/lib/sounds";
@@ -34,14 +33,13 @@ function getCardName(card: WhotCard): string {
 const DRAG_THRESHOLD = 10;
 
 export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: any, isPlayer: boolean, sessionId: string, onQuit: () => void, mySeed?: string }) {
-  const supabase = getBrowserClient();
   const state: WhotState = game.game_state;
   const [suitPickerOpen, setSuitPickerOpen] = useState(false);
   const [selectedCard, setSelectedCard] = useState<WhotCard | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [lastAction, setLastAction] = useState<string>("Game started");
   
-  const [handles, setHandles] = useState<Record<string, string>>({});
+  const handles: Record<string, string> = game.handles ?? {};
   const [wins, setWins] = useState(0);
   const [losses, setLosses] = useState(0);
   
@@ -63,21 +61,6 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
     setWins(Number(localStorage.getItem("whot_wins") || 0));
     setLosses(Number(localStorage.getItem("whot_losses") || 0));
   }, []);
-
-  // Fetch real handles for all players
-  useEffect(() => {
-    const fetchHandles = async () => {
-      const ids = game.players.filter((p: string) => p !== "bot");
-      if (ids.length === 0) return;
-      const { data } = await supabase.from("sessions").select("id, handle").in("id", ids);
-      if (data) {
-        const map: Record<string, string> = {};
-        for (const p of data) map[p.id] = p.handle;
-        setHandles(map);
-      }
-    };
-    fetchHandles();
-  }, [game.players]);
 
   // Save Score
   useEffect(() => {
@@ -450,61 +433,37 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
     <div className="w-5 h-7 bg-[#8B3A2B] border border-[#5A2217] rounded-[2px] shadow-sm shrink-0" />
   );
 
-  const opponentId = game.players.find((p: string) => p !== sessionId) || "bot";
-  const isOpponentBot = opponentId === "bot";
-  const opponentHandle = isOpponentBot ? "🤖 Bot" : `@${handles[opponentId] || "Player"}`;
-  const myHandle = `@${handles[sessionId] || "You"}`;
-
+  const nameOf = (id: string): string => id === "bot" ? "🤖 Bot" : handles[id] ? "@" + handles[id] : "Player " + (game.players.indexOf(id) + 1);
+  const myHandle = nameOf(sessionId);
+  const myIdx = game.players.indexOf(sessionId);
+  const ordered: string[] = myIdx < 0 ? [...game.players] : [...game.players.slice(myIdx + 1), ...game.players.slice(0, myIdx)];
+  const opponents = ordered.filter((p) => p !== sessionId);
   return (
     <div className="w-full h-full flex flex-col bg-[#0a2e16] rounded-xl overflow-hidden relative select-none">
       
-      {/* Top Bar / Opponents */}
+      {/* Top bar: me + score */}
       <div className="flex justify-between items-center text-white/90 text-xs p-2 bg-black/40 shrink-0">
         <div className="flex items-center gap-3">
-          <div className="relative">
-            <Alama seed={opponentId} size={32} />
-            <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-[#0a2e16] ${state.turn === opponentId ? 'bg-yellow-500' : 'bg-gray-500'}`} />
-          </div>
-          <div>
-            <span className={`px-2 py-1 rounded font-bold ${state.turn === opponentId ? 'text-yellow-500' : 'text-white/70'}`}>
-              {opponentHandle}
-            </span>
-            <div className="flex -space-x-2 mt-1">
-              {Array.from({ length: Math.min(botHandCount, 8) }).map((_, i) => (
-                <CardBack key={i} />
-              ))}
-              {botHandCount > 8 && (
-                <div className="w-5 h-7 bg-black/50 rounded flex items-center justify-center text-[10px] font-bold z-10 -ml-1 border border-white/20">
-                  +{botHandCount - 8}
-                </div>
-              )}
-            </div>
-          </div>
+          <div className="relative"><Alama seed={mySeed || sessionId} size={32} /><div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-[#0a2e16] ${state.turn === sessionId ? 'bg-yellow-500' : 'bg-gray-500'}`} /></div>
+          <div><span className={`px-1 py-1 rounded font-bold text-sm ${state.turn === sessionId ? 'text-yellow-500' : 'text-white/70'}`}>{myHandle}</span><div className="text-[11px] text-white/60">{myHand.length} cards</div></div>
         </div>
-
-        {/* Scoreboard */}
-        <div className="flex flex-col items-center bg-black/30 px-3 py-1 rounded-lg border border-white/10">
-          <span className="text-[0.6rem] text-white/50 uppercase tracking-widest mb-0.5">Score</span>
-          <div className="flex gap-3 font-mono font-bold">
-            <span className="text-green-400">{wins}W</span>
-            <span className="text-red-400">{losses}L</span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="text-right">
-            <span className={`px-2 py-1 rounded font-bold ${state.turn === sessionId ? 'text-yellow-500' : 'text-white/70'}`}>
-              {myHandle}
-            </span>
-            <div className="text-[10px] text-white/50">{myHand.length} cards</div>
-          </div>
-          <div className="relative">
-            <Alama seed={mySeed || sessionId} size={32} />
-            <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-[#0a2e16] ${state.turn === sessionId ? 'bg-yellow-500' : 'bg-gray-500'}`} />
-          </div>
-        </div>
+        <div className="flex flex-col items-center bg-black/30 px-3 py-1 rounded-lg border border-white/10"><span className="text-[0.6rem] text-white/50 uppercase tracking-widest mb-0.5">Score</span><div className="flex gap-3 font-mono font-bold"><span className="text-green-400">{wins}W</span><span className="text-red-400">{losses}L</span></div></div>
       </div>
-
+      {/* Opponent seats */}
+      <div className="flex gap-2 px-2 py-2 bg-black/20 shrink-0">
+        {opponents.map((id) => {
+          const count = state.hands[id]?.length || 0;
+          const turn = state.turn === id;
+          return (
+            <div key={id} className={`flex-1 min-w-0 flex flex-col items-center gap-1 rounded-xl px-1 py-1.5 ${turn ? 'bg-yellow-500/20 ring-2 ring-yellow-400' : 'bg-black/20'}`}>
+              <Alama seed={id} size={36} />
+              <span className={`max-w-full truncate text-[12px] font-bold ${turn ? 'text-yellow-400' : 'text-white/80'}`}>{nameOf(id)}</span>
+              <div className="flex -space-x-3 h-7">{Array.from({ length: Math.min(count, 7) }).map((_, i) => (<CardBack key={i} />))}</div>
+              <span className="text-[11px] text-white/60">{count} {count === 1 ? "card" : "cards"}</span>
+            </div>
+          );
+        })}
+      </div>
       {/* Game Log / Alert Banner */}
       <div className={`text-center py-2 text-xs font-bold shrink-0 transition-colors flex items-center justify-center gap-2 ${isMyTurn ? 'bg-yellow-500 text-black' : 'bg-black/20 text-white/70'}`}>
         {isSemiLast && isMyTurn ? (
@@ -623,11 +582,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
         <div className="absolute inset-0 z-[60] bg-black/90 flex flex-col items-center justify-center p-6 text-center">
           <div className="text-6xl mb-4">{state.winner === sessionId ? "🏆" : "😔"}</div>
           <h2 className="text-3xl font-black text-white mb-2">
-            {state.winner === "bot" 
-              ? "🤖 Bot Won!" 
-              : state.winner === sessionId
-                ? "You Won!"
-                : `@${handles[state.winner || ""] || "Player"} Won!`}
+            {state.winner === sessionId ? "You Won!" : nameOf(state.winner || "") + " Won!"}
           </h2>
           
           <div className="flex gap-4 mb-8 bg-white/10 px-6 py-3 rounded-2xl border border-white/20">
