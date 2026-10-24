@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -126,7 +126,7 @@ export default async function SettingsPage() {
         {
           href: "/settings/data",
           icon: "ðŸ“Š",
-          label: "Delete account",
+          label: "Download or delete your data",
           hint: "Export a copy or request removal"
         },
         {
