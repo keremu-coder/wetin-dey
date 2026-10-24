@@ -7,7 +7,7 @@ import { ChatRow } from "@/components/ChatRow";
 import { SectionHeader } from "@/components/SectionHeader";
 import { SuggestionRow } from "@/components/SuggestionRow";
 import { HomeLoggedOut } from "@/components/HomeLoggedOut";
-import { ChoosePath } from "@/components/ChoosePath";
+
 import { StatusBar } from "@/components/StatusBar";
 import { getBlockedIds } from "@/lib/blocks";
 import { isStatusPhotoActive, statusPhotoProxyUrl } from "@/lib/status-photo";
@@ -29,10 +29,7 @@ export default async function HomePage() {
 
   const isLoggedIn = !!session?.handle;
 
-  // Only show ChoosePath if they are NOT logged in AND haven't chosen a path yet
-  if (!isLoggedIn && !pathChosen) {
-    return <ChoosePath />;
-  }
+
 
   const { chats, suggestions } = await getChatsHome(sessionId);
 

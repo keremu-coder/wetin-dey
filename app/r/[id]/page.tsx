@@ -12,6 +12,22 @@ import { PublishedReplies } from "@/components/PublishedReplies";
 import { ReplyTrigger } from "@/components/ReplyTrigger";
 import { formatNaira } from "@/lib/constants";
 
+import type { Metadata } from "next";
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  return {
+    title: "Wetin Dey Report",
+    openGraph: {
+      images: [`/r/${id}/opengraph-image`],
+    },
+    twitter: {
+      card: "summary_large_image",
+      images: [`/r/${id}/opengraph-image`],
+    },
+  };
+}
+
 export const dynamic = "force-dynamic";
 
 function EvidenceBlock(report: {

@@ -5,23 +5,14 @@ import {
   SHARE_IMAGE_CONTENT_TYPE
 } from "@/lib/share-image";
 
-// Next.js auto-detects this file for the /r/[id] route and emits
-// <meta property="og:image"> with the generated PNG. WhatsApp, Twitter,
-// Telegram, and Slack all pick it up when a report URL is pasted.
-
 export const runtime = "nodejs";
 export const alt = "Wetin Dey report";
 export const size = SHARE_IMAGE_SIZE;
 export const contentType = SHARE_IMAGE_CONTENT_TYPE;
 
-export default async function Image({
-  params
-}: {
-  params: { id: string };
-}) {
+export default async function Image({ params }: { params: { id: string } }) {
   const db = createServiceClient();
 
-  // C2 Fix: Only generate OG images for public, reviewed, non-held reports.
   const { data: report } = await db
     .from("reports")
     .select(
@@ -32,8 +23,6 @@ export default async function Image({
     .eq("held", false)
     .maybeSingle();
 
-  // Not found, unreviewed, or held: return a plain fallback card so the link
-  // does not 404 when shared.
   const title = report
     ? report.agency_canonical || report.agency_raw || "Report"
     : "Wetin Dey";
