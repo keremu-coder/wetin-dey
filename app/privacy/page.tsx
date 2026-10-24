@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 
 export const metadata = {
   title: "Privacy Policy — Wetin Dey"
@@ -183,10 +183,7 @@ export default function PrivacyPage() {
             handle with a placeholder.
           </p>
           <p className="mt-2">
-            <strong>
-              Direct messages and DM media are permanently deleted
-            </strong>{" "}
-            if you choose the "Delete my content" option during account deletion. If you do not choose this option, your messages remain visible to the other participant but are anonymized with a generic handle that cannot be logged into again.
+            <strong>Direct messages and DM media are permanently deleted</strong> when you delete your account.
           </p>
         </section>
 
