@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { useEffect, useState } from "react";
 import { Capacitor } from "@capacitor/core";
 import { NativeBiometric } from "capacitor-native-biometric";
@@ -34,6 +34,8 @@ export function BiometricGate({ children }: { children: React.ReactNode }) {
         reason: "Unlock Wetin Dey",
         title: "Authentication Required",
         subtitle: "Please verify your identity to continue",
+        // @ts-ignore - Plugin supports this but TS types are outdated
+        useFallback: true
       });
       setIsAuthenticated(true);
     } catch (err) {
