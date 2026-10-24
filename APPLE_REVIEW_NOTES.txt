@@ -1,11 +1,10 @@
-﻿Hello Apple Review Team,
+Hello Apple Review Team,
 
 Wetin Dey is a hybrid app built with Next.js and wrapped in Capacitor. While it loads web content, it includes significant native functionality that provides a distinct app experience:
 
-1. Native Push Notifications: Users receive native iOS push alerts for direct messages and safety signals.
-2. Native Background Location (Radar): The "Radar" safety feature uses native iOS location services to broadcast a temporary, private signal to approved contacts. The app includes explicit Info.plist usage descriptions for this.
-3. Offline Handling: When the device is offline, the native shell loads a bundled offline.html page with a Retry button instead of a generic browser error.
-4. Device Integration: The app utilizes native safe-area insets and haptic feedback.
+1. Native Background Location (Radar): The "Radar" safety feature uses native iOS location services to broadcast a temporary, private signal to approved contacts. The app includes explicit Info.plist usage descriptions for this.
+2. Offline Handling: When the device is offline, the native shell loads a bundled offline.html page with a Retry button instead of a generic browser error.
+3. Device Integration: The app utilizes native safe-area insets and haptic feedback.
 
 HOW TO TEST KEY FEATURES:
 
