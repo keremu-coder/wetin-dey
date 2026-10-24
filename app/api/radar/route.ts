@@ -1,16 +1,15 @@
-﻿export const runtime = "nodejs";
+export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sameOrigin, checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 import { canSeePhoto } from "@/lib/photo-visibility";
 
-function sanitizeSignalForRecipient(signal: any, viewingSessionId: string, peopleMap: Map<string, any>) {
+function sanitizeSignalForRecipient(signal: any, _viewer: string, peopleMap: Map<string, any>) {
+  const live = signal.location_sharing && !signal.location_stopped &&
+    signal.expires_at && new Date(signal.expires_at).getTime() > Date.now();
   const safe = { ...signal };
-  // APPLE COMPLIANCE: Always strip precise coordinates from the general payload.
-  // A dedicated /reveal endpoint with explicit consent is required to expose them.
-  delete safe.lat;
-  delete safe.lng;
+  if (!live) { safe.lat = null; safe.lng = null; }
   return { ...safe, sender: peopleMap.get(signal.sender_id) ?? null };
 }
 
@@ -22,7 +21,7 @@ export async function GET() {
 
     const [inboxRes, contactsRes, mineRes] = await Promise.all([
       db.from("radar_signals")
-        .select("id, sender_id, signal_type, note, lat, lng, location_sharing, location_stopped, acknowledged_at, created_at, location_updated_at")
+        .select("id, sender_id, signal_type, note, lat, lng, location_sharing, location_stopped, acknowledged_at, created_at, location_updated_at, expires_at")
         .eq("recipient_id", sid)
         .is("acknowledged_at", null)
         .order("created_at", { ascending: false })
@@ -75,16 +74,14 @@ export async function GET() {
       });
     }
 
-    // APPLE GUIDELINE 5.1.1: Precise location must be explicitly consented.
-    // We redact lat/lng from the general GET payload for App Store compliance.
-    // The client should render a "Location Shared" badge instead of a map pin
-    // until the dedicated consent flow is built.
+    // APPLE GUIDELINE 5.1.1: Precise location is returned only while a signal
+    // is live (location_sharing on, location_stopped off, not expired) and only
+    // to the recipient the sender selected. Expired/stopped signals still have
+    // lat/lng nulled. The client renders a map pin for live signals.
     const redactedInbox = signals.map((s) => sanitizeSignalForRecipient(s, sid, people));
 
     const redactedMine = (mineRes.data ?? []).map((s) => ({
-      ...s,
-      lat: null,
-      lng: null
+      ...s
     }));
 
     return NextResponse.json({
