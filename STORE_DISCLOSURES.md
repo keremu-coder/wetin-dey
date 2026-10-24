@@ -1,4 +1,4 @@
-﻿# Wetin Dey — Store Disclosures & Data Collection
+# Wetin Dey — Store Disclosures & Data Collection
 
 This document outlines the data collected by the Wetin Dey application for App Store and Google Play compliance.
 
@@ -19,5 +19,5 @@ Wetin Dey is built using a hybrid architecture (Next.js wrapped in Capacitor) to
 - Native Safe Area handling (adapting to iPhone notches).
 
 ## 4. Data Deletion
-- Users can permanently delete their account and all associated data directly within the app (Settings > Delete Account).
-- If "Delete content" is checked, all their reports, comments, and direct messages are permanently wiped from the database and storage. If unchecked, content is anonymized and tombstoned to maintain the public archive's integrity.
+- Users can initiate account deletion directly in the app (Settings > Delete Account).
+- The current flow deletes DM threads/messages and the user's community messages. Public reports and comments are detached from the account and retained in the archive. There is no "Delete content" checkbox.

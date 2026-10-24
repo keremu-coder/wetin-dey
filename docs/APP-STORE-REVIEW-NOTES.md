@@ -135,13 +135,12 @@ account.
 This retention model is the same one used by Wikipedia, the Internet
 Archive, Citizen, and SeeClickFix: the record outlives the account.
 
-### Optional checkbox
+### Deletion behavior in this build
 
-The Delete Account form offers an optional "Also delete my chat messages"
-checkbox. When ticked, voice-note and text files the user uploaded to
-Spaces are deleted from the voice-notes bucket. Report evidence files
-are also deleted when this box is ticked AND the user is the original
-uploader. Reports themselves remain (as above).
+The Delete Account form has no optional content-deletion checkbox. The
+current flow deletes DM threads/messages and the user's community
+messages; public reports and comments are detached from the account and
+retained in the archive, as disclosed in `/privacy` and `/terms`.
 ---
 
 ## Guideline 4.4 — Background location (Radar)
@@ -264,7 +263,7 @@ Full disclosure in /privacy and docs/STORE_DISCLOSURES.md.
 
 6. To test account deletion:
    - Settings -> Delete Account
-   - Type "DELETE", optionally tick "delete chat messages"
+   - Type "DELETE", type "DELETE"; reports/comments remain detached from the account
    - Confirm -> login credential gone, avatar gone, all reports remain
      visible but detached (privacy policy explains why)
 
