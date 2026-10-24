@@ -13,7 +13,7 @@ const config: CapacitorConfig = {
   ios: {
     contentInset: "always",
     backgroundColor: "#0a0a0a",
-    limitsNavigationsToAppBoundDomains: false
+    limitsNavigationsToAppBoundDomains: true
   },
   android: {
     useLegacyBridge: true,
