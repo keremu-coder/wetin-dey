@@ -213,18 +213,6 @@ export function VoiceRoom({
     );
   }
 
-  if (livekitError) {
-    return (
-      <div className="fixed inset-0 z-[200] bg-black/95 flex flex-col items-center justify-center p-6 text-center text-white">
-        <div className="text-red-500 text-5xl mb-4">⚠️</div>
-        <h3 className="text-xl font-bold mb-2">Audio failed to connect</h3>
-        <p className="text-white/60 mb-6 text-sm max-w-xs">Make sure you have a stable internet connection and your mic permissions are allowed.</p>
-        <button onClick={() => { setLivekitError(false); setToken(null); setRetryCount(c => c + 1); }} className="bg-brand text-white px-6 py-3 rounded-full font-bold mb-3 w-full max-w-xs">Retry Connection</button>
-        <button onClick={onClose} className="text-white/50 underline text-sm">Leave room</button>
-      </div>
-    );
-  }
-
   if (!token) {
     return (
       <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 text-white">
