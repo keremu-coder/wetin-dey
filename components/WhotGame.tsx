@@ -6,11 +6,11 @@ import { WhotCard, WhotSuit, canPlayCard, WhotState, getNextTurn, startWhotGame 
 import { getBotMove } from "@/lib/whot-bot";
 import { Alama } from "./Alama";
 
-const SvgBall = () => <svg viewBox="0 0 24 24" className="w-10 h-10 fill-current"><circle cx="12" cy="12" r="10" /></svg>;
-const SvgAngle = () => <svg viewBox="0 0 24 24" className="w-10 h-10 fill-current"><polygon points="12,2 22,22 2,22" /></svg>;
-const SvgCross = () => <svg viewBox="0 0 24 24" className="w-10 h-10 fill-current"><path d="M12 2v20m10-10H2" stroke="currentColor" strokeWidth="4" /></svg>;
-const SvgCarpet = () => <svg viewBox="0 0 24 24" className="w-10 h-10 fill-current"><rect x="4" y="4" width="16" height="16" rx="2" /></svg>;
-const SvgStar = () => <svg viewBox="0 0 24 24" className="w-10 h-10 fill-current"><polygon points="12,2 15,9 22,9 16,14 18,21 12,17 6,21 8,14 2,9 9,9" /></svg>;
+const SvgBall = () => <svg viewBox="0 0 24 24" className="w-8 h-8 fill-current"><circle cx="12" cy="12" r="10" /></svg>;
+const SvgAngle = () => <svg viewBox="0 0 24 24" className="w-8 h-8 fill-current"><polygon points="12,2 22,22 2,22" /></svg>;
+const SvgCross = () => <svg viewBox="0 0 24 24" className="w-8 h-8 fill-current"><path d="M12 2v20m10-10H2" stroke="currentColor" strokeWidth="4" /></svg>;
+const SvgCarpet = () => <svg viewBox="0 0 24 24" className="w-8 h-8 fill-current"><rect x="4" y="4" width="16" height="16" rx="2" /></svg>;
+const SvgStar = () => <svg viewBox="0 0 24 24" className="w-8 h-8 fill-current"><polygon points="12,2 15,9 22,9 16,14 18,21 12,17 6,21 8,14 2,9 9,9" /></svg>;
 
 function SuitIcon({ suit }: { suit: string }) {
   if (suit === "circle") return <SvgBall />;
@@ -93,7 +93,7 @@ function VoiceReactions({ bubbles }: { bubbles: Record<string, string> }) {
 function VoiceToggle() {
   const [pref, setPref] = useVoicePref();
   const btn = (v: VoicePref, label: string, aria: string) => (
-    <button type="button" aria-label={aria} aria-pressed={pref === v} onClick={() => setPref(v)} className={"h-6 min-w-6 px-2 text-xs font-bold " + (pref === v ? "bg-amber-500 text-black" : "bg-black/40 text-amber-100/70")}>
+    <button type="button" aria-label={aria} aria-pressed={pref === v} onClick={() => { unlockAudio(); setPref(v); }} className={"h-7 min-w-7 px-2 text-xs font-bold " + (pref === v ? "bg-amber-500 text-black" : "bg-black/40 text-amber-100/70")}>
       {label}
     </button>
   );
@@ -168,8 +168,8 @@ function Bubble({ text }: { text?: string }) {
 
 function WhotBack({ small }: { small?: boolean }) {
   return (
-    <div className={"relative flex shrink-0 items-center justify-center overflow-hidden rounded border-2 border-[#d9a35b] bg-[#8B3A35] shadow-sm " + (small ? "h-8 w-5" : "h-20 w-14")}>
-      <span className={"-rotate-45 font-black tracking-widest text-[#f5d9a8] " + (small ? "text-[6px]" : "text-xs")}>WHOT</span>
+    <div className={"relative flex shrink-0 items-center justify-center overflow-hidden rounded border-2 border-[#d9a35b] bg-[#8B3A35] shadow-sm " + (small ? "h-8 w-5" : "h-16 w-12")}>
+      <span className={"-rotate-45 font-black tracking-widest text-[#f5d9a8] " + (small ? "text-[6px]" : "text-[10px]")}>WHOT</span>
     </div>
   );
 }
@@ -179,13 +179,13 @@ function Seat({ name, count, isTurn, wins, bubble, seed }: { name: string; count
   return (
     <div className={"relative flex flex-col items-center transition-all duration-300 " + (isTurn ? "scale-105" : "opacity-75")}>
       <div className={"rounded-full ring-2 " + (isTurn ? "ring-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.6)]" : rank.ring)}>
-        <Alama seed={seed} size={32} />
+        <Alama seed={seed} size={28} />
       </div>
-      <span className={"mt-1 max-w-[70px] truncate rounded-full px-1.5 py-0.5 text-[9px] font-bold " + (isTurn ? "bg-amber-400 text-black" : "bg-black/60 text-white/80")}>{name}</span>
-      <span className={"mt-0.5 rounded-full px-1.5 py-0.5 text-[7px] font-extrabold uppercase tracking-wide " + rank.chip}>{rank.icon} {rank.name}</span>
+      <span className={"mt-1 max-w-[60px] truncate rounded-full px-1.5 py-0.5 text-[8px] font-bold " + (isTurn ? "bg-amber-400 text-black" : "bg-black/60 text-white/80")}>{name}</span>
+      <span className={"mt-0.5 rounded-full px-1.5 py-0.5 text-[6px] font-extrabold uppercase tracking-wide " + rank.chip}>{rank.icon} {rank.name}</span>
       <div className="mt-1 flex -space-x-2">
         {Array.from({ length: Math.min(count, 3) }).map((_, i) => <WhotBack key={i} small />)}
-        {count > 3 ? <span className="pl-3 text-[9px] font-bold text-white/80">+{count - 3}</span> : null}
+        {count > 3 ? <span className="pl-3 text-[8px] font-bold text-white/80">+{count - 3}</span> : null}
       </div>
       {bubble && <Bubble text={bubble} />}
     </div>
@@ -196,7 +196,6 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
   const [state, setState] = useState<WhotState>(game.game_state);
   const [selectedCard, setSelectedCard] = useState<WhotCard | null>(null);
   const [suitPickerOpen, setSuitPickerOpen] = useState(false);
-  const [calledSuit, setCalledSuit] = useState<WhotSuit | null>(null);
   const [lastAction, setLastAction] = useState("Game started!");
   const [isProcessing, setIsProcessing] = useState(false);
   const [wins, setWins] = useState(0);
@@ -256,8 +255,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
         let actionText = "🤖 Bot played " + getCardName(move.card!);
 
         if (move.card!.value === 2) {
-          activePenalty = (penaltyType === "2" ? activePenalty : 0) + 2; penaltyType = "2";
-          actionText += " (Stack: " + activePenalty + ")";
+          activePenalty = (penaltyType === "2" ? activePenalty : 0) + 2; penaltyType = "2"; actionText += " (Stack: " + activePenalty + ")";
         } else if (move.card!.value === 1 || move.card!.value === 8) {
           const botIdx = game.players.indexOf("bot");
           nextTurn = game.players[(botIdx + 2) % game.players.length];
@@ -426,7 +424,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
           </div>
 
           {/* Fanned Hand */}
-          <div className="relative mx-auto h-24 w-full max-w-sm">
+          <div className="relative mx-auto h-24 w-full max-w-sm flex items-end justify-center pb-1">
             {myHand.map((card, index) => {
               const n = myHand.length;
               const mid = (n - 1) / 2;
@@ -484,8 +482,9 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
             <button 
               type="button" 
               onClick={() => {
-                setState(startWhotGame(game.players, true));
-                syncState(startWhotGame(game.players, true));
+                const newGameState = startWhotGame(game.players, true);
+                setState(newGameState);
+                syncState(newGameState);
               }} 
               className="rounded-xl bg-amber-500 px-4 py-3 text-sm font-extrabold text-black active:scale-95 shadow-lg shadow-amber-500/20"
             >
