@@ -47,6 +47,16 @@ function getNativePlatform(): NativePlatform | null {
  */
 export function PushRegistrar() {
   useEffect(() => {
+    // Prevent infinite loops and 429 errors by only running once per session
+    if (typeof window !== "undefined" && sessionStorage.getItem("push_registrar_done")) {
+      return;
+    }
+    try {
+      sessionStorage.setItem("push_registrar_done", "true");
+    } catch (e) {
+      // ignore if sessionStorage is blocked
+    }
+
     const nativePlatform = getNativePlatform();
 
     // Native push requires Firebase (Android) + APNs (iOS) to be
