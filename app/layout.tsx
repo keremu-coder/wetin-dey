@@ -26,6 +26,8 @@ import "./globals.css";
 import { Onboarding } from "@/components/OnboardingLazy";
 import { AppLock } from "@/components/AppLock";
 
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: "Wetin Dey",
   description:
