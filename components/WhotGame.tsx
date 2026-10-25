@@ -27,7 +27,7 @@ function getCardName(card: WhotCard): string {
   if (card.value === 2) return "PICK 2";
   if (card.value === 8) return card.suit === "star" ? "STAR" : "GENERAL MARKET";
   if (card.value === 14) return "GENERAL MARKET";
-  return `${card.value} ${card.suit.toUpperCase()}`;
+  return card.value + " " + card.suit.toUpperCase();
 }
 
 export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: any, isPlayer: boolean, sessionId: string, onQuit: () => void, mySeed?: string }) {
@@ -85,7 +85,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
           hands: { ...state.hands, ["bot"]: newHand },
           turn: getNext(state.players, "bot"),
         };
-        setLastAction(`🤖 Bot picked a card.`);
+        setLastAction("🤖 Bot picked a card.");
       } else {
         const newHand = (state.hands["bot"] || []).filter(c => c.id !== move.card.id);
         newState = {
@@ -97,7 +97,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
           winner: newHand.length === 0 ? "bot" : null,
           status: newHand.length === 0 ? "finished" : "playing",
         };
-        setLastAction(`🤖 Bot played ${getCardName(move.card)}`);
+        setLastAction("🤖 Bot played " + getCardName(move.card));
       }
       
       playProfile("bbm", "receive");
@@ -137,7 +137,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
       winner: newHand.length === 0 ? sessionId : null,
       status: newHand.length === 0 ? "finished" : "playing",
     };
-    setLastAction(`You played ${getCardName(card)}`);
+    setLastAction("You played " + getCardName(card));
     playProfile("bbm", "send");
     vibrate(30);
     await syncState(newState);
@@ -164,7 +164,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
       activePenalty: 0,
       penaltyType: null,
     };
-    setLastAction(`You picked ${drawAmount} card(s).`);
+    setLastAction("You picked " + drawAmount + " card(s).");
     playProfile("bbm", "send");
     await syncState(newState);
     setIsProcessing(false);
@@ -229,7 +229,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
         <div className="relative w-24 h-36">
           {state.discard.slice(-3).map((c, i, arr) => (
             <div key={c.id} className="absolute inset-0 transition-all duration-300" style={{ transform: "rotate(" + ((c.id.length % 10) - 5) + "deg)" }}>
-              <div className={`w-full h-full rounded-xl bg-white shadow-${i === arr.length - 1 ? '[0_10px_25px_rgba(0,0,0,0.8)]' : 'lg'} border border-black/10 flex flex-col justify-between p-2 text-[#8B3A35]`}>
+              <div className={"w-full h-full rounded-xl bg-white shadow-" + (i === arr.length - 1 ? '[0_10px_25px_rgba(0,0,0,0.8)]' : 'lg') + " border border-black/10 flex flex-col justify-between p-2 text-[#8B3A35]"}>
                 <div className="text-[1.2rem] font-bold">{c.value}</div>
                 <div className="text-center flex justify-center"><SuitIcon suit={c.suit} /></div>
                 <div className="text-[1.2rem] font-bold self-end rotate-180">{c.value}</div>
