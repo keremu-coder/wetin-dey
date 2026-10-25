@@ -29,6 +29,7 @@ export async function middleware(request: NextRequest) {
 
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-csp-nonce", nonce);
+  requestHeaders.set("Content-Security-Policy", buildCsp(nonce));
 
   const existing = request.cookies.get(COOKIE_NAME)?.value;
   const valid = await verifySessionValue(existing);
