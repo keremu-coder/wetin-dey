@@ -372,38 +372,3 @@ export function showBrowserNotification(
 }
 
 
-// --- Custom Web Audio API Fix for iOS ---
-let audioCtx: AudioContext | null = null;
-
-export function playAudioFile(url: string, volume = 1.0) {
-  if (typeof window === "undefined") return;
-  try {
-    if (!audioCtx) {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      if (AudioContextClass) {
-        audioCtx = new AudioContextClass();
-      }
-    }
-    if (audioCtx && audioCtx.state === "suspended") {
-      audioCtx.resume();
-    }
-
-    const audio = new Audio(url);
-    audio.crossOrigin = "anonymous"; // Required for Web Audio API
-    
-    // Connect to AudioContext to bypass iOS volume limits
-    if (audioCtx) {
-      const source = audioCtx.createMediaElementSource(audio);
-      const gainNode = audioCtx.createGain();
-      gainNode.gain.value = volume;
-      source.connect(gainNode);
-      gainNode.connect(audioCtx.destination);
-    } else {
-      audio.volume = volume;
-    }
-
-    audio.play().catch(() => {});
-  } catch (err) {
-    console.error("Audio play failed", err);
-  }
-}
