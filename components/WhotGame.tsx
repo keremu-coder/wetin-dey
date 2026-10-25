@@ -831,7 +831,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
     <>
     <div
       ref={rootRef}
-      className="flex w-full max-w-full shrink-0 select-none flex-col overflow-hidden rounded-xl text-white" // FIXED HEIGHT FOR CHAT SPACE
+      className="flex w-full shrink-0 flex-col overflow-hidden rounded-xl text-white" // FIXED HEIGHT FOR CHAT SPACE
       style={MAT_STYLE}
     >
       <div className="h-1.5 w-full shrink-0" style={KENTE_STYLE} />
