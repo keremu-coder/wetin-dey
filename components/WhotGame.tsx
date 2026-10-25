@@ -15,6 +15,9 @@ import { playProfile, unlockAudio, vibrate } from "@/lib/sounds";
 import { shareUrl } from "@/lib/share";
 import { Alama } from "./Alama";
 
+// GLOBAL AUDIO INSTANCE (Stops chat audio from overlapping and fixes volume)
+let voiceAudio: HTMLAudioElement | null = null;
+
 const SvgBall = () => <svg viewBox="0 0 24 24" className="w-full h-full fill-current"><circle cx="12" cy="12" r="10"/></svg>;
 const SvgAngle = () => <svg viewBox="0 0 24 24" className="w-full h-full fill-current"><polygon points="12,2 23,22 1,22"/></svg>;
 const SvgCross = () => <svg viewBox="0 0 24 24" className="w-full h-full fill-current"><path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6V3z"/></svg>;
@@ -97,12 +100,18 @@ function playCustomSound(text: string, mode: VoiceMode) {
   else if (text.includes("Suspension")) file = "suspense";
   else if (text.includes("Last card")) file = "lastcard";
   else if (text.includes("win")) file = "win";
-  else if (text.includes("done go market")) file = "idongo"; // <-- NEW MARKET VOICE
+  else if (text.includes("done go market")) file = "idongo";
 
   if (file) {
-    const audio = new Audio(`/sounds/${mode}/${file}.mp3`);
-    audio.volume = 1.0; // Ensure max volume
-    audio.play().catch(() => { /* silently ignore if file is missing */ });
+    // REUSE A SINGLE AUDIO INSTANCE TO PREVENT OVERLAPPING & ENSURE VOLUME
+    if (!voiceAudio) {
+      voiceAudio = new Audio();
+    }
+    voiceAudio.src = `/sounds/${mode}/${file}.mp3`;
+    voiceAudio.volume = 1.0;
+    voiceAudio.play().catch((err) => {
+      console.log("Audio playback failed. Ensure files are pushed and user tapped screen.", err);
+    });
   }
 }
 
@@ -297,24 +306,38 @@ function CardFace({ card, size, style }: { card: WhotCard; size: CardSize; style
   );
 }
 
-function CardBack({ w, h, font }: { w: number; h: number; font: number }) {
+// --- AUTHENTIC WHOT CARD BACK SVG ---
+function AuthenticWhotBack({ w, h }: { w: number; h: number }) {
   return (
     <div
-      className="relative flex shrink-0 items-center justify-center overflow-hidden rounded-[4px] border-2 border-[#f3d9a0] shadow-sm"
-      style={{
-        width: w,
-        height: h,
-        backgroundColor: "#A31515", // Authentic Whot Red
-        backgroundImage:
-          "repeating-linear-gradient(45deg, rgba(255,255,255,0.07) 0px, rgba(255,255,255,0.07) 3px, transparent 3px, transparent 7px)"
-      }}
+      className="relative flex shrink-0 items-center justify-center overflow-hidden rounded-[4px] shadow-sm"
+      style={{ width: w, height: h, backgroundColor: "#7A1010" }} // Deep Authentic Red
     >
-      <span
-        className="whitespace-nowrap font-black tracking-wider text-[#f3d9a0]"
-        style={{ fontSize: font, lineHeight: 1, transform: "rotate(-90deg)" }}
-      >
-        WHOT
-      </span>
+      <svg viewBox="0 0 100 150" className="w-full h-full p-1" fill="none" xmlns="http://www.w3.org/2000/svg">
+        {/* White Border Frame */}
+        <rect x="2" y="2" width="96" height="146" rx="4" stroke="#FBF4E6" strokeWidth="2" strokeOpacity="0.8" />
+        
+        {/* WHOT Logo Text (Curved style imitation) */}
+        <g fill="#FBF4E6">
+          {/* Swirl on W */}
+          <path d="M 20 65 Q 15 65 15 70 Q 15 75 20 75 Q 25 75 25 70 Q 25 60 20 55" stroke="#FBF4E6" strokeWidth="2" fill="none" />
+          
+          {/* W */}
+          <path d="M 28 55 L 33 75 L 38 60 L 43 75 L 48 55" stroke="#FBF4E6" strokeWidth="4" strokeLinejoin="round" strokeLinecap="round" />
+          
+          {/* h */}
+          <path d="M 52 50 L 52 75 M 52 62 Q 57 55 62 62 L 62 75" stroke="#FBF4E6" strokeWidth="4" strokeLinejoin="round" strokeLinecap="round" />
+          {/* Swirl on h */}
+          <path d="M 62 60 Q 67 60 67 65 Q 67 70 62 70" stroke="#FBF4E6" strokeWidth="2" fill="none" />
+          
+          {/* o (with accent) */}
+          <circle cx="75" cy="68" r="6" stroke="#FBF4E6" strokeWidth="4" />
+          <path d="M 72 58 L 78 58" stroke="#FBF4E6" strokeWidth="2" strokeLinecap="round" />
+          
+          {/* t */}
+          <path d="M 85 55 L 85 75 M 82 60 L 88 60" stroke="#FBF4E6" strokeWidth="4" strokeLinecap="round" />
+        </g>
+      </svg>
     </div>
   );
 }
@@ -393,6 +416,12 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
 
   function wake() {
     unlockAudio();
+    // Play a silent blip to unlock audio context on iOS
+    if (!voiceAudio) {
+      voiceAudio = new Audio();
+      voiceAudio.volume = 0;
+      voiceAudio.play().catch(() => {});
+    }
   }
 
   function speak(text: string) {
@@ -711,7 +740,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
   async function pickFromMarket() {
     if (!canAct) return;
     wake();
-    speak("I done go market!"); // <-- NEW VOICE LINE
+    speak("I done go market!"); 
     setIsProcessing(true);
 
     const { next, drawnCount } = resolvePick(state, game.players, sessionId);
@@ -813,7 +842,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
     <>
     <div
       ref={rootRef}
-      className="flex w-full max-w-full select-none flex-col overflow-hidden rounded-xl text-white max-h-[48vh]"
+      className="flex w-full max-w-full select-none flex-col overflow-hidden rounded-xl text-white h-[42vh]" // FIXED HEIGHT FOR CHAT SPACE
       style={MAT_STYLE}
     >
       <div className="h-1.5 w-full shrink-0" style={KENTE_STYLE} />
@@ -837,7 +866,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
               <div className="flex w-full items-center justify-center overflow-hidden" style={{ height: sz.backH }}>
                 {Array.from({ length: shown }).map((_, i) => (
                   <div key={i} style={{ marginLeft: i === 0 ? 0 : -Math.round(sz.backW * 0.55) }}>
-                    <CardBack w={sz.backW} h={sz.backH} font={sz.backFont} />
+                    <AuthenticWhotBack w={sz.backW} h={sz.backH} />
                   </div>
                 ))}
               </div>
@@ -941,7 +970,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
                     aria-label={state.activePenalty > 0 ? `Pick ${state.activePenalty} cards from the market` : "Pick a card from the market"}
                     className={`rounded-md transition-transform active:scale-95 disabled:opacity-60 ${state.activePenalty > 0 ? "ring-2 ring-red-500 motion-safe:animate-pulse" : ""}`}
                   >
-                    <CardBack w={sz.w} h={sz.h} font={sz.backFont * 2} />
+                    <AuthenticWhotBack w={sz.w} h={sz.h} />
                   </button>
                   <span className="rounded-full bg-black/40 px-2 text-[10px] font-semibold leading-4 text-white/85">
                     {state.activePenalty > 0 ? `Pick ${state.activePenalty}` : `${state.deck.length} in market`}
@@ -986,7 +1015,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
           </div>
         </div>
 
-        {/* Fanned Hand (No auto-showing, just pure cards) */}
+        {/* Fanned Hand */}
         <div className="shrink-0 overflow-x-auto overflow-y-hidden" style={{ touchAction: "pan-x" }}>
           <div
             className="mx-auto flex items-end"

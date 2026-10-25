@@ -59,6 +59,24 @@ function AudioStatus() {
   );
 }
 
+
+function PrivacyMute() {
+  const { localParticipant } = useLocalParticipant();
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!localParticipant) return;
+      if (document.hidden) {
+        localParticipant.setMicrophoneEnabled(false).catch(() => {});
+      } else {
+        localParticipant.setMicrophoneEnabled(true).catch(() => {});
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [localParticipant]);
+  return null;
+}
+
 export function VoiceRoom({
   roomName,
   spaceName,
@@ -322,6 +340,7 @@ export function VoiceRoom({
         style={{ height: 'auto' }}
       >
         <RoomAudioRenderer />
+        <PrivacyMute />
         <div className="flex justify-center mt-2 mb-1">
           <StartMediaButton label="🔊 Tap to hear voice" className="bg-brand text-white px-4 py-2 rounded-full text-sm font-semibold animate-pulse" />
         </div>
