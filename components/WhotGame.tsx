@@ -741,10 +741,8 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
     <div className="relative flex h-full w-full select-none flex-col overflow-hidden bg-[#1a0f0a]">
       <VoiceReactions bubbles={bubbles} />
 
-      {/* Main Table Area (Terracotta/African Mat style) */}
       <div className="m-1 flex flex-1 flex-col overflow-hidden rounded-2xl border-2 border-[#5c3a21] bg-[#2A1B12] shadow-[inset_0_0_30px_rgba(0,0,0,0.6)] relative">
         
-        {/* Top Header Row */}
         <div className="flex items-center justify-between px-2 py-1.5 bg-black/40 border-b border-[#5c3a21] shrink-0">
           <div className="flex items-center gap-1.5">
             <Alama seed={mySeed || sessionId} size={28} />
@@ -768,14 +766,12 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
           </div>
         </div>
 
-        {/* Opponents Area */}
         <div className="flex justify-center gap-3 px-2 py-2 shrink-0">
           {opponents.slice(0, 3).map((opp: string) => (
             <Seat key={opp} seed={opp} name={nameOf(opp)} count={state.hands[opp]?.length || 0} isTurn={state.turn === opp && state.status === "playing"} wins={Number(game.ranks?.[opp] ?? 0)} bubble={bubbles[opp]} />
           ))}
         </div>
 
-        {/* Center Table Area (Market & Discard) */}
         <div className="flex-1 flex flex-col items-center justify-center relative min-h-0">
           {isMyTurn && (
             <div className="absolute top-0 z-10 animate-bounce">
@@ -808,10 +804,8 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
           </div>
         </div>
 
-        {/* Bottom Section: My Hand & Controls */}
         <div className="shrink-0 bg-black/30 pt-1 pb-1 px-2 border-t border-[#5c3a21] relative z-20">
           
-          {/* Controls Row */}
           <div className="flex items-center justify-between px-1 mb-1">
             <span className={"rounded-full px-2 py-0.5 text-[8px] font-extrabold uppercase tracking-widest " + (isMyTurn ? "bg-amber-400 text-black shadow-[0_0_10px_rgba(251,191,36,0.5)]" : "bg-black/50 text-white/70")}>
               {isMyTurn ? "Your turn" : lastAction}
@@ -819,7 +813,6 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
             <VoiceToggle />
           </div>
 
-          {/* Fanned Hand */}
           <div className="relative mx-auto h-24 w-full max-w-sm flex items-end justify-center pb-1">
             {myHand.map((card, index) => {
               const n = myHand.length;
@@ -852,7 +845,6 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
 
       </div>
 
-      {/* Suit picker */}
       {suitPickerOpen && (
         <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm">
           <div className="mx-4 rounded-2xl border border-amber-700/50 bg-[#2A1B12] p-4 text-center shadow-2xl">
@@ -868,7 +860,6 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
         </div>
       )}
 
-      {/* Game over + Play Again */}
       {state.status === "finished" && (
         <div className="absolute inset-0 z-[110] flex flex-col items-center justify-center bg-black/95 p-6 text-center backdrop-blur-md">
           <div className="mb-2 text-5xl">{state.winner === sessionId ? "🏆" : "😔"}</div>
