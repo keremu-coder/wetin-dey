@@ -45,10 +45,10 @@ const SIZES: Record<CardSize, {
   w: number; h: number; corner: number; icon: number; pip: number;
   backW: number; backH: number; backFont: number; avatar: number;
 }> = {
-  lg: { w: 60, h: 90, corner: 14, icon: 32, pip: 12, backW: 28, backH: 40, backFont: 9, avatar: 30 },
-  md: { w: 50, h: 75, corner: 12, icon: 26, pip: 10, backW: 24, backH: 34, backFont: 8, avatar: 26 },
-  sm: { w: 40, h: 60, corner: 10, icon: 20, pip: 9, backW: 20, backH: 28, backFont: 7, avatar: 20 },
-  xs: { w: 32, h: 48, corner: 9, icon: 16, pip: 8, backW: 16, backH: 23, backFont: 6, avatar: 16 }
+  lg: { w: 56, h: 84, corner: 14, icon: 30, pip: 12, backW: 24, backH: 34, backFont: 9, avatar: 28 },
+  md: { w: 46, h: 69, corner: 12, icon: 24, pip: 10, backW: 20, backH: 28, backFont: 8, avatar: 24 },
+  sm: { w: 38, h: 57, corner: 10, icon: 20, pip: 9, backW: 16, backH: 23, backFont: 7, avatar: 20 },
+  xs: { w: 30, h: 45, corner: 9, icon: 16, pip: 8, backW: 14, backH: 20, backFont: 6, avatar: 16 }
 };
 
 const MAT_STYLE: React.CSSProperties = {
@@ -302,7 +302,7 @@ function CardBack({ w, h, font }: { w: number; h: number; font: number }) {
       style={{
         width: w,
         height: h,
-        backgroundColor: "#C62828", // True Naija Whot Red
+        backgroundColor: "#C62828",
         backgroundImage:
           "repeating-linear-gradient(45deg, rgba(255,255,255,0.07) 0px, rgba(255,255,255,0.07) 3px, transparent 3px, transparent 7px)"
       }}
@@ -332,7 +332,7 @@ function VoiceToggle({ mode, onChange }: { mode: VoiceMode; onChange: (m: VoiceM
           aria-label={o.aria}
           aria-pressed={mode === o.id}
           onClick={() => onChange(o.id)}
-          className={`h-7 min-w-[28px] rounded-full px-1.5 text-sm font-bold transition-colors ${
+          className={`h-6 min-w-[24px] rounded-full px-1.5 text-xs font-bold transition-colors ${
             mode === o.id ? "bg-[#d9a441] text-[#3b1a12]" : "text-white/70"
           }`}
         >
@@ -815,41 +815,8 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
     >
       <div className="h-1.5 w-full shrink-0" style={KENTE_STYLE} />
 
-      <div className="flex shrink-0 items-center gap-2 px-2 py-1.5">
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          {tier !== "xs" ? (
-            <div className="relative shrink-0">
-              <Alama seed={mySeed || sessionId} size={sz.avatar} />
-              <span className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#2b130d] ${isMyTurn ? "bg-[#d9a441]" : "bg-stone-500"}`} />
-            </div>
-          ) : null}
-          <div className="min-w-0 leading-tight">
-            <div className={`truncate text-[13px] font-bold ${isMyTurn ? "text-[#f0c36a]" : "text-white/85"}`}>
-              {iAmSeated ? myHandle : "Watching"}
-            </div>
-            <div className="flex items-center gap-1.5 text-[10px] text-white/65">
-              <span className="rounded bg-[#d9a441] px-1.5 font-bold text-[#2b130d]">{rank.name}</span>
-              <span className="truncate">{wins}W {losses}L{iAmSeated ? ` · ${myHand.length} cards` : ""}</span>
-            </div>
-          </div>
-        </div>
-
-        <VoiceToggle mode={voiceMode} onChange={chooseVoice} />
-
-        <button
-          type="button"
-          aria-label="Quit game"
-          onClick={() => { wake(); setShowQuitModal(true); }}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-600 text-white shadow transition-colors hover:bg-red-500 active:scale-95"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden="true">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
-      </div>
-
-      <div className="flex shrink-0 gap-1.5 px-2 pb-1">
+      {/* Opponents Row (No redundant info) */}
+      <div className="flex shrink-0 gap-1.5 px-2 pt-1 pb-2">
         {opponents.map((id) => {
           const count = state.hands[id]?.length || 0;
           const turn = state.turn === id && state.status === "playing";
@@ -876,156 +843,187 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
         })}
       </div>
 
-      <div className="flex shrink-0 items-center justify-center gap-2 px-2 py-1">
-        <div
-          role="status"
-          aria-live="polite"
-          title={bannerText}
-          className={`min-w-0 max-w-full truncate rounded-full px-3 py-1 text-[12px] font-semibold ${bannerClass}`}
-        >
-          {bannerText}
-        </div>
-        {isSemiLast && canAct ? (
-          <button
-            type="button"
-            onClick={() => { wake(); setHasDeclaredLastCard(true); declaredRef.current = true; playProfile("bbm", "mention"); }}
-            className={`shrink-0 rounded-full px-3 py-1 text-[12px] font-bold text-white ${hasDeclaredLastCard ? "bg-green-700" : "bg-red-600 motion-safe:animate-pulse"}`}
+      {/* Middle Section (Banner, Market, Discard) */}
+      <div className="flex flex-1 flex-col justify-center relative min-h-[100px]">
+        <div className="flex shrink-0 items-center justify-center gap-2 px-2 py-1">
+          <div
+            role="status"
+            aria-live="polite"
+            title={bannerText}
+            className={`min-w-0 max-w-full truncate rounded-full px-3 py-1 text-[12px] font-semibold ${bannerClass}`}
           >
-            {hasDeclaredLastCard ? "✓ Last card called" : "Say last card"}
-          </button>
-        ) : null}
-      </div>
-
-      {state.status === "finished" ? (
-        <div className="flex min-h-[120px] flex-1 flex-col items-center justify-center gap-2 overflow-y-auto px-4 py-2 text-center">
-          <h2 className="text-xl font-black">{iWon ? "🏆 You won!" : "😔 " + nameOf(state.winner || "") + " won!"}</h2>
-          <p className="text-xs text-white/75">
-            Rank: <span className="font-bold text-[#f0c36a]">{rank.name}</span>
-            {rank.next
-              ? ` (${rank.next.need} more ${rank.next.need === 1 ? "win" : "wins"} to ${rank.next.name})`
-              : " (top rank)"}
-            {" · "}{wins}W {losses}L
-          </p>
-          <div className="flex w-full max-w-sm flex-wrap justify-center gap-2">
-            {iAmSeated ? (
-              <button
-                type="button"
-                onClick={() => void playAgain()}
-                disabled={isProcessing || isWaiting}
-                className="min-w-[120px] flex-1 rounded-xl bg-[#c4572f] px-4 py-2.5 text-sm font-bold text-white shadow-lg transition-transform active:scale-95 disabled:opacity-60"
-              >
-                {isProcessing || isWaiting ? "Dealing…" : "Play again"}
-              </button>
-            ) : null}
+            {bannerText}
+          </div>
+          {isSemiLast && canAct ? (
             <button
               type="button"
-              onClick={() => void inviteFriends()}
-              className="min-w-[120px] flex-1 rounded-xl border border-[#d9a441]/70 bg-black/30 px-4 py-2.5 text-sm font-bold text-[#f0c36a] transition-transform active:scale-95"
+              onClick={() => { wake(); setHasDeclaredLastCard(true); declaredRef.current = true; playProfile("bbm", "mention"); }}
+              className={`shrink-0 rounded-full px-3 py-1 text-[12px] font-bold text-white ${hasDeclaredLastCard ? "bg-green-700" : "bg-red-600 motion-safe:animate-pulse"}`}
             >
-              Invite friends to play
+              {hasDeclaredLastCard ? "✓ Last card called" : "Say last card"}
             </button>
-          </div>
-          {inviteNote ? <p role="status" className="text-xs text-green-300">{inviteNote}</p> : null}
-          <button type="button" onClick={onQuit} className="text-xs font-semibold text-white/60 underline underline-offset-2 hover:text-white">
-            Exit to lobby
-          </button>
+          ) : null}
         </div>
-      ) : showQuitModal ? (
-        <div className="flex min-h-[120px] flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
-          <p className="text-base font-bold">Quit Game?</p>
-          <p className="text-xs text-white/70">Are you sure you want to leave? Your progress will be lost.</p>
-          <div className="flex w-full max-w-xs gap-2">
-            <button type="button" onClick={() => setShowQuitModal(false)} className="flex-1 rounded-xl bg-white/10 py-2 text-sm font-semibold text-white">Cancel</button>
-            <button type="button" onClick={onQuit} className="flex-1 rounded-xl bg-red-600 py-2 text-sm font-semibold text-white">Quit</button>
-          </div>
-        </div>
-      ) : (
-        <>
-          {suitPickerOpen ? (
-            <div className="flex min-h-[84px] flex-1 flex-col items-center justify-center gap-2 px-2 py-1">
-              <p className="text-sm font-bold">Call a suit</p>
-              <div className="flex w-full max-w-sm gap-1.5">
-                {ALL_SUITS.map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => { wake(); if (selectedCard) void playCard(selectedCard, s); }}
-                    className="flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-lg bg-[#FBF4E6] px-1 py-1.5 text-[#8B3A2B] transition-transform active:scale-95"
-                  >
-                    <span className="block h-6 w-6"><SuitIcon suit={s} /></span>
-                    <span className="text-[9px] font-bold capitalize">{s}</span>
-                  </button>
-                ))}
-              </div>
-              <button type="button" onClick={() => { setSuitPickerOpen(false); setSelectedCard(null); }} className="text-xs font-bold text-red-300">Cancel</button>
-            </div>
-          ) : (
-            <div className="flex min-h-[84px] flex-1 items-center justify-center gap-6 px-3 py-1">
-              <div className="flex flex-col items-center gap-1">
+
+        {state.status === "finished" ? (
+          <div className="flex min-h-[120px] flex-1 flex-col items-center justify-center gap-2 overflow-y-auto px-4 py-2 text-center">
+            <h2 className="text-xl font-black">{iWon ? "🏆 You won!" : "😔 " + nameOf(state.winner || "") + " won!"}</h2>
+            <p className="text-xs text-white/75">
+              Rank: <span className="font-bold text-[#f0c36a]">{rank.name}</span>
+              {rank.next
+                ? ` (${rank.next.need} more ${rank.next.need === 1 ? "win" : "wins"} to ${rank.next.name})`
+                : " (top rank)"}
+              {" · "}{wins}W {losses}L
+            </p>
+            <div className="flex w-full max-w-sm flex-wrap justify-center gap-2">
+              {iAmSeated ? (
                 <button
                   type="button"
-                  onClick={() => void pickFromMarket()}
-                  disabled={!canAct}
-                  aria-label={state.activePenalty > 0 ? `Pick ${state.activePenalty} cards from the market` : "Pick a card from the market"}
-                  className={`rounded-md transition-transform active:scale-95 disabled:opacity-60 ${state.activePenalty > 0 ? "ring-2 ring-red-500 motion-safe:animate-pulse" : ""}`}
+                  onClick={() => void playAgain()}
+                  disabled={isProcessing || isWaiting}
+                  className="min-w-[120px] flex-1 rounded-xl bg-[#c4572f] px-4 py-2.5 text-sm font-bold text-white shadow-lg transition-transform active:scale-95 disabled:opacity-60"
                 >
-                  <CardBack w={sz.w} h={sz.h} font={sz.backFont * 2} />
+                  {isProcessing || isWaiting ? "Dealing…" : "Play again"}
                 </button>
-                <span className="rounded-full bg-black/40 px-2 text-[10px] font-semibold leading-4 text-white/85">
-                  {state.activePenalty > 0 ? `Pick ${state.activePenalty}` : `${state.deck.length} in market`}
-                </span>
-              </div>
-
-              <div id="discard-pile" className="flex flex-col items-center gap-1">
-                <CardFace card={topCard} size={tier} />
-                <span className={`rounded-full bg-black/40 px-2 text-[10px] font-semibold capitalize leading-4 text-[#f0c36a] ${state.calledSuit ? "" : "invisible"}`}>
-                  {state.calledSuit ? "Play " + state.calledSuit : "-"}
-                </span>
-              </div>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => void inviteFriends()}
+                className="min-w-[120px] flex-1 rounded-xl border border-[#d9a441]/70 bg-black/30 px-4 py-2.5 text-sm font-bold text-[#f0c36a] transition-transform active:scale-95"
+              >
+                Invite friends to play
+              </button>
             </div>
-          )}
-
-          <div className="shrink-0 overflow-x-auto overflow-y-hidden" style={{ touchAction: "pan-x" }}>
-            <div
-              className="mx-auto flex items-end"
-              style={{
-                width: fanWidth + sidePad * 2,
-                paddingLeft: sidePad,
-                paddingRight: sidePad,
-                paddingTop: 12,
-                paddingBottom: 6,
-                height: sz.h + 30
-              }}
-            >
-              {myHand.map((card, i) => {
-                const playable = isMyTurn && canPlayCard(card, topCard, state.calledSuit, state.activePenalty, state.penaltyType);
-                const isDragging = dragState?.id === card.id;
-                const mid = (hn - 1) / 2;
-                const rot = (i - mid) * angleStep;
-                const drop = Math.min(10, (i - mid) * (i - mid) * 0.35);
-                const lift = playable && canAct ? -8 : 0;
-                return (
-                  <div
-                    key={card.id}
-                    onPointerDown={(e) => handlePointerDown(e, card)}
-                    className={`cursor-pointer transition-transform ${isDragging ? "opacity-30" : ""} ${isMyTurn && !playable ? "brightness-75" : ""}`}
-                    style={{
-                      flex: "none",
-                      width: sz.w,
-                      height: sz.h,
-                      marginLeft: i === 0 ? 0 : step - cw,
-                      transform: `translateY(${drop + lift}px) rotate(${rot}deg)`,
-                      transformOrigin: "50% 100%"
-                    }}
-                  >
-                    <CardFace card={card} size={tier} />
-                  </div>
-                );
-              })}
+            {inviteNote ? <p role="status" className="text-xs text-green-300">{inviteNote}</p> : null}
+            <button type="button" onClick={onQuit} className="text-xs font-semibold text-white/60 underline underline-offset-2 hover:text-white">
+              Exit to lobby
+            </button>
+          </div>
+        ) : showQuitModal ? (
+          <div className="flex min-h-[120px] flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
+            <p className="text-base font-bold">Quit Game?</p>
+            <p className="text-xs text-white/70">Are you sure you want to leave? Your progress will be lost.</p>
+            <div className="flex w-full max-w-xs gap-2">
+              <button type="button" onClick={() => setShowQuitModal(false)} className="flex-1 rounded-xl bg-white/10 py-2 text-sm font-semibold text-white">Cancel</button>
+              <button type="button" onClick={onQuit} className="flex-1 rounded-xl bg-red-600 py-2 text-sm font-semibold text-white">Quit</button>
             </div>
           </div>
-        </>
-      )}
+        ) : (
+          <>
+            {suitPickerOpen ? (
+              <div className="flex min-h-[84px] flex-1 flex-col items-center justify-center gap-2 px-2 py-1">
+                <p className="text-sm font-bold">Call a suit</p>
+                <div className="flex w-full max-w-sm gap-1.5">
+                  {ALL_SUITS.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => { wake(); if (selectedCard) void playCard(selectedCard, s); }}
+                      className="flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-lg bg-[#FBF4E6] px-1 py-1.5 text-[#8B3A2B] transition-transform active:scale-95"
+                    >
+                      <span className="block h-6 w-6"><SuitIcon suit={s} /></span>
+                      <span className="text-[9px] font-bold capitalize">{s}</span>
+                    </button>
+                  ))}
+                </div>
+                <button type="button" onClick={() => { setSuitPickerOpen(false); setSelectedCard(null); }} className="text-xs font-bold text-red-300">Cancel</button>
+              </div>
+            ) : (
+              <div className="flex min-h-[84px] flex-1 items-center justify-center gap-6 px-3 py-1">
+                <div className="flex flex-col items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => void pickFromMarket()}
+                    disabled={!canAct}
+                    aria-label={state.activePenalty > 0 ? `Pick ${state.activePenalty} cards from the market` : "Pick a card from the market"}
+                    className={`rounded-md transition-transform active:scale-95 disabled:opacity-60 ${state.activePenalty > 0 ? "ring-2 ring-red-500 motion-safe:animate-pulse" : ""}`}
+                  >
+                    <CardBack w={sz.w} h={sz.h} font={sz.backFont * 2} />
+                  </button>
+                  <span className="rounded-full bg-black/40 px-2 text-[10px] font-semibold leading-4 text-white/85">
+                    {state.activePenalty > 0 ? `Pick ${state.activePenalty}` : `${state.deck.length} in market`}
+                  </span>
+                </div>
+
+                <div id="discard-pile" className="flex flex-col items-center gap-1">
+                  <CardFace card={topCard} size={tier} />
+                  <span className={`rounded-full bg-black/40 px-2 text-[10px] font-semibold capitalize leading-4 text-[#f0c36a] ${state.calledSuit ? "" : "invisible"}`}>
+                    {state.calledSuit ? "Play " + state.calledSuit : "-"}
+                  </span>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Bottom Section (Profile, Voice, Quit, Hand) */}
+      <div className="shrink-0 bg-black/30 pt-1 pb-1 px-2 border-t border-[#5c3a21] relative z-20">
+        <div className="flex items-center justify-between px-1 mb-1">
+          <div className="flex items-center gap-1.5">
+            <Alama seed={mySeed || sessionId} size={24} />
+            <div className="flex flex-col">
+              <span className="text-[11px] font-bold text-white leading-none">{iAmSeated ? myHandle : "Watching"}</span>
+              <span className="text-[9px] text-[#f0c36a] leading-tight mt-0.5">{rank.name} · {wins}W {losses}L</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <VoiceToggle mode={voiceMode} onChange={chooseVoice} />
+            <button
+              type="button"
+              aria-label="Quit game"
+              onClick={() => { wake(); setShowQuitModal(true); }}
+              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-red-600 text-white shadow transition-colors hover:bg-red-500 active:scale-95"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" aria-hidden="true">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Fanned Hand */}
+        <div className="shrink-0 overflow-x-auto overflow-y-hidden" style={{ touchAction: "pan-x" }}>
+          <div
+            className="mx-auto flex items-end"
+            style={{
+              width: fanWidth + sidePad * 2,
+              paddingLeft: sidePad,
+              paddingRight: sidePad,
+              paddingTop: 12,
+              paddingBottom: 6,
+              height: sz.h + 30
+            }}
+          >
+            {myHand.map((card, i) => {
+              const playable = isMyTurn && canPlayCard(card, topCard, state.calledSuit, state.activePenalty, state.penaltyType);
+              const isDragging = dragState?.id === card.id;
+              const mid = (hn - 1) / 2;
+              const rot = (i - mid) * angleStep;
+              const drop = Math.min(10, (i - mid) * (i - mid) * 0.35);
+              const lift = playable && canAct ? -8 : 0;
+              return (
+                <div
+                  key={card.id}
+                  onPointerDown={(e) => handlePointerDown(e, card)}
+                  className={`cursor-pointer transition-transform ${isDragging ? "opacity-30" : ""} ${isMyTurn && !playable ? "brightness-75" : ""}`}
+                  style={{
+                    flex: "none",
+                    width: sz.w,
+                    height: sz.h,
+                    marginLeft: i === 0 ? 0 : step - cw,
+                    transform: `translateY(${drop + lift}px) rotate(${rot}deg)`,
+                    transformOrigin: "50% 100%"
+                  }}
+                >
+                  <CardFace card={card} size={tier} />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
     </div>
 
     {dragState && (() => {
