@@ -93,7 +93,7 @@ function VoiceReactions({ bubbles }: { bubbles: Record<string, string> }) {
 function VoiceToggle() {
   const [pref, setPref] = useVoicePref();
   const btn = (v: VoicePref, label: string, aria: string) => (
-    <button type="button" aria-label={aria} aria-pressed={pref === v} onClick={() => setPref(v)} className={"h-7 min-w-7 px-2 text-xs font-bold transition-colors " + (pref === v ? "bg-amber-500 text-black" : "bg-black/40 text-amber-100/70 hover:bg-black/60")}>
+    <button type="button" aria-label={aria} aria-pressed={pref === v} onClick={() => setPref(v)} className={"h-6 min-w-6 px-2 text-xs font-bold " + (pref === v ? "bg-amber-500 text-black" : "bg-black/40 text-amber-100/70")}>
       {label}
     </button>
   );
@@ -156,10 +156,10 @@ function computeBubbles(state: WhotState, players: string[], topCard: WhotCard |
   return out;
 }
 
-function Bubble({ text, position }: { text?: string, position?: string }) {
+function Bubble({ text }: { text?: string }) {
   if (!text) return null;
   return (
-    <div className={"pointer-events-none absolute z-50 w-max max-w-[150px] rounded-xl bg-white px-3 py-1.5 text-center text-[11px] font-bold leading-tight text-black shadow-lg " + (position || "left-1/2 -top-10 -translate-x-1/2")}>
+    <div className="pointer-events-none absolute left-1/2 -top-8 z-50 w-max max-w-[130px] -translate-x-1/2 rounded-xl bg-white px-2 py-1 text-center text-[10px] font-bold leading-tight text-black shadow-lg">
       <span className="absolute -bottom-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 bg-white" />
       {text}
     </div>
@@ -168,8 +168,8 @@ function Bubble({ text, position }: { text?: string, position?: string }) {
 
 function WhotBack({ small }: { small?: boolean }) {
   return (
-    <div className={"relative flex shrink-0 items-center justify-center overflow-hidden rounded border-2 border-[#d9a35b] bg-[#8B3A35] shadow-sm " + (small ? "h-10 w-7" : "h-20 w-14")}>
-      <span className={"-rotate-45 font-black tracking-widest text-[#f5d9a8] " + (small ? "text-[8px]" : "text-xs")}>WHOT</span>
+    <div className={"relative flex shrink-0 items-center justify-center overflow-hidden rounded border-2 border-[#d9a35b] bg-[#8B3A35] shadow-sm " + (small ? "h-8 w-5" : "h-20 w-14")}>
+      <span className={"-rotate-45 font-black tracking-widest text-[#f5d9a8] " + (small ? "text-[6px]" : "text-xs")}>WHOT</span>
     </div>
   );
 }
@@ -177,17 +177,17 @@ function WhotBack({ small }: { small?: boolean }) {
 function Seat({ name, count, isTurn, wins, bubble, seed }: { name: string; count: number; isTurn: boolean; wins: number; bubble?: string; seed: string }) {
   const rank = rankOf(wins);
   return (
-    <div className={"relative flex flex-col items-center transition-all duration-300 " + (isTurn ? "scale-105" : "opacity-70")}>
+    <div className={"relative flex flex-col items-center transition-all duration-300 " + (isTurn ? "scale-105" : "opacity-75")}>
       <div className={"rounded-full ring-2 " + (isTurn ? "ring-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.6)]" : rank.ring)}>
-        <Alama seed={seed} size={38} />
+        <Alama seed={seed} size={32} />
       </div>
-      <span className={"mt-1 max-w-[70px] truncate rounded-full px-2 py-0.5 text-[10px] font-bold " + (isTurn ? "bg-amber-400 text-black" : "bg-black/60 text-white/80")}>{name}</span>
-      <span className={"mt-0.5 rounded-full px-1.5 py-0.5 text-[8px] font-extrabold uppercase tracking-wide " + rank.chip}>{rank.icon} {rank.name}</span>
+      <span className={"mt-1 max-w-[70px] truncate rounded-full px-1.5 py-0.5 text-[9px] font-bold " + (isTurn ? "bg-amber-400 text-black" : "bg-black/60 text-white/80")}>{name}</span>
+      <span className={"mt-0.5 rounded-full px-1.5 py-0.5 text-[7px] font-extrabold uppercase tracking-wide " + rank.chip}>{rank.icon} {rank.name}</span>
       <div className="mt-1 flex -space-x-2">
         {Array.from({ length: Math.min(count, 3) }).map((_, i) => <WhotBack key={i} small />)}
-        {count > 3 ? <span className="pl-3 text-[10px] font-bold text-white/80">+{count - 3}</span> : null}
+        {count > 3 ? <span className="pl-3 text-[9px] font-bold text-white/80">+{count - 3}</span> : null}
       </div>
-      {bubble && <Bubble text={bubble} position="left-1/2 -top-12 -translate-x-1/2" />}
+      {bubble && <Bubble text={bubble} />}
     </div>
   );
 }
@@ -285,6 +285,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
   }, [isBotTurn, state, isProcessing, game.players]);
 
   function handleCardClick(card: WhotCard) {
+    unlockAudio();
     if (!isMyTurn || isProcessing) return;
     if (!canPlayCard(card, topCard, state.calledSuit, state.activePenalty, state.penaltyType)) return;
     if (card.suit === "whot") { setSelectedCard(card); setSuitPickerOpen(true); }
@@ -297,6 +298,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
   }
 
   async function playCard(card: WhotCard, suit: WhotSuit | null) {
+    unlockAudio();
     setIsProcessing(true);
     const newHand = (state.hands[sessionId] || []).filter(c => c.id !== card.id);
     let newHands = { ...state.hands, [sessionId]: newHand };
@@ -326,6 +328,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
   }
 
   async function pickFromMarket() {
+    unlockAudio();
     if (!isMyTurn || isProcessing) return;
     setIsProcessing(true);
     let newDeck = [...state.deck];
@@ -344,12 +347,12 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
     <div className="relative flex h-full w-full select-none flex-col overflow-hidden bg-[#1a0f0a]">
       <VoiceReactions bubbles={bubbles} />
 
-      {/* Main Table Area (Terracotta/African Mat style, NO GREEN FELT) */}
+      {/* Main Table Area (Terracotta/African Mat style) */}
       <div className="m-1 flex flex-1 flex-col overflow-hidden rounded-2xl border-2 border-[#5c3a21] bg-[#2A1B12] shadow-[inset_0_0_30px_rgba(0,0,0,0.6)] relative">
         
         {/* Top Header Row */}
-        <div className="flex items-center justify-between px-3 py-2 bg-black/40 border-b border-[#5c3a21] shrink-0">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between px-2 py-1.5 bg-black/40 border-b border-[#5c3a21] shrink-0">
+          <div className="flex items-center gap-1.5">
             <Alama seed={mySeed || sessionId} size={28} />
             <div className="flex flex-col">
               <span className="text-[10px] font-bold text-amber-50">{myHandle}</span>
@@ -357,7 +360,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
             </div>
           </div>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <div className="flex flex-col items-center bg-black/50 px-2 py-0.5 rounded border border-white/10">
               <span className="text-[7px] text-amber-500 uppercase tracking-widest font-bold">Score</span>
               <div className="flex gap-2 font-mono font-bold text-[10px]">
@@ -372,26 +375,26 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
         </div>
 
         {/* Opponents Area */}
-        <div className="flex justify-center gap-6 px-3 py-3 shrink-0">
+        <div className="flex justify-center gap-3 px-2 py-2 shrink-0">
           {opponents.slice(0, 3).map((opp) => (
             <Seat key={opp} seed={opp} name={nameOf(opp)} count={state.hands[opp]?.length || 0} isTurn={state.turn === opp && state.status === "playing"} wins={Number(game.ranks?.[opp] ?? 0)} bubble={bubbles[opp]} />
           ))}
         </div>
 
         {/* Center Table Area (Market & Discard) */}
-        <div className="flex-1 flex flex-col items-center justify-center relative min-h-[160px]">
+        <div className="flex-1 flex flex-col items-center justify-center relative min-h-0">
           {isMyTurn && (
-            <div className="absolute top-2 z-10 animate-bounce">
-              <span className="bg-amber-500 text-black text-[10px] font-extrabold uppercase tracking-widest px-3 py-1 rounded-full shadow-[0_0_15px_rgba(245,158,11,0.6)] border border-amber-300">
+            <div className="absolute top-0 z-10 animate-bounce">
+              <span className="bg-amber-500 text-black text-[9px] font-extrabold uppercase tracking-widest px-2 py-0.5 rounded-full shadow-[0_0_15px_rgba(245,158,11,0.6)] border border-amber-300">
                 Your Turn
               </span>
             </div>
           )}
 
-          <div className="flex items-center gap-8 mt-2">
+          <div className="flex items-center gap-4 mt-2">
             <button onClick={pickFromMarket} disabled={!isMyTurn || isProcessing} className={"flex flex-col items-center transition-transform " + (isMyTurn ? "active:scale-95" : "opacity-60")}>
               <WhotBack />
-              <span className="mt-1 text-[9px] font-bold uppercase tracking-widest text-amber-300 bg-black/50 px-2 py-0.5 rounded-full">Market ({state.deck.length})</span>
+              <span className="mt-0.5 text-[8px] font-bold uppercase tracking-widest text-amber-300 bg-black/50 px-1.5 py-0.5 rounded-full">Market ({state.deck.length})</span>
             </button>
 
             <div className="relative h-20 w-14">
@@ -405,18 +408,18 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
                 </div>
               ))}
               {state.calledSuit && (
-                <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/80 px-2 py-0.5 text-[9px] font-bold uppercase text-amber-300">Play: {state.calledSuit}</div>
+                <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/80 px-1.5 py-0.5 text-[8px] font-bold uppercase text-amber-300">Play: {state.calledSuit}</div>
               )}
             </div>
           </div>
         </div>
 
         {/* Bottom Section: My Hand & Controls */}
-        <div className="shrink-0 bg-black/30 pt-2 pb-1 px-2 border-t border-[#5c3a21] relative z-20">
+        <div className="shrink-0 bg-black/30 pt-1 pb-1 px-2 border-t border-[#5c3a21] relative z-20">
           
           {/* Controls Row */}
           <div className="flex items-center justify-between px-1 mb-1">
-            <span className={"rounded-full px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-widest " + (isMyTurn ? "bg-amber-400 text-black shadow-[0_0_10px_rgba(251,191,36,0.5)]" : "bg-black/50 text-white/70")}>
+            <span className={"rounded-full px-2 py-0.5 text-[8px] font-extrabold uppercase tracking-widest " + (isMyTurn ? "bg-amber-400 text-black shadow-[0_0_10px_rgba(251,191,36,0.5)]" : "bg-black/50 text-white/70")}>
               {isMyTurn ? "Your turn" : lastAction}
             </span>
             <VoiceToggle />
@@ -427,9 +430,9 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
             {myHand.map((card, index) => {
               const n = myHand.length;
               const mid = (n - 1) / 2;
-              const spread = Math.min(30, 240 / Math.max(n, 1));
+              const spread = Math.min(28, 220 / Math.max(n, 1));
               const rot = (index - mid) * Math.min(6, 40 / Math.max(n, 1));
-              const dy = Math.pow(Math.abs(index - mid), 2) * 1.2;
+              const dy = Math.pow(Math.abs(index - mid), 2) * 1.1;
               const playable = isMyTurn && canPlayCard(card, topCard, state.calledSuit, state.activePenalty, state.penaltyType);
               const lift = selectedCard?.id === card.id ? -18 : playable ? -8 : 0;
               return (
@@ -450,7 +453,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
               );
             })}
           </div>
-          {bubbles[sessionId] && <Bubble text={bubbles[sessionId]} position="left-4 bottom-28" />}
+          {bubbles[sessionId] && <Bubble text={bubbles[sessionId]} />}
         </div>
 
       </div>
@@ -471,14 +474,24 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
         </div>
       )}
 
-      {/* Game over */}
+      {/* Game over + Play Again */}
       {state.status === "finished" && (
-        <div className="absolute inset-0 z-[110] flex flex-col items-center justify-center bg-black/90 p-6 text-center">
-          <div className="mb-3 text-6xl">{state.winner === sessionId ? "🏆" : "😔"}</div>
+        <div className="absolute inset-0 z-[110] flex flex-col items-center justify-center bg-black/95 p-6 text-center backdrop-blur-md">
+          <div className="mb-2 text-5xl">{state.winner === sessionId ? "🏆" : "😔"}</div>
           <h2 className="text-2xl font-black text-white">{state.winner === sessionId ? "You won!" : nameOf(state.winner || "") + " won!"}</h2>
-          <p className="mt-2 text-sm text-white/60">Enjoyed it? Bring your people to the table.</p>
-          <div className="mt-5 flex w-full max-w-[260px] flex-col gap-3">
-            <button type="button" onClick={onQuit} className="rounded-2xl border border-white/30 px-6 py-3 text-base font-bold text-white active:scale-95">Back to lobby</button>
+          
+          <div className="mt-6 flex w-full max-w-[240px] flex-col gap-2">
+            <button 
+              type="button" 
+              onClick={() => {
+                setState(startWhotGame(game.players, true));
+                syncState(startWhotGame(game.players, true));
+              }} 
+              className="rounded-xl bg-amber-500 px-4 py-3 text-sm font-extrabold text-black active:scale-95 shadow-lg shadow-amber-500/20"
+            >
+              Play Again
+            </button>
+            <button type="button" onClick={onQuit} className="rounded-xl border border-white/30 px-4 py-3 text-sm font-bold text-white active:scale-95">Back to lobby</button>
           </div>
         </div>
       )}
