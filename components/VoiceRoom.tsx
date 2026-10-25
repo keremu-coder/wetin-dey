@@ -332,7 +332,7 @@ export function VoiceRoom({
         )}
       </LiveKitRoom>
 
-      <div className={`flex min-h-0 flex-1 flex-col p-4 relative bg-[#0B0E17] ${chatContent ? "overflow-hidden" : "overflow-y-auto"}`}>
+      <div className={`flex min-h-0 flex-1 flex-col p-4 relative bg-[#0B0E17] overflow-y-auto`}>
         {!activeGame ? (
           <div className={`${chatContent ? "shrink-0" : "flex-1"} flex flex-col items-center justify-center`}>
             
@@ -412,14 +412,14 @@ export function VoiceRoom({
               />
             </div>
             {isFullScreen && chatContent ? (
-              <div aria-label="Chat" className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-lg border border-white/10 bg-paper text-ink">
+              <div aria-label="Chat" className="flex min-h-[260px] w-full flex-1 flex-col overflow-hidden rounded-lg border border-white/10 bg-paper text-ink">
                 {chatContent}
               </div>
             ) : null}
           </div>
         )}
         {!activeGame && isFullScreen && chatContent ? (
-          <div aria-label="Chat" className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-lg border border-white/10 bg-paper text-ink">
+          <div aria-label="Chat" className="flex min-h-[260px] w-full flex-1 flex-col overflow-hidden rounded-lg border border-white/10 bg-paper text-ink">
             {chatContent}
           </div>
         ) : null}
