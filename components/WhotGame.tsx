@@ -210,7 +210,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
       });
       }
       setIsProcessing(false);
-    }, 1800);
+    }, 700);
 
     return () => clearTimeout(timer);
   }, [isBotTurn, state, topCard, isProcessing, game.id, game.players]);
