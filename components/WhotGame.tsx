@@ -93,7 +93,7 @@ function VoiceReactions({ bubbles }: { bubbles: Record<string, string> }) {
 function VoiceToggle() {
   const [pref, setPref] = useVoicePref();
   const btn = (v: VoicePref, label: string, aria: string) => (
-    <button type="button" aria-label={aria} aria-pressed={pref === v} onClick={() => setPref(v)} className={"h-6 min-w-6 px-1.5 text-xs font-bold " + (pref === v ? "bg-amber-500 text-black" : "bg-black/40 text-amber-100/70")}>
+    <button type="button" aria-label={aria} aria-pressed={pref === v} onClick={() => setPref(v)} className={"h-7 min-w-7 px-2 text-xs font-bold transition-colors " + (pref === v ? "bg-amber-500 text-black" : "bg-black/40 text-amber-100/70 hover:bg-black/60")}>
       {label}
     </button>
   );
@@ -156,10 +156,10 @@ function computeBubbles(state: WhotState, players: string[], topCard: WhotCard |
   return out;
 }
 
-function Bubble({ text }: { text?: string }) {
+function Bubble({ text, position }: { text?: string, position?: string }) {
   if (!text) return null;
   return (
-    <div className="pointer-events-none absolute left-1/2 -top-12 z-50 w-max max-w-[180px] -translate-x-1/2 rounded-xl bg-white px-3 py-1.5 text-center text-xs font-bold leading-tight text-black shadow-lg">
+    <div className={"pointer-events-none absolute z-50 w-max max-w-[150px] rounded-xl bg-white px-3 py-1.5 text-center text-[11px] font-bold leading-tight text-black shadow-lg " + (position || "left-1/2 -top-10 -translate-x-1/2")}>
       <span className="absolute -bottom-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 bg-white" />
       {text}
     </div>
@@ -168,8 +168,8 @@ function Bubble({ text }: { text?: string }) {
 
 function WhotBack({ small }: { small?: boolean }) {
   return (
-    <div className={"relative flex shrink-0 items-center justify-center overflow-hidden rounded-md border-2 border-[#d9a35b] bg-[#8B3A35] shadow-md " + (small ? "h-10 w-7" : "h-24 w-16")}>
-      <span className={"-rotate-45 font-black tracking-widest text-[#f5d9a8] " + (small ? "text-[8px]" : "text-sm")}>WHOT</span>
+    <div className={"relative flex shrink-0 items-center justify-center overflow-hidden rounded border-2 border-[#d9a35b] bg-[#8B3A35] shadow-sm " + (small ? "h-10 w-7" : "h-20 w-14")}>
+      <span className={"-rotate-45 font-black tracking-widest text-[#f5d9a8] " + (small ? "text-[8px]" : "text-xs")}>WHOT</span>
     </div>
   );
 }
@@ -177,17 +177,17 @@ function WhotBack({ small }: { small?: boolean }) {
 function Seat({ name, count, isTurn, wins, bubble, seed }: { name: string; count: number; isTurn: boolean; wins: number; bubble?: string; seed: string }) {
   const rank = rankOf(wins);
   return (
-    <div className={"relative flex flex-col items-center transition-all duration-300 " + (isTurn ? "scale-105" : "opacity-80")}>
-      <div className={"rounded-full ring-4 " + (isTurn ? "ring-amber-400 shadow-[0_0_18px_rgba(251,191,36,0.7)]" : rank.ring)}>
-        <Alama seed={seed} size={36} />
+    <div className={"relative flex flex-col items-center transition-all duration-300 " + (isTurn ? "scale-105" : "opacity-70")}>
+      <div className={"rounded-full ring-2 " + (isTurn ? "ring-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.6)]" : rank.ring)}>
+        <Alama seed={seed} size={38} />
       </div>
-      <span className={"mt-1 max-w-[80px] truncate rounded-full px-2 py-0.5 text-[10px] font-bold " + (isTurn ? "bg-amber-400 text-black" : "bg-black/60 text-white/80")}>{name}</span>
+      <span className={"mt-1 max-w-[70px] truncate rounded-full px-2 py-0.5 text-[10px] font-bold " + (isTurn ? "bg-amber-400 text-black" : "bg-black/60 text-white/80")}>{name}</span>
       <span className={"mt-0.5 rounded-full px-1.5 py-0.5 text-[8px] font-extrabold uppercase tracking-wide " + rank.chip}>{rank.icon} {rank.name}</span>
-      <div className="mt-1 flex -space-x-3">
-        {Array.from({ length: Math.min(count, 4) }).map((_, i) => <WhotBack key={i} small />)}
-        {count > 4 ? <span className="pl-3 text-[10px] font-bold text-white/80">+{count - 4}</span> : null}
+      <div className="mt-1 flex -space-x-2">
+        {Array.from({ length: Math.min(count, 3) }).map((_, i) => <WhotBack key={i} small />)}
+        {count > 3 ? <span className="pl-3 text-[10px] font-bold text-white/80">+{count - 3}</span> : null}
       </div>
-      <Bubble text={bubble} />
+      {bubble && <Bubble text={bubble} position="left-1/2 -top-12 -translate-x-1/2" />}
     </div>
   );
 }
@@ -344,89 +344,94 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
     <div className="relative flex h-full w-full select-none flex-col overflow-hidden bg-[#1a0f0a]">
       <VoiceReactions bubbles={bubbles} />
 
-      {/* Main Table Area */}
-      <div className="m-2 flex flex-1 flex-col overflow-hidden rounded-2xl border-[6px] border-[#3b2412] bg-[radial-gradient(ellipse_at_center,#1f7a3f_0%,#14572c_55%,#0b3a1c_100%)] shadow-[inset_0_0_30px_rgba(0,0,0,0.8)] relative">
+      {/* Main Table Area (Terracotta/African Mat style, NO GREEN FELT) */}
+      <div className="m-1 flex flex-1 flex-col overflow-hidden rounded-2xl border-2 border-[#5c3a21] bg-[#2A1B12] shadow-[inset_0_0_30px_rgba(0,0,0,0.6)] relative">
         
-        {/* Quit Button */}
-        <button onClick={onQuit} aria-label="Quit game" className="absolute right-2 top-2 z-50 flex h-9 w-9 items-center justify-center rounded-full bg-red-600 text-white shadow-lg ring-2 ring-white/30 active:scale-90">
-          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
-        </button>
+        {/* Top Header Row */}
+        <div className="flex items-center justify-between px-3 py-2 bg-black/40 border-b border-[#5c3a21] shrink-0">
+          <div className="flex items-center gap-2">
+            <Alama seed={mySeed || sessionId} size={28} />
+            <div className="flex flex-col">
+              <span className="text-[10px] font-bold text-amber-50">{myHandle}</span>
+              <span className="text-[8px] text-amber-200/60">{myHand.length} cards left</span>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <div className="flex flex-col items-center bg-black/50 px-2 py-0.5 rounded border border-white/10">
+              <span className="text-[7px] text-amber-500 uppercase tracking-widest font-bold">Score</span>
+              <div className="flex gap-2 font-mono font-bold text-[10px]">
+                <span className="text-green-500">{wins}W</span>
+                <span className="text-red-500">{losses}L</span>
+              </div>
+            </div>
+            <button onClick={onQuit} className="w-8 h-8 rounded-full bg-red-600 hover:bg-red-500 flex items-center justify-center text-white shadow transition-transform active:scale-90">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+          </div>
+        </div>
 
-        {/* Top Section: Opponents */}
-        <div className="flex justify-center gap-2 px-4 pt-3 pb-1 shrink-0">
+        {/* Opponents Area */}
+        <div className="flex justify-center gap-6 px-3 py-3 shrink-0">
           {opponents.slice(0, 3).map((opp) => (
             <Seat key={opp} seed={opp} name={nameOf(opp)} count={state.hands[opp]?.length || 0} isTurn={state.turn === opp && state.status === "playing"} wins={Number(game.ranks?.[opp] ?? 0)} bubble={bubbles[opp]} />
           ))}
         </div>
 
-        {/* Middle Section: Center Table */}
-        <div className="flex-1 flex flex-col items-center justify-center relative">
-          
-          {/* Status Banner */}
-          <div className="absolute top-0 inset-x-0 flex justify-center z-10">
-            <span className={"rounded-full px-4 py-1 text-[10px] font-extrabold uppercase tracking-widest shadow-lg " + (isMyTurn ? "animate-pulse bg-amber-400 text-black border border-amber-300" : "bg-black/60 text-white/70 border border-white/10")}>
-              {isMyTurn ? "Your turn" : lastAction}
-            </span>
-          </div>
+        {/* Center Table Area (Market & Discard) */}
+        <div className="flex-1 flex flex-col items-center justify-center relative min-h-[160px]">
+          {isMyTurn && (
+            <div className="absolute top-2 z-10 animate-bounce">
+              <span className="bg-amber-500 text-black text-[10px] font-extrabold uppercase tracking-widest px-3 py-1 rounded-full shadow-[0_0_15px_rgba(245,158,11,0.6)] border border-amber-300">
+                Your Turn
+              </span>
+            </div>
+          )}
 
-          <div className="flex items-center gap-6 mt-4">
-            {/* Market */}
-            <button onClick={pickFromMarket} disabled={!isMyTurn || isProcessing} className={"flex flex-col items-center transition-transform " + (isMyTurn ? "active:scale-95 hover:-translate-y-1" : "opacity-60")}>
+          <div className="flex items-center gap-8 mt-2">
+            <button onClick={pickFromMarket} disabled={!isMyTurn || isProcessing} className={"flex flex-col items-center transition-transform " + (isMyTurn ? "active:scale-95" : "opacity-60")}>
               <WhotBack />
-              <span className="mt-1 text-[10px] font-bold uppercase tracking-widest text-amber-200">Market ({state.deck.length})</span>
+              <span className="mt-1 text-[9px] font-bold uppercase tracking-widest text-amber-300 bg-black/50 px-2 py-0.5 rounded-full">Market ({state.deck.length})</span>
             </button>
 
-            {/* Discard */}
-            <div className="relative h-24 w-16">
+            <div className="relative h-20 w-14">
               {state.discard.slice(-2).map((c, i, arr) => (
                 <div key={c.id} className="absolute inset-0 transition-transform duration-300" style={{ transform: "rotate(" + (i === arr.length - 1 ? 0 : -8) + "deg)" }}>
-                  <div className="flex h-full w-full flex-col justify-between rounded-lg border border-black/20 bg-[#fdfbf7] p-1.5 text-[#8B3A35] shadow-xl">
-                    <div className="text-sm font-bold leading-none">{c.value}</div>
-                    <div className="flex scale-75 justify-center">{c.suit === "whot" ? <span className="text-sm font-black">WHOT</span> : <SuitIcon suit={c.suit} />}</div>
-                    <div className="self-end rotate-180 text-sm font-bold leading-none">{c.value}</div>
+                  <div className="flex h-full w-full flex-col justify-between rounded border border-black/20 bg-[#fdfbf7] p-1 text-[#8B3A35] shadow-xl">
+                    <div className="text-xs font-bold leading-none">{c.value}</div>
+                    <div className="flex scale-75 justify-center">{c.suit === "whot" ? <span className="text-xs font-black">WHOT</span> : <SuitIcon suit={c.suit} />}</div>
+                    <div className="self-end rotate-180 text-xs font-bold leading-none">{c.value}</div>
                   </div>
                 </div>
               ))}
               {state.calledSuit && (
-                <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/80 px-2 py-0.5 text-[9px] font-bold uppercase text-amber-300">
-                  Play: {state.calledSuit}
-                </div>
+                <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/80 px-2 py-0.5 text-[9px] font-bold uppercase text-amber-300">Play: {state.calledSuit}</div>
               )}
             </div>
           </div>
         </div>
 
-        {/* Bottom Section: My Info & Hand */}
-        <div className="shrink-0 pb-2 px-2 relative z-20">
-          {/* Player Info Row */}
-          <div className="flex items-center justify-between mb-2 px-1">
-            <div className="relative flex items-center gap-2">
-              <div className={"rounded-full ring-2 " + (isMyTurn ? "ring-amber-400" : rankOf(wins).ring)}>
-                <Alama seed={mySeed || sessionId} size={32} />
-              </div>
-              <div className="leading-tight flex flex-col items-start">
-                <span className="max-w-[90px] truncate text-xs font-bold text-amber-50">{myHandle}</span>
-                <span className={"rounded-full px-1.5 py-0.5 text-[8px] font-extrabold uppercase tracking-wide " + rankOf(wins).chip}>{rankOf(wins).icon} {rankOf(wins).name}</span>
-              </div>
-              <Bubble text={bubbles[sessionId]} />
-            </div>
-            
-            <div className="flex flex-col items-end">
-              <span className="text-[9px] text-white/50 mb-0.5">{wins}W {losses}L</span>
-              <VoiceToggle />
-            </div>
+        {/* Bottom Section: My Hand & Controls */}
+        <div className="shrink-0 bg-black/30 pt-2 pb-1 px-2 border-t border-[#5c3a21] relative z-20">
+          
+          {/* Controls Row */}
+          <div className="flex items-center justify-between px-1 mb-1">
+            <span className={"rounded-full px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-widest " + (isMyTurn ? "bg-amber-400 text-black shadow-[0_0_10px_rgba(251,191,36,0.5)]" : "bg-black/50 text-white/70")}>
+              {isMyTurn ? "Your turn" : lastAction}
+            </span>
+            <VoiceToggle />
           </div>
 
           {/* Fanned Hand */}
-          <div className="relative mx-auto h-28 w-full max-w-sm">
+          <div className="relative mx-auto h-24 w-full max-w-sm">
             {myHand.map((card, index) => {
               const n = myHand.length;
               const mid = (n - 1) / 2;
-              const spread = Math.min(32, 260 / Math.max(n, 1));
+              const spread = Math.min(30, 240 / Math.max(n, 1));
               const rot = (index - mid) * Math.min(6, 40 / Math.max(n, 1));
               const dy = Math.pow(Math.abs(index - mid), 2) * 1.2;
               const playable = isMyTurn && canPlayCard(card, topCard, state.calledSuit, state.activePenalty, state.penaltyType);
-              const lift = selectedCard?.id === card.id ? -20 : playable ? -10 : 0;
+              const lift = selectedCard?.id === card.id ? -18 : playable ? -8 : 0;
               return (
                 <button
                   key={card.id}
@@ -436,15 +441,16 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
                   className={"absolute bottom-0 left-1/2 -ml-8 origin-bottom transition-transform duration-200 " + (isMyTurn && !playable ? "opacity-60 saturate-50" : "")}
                   style={{ transform: "translateX(" + (index - mid) * spread + "px) translateY(" + (dy + lift) + "px) rotate(" + rot + "deg)", zIndex: index }}
                 >
-                  <div className={"flex h-24 w-16 flex-col justify-between rounded-lg border bg-[#fdfbf7] p-1.5 text-[#8B3A35] shadow-xl " + (playable ? "border-amber-400" : "border-black/20")}>
-                    <div className="text-left text-sm font-bold leading-none">{card.value}</div>
-                    <div className="flex scale-75 justify-center">{card.suit === "whot" ? <span className="text-sm font-black">WHOT</span> : <SuitIcon suit={card.suit} />}</div>
-                    <div className="self-end rotate-180 text-sm font-bold leading-none">{card.value}</div>
+                  <div className={"flex h-20 w-14 flex-col justify-between rounded border bg-[#fdfbf7] p-1 text-[#8B3A35] shadow-lg " + (playable ? "border-amber-400" : "border-black/20")}>
+                    <div className="text-left text-xs font-bold leading-none">{card.value}</div>
+                    <div className="flex scale-75 justify-center">{card.suit === "whot" ? <span className="text-xs font-black">WHOT</span> : <SuitIcon suit={card.suit} />}</div>
+                    <div className="self-end rotate-180 text-xs font-bold leading-none">{card.value}</div>
                   </div>
                 </button>
               );
             })}
           </div>
+          {bubbles[sessionId] && <Bubble text={bubbles[sessionId]} position="left-4 bottom-28" />}
         </div>
 
       </div>
@@ -452,11 +458,11 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
       {/* Suit picker */}
       {suitPickerOpen && (
         <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm">
-          <div className="mx-4 rounded-2xl border border-amber-700/50 bg-[#2A1B12] p-5 text-center shadow-2xl">
-            <h3 className="mb-3 text-lg font-bold text-amber-100">Pick a Suit</h3>
+          <div className="mx-4 rounded-2xl border border-amber-700/50 bg-[#2A1B12] p-4 text-center shadow-2xl">
+            <h3 className="mb-3 text-sm font-bold text-amber-100">Pick a Suit</h3>
             <div className="flex gap-3">
               {(["circle", "triangle", "cross", "star", "square"] as const).map((s) => (
-                <button key={s} type="button" onClick={() => handleSuitPick(s)} aria-label={s} className="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-black/40 text-white transition-transform hover:border-amber-500 active:scale-90">
+                <button key={s} type="button" onClick={() => handleSuitPick(s)} aria-label={s} className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/40 text-white transition-transform hover:border-amber-500 active:scale-90">
                   <div className="scale-75"><SuitIcon suit={s} /></div>
                 </button>
               ))}
@@ -469,7 +475,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
       {state.status === "finished" && (
         <div className="absolute inset-0 z-[110] flex flex-col items-center justify-center bg-black/90 p-6 text-center">
           <div className="mb-3 text-6xl">{state.winner === sessionId ? "🏆" : "😔"}</div>
-          <h2 className="text-3xl font-black text-white">{state.winner === sessionId ? "You won!" : nameOf(state.winner || "") + " won!"}</h2>
+          <h2 className="text-2xl font-black text-white">{state.winner === sessionId ? "You won!" : nameOf(state.winner || "") + " won!"}</h2>
           <p className="mt-2 text-sm text-white/60">Enjoyed it? Bring your people to the table.</p>
           <div className="mt-5 flex w-full max-w-[260px] flex-col gap-3">
             <button type="button" onClick={onQuit} className="rounded-2xl border border-white/30 px-6 py-3 text-base font-bold text-white active:scale-95">Back to lobby</button>
