@@ -226,7 +226,7 @@ export function VoiceRoom({
 
   return (
     <div 
-      className={`fixed inset-x-0 bottom-0 z-[200] flex flex-col bg-[#0B0E17] rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)] border-t border-white/10 transition-all duration-300 ${isFullScreen ? 'h-[100dvh] rounded-none' : 'h-[55vh]'}`}
+      className={`fixed inset-x-0 bottom-0 z-[200] flex flex-col bg-[#0B0E17] rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)] border-t border-white/10 transition-all duration-300 ${isFullScreen ? 'h-[100dvh] rounded-none' : activeGame ? 'h-[80dvh]' : 'h-[55vh]'}`}
     >
       {/* Drag Handle */}
       <div className="w-full flex justify-center py-2 shrink-0 cursor-pointer" onClick={onClose}>
@@ -283,7 +283,7 @@ export function VoiceRoom({
         )}
       </LiveKitRoom>
 
-      <div className="flex-1 flex flex-col p-4 overflow-y-auto relative bg-[#0B0E17]">
+      <div className={`flex-1 flex flex-col overflow-y-auto relative bg-[#0B0E17] ${activeGame ? "p-1" : "p-4"}`}>
         {!activeGame ? (
           <div className="flex-1 flex flex-col items-center justify-center">
             
@@ -353,7 +353,7 @@ export function VoiceRoom({
                 <button onClick={isHost ? quitGame : leaveLobby} className="text-white/50 text-sm hover:text-white/80 mt-2">{isHost ? "Cancel game" : "Leave"}</button>
               </div>
             )}
-            <div className="w-full flex-1 relative min-h-[350px]">
+            <div className="w-full flex-1 relative min-h-[200px]">
               <WhotGame 
                 game={activeGame} 
                 isPlayer={isPlayer} 
