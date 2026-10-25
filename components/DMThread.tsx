@@ -76,6 +76,8 @@ export function DMThread({
   const [blocking, setBlocking] = useState(false);
   const [viewingMedia, setViewingMedia] = useState<{url: string, type: string} | null>(null);
   const [voiceRoomOpen, setVoiceRoomOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const lastMarkRef = useRef<number>(0);
   const scrollDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -485,7 +487,7 @@ export function DMThread({
                       )}
                     </div>
                     <p className={`mt-0.5 flex items-center gap-2 text-[0.65rem] text-faint ${mine ? "justify-end" : ""}`}>
-                      <span>{m._pending ? "Sending" : m._failed ? "Failed" : timeAgoShort(m.created_at)}</span>
+                      <span>{mounted ? (m._pending ? "Sending" : m._failed ? "Failed" : timeAgoShort(m.created_at)) : ""}</span>
                       {isLastMine ? (
                         <span className="ml-1 text-[0.65rem] font-bold text-brand" title={lastMineSeen ? "Read" : "Delivered"}>
                           {lastMineSeen ? "R" : "D"}
