@@ -308,22 +308,19 @@ function CardFace({ card, size, style }: { card: WhotCard; size: CardSize; style
 
 // --- AUTHENTIC WHOT CARD BACK SVG ---
 function AuthenticWhotBack({ w, h }: { w: number; h: number }) {
-  // Use a serif font to mimic the authentic Whot logo
   return (
     <div
-      className="relative flex shrink-0 flex-col items-center justify-center overflow-hidden rounded-[4px] border-2 border-[#d9a441] shadow-sm"
-      style={{ width: w, height: h, backgroundColor: "#A31515" }} // Authentic Whot Red
+      className="relative flex shrink-0 flex-col items-center justify-center overflow-hidden rounded-[4px] border border-[#d9a441] shadow-sm"
+      style={{ width: w, height: h, backgroundColor: "#A31515" }} // Authentic Red
     >
-      {/* Top text (rotated) */}
       <div 
-        className="rotate-180 font-serif font-black italic tracking-tighter text-[#FBF4E6] leading-none mb-0.5 opacity-90"
+        className="rotate-180 font-serif font-bold italic tracking-tighter text-[#FBF4E6] leading-none mb-0.5"
         style={{ fontSize: Math.max(10, w * 0.45) }}
       >
         Whot
       </div>
-      {/* Bottom text (upright) */}
       <div 
-        className="font-serif font-black italic tracking-tighter text-[#FBF4E6] leading-none mt-0.5 opacity-90"
+        className="font-serif font-bold italic tracking-tighter text-[#FBF4E6] leading-none mt-0.5"
         style={{ fontSize: Math.max(10, w * 0.45) }}
       >
         Whot
@@ -406,11 +403,13 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
 
   function wake() {
     unlockAudio();
-    // Play a silent blip to unlock audio context on iOS
+    // Force unlock HTML5 audio on mobile
     if (!voiceAudio) {
       voiceAudio = new Audio();
+      voiceAudio.src = "/sounds/male/pick2.mp3"; // Load a valid file just to unlock
       voiceAudio.volume = 0;
       voiceAudio.play().catch(() => {});
+      voiceAudio.pause();
     }
   }
 
