@@ -93,7 +93,7 @@ function VoiceReactions({ bubbles }: { bubbles: Record<string, string> }) {
 function VoiceToggle() {
   const [pref, setPref] = useVoicePref();
   const btn = (v: VoicePref, label: string, aria: string) => (
-    <button type="button" aria-label={aria} aria-pressed={pref === v} onClick={() => setPref(v)} className={"h-8 min-w-8 px-2 text-sm font-bold " + (pref === v ? "bg-amber-500 text-black" : "bg-black/40 text-amber-100/70")}>
+    <button type="button" aria-label={aria} aria-pressed={pref === v} onClick={() => setPref(v)} className={"h-6 min-w-6 px-1.5 text-xs font-bold " + (pref === v ? "bg-amber-500 text-black" : "bg-black/40 text-amber-100/70")}>
       {label}
     </button>
   );
@@ -159,8 +159,8 @@ function computeBubbles(state: WhotState, players: string[], topCard: WhotCard |
 function Bubble({ text }: { text?: string }) {
   if (!text) return null;
   return (
-    <div className="pointer-events-none absolute left-1/2 top-full z-40 mt-1 w-max max-w-[130px] -translate-x-1/2 rounded-xl bg-white px-2 py-1 text-center text-[11px] font-bold leading-tight text-black shadow-lg">
-      <span className="absolute -top-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 bg-white" />
+    <div className="pointer-events-none absolute left-1/2 -top-12 z-50 w-max max-w-[180px] -translate-x-1/2 rounded-xl bg-white px-3 py-1.5 text-center text-xs font-bold leading-tight text-black shadow-lg">
+      <span className="absolute -bottom-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 bg-white" />
       {text}
     </div>
   );
@@ -168,8 +168,8 @@ function Bubble({ text }: { text?: string }) {
 
 function WhotBack({ small }: { small?: boolean }) {
   return (
-    <div className={"relative flex shrink-0 items-center justify-center overflow-hidden rounded-md border-2 border-[#d9a35b] bg-[#8B3A35] shadow-md " + (small ? "h-9 w-6" : "h-24 w-16")}>
-      <span className={"-rotate-45 font-black tracking-widest text-[#f5d9a8] " + (small ? "text-[7px]" : "text-sm")}>WHOT</span>
+    <div className={"relative flex shrink-0 items-center justify-center overflow-hidden rounded-md border-2 border-[#d9a35b] bg-[#8B3A35] shadow-md " + (small ? "h-10 w-7" : "h-24 w-16")}>
+      <span className={"-rotate-45 font-black tracking-widest text-[#f5d9a8] " + (small ? "text-[8px]" : "text-sm")}>WHOT</span>
     </div>
   );
 }
@@ -177,43 +177,17 @@ function WhotBack({ small }: { small?: boolean }) {
 function Seat({ name, count, isTurn, wins, bubble, seed }: { name: string; count: number; isTurn: boolean; wins: number; bubble?: string; seed: string }) {
   const rank = rankOf(wins);
   return (
-    <div className={"relative flex w-24 flex-col items-center transition-all duration-300 " + (isTurn ? "scale-105" : "opacity-80")}>
+    <div className={"relative flex flex-col items-center transition-all duration-300 " + (isTurn ? "scale-105" : "opacity-80")}>
       <div className={"rounded-full ring-4 " + (isTurn ? "ring-amber-400 shadow-[0_0_18px_rgba(251,191,36,0.7)]" : rank.ring)}>
-        <Alama seed={seed} size={40} />
+        <Alama seed={seed} size={36} />
       </div>
-      <span className={"mt-1 max-w-full truncate rounded-full px-2 py-0.5 text-[11px] font-bold " + (isTurn ? "bg-amber-400 text-black" : "bg-black/60 text-white/80")}>{name}</span>
-      <span className={"mt-0.5 rounded-full px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide " + rank.chip}>{rank.icon} {rank.name}</span>
+      <span className={"mt-1 max-w-[80px] truncate rounded-full px-2 py-0.5 text-[10px] font-bold " + (isTurn ? "bg-amber-400 text-black" : "bg-black/60 text-white/80")}>{name}</span>
+      <span className={"mt-0.5 rounded-full px-1.5 py-0.5 text-[8px] font-extrabold uppercase tracking-wide " + rank.chip}>{rank.icon} {rank.name}</span>
       <div className="mt-1 flex -space-x-3">
-        {Array.from({ length: Math.min(count, 5) }).map((_, i) => <WhotBack key={i} small />)}
-        {count > 5 ? <span className="pl-4 text-[10px] font-bold text-white/80">+{count - 5}</span> : null}
+        {Array.from({ length: Math.min(count, 4) }).map((_, i) => <WhotBack key={i} small />)}
+        {count > 4 ? <span className="pl-3 text-[10px] font-bold text-white/80">+{count - 4}</span> : null}
       </div>
       <Bubble text={bubble} />
-    </div>
-  );
-}
-
-function PostGameActions({ onQuit, canInvite }: { onQuit: () => void; canInvite: boolean }) {
-  const [note, setNote] = useState("");
-  async function invite() {
-    const url = window.location.origin + window.location.pathname + "?play=1";
-    const text = "Come play Whot with me on Wetin Dey";
-    try {
-      if (navigator.share) { await navigator.share({ title: "Whot on Wetin Dey", text, url }); return; }
-    } catch { return; }
-    try { await navigator.clipboard.writeText(url); setNote("Link copied. Send it to your friends."); }
-    catch { window.prompt("Copy this link and send it to your friends", url); }
-  }
-  return (
-    <div className="mt-5 flex w-full max-w-[260px] flex-col gap-3">
-      {canInvite ? (
-        <button type="button" onClick={invite} className="rounded-2xl bg-amber-500 px-6 py-3 text-base font-extrabold text-black active:scale-95">
-          Invite friends to play
-        </button>
-      ) : null}
-      {note ? <p className="text-center text-sm text-green-300">{note}</p> : null}
-      <button type="button" onClick={onQuit} className="rounded-2xl border border-white/30 px-6 py-3 text-base font-bold text-white active:scale-95">
-        Back to lobby
-      </button>
     </div>
   );
 }
@@ -225,7 +199,6 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
   const [calledSuit, setCalledSuit] = useState<WhotSuit | null>(null);
   const [lastAction, setLastAction] = useState("Game started!");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [hasDeclaredLastCard, setHasDeclaredLastCard] = useState(false);
   const [wins, setWins] = useState(0);
   const [losses, setLosses] = useState(0);
 
@@ -261,14 +234,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
 
     const timer = setTimeout(async () => {
       const opponentCardCounts = game.players.filter((p: string) => p !== "bot").map((p: string) => state.hands[p]?.length || 0);
-      const move = getBotMove(
-        state.hands["bot"] || [],
-        topCard,
-        state.calledSuit,
-        state.activePenalty,
-        state.penaltyType,
-        opponentCardCounts
-      );
+      const move = getBotMove(state.hands["bot"] || [], topCard, state.calledSuit, state.activePenalty, state.penaltyType, opponentCardCounts);
       
       let newState = { ...state };
       let newHands = { ...state.hands };
@@ -279,61 +245,34 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
         if (newDeck.length < drawAmount) newDeck = [...newDeck, ...state.discard.slice(0, -1).sort(() => Math.random() - 0.5)];
         const drawn = newDeck.splice(0, drawAmount);
         newHands["bot"] = [...(newHands["bot"] || []), ...drawn];
-        
-        newState = {
-          ...state,
-          deck: newDeck,
-          hands: newHands,
-          turn: getNextTurn(game.players, "bot"),
-          activePenalty: 0,
-          penaltyType: null
-        };
+        newState = { ...state, deck: newDeck, hands: newHands, turn: getNextTurn(game.players, "bot"), activePenalty: 0, penaltyType: null };
         setLastAction("🤖 Bot picked " + drawAmount + " card(s).");
       } else if (move.action === "play") {
         const newHand = (newHands["bot"] || []).filter(c => c.id !== move.card?.id);
         newHands["bot"] = newHand;
-        
         let nextTurn = getNextTurn(game.players, "bot");
         let activePenalty = state.activePenalty;
         let penaltyType = state.penaltyType;
         let actionText = "🤖 Bot played " + getCardName(move.card!);
 
         if (move.card!.value === 2) {
-          activePenalty = (penaltyType === "2" ? activePenalty : 0) + 2;
-          penaltyType = "2";
+          activePenalty = (penaltyType === "2" ? activePenalty : 0) + 2; penaltyType = "2";
           actionText += " (Stack: " + activePenalty + ")";
         } else if (move.card!.value === 1 || move.card!.value === 8) {
           const botIdx = game.players.indexOf("bot");
           nextTurn = game.players[(botIdx + 2) % game.players.length];
-          activePenalty = 0; penaltyType = null;
-          actionText += ". Next player suspended!";
+          activePenalty = 0; penaltyType = null; actionText += ". Next player suspended!";
         } else if (move.card!.value === 14) {
           for (const p of game.players) {
             if (p !== "bot") {
               if (newDeck.length === 0) newDeck = [...state.discard.slice(0, -1)].sort(() => Math.random() - 0.5);
-              const drawn = newDeck.splice(0, 1);
-              newHands[p] = [...(newHands[p] || []), ...drawn];
+              const drawn = newDeck.splice(0, 1); newHands[p] = [...(newHands[p] || []), ...drawn];
             }
           }
-          nextTurn = "bot";
-          activePenalty = 0; penaltyType = null;
-          actionText += ". Everyone picks 1!";
-        } else {
-          activePenalty = 0; penaltyType = null;
-        }
+          nextTurn = "bot"; activePenalty = 0; penaltyType = null; actionText += ". Everyone picks 1!";
+        } else { activePenalty = 0; penaltyType = null; }
 
-        newState = {
-          ...state,
-          deck: newDeck,
-          hands: newHands,
-          discard: [...state.discard, move.card!],
-          turn: nextTurn,
-          calledSuit: move.calledSuit || null,
-          winner: newHand.length === 0 ? "bot" : null,
-          status: newHand.length === 0 ? "finished" : "playing",
-          activePenalty,
-          penaltyType
-        };
+        newState = { ...state, deck: newDeck, hands: newHands, discard: [...state.discard, move.card!], turn: nextTurn, calledSuit: move.calledSuit || null, winner: newHand.length === 0 ? "bot" : null, status: newHand.length === 0 ? "finished" : "playing", activePenalty, penaltyType };
         setLastAction(actionText);
       }
       
@@ -348,13 +287,8 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
   function handleCardClick(card: WhotCard) {
     if (!isMyTurn || isProcessing) return;
     if (!canPlayCard(card, topCard, state.calledSuit, state.activePenalty, state.penaltyType)) return;
-    
-    if (card.suit === "whot") {
-      setSelectedCard(card);
-      setSuitPickerOpen(true);
-    } else {
-      playCard(card, null);
-    }
+    if (card.suit === "whot") { setSelectedCard(card); setSuitPickerOpen(true); }
+    else { playCard(card, null); }
   }
 
   async function handleSuitPick(suit: WhotSuit) {
@@ -367,54 +301,28 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
     const newHand = (state.hands[sessionId] || []).filter(c => c.id !== card.id);
     let newHands = { ...state.hands, [sessionId]: newHand };
     let newDeck = [...state.deck];
-    
     let nextTurn = getNextTurn(game.players, sessionId);
     let activePenalty = state.activePenalty;
     let penaltyType = state.penaltyType;
     let actionText = "You played " + getCardName(card);
 
     if (card.value === 2) {
-      activePenalty = (penaltyType === "2" ? activePenalty : 0) + 2;
-      penaltyType = "2";
-      actionText += " (Stack: " + activePenalty + ")";
+      activePenalty = (penaltyType === "2" ? activePenalty : 0) + 2; penaltyType = "2"; actionText += " (Stack: " + activePenalty + ")";
     } else if (card.value === 1 || card.value === 8) {
-      nextTurn = game.players[(myIdx + 2) % game.players.length];
-      activePenalty = 0; penaltyType = null;
-      actionText += ". Next player suspended!";
+      nextTurn = game.players[(myIdx + 2) % game.players.length]; activePenalty = 0; penaltyType = null; actionText += ". Next player suspended!";
     } else if (card.value === 14) {
       for (const p of game.players) {
         if (p !== sessionId) {
           if (newDeck.length === 0) newDeck = [...state.discard.slice(0, -1)].sort(() => Math.random() - 0.5);
-          const drawn = newDeck.splice(0, 1);
-          newHands[p] = [...(newHands[p] || []), ...drawn];
+          const drawn = newDeck.splice(0, 1); newHands[p] = [...(newHands[p] || []), ...drawn];
         }
       }
-      nextTurn = sessionId;
-      activePenalty = 0; penaltyType = null;
-      actionText += ". Everyone picks 1!";
-    } else {
-      activePenalty = 0; penaltyType = null;
-    }
+      nextTurn = sessionId; activePenalty = 0; penaltyType = null; actionText += ". Everyone picks 1!";
+    } else { activePenalty = 0; penaltyType = null; }
 
-    const newState: WhotState = {
-      ...state,
-      deck: newDeck,
-      hands: newHands,
-      discard: [...state.discard, card],
-      turn: nextTurn,
-      calledSuit: suit,
-      winner: newHand.length === 0 ? sessionId : null,
-      status: newHand.length === 0 ? "finished" : "playing",
-      activePenalty,
-      penaltyType
-    };
-    
-    setLastAction(actionText);
-    playProfile("bbm", "send");
-    vibrate(30);
-    await syncState(newState);
-    setSelectedCard(null);
-    setIsProcessing(false);
+    const newState: WhotState = { ...state, deck: newDeck, hands: newHands, discard: [...state.discard, card], turn: nextTurn, calledSuit: suit, winner: newHand.length === 0 ? sessionId : null, status: newHand.length === 0 ? "finished" : "playing", activePenalty, penaltyType };
+    setLastAction(actionText); playProfile("bbm", "send"); vibrate(30);
+    await syncState(newState); setSelectedCard(null); setIsProcessing(false);
   }
 
   async function pickFromMarket() {
@@ -422,171 +330,123 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
     setIsProcessing(true);
     let newDeck = [...state.deck];
     let newHand = [...(state.hands[sessionId] || [])];
-    
     const drawAmount = state.activePenalty > 0 ? state.activePenalty : 1;
     if (newDeck.length < drawAmount) newDeck = [...newDeck, ...state.discard.slice(0, -1).sort(() => Math.random() - 0.5)];
-    const drawn = newDeck.splice(0, drawAmount);
-    newHand.push(...drawn);
-    
-    const newState = {
-      ...state,
-      deck: newDeck,
-      hands: { ...state.hands, [sessionId]: newHand },
-      turn: getNextTurn(game.players, sessionId),
-      activePenalty: 0,
-      penaltyType: null,
-    };
-    setLastAction("You picked " + drawAmount + " card(s).");
-    playProfile("bbm", "send");
-    await syncState(newState);
-    setIsProcessing(false);
+    const drawn = newDeck.splice(0, drawAmount); newHand.push(...drawn);
+    const newState = { ...state, deck: newDeck, hands: { ...state.hands, [sessionId]: newHand }, turn: getNextTurn(game.players, sessionId), activePenalty: 0, penaltyType: null };
+    setLastAction("You picked " + drawAmount + " card(s)."); playProfile("bbm", "send");
+    await syncState(newState); setIsProcessing(false);
   }
 
   if (!state || !state.hands) return <div className="text-center text-white p-4">Dealing cards...</div>;
 
   return ((bubbles: Record<string, string>) => (
-    <div className="relative flex h-full w-full select-none flex-col overflow-hidden rounded-xl bg-[#1a0f0a]">
+    <div className="relative flex h-full w-full select-none flex-col overflow-hidden bg-[#1a0f0a]">
       <VoiceReactions bubbles={bubbles} />
 
-      {/* Thick wooden rim */}
-      <div className="m-1.5 flex min-h-[320px] flex-1 flex-col rounded-[2rem] bg-gradient-to-br from-[#7a4f2a] via-[#5a3a1e] to-[#3b2412] p-3 shadow-[0_10px_30px_rgba(0,0,0,0.7)]">
+      {/* Main Table Area */}
+      <div className="m-2 flex flex-1 flex-col overflow-hidden rounded-2xl border-[6px] border-[#3b2412] bg-[radial-gradient(ellipse_at_center,#1f7a3f_0%,#14572c_55%,#0b3a1c_100%)] shadow-[inset_0_0_30px_rgba(0,0,0,0.8)] relative">
+        
+        {/* Quit Button */}
+        <button onClick={onQuit} aria-label="Quit game" className="absolute right-2 top-2 z-50 flex h-9 w-9 items-center justify-center rounded-full bg-red-600 text-white shadow-lg ring-2 ring-white/30 active:scale-90">
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+        </button>
 
-        {/* Green felt */}
-        <div className="relative flex-1 overflow-hidden rounded-[1.4rem] bg-[radial-gradient(ellipse_at_center,#1f7a3f_0%,#14572c_55%,#0b3a1c_100%)] shadow-[inset_0_0_40px_rgba(0,0,0,0.75)]">
+        {/* Top Section: Opponents */}
+        <div className="flex justify-center gap-2 px-4 pt-3 pb-1 shrink-0">
+          {opponents.slice(0, 3).map((opp) => (
+            <Seat key={opp} seed={opp} name={nameOf(opp)} count={state.hands[opp]?.length || 0} isTurn={state.turn === opp && state.status === "playing"} wins={Number(game.ranks?.[opp] ?? 0)} bubble={bubbles[opp]} />
+          ))}
+        </div>
 
-          {/* Red X quit, top right */}
-          <button
-            type="button"
-            onClick={onQuit}
-            aria-label="Quit game"
-            className="absolute right-2 top-2 z-50 flex h-10 w-10 items-center justify-center rounded-full bg-red-600 text-white shadow-lg ring-2 ring-white/40 active:scale-90"
-          >
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3.5} strokeLinecap="round">
-              <path d="M6 6l12 12M18 6L6 18" />
-            </svg>
-          </button>
-
-          {/* Up to 3 opponents */}
-          {(() => {
-            const slots = opponents.length === 1 ? ["top"] : opponents.length === 2 ? ["left", "right"] : ["left", "top", "right"];
-            const pos: Record<string, string> = {
-              top: "left-1/2 top-2 -translate-x-1/2",
-              left: "left-2 top-1/2 -translate-y-1/2",
-              right: "right-2 top-1/2 -translate-y-1/2 mr-0"
-            };
-            return opponents.slice(0, 3).map((opp: string, i: number) => (
-              <div key={opp} className={"absolute z-30 " + pos[slots[i]]}>
-                <Seat
-                  seed={opp}
-                  name={nameOf(opp)}
-                  count={state.hands[opp]?.length || 0}
-                  isTurn={state.turn === opp && state.status === "playing"}
-                  wins={Number(game.ranks?.[opp] ?? 0)}
-                  bubble={bubbles[opp]}
-                />
-              </div>
-            ));
-          })()}
-
-          {/* Centre of the table */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="flex items-center gap-6">
-              <button
-                type="button"
-                onClick={pickFromMarket}
-                disabled={!isMyTurn || isProcessing}
-                className={"relative flex flex-col items-center transition-transform " + (isMyTurn ? "active:scale-95" : "opacity-60")}
-              >
-                <WhotBack />
-                <span className="absolute -bottom-5 text-[10px] font-bold uppercase tracking-widest text-amber-200">
-                  Market ({state.deck.length})
-                </span>
-              </button>
-
-              <div className="relative h-24 w-16">
-                {state.discard.slice(-2).map((c, i, arr) => (
-                  <div key={c.id} className="absolute inset-0" style={{ transform: "rotate(" + (i === arr.length - 1 ? 0 : -8) + "deg)" }}>
-                    <div className="flex h-full w-full flex-col justify-between rounded-lg border border-black/20 bg-[#fdfbf7] p-1.5 text-[#8B3A35] shadow-2xl">
-                      <div className="text-sm font-bold leading-none">{c.value}</div>
-                      <div className="flex scale-75 justify-center">
-                        {c.suit === "whot" ? <span className="text-sm font-black">WHOT</span> : <SuitIcon suit={c.suit} />}
-                      </div>
-                      <div className="self-end rotate-180 text-sm font-bold leading-none">{c.value}</div>
-                    </div>
-                  </div>
-                ))}
-                {state.calledSuit ? (
-                  <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-300">
-                    Play: {state.calledSuit}
-                  </span>
-                ) : null}
-              </div>
-            </div>
-          </div>
-
-          {/* Status line */}
-          <div className="absolute inset-x-0 bottom-[7.5rem] z-20 flex justify-center px-3">
-            <span className={"rounded-full px-3 py-1 text-[11px] font-extrabold uppercase tracking-widest " + (isMyTurn ? "animate-pulse bg-amber-400 text-black" : "bg-black/50 text-white/70")}>
+        {/* Middle Section: Center Table */}
+        <div className="flex-1 flex flex-col items-center justify-center relative">
+          
+          {/* Status Banner */}
+          <div className="absolute top-0 inset-x-0 flex justify-center z-10">
+            <span className={"rounded-full px-4 py-1 text-[10px] font-extrabold uppercase tracking-widest shadow-lg " + (isMyTurn ? "animate-pulse bg-amber-400 text-black border border-amber-300" : "bg-black/60 text-white/70 border border-white/10")}>
               {isMyTurn ? "Your turn" : lastAction}
             </span>
           </div>
 
-          {/* My seat */}
-          <div className="absolute inset-x-0 bottom-0 z-40">
-            <div className="flex items-end justify-between px-3">
-              <div className="relative flex items-center gap-2">
-                <div className={"rounded-full ring-4 " + (isMyTurn ? "ring-amber-400" : rankOf(wins).ring)}>
-                  <Alama seed={mySeed || sessionId} size={40} />
-                </div>
-                <div className="leading-tight">
-                  <div className="max-w-[110px] truncate text-sm font-bold text-amber-50">{myHandle}</div>
-                  <span className={"rounded-full px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide " + rankOf(wins).chip}>
-                    {rankOf(wins).icon} {rankOf(wins).name} · {wins}W {losses}L
-                  </span>
-                </div>
-                {bubbles[sessionId] ? (
-                  <div className="absolute bottom-full left-6 mb-1 w-max max-w-[150px] rounded-xl bg-white px-2 py-1 text-[11px] font-bold leading-tight text-black shadow-lg">
-                    {bubbles[sessionId]}
-                  </div>
-                ) : null}
-              </div>
-              <VoiceToggle />
-            </div>
+          <div className="flex items-center gap-6 mt-4">
+            {/* Market */}
+            <button onClick={pickFromMarket} disabled={!isMyTurn || isProcessing} className={"flex flex-col items-center transition-transform " + (isMyTurn ? "active:scale-95 hover:-translate-y-1" : "opacity-60")}>
+              <WhotBack />
+              <span className="mt-1 text-[10px] font-bold uppercase tracking-widest text-amber-200">Market ({state.deck.length})</span>
+            </button>
 
-            <div className="relative mx-auto mt-1 h-28 w-full max-w-md">
-              {myHand.map((card, index) => {
-                const n = myHand.length;
-                const mid = (n - 1) / 2;
-                const spread = Math.min(34, 280 / Math.max(n, 1));
-                const rot = (index - mid) * Math.min(6, 40 / Math.max(n, 1));
-                const dy = Math.pow(Math.abs(index - mid), 2) * 1.4;
-                const playable = isMyTurn && canPlayCard(card, topCard, state.calledSuit, state.activePenalty, state.penaltyType);
-                const lift = selectedCard?.id === card.id ? -26 : playable ? -12 : 0;
-                return (
-                  <button
-                    key={card.id}
-                    type="button"
-                    onClick={() => handleCardClick(card)}
-                    aria-label={getCardName(card)}
-                    className={"absolute bottom-0 left-1/2 -ml-8 origin-bottom transition-transform duration-200 " + (isMyTurn && !playable ? "opacity-60 saturate-50" : "")}
-                    style={{
-                      transform: "translateX(" + (index - mid) * spread + "px) translateY(" + (dy + lift) + "px) rotate(" + rot + "deg)",
-                      zIndex: index
-                    }}
-                  >
-                    <div className={"flex h-24 w-16 flex-col justify-between rounded-lg border bg-[#fdfbf7] p-1.5 text-[#8B3A35] shadow-xl " + (playable ? "border-amber-400" : "border-black/20")}>
-                      <div className="text-left text-sm font-bold leading-none">{card.value}</div>
-                      <div className="flex scale-75 justify-center">
-                        {card.suit === "whot" ? <span className="text-sm font-black">WHOT</span> : <SuitIcon suit={card.suit} />}
-                      </div>
-                      <div className="self-end rotate-180 text-sm font-bold leading-none">{card.value}</div>
-                    </div>
-                  </button>
-                );
-              })}
+            {/* Discard */}
+            <div className="relative h-24 w-16">
+              {state.discard.slice(-2).map((c, i, arr) => (
+                <div key={c.id} className="absolute inset-0 transition-transform duration-300" style={{ transform: "rotate(" + (i === arr.length - 1 ? 0 : -8) + "deg)" }}>
+                  <div className="flex h-full w-full flex-col justify-between rounded-lg border border-black/20 bg-[#fdfbf7] p-1.5 text-[#8B3A35] shadow-xl">
+                    <div className="text-sm font-bold leading-none">{c.value}</div>
+                    <div className="flex scale-75 justify-center">{c.suit === "whot" ? <span className="text-sm font-black">WHOT</span> : <SuitIcon suit={c.suit} />}</div>
+                    <div className="self-end rotate-180 text-sm font-bold leading-none">{c.value}</div>
+                  </div>
+                </div>
+              ))}
+              {state.calledSuit && (
+                <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/80 px-2 py-0.5 text-[9px] font-bold uppercase text-amber-300">
+                  Play: {state.calledSuit}
+                </div>
+              )}
             </div>
           </div>
         </div>
+
+        {/* Bottom Section: My Info & Hand */}
+        <div className="shrink-0 pb-2 px-2 relative z-20">
+          {/* Player Info Row */}
+          <div className="flex items-center justify-between mb-2 px-1">
+            <div className="relative flex items-center gap-2">
+              <div className={"rounded-full ring-2 " + (isMyTurn ? "ring-amber-400" : rankOf(wins).ring)}>
+                <Alama seed={mySeed || sessionId} size={32} />
+              </div>
+              <div className="leading-tight flex flex-col items-start">
+                <span className="max-w-[90px] truncate text-xs font-bold text-amber-50">{myHandle}</span>
+                <span className={"rounded-full px-1.5 py-0.5 text-[8px] font-extrabold uppercase tracking-wide " + rankOf(wins).chip}>{rankOf(wins).icon} {rankOf(wins).name}</span>
+              </div>
+              <Bubble text={bubbles[sessionId]} />
+            </div>
+            
+            <div className="flex flex-col items-end">
+              <span className="text-[9px] text-white/50 mb-0.5">{wins}W {losses}L</span>
+              <VoiceToggle />
+            </div>
+          </div>
+
+          {/* Fanned Hand */}
+          <div className="relative mx-auto h-28 w-full max-w-sm">
+            {myHand.map((card, index) => {
+              const n = myHand.length;
+              const mid = (n - 1) / 2;
+              const spread = Math.min(32, 260 / Math.max(n, 1));
+              const rot = (index - mid) * Math.min(6, 40 / Math.max(n, 1));
+              const dy = Math.pow(Math.abs(index - mid), 2) * 1.2;
+              const playable = isMyTurn && canPlayCard(card, topCard, state.calledSuit, state.activePenalty, state.penaltyType);
+              const lift = selectedCard?.id === card.id ? -20 : playable ? -10 : 0;
+              return (
+                <button
+                  key={card.id}
+                  type="button"
+                  onClick={() => handleCardClick(card)}
+                  aria-label={getCardName(card)}
+                  className={"absolute bottom-0 left-1/2 -ml-8 origin-bottom transition-transform duration-200 " + (isMyTurn && !playable ? "opacity-60 saturate-50" : "")}
+                  style={{ transform: "translateX(" + (index - mid) * spread + "px) translateY(" + (dy + lift) + "px) rotate(" + rot + "deg)", zIndex: index }}
+                >
+                  <div className={"flex h-24 w-16 flex-col justify-between rounded-lg border bg-[#fdfbf7] p-1.5 text-[#8B3A35] shadow-xl " + (playable ? "border-amber-400" : "border-black/20")}>
+                    <div className="text-left text-sm font-bold leading-none">{card.value}</div>
+                    <div className="flex scale-75 justify-center">{card.suit === "whot" ? <span className="text-sm font-black">WHOT</span> : <SuitIcon suit={card.suit} />}</div>
+                    <div className="self-end rotate-180 text-sm font-bold leading-none">{card.value}</div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
       </div>
 
       {/* Suit picker */}
@@ -596,13 +456,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
             <h3 className="mb-3 text-lg font-bold text-amber-100">Pick a Suit</h3>
             <div className="flex gap-3">
               {(["circle", "triangle", "cross", "star", "square"] as const).map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => handleSuitPick(s)}
-                  aria-label={s}
-                  className="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-black/40 text-white transition-transform hover:border-amber-500 active:scale-90"
-                >
+                <button key={s} type="button" onClick={() => handleSuitPick(s)} aria-label={s} className="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-black/40 text-white transition-transform hover:border-amber-500 active:scale-90">
                   <div className="scale-75"><SuitIcon suit={s} /></div>
                 </button>
               ))}
@@ -611,15 +465,15 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
         </div>
       )}
 
-      {/* Game over + invite funnel */}
+      {/* Game over */}
       {state.status === "finished" && (
         <div className="absolute inset-0 z-[110] flex flex-col items-center justify-center bg-black/90 p-6 text-center">
           <div className="mb-3 text-6xl">{state.winner === sessionId ? "🏆" : "😔"}</div>
-          <h2 className="text-3xl font-black text-white">
-            {state.winner === sessionId ? "You won!" : nameOf(state.winner || "") + " won!"}
-          </h2>
+          <h2 className="text-3xl font-black text-white">{state.winner === sessionId ? "You won!" : nameOf(state.winner || "") + " won!"}</h2>
           <p className="mt-2 text-sm text-white/60">Enjoyed it? Bring your people to the table.</p>
-          <PostGameActions onQuit={onQuit} canInvite={!game.dm_thread_id} />
+          <div className="mt-5 flex w-full max-w-[260px] flex-col gap-3">
+            <button type="button" onClick={onQuit} className="rounded-2xl border border-white/30 px-6 py-3 text-base font-bold text-white active:scale-95">Back to lobby</button>
+          </div>
         </div>
       )}
     </div>
