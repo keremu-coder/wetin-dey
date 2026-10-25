@@ -411,14 +411,14 @@ export function VoiceRoom({
                 mySeed={mySeed}
               />
             </div>
-            {chatContent ? (
+            {isFullScreen && chatContent ? (
               <div aria-label="Chat" className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-lg border border-white/10 bg-paper text-ink">
                 {chatContent}
               </div>
             ) : null}
           </div>
         )}
-        {!activeGame && chatContent ? (
+        {!activeGame && isFullScreen && chatContent ? (
           <div aria-label="Chat" className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-lg border border-white/10 bg-paper text-ink">
             {chatContent}
           </div>
