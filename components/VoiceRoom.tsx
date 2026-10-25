@@ -70,20 +70,16 @@ function AudioStatus() {
 function PrivacyMute() {
   const { localParticipant } = useLocalParticipant();
   useEffect(() => {
-    if (!localParticipant) return;
-    const muteMicrophone = () => {
-      localParticipant.setMicrophoneEnabled(false).catch(() => {});
-    };
     const handleVisibilityChange = () => {
-      if (document.hidden) muteMicrophone();
+      if (!localParticipant) return;
+      const pub = Array.from(localParticipant.audioTrackPublications.values())[0];
+      if (pub?.track) {
+        if (document.hidden) pub.track.mute();
+        else pub.track.unmute();
+      }
     };
-    if (document.hidden) muteMicrophone();
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("pagehide", muteMicrophone);
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("pagehide", muteMicrophone);
-    };
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [localParticipant]);
   return null;
 }
@@ -385,15 +381,15 @@ export function VoiceRoom({
               </div>
             )}
             <div className="w-full shrink-0 relative">
-              <WhotGame 
+              <div className="shrink-0 w-full relative z-30"><WhotGame 
                 game={activeGame} 
                 isPlayer={isPlayer} 
                 sessionId={currentSessionId} 
                 onQuit={quitGame}
                 mySeed={mySeed}
               />
-            </div>
-          </div>
+        </div>
+      </div>
         )}
       </div>
     </div>
