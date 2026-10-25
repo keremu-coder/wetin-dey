@@ -975,16 +975,21 @@ export function ChatRoom({
           </div>
         );
 
-        return voiceRoomOpen ? (
-          <VoiceRoom
-            roomName={slug}
-            spaceName={name}
-            communityId={communityId}
-            currentSessionId={mySessionId ?? ""}
-            onClose={() => setVoiceRoomOpen(false)}
-            chatContent={chatContent}
-          />
-        ) : chatContent;
+        return (
+          <>
+            {chatContent}
+            {voiceRoomOpen ? (
+              <VoiceRoom
+                roomName={slug}
+                spaceName={name}
+                communityId={communityId}
+                currentSessionId={mySessionId ?? ""}
+                onClose={() => setVoiceRoomOpen(false)}
+                chatContent={chatContent}
+              />
+            ) : null}
+          </>
+        );
       })()}
 
       {inviteOpen ? (
