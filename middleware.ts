@@ -9,7 +9,7 @@ const DEV_EVAL = IS_PROD ? "" : " 'unsafe-eval'";
 function buildCsp(nonce: string): string {
   return [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${DEV_EVAL}${DEV_LIVE}`,
+    `script-src 'self' 'nonce-${nonce}'${DEV_EVAL}${DEV_LIVE}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com data:",
     "img-src 'self' data: blob: https://*.supabase.co",
