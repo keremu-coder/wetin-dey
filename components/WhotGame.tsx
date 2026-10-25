@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { playProfile, unlockAudio, vibrate } from "@/lib/sounds";
-import { WhotCard, WhotSuit, canPlayCard, WhotState, getNext, startWhotGame } from "@/lib/whot";
+import { WhotCard, WhotSuit, canPlayCard, WhotState, getNextTurn, startWhotGame } from "@/lib/whot";
 import { getBotMove } from "@/lib/whot-bot";
 import { Alama } from "./Alama";
 
@@ -83,7 +83,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
           ...state,
           deck: newDeck,
           hands: { ...state.hands, ["bot"]: newHand },
-          turn: getNext(state.players, "bot"),
+          turn: getNextTurn(state.players, "bot"),
         };
         setLastAction("🤖 Bot picked a card.");
       } else {
@@ -92,7 +92,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
           ...state,
           hands: { ...state.hands, ["bot"]: newHand },
           discard: [...state.discard, move.card],
-          turn: getNext(state.players, "bot"),
+          turn: getNextTurn(state.players, "bot"),
           calledSuit: move.calledSuit || null,
           winner: newHand.length === 0 ? "bot" : null,
           status: newHand.length === 0 ? "finished" : "playing",
@@ -132,7 +132,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
       ...state,
       hands: { ...state.hands, [sessionId]: newHand },
       discard: [...state.discard, card],
-      turn: getNext(state.players, sessionId),
+      turn: getNextTurn(state.players, sessionId),
       calledSuit: suit,
       winner: newHand.length === 0 ? sessionId : null,
       status: newHand.length === 0 ? "finished" : "playing",
@@ -160,7 +160,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
       ...state,
       deck: newDeck,
       hands: { ...state.hands, [sessionId]: newHand },
-      turn: getNext(state.players, sessionId),
+      turn: getNextTurn(state.players, sessionId),
       activePenalty: 0,
       penaltyType: null,
     };
