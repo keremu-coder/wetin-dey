@@ -1,9 +1,18 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useRef } from "react";
-import { WhotCard, WhotSuit, canPlayCard, WhotState, getNextTurn } from "@/lib/whot";
-import { getBotMove } from "@/lib/whot-bot";
+import {
+  WhotCard,
+  WhotSuit,
+  WhotState,
+  canPlayCard,
+  getNextTurn,
+  startWhotGame,
+  shuffleDeck
+} from "@/lib/whot";
+import { getBotMove, BotAction } from "@/lib/whot-bot";
 import { playProfile, unlockAudio, vibrate } from "@/lib/sounds";
+import { shareUrl } from "@/lib/share";
 import { Alama } from "./Alama";
 
 const SvgBall = () => <svg viewBox="0 0 24 24" className="w-full h-full fill-current"><circle cx="12" cy="12" r="10"/></svg>;
@@ -32,32 +41,345 @@ function getCardName(card: WhotCard): string {
 
 const DRAG_THRESHOLD = 10;
 
-/** Draws its children at a fixed design size, then shrinks them to fit the space available. */
-function FitBox({ children, baseW = 340, baseH = 440 }: { children: React.ReactNode; baseW?: number; baseH?: number }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const measure = () => {
-      const r = el.getBoundingClientRect();
-      if (!r.width || !r.height) return;
-      setScale(Math.max(0.5, Math.min(1, r.height / baseH, r.width / baseW)));
+type CardSize = "lg" | "md" | "sm" | "xs";
+
+const SIZES: Record<CardSize, {
+  w: number; h: number; corner: number; icon: number; pip: number;
+  backW: number; backH: number; backFont: number; avatar: number;
+}> = {
+  lg: { w: 64, h: 96, corner: 14, icon: 36, pip: 12, backW: 28, backH: 40, backFont: 9, avatar: 30 },
+  md: { w: 52, h: 78, corner: 12, icon: 28, pip: 10, backW: 24, backH: 34, backFont: 8, avatar: 26 },
+  sm: { w: 42, h: 62, corner: 10, icon: 22, pip: 9, backW: 20, backH: 28, backFont: 7, avatar: 20 },
+  xs: { w: 34, h: 50, corner: 9, icon: 18, pip: 8, backW: 16, backH: 23, backFont: 6, avatar: 16 }
+};
+
+const MAT_STYLE: React.CSSProperties = {
+  backgroundColor: "#2b130d",
+  backgroundImage: [
+    "repeating-linear-gradient(45deg, rgba(196,87,47,0.16) 0px, rgba(196,87,47,0.16) 2px, transparent 2px, transparent 14px)",
+    "repeating-linear-gradient(-45deg, rgba(217,164,65,0.10) 0px, rgba(217,164,65,0.10) 2px, transparent 2px, transparent 14px)"
+  ].join(", ")
+};
+
+const KENTE_STYLE: React.CSSProperties = {
+  background:
+    "repeating-linear-gradient(90deg, #c4572f 0px, #c4572f 14px, #d9a441 14px, #d9a441 22px, #2b2f6b 22px, #2b2f6b 36px, #d9a441 36px, #d9a441 44px)"
+};
+
+const RANKS: { name: string; min: number }[] = [
+  { name: "Rookie", min: 0 },
+  { name: "Trader", min: 5 },
+  { name: "Oga", min: 15 },
+  { name: "Chairman", min: 30 },
+  { name: "Igwe", min: 60 }
+];
+
+function getRank(wins: number): { name: string; next: { name: string; need: number } | null } {
+  let idx = 0;
+  for (let i = 0; i < RANKS.length; i++) {
+    if (wins >= RANKS[i].min) idx = i;
+  }
+  const nxt = idx + 1 < RANKS.length ? RANKS[idx + 1] : null;
+  return {
+    name: RANKS[idx].name,
+    next: nxt ? { name: nxt.name, need: nxt.min - wins } : null
+  };
+}
+
+type VoiceMode = "male" | "female" | "off";
+const VOICE_KEY = "whot_voice";
+
+function getSynth(): SpeechSynthesis | null {
+  if (typeof window === "undefined") return null;
+  return typeof window.speechSynthesis !== "undefined" ? window.speechSynthesis : null;
+}
+
+function pickVoice(mode: "male" | "female"): SpeechSynthesisVoice | null {
+  const synth = getSynth();
+  if (!synth) return null;
+  const voices = synth.getVoices();
+  if (voices.length === 0) return null;
+  const english = voices.filter((v) => /^en([-_]|$)/i.test(v.lang));
+  const pool = english.length > 0 ? english : voices;
+  const nigerian = pool.filter((v) => /^en[-_]NG/i.test(v.lang));
+  const candidates = nigerian.length > 0 ? nigerian : pool;
+  const femaleRe = /female|woman|samantha|victoria|karen|moira|tessa|fiona|zira|susan|hazel|serena|kate|allison|ava|joanna/i;
+  const maleRe = /\bmale\b|daniel|alex|fred|david|mark|george|oliver|arthur|aaron|james/i;
+  const wanted = mode === "female" ? femaleRe : maleRe;
+  const hit = candidates.find((v) => wanted.test(v.name));
+  return hit ?? null;
+}
+
+function speakText(mode: VoiceMode, text: string): void {
+  if (mode === "off") return;
+  const synth = getSynth();
+  if (!synth) return;
+  const say = () => {
+    try {
+      const u = new SpeechSynthesisUtterance(text);
+      const v = pickVoice(mode);
+      if (v) {
+        u.voice = v;
+        u.lang = v.lang;
+      }
+      u.pitch = mode === "female" ? (v ? 1.1 : 1.35) : (v ? 0.9 : 0.7);
+      u.rate = 1.02;
+      u.volume = 1;
+      synth.speak(u);
+    } catch {
+    }
+  };
+  try {
+    if (synth.speaking || synth.pending) {
+      synth.cancel();
+      window.setTimeout(say, 60);
+    } else {
+      say();
+    }
+  } catch {
+  }
+}
+
+const ALL_SUITS: WhotSuit[] = ["circle", "triangle", "cross", "square", "star"];
+
+function bestSuitFor(hand: WhotCard[]): WhotSuit {
+  const counts: Record<WhotSuit, number> = { circle: 0, triangle: 0, cross: 0, square: 0, star: 0 };
+  for (const c of hand) {
+    if (c.suit !== "whot") counts[c.suit]++;
+  }
+  let best: WhotSuit = "circle";
+  let max = -1;
+  for (const s of ALL_SUITS) {
+    if (counts[s] > max) {
+      max = counts[s];
+      best = s;
+    }
+  }
+  return best;
+}
+
+function stateSignature(s: WhotState | null | undefined): string {
+  if (!s || !s.hands || !s.discard) return "";
+  const counts = Object.keys(s.hands)
+    .sort()
+    .map((id) => id + ":" + (s.hands[id]?.length ?? 0))
+    .join(",");
+  const top = s.discard[s.discard.length - 1];
+  return [
+    s.status,
+    s.turn,
+    s.discard.length,
+    top ? top.id : "-",
+    s.deck ? s.deck.length : 0,
+    counts,
+    s.activePenalty,
+    s.penaltyType ?? "-",
+    s.calledSuit ?? "-",
+    s.winner ?? "-"
+  ].join("|");
+}
+
+function drawCards(
+  deck: WhotCard[],
+  discard: WhotCard[],
+  count: number
+): { drawn: WhotCard[]; deck: WhotCard[]; discard: WhotCard[] } {
+  let nextDeck = [...deck];
+  let nextDiscard = [...discard];
+  const drawn: WhotCard[] = [];
+  while (drawn.length < count) {
+    if (nextDeck.length === 0) {
+      if (nextDiscard.length <= 1) break;
+      const top = nextDiscard[nextDiscard.length - 1];
+      nextDeck = shuffleDeck(nextDiscard.slice(0, -1));
+      nextDiscard = [top];
+    }
+    const c = nextDeck.shift();
+    if (!c) break;
+    drawn.push(c);
+  }
+  return { drawn, deck: nextDeck, discard: nextDiscard };
+}
+
+function resolvePlay(
+  state: WhotState,
+  players: string[],
+  actorId: string,
+  card: WhotCard,
+  calledSuit: WhotSuit | null,
+  youId: string,
+  nameOf: (id: string) => string
+): { next: WhotState; text: string } {
+  const who = (id: string): string => (id === youId ? "You" : nameOf(id));
+  const hand = (state.hands[actorId] || []).filter((c) => c.id !== card.id);
+  const hands: Record<string, WhotCard[]> = { ...state.hands, [actorId]: hand };
+  let discard = [...state.discard, card];
+  let deck = [...state.deck];
+  let nextTurn = getNextTurn(players, actorId);
+  let text = `${who(actorId)} played ${getCardName(card)}`;
+  let activePenalty = 0;
+  let penaltyType: "2" | "5" | null = null;
+
+  if (card.value === 2) {
+    activePenalty = (state.penaltyType === "2" ? state.activePenalty : 0) + 2;
+    penaltyType = "2";
+    text += ` (Pick ${activePenalty} stacked)`;
+  } else if (card.value === 8) {
+    const skipped = getNextTurn(players, actorId);
+    nextTurn = getNextTurn(players, actorId, 2);
+    text += `. ${who(skipped)} ${skipped === youId ? "are" : "is"} suspended!`;
+  } else if (card.value === 14) {
+    for (const p of players) {
+      if (p === actorId) continue;
+      const d = drawCards(deck, discard, 1);
+      deck = d.deck;
+      discard = d.discard;
+      hands[p] = [...(hands[p] || []), ...d.drawn];
+    }
+    nextTurn = actorId;
+    text += ". General Market: everyone else picks 1!";
+  } else if (card.value === 1) {
+    nextTurn = actorId;
+    text += ". Hold on!";
+  }
+
+  const finished = hand.length === 0;
+  const next: WhotState = {
+    ...state,
+    hands,
+    discard,
+    deck,
+    turn: nextTurn,
+    calledSuit: card.value === 20 ? calledSuit : null,
+    winner: finished ? actorId : null,
+    status: finished ? "finished" : "playing",
+    activePenalty,
+    penaltyType
+  };
+  return { next, text };
+}
+
+function resolvePick(
+  state: WhotState,
+  players: string[],
+  actorId: string
+): { next: WhotState; drawnCount: number } {
+  const amount = state.activePenalty > 0 ? state.activePenalty : 1;
+  const d = drawCards(state.deck, state.discard, amount);
+  const next: WhotState = {
+    ...state,
+    deck: d.deck,
+    discard: d.discard,
+    hands: { ...state.hands, [actorId]: [...(state.hands[actorId] || []), ...d.drawn] },
+    turn: getNextTurn(players, actorId),
+    activePenalty: 0,
+    penaltyType: null
+  };
+  return { next, drawnCount: d.drawn.length };
+}
+
+function normalizeBotMove(
+  move: BotAction,
+  hand: WhotCard[],
+  activePenalty: number,
+  penaltyType: "2" | "5" | null
+): BotAction {
+  if (!move || move.action !== "play") return move;
+  let card = move.card;
+  if (activePenalty > 0 && penaltyType && card.value === 20) {
+    const stack = hand.find((c) => c.value === Number(penaltyType));
+    if (stack) card = stack;
+  }
+  if (card.value === 20) {
+    const chosen = card;
+    return {
+      action: "play",
+      card: chosen,
+      calledSuit: move.calledSuit ?? bestSuitFor(hand.filter((c) => c.id !== chosen.id))
     };
-    measure();
-    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(measure) : null;
-    ro?.observe(el);
-    window.addEventListener("resize", measure);
-    return () => { ro?.disconnect(); window.removeEventListener("resize", measure); };
-  }, [baseW, baseH]);
+  }
+  return { action: "play", card };
+}
+
+function CardFace({ card, size, style }: { card: WhotCard; size: CardSize; style?: React.CSSProperties }) {
+  const sz = SIZES[size];
+  const isWhot = card.value === 20;
+  const ink = isWhot ? "#2b2f6b" : "#8B3A2B";
   return (
-    <div ref={ref} className="absolute inset-0 overflow-hidden">
-      <div style={{ width: 100 / scale + "%", height: 100 / scale + "%", transform: "scale(" + scale + ")", transformOrigin: "top left" }}>
-        {children}
+    <div
+      role="img"
+      aria-label={getCardName(card)}
+      className="relative shrink-0 select-none overflow-hidden rounded-md border border-[#e4d5b8] bg-[#FBF4E6] shadow-md"
+      style={{ width: sz.w, height: sz.h, color: ink, ...style }}
+    >
+      <div className="absolute left-1 top-0.5 flex flex-col items-center leading-none">
+        <span className="font-bold" style={{ fontSize: sz.corner }}>{card.value}</span>
+        <span className="mt-0.5 block" style={{ width: sz.pip, height: sz.pip }}><SuitIcon suit={card.suit} /></span>
+      </div>
+      <div className="flex h-full w-full items-center justify-center">
+        {isWhot ? (
+          <span className="font-black leading-none tracking-tighter" style={{ fontSize: Math.round(sz.icon * 0.42) }}>WHOT</span>
+        ) : (
+          <span className="block" style={{ width: sz.icon, height: sz.icon }}><SuitIcon suit={card.suit} /></span>
+        )}
+      </div>
+      <div className="absolute bottom-0.5 right-1 flex rotate-180 flex-col items-center leading-none">
+        <span className="font-bold" style={{ fontSize: sz.corner }}>{card.value}</span>
+        <span className="mt-0.5 block" style={{ width: sz.pip, height: sz.pip }}><SuitIcon suit={card.suit} /></span>
       </div>
     </div>
   );
 }
+
+function CardBack({ w, h, font }: { w: number; h: number; font: number }) {
+  return (
+    <div
+      className="relative flex shrink-0 items-center justify-center overflow-hidden rounded-[3px] border border-[#d9a441]/70 shadow-sm"
+      style={{
+        width: w,
+        height: h,
+        backgroundColor: "#2b2f6b",
+        backgroundImage:
+          "repeating-linear-gradient(45deg, rgba(255,255,255,0.07) 0px, rgba(255,255,255,0.07) 3px, transparent 3px, transparent 7px)"
+      }}
+    >
+      <span
+        className="whitespace-nowrap font-black tracking-wider text-[#f3d9a0]"
+        style={{ fontSize: font, lineHeight: 1, transform: "rotate(-90deg)" }}
+      >
+        WHOT
+      </span>
+    </div>
+  );
+}
+
+function VoiceToggle({ mode, onChange }: { mode: VoiceMode; onChange: (m: VoiceMode) => void }) {
+  const opts: { id: VoiceMode; label: string; aria: string }[] = [
+    { id: "male", label: "♂", aria: "Male voice" },
+    { id: "female", label: "♀", aria: "Female voice" },
+    { id: "off", label: "🔇", aria: "Voice off" }
+  ];
+  return (
+    <div role="group" aria-label="Voice reactions" className="flex shrink-0 rounded-full bg-black/40 p-0.5">
+      {opts.map((o) => (
+        <button
+          key={o.id}
+          type="button"
+          aria-label={o.aria}
+          aria-pressed={mode === o.id}
+          onClick={() => onChange(o.id)}
+          className={`h-7 min-w-[28px] rounded-full px-1.5 text-sm font-bold transition-colors ${
+            mode === o.id ? "bg-[#d9a441] text-[#3b1a12]" : "text-white/70"
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+type Snap = { discardLen: number; turn: string; status: string; lastHolders: string[] };
 
 export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: any, isPlayer: boolean, sessionId: string, onQuit: () => void, mySeed?: string }) {
   const state: WhotState = game.game_state;
@@ -65,12 +387,13 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
   const [selectedCard, setSelectedCard] = useState<WhotCard | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [lastAction, setLastAction] = useState<string>("Game started");
-  
-  // Names are supplied by the server (see /api/space-games "get").
+
   const handles: Record<string, string> = game.handles ?? {};
+  const nameOf = (id: string): string =>
+    id === "bot" ? "🤖 Bot" : handles[id] ? "@" + handles[id] : "Player " + ((game.players ?? []).indexOf(id) + 1);
   const [wins, setWins] = useState(0);
   const [losses, setLosses] = useState(0);
-  
+
   const declaredRef = useRef(false);
   const [hasDeclaredLastCard, setHasDeclaredLastCard] = useState(false);
   const [showQuitModal, setShowQuitModal] = useState(false);
@@ -80,9 +403,77 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
   const isDraggingRef = useRef(false);
   const pressedCardRef = useRef<WhotCard | null>(null);
 
+  const [sentSig, setSentSig] = useState("");
+  const [voiceMode, setVoiceMode] = useState<VoiceMode>("male");
+  const voiceModeRef = useRef<VoiceMode>("male");
+  const speechUnlockedRef = useRef(false);
+  const [inviteNote, setInviteNote] = useState("");
+  const [notice, setNotice] = useState("");
+  const noticeTimerRef = useRef<number | null>(null);
+  const [box, setBox] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
+  const rootRef = useRef<HTMLDivElement>(null);
+  const tryPlayRef = useRef<(card: WhotCard) => void>(() => {});
+  const scoreInitRef = useRef(false);
+  const scoredKeyRef = useRef("");
+  const prevSnapRef = useRef<Snap | null>(null);
+
   const topCard = state?.discard[state.discard.length - 1];
   const isMyTurn = state?.turn === sessionId;
   const isBotTurn = state?.turn === "bot";
+
+  const stateSig = stateSignature(state);
+  const iAmSeated = Array.isArray(game.players) && game.players.includes(sessionId);
+  const isWaiting = sentSig !== "" && sentSig === stateSig;
+  const canAct = isMyTurn && state?.status === "playing" && !isProcessing && !isWaiting;
+  const hasState = !!(state && state.hands);
+
+  function wake() {
+    unlockAudio();
+    unlockSpeech();
+  }
+
+  function unlockSpeech() {
+    if (speechUnlockedRef.current) return;
+    const synth = getSynth();
+    if (!synth) return;
+    try {
+      const u = new SpeechSynthesisUtterance(" ");
+      u.volume = 0;
+      synth.speak(u);
+      speechUnlockedRef.current = true;
+    } catch {
+    }
+  }
+
+  function speak(text: string) {
+    if (!iAmSeated) return;
+    speakText(voiceModeRef.current, text);
+  }
+
+  function chooseVoice(mode: VoiceMode) {
+    wake();
+    setVoiceMode(mode);
+    voiceModeRef.current = mode;
+    try { localStorage.setItem(VOICE_KEY, mode); } catch { }
+    if (mode === "off") {
+      const synth = getSynth();
+      if (synth) synth.cancel();
+      return;
+    }
+    speakText(mode, "Oya, make we play!");
+  }
+
+  function flash(text: string) {
+    setNotice(text);
+    if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
+    noticeTimerRef.current = window.setTimeout(() => setNotice(""), 2800);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     unlockAudio();
@@ -90,20 +481,66 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
     setLosses(Number(localStorage.getItem("whot_losses") || 0));
   }, []);
 
-  // Save Score
   useEffect(() => {
-    if (state?.status === "finished") {
-      if (state.winner === sessionId) {
-        const newWins = wins + 1;
-        setWins(newWins);
-        localStorage.setItem("whot_wins", String(newWins));
-      } else if (state.winner === "bot" || (state.winner && state.winner !== sessionId)) {
-        const newLosses = losses + 1;
-        setLosses(newLosses);
-        localStorage.setItem("whot_losses", String(newLosses));
+    let saved: string | null = null;
+    try { saved = localStorage.getItem(VOICE_KEY); } catch { }
+    if (saved === "male" || saved === "female" || saved === "off") {
+      setVoiceMode(saved);
+      voiceModeRef.current = saved;
+    }
+    const synth = getSynth();
+    if (!synth) return;
+    synth.getVoices();
+    const onVoices = () => { synth.getVoices(); };
+    synth.addEventListener("voiceschanged", onVoices);
+    return () => { synth.removeEventListener("voiceschanged", onVoices); };
+  }, []);
+
+  useEffect(() => {
+    if (!hasState) return;
+    const host = rootRef.current ? rootRef.current.parentElement : null;
+    if (!host) return;
+    const measure = () => {
+      const w = host.clientWidth;
+      const h = host.clientHeight;
+      setBox((p) => (p.w === w && p.h === h ? p : { w, h }));
+    };
+    measure();
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(measure) : null;
+    if (ro) ro.observe(host);
+    window.addEventListener("resize", measure);
+    return () => {
+      if (ro) ro.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [hasState]);
+
+  useEffect(() => {
+    if (!state) return;
+    const key = game.id + ":" + state.discard.length + ":" + String(state.winner);
+    if (!scoreInitRef.current) {
+      scoreInitRef.current = true;
+      if (state.status === "finished") {
+        scoredKeyRef.current = key;
+        return;
       }
     }
-  }, [state?.status, state?.winner, sessionId]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (state.status !== "finished") {
+      scoredKeyRef.current = "";
+      return;
+    }
+    if (!iAmSeated || scoredKeyRef.current === key) return;
+    scoredKeyRef.current = key;
+    if (state.winner === sessionId) {
+      const newWins = wins + 1;
+      setWins(newWins);
+      localStorage.setItem("whot_wins", String(newWins));
+    } else if (state.winner === "bot" || (state.winner && state.winner !== sessionId)) {
+      const newLosses = losses + 1;
+      setLosses(newLosses);
+      localStorage.setItem("whot_losses", String(newLosses));
+    }
+  }, [state?.status, state?.winner, sessionId]);
 
   useEffect(() => {
     if (isMyTurn && state?.status === "playing") {
@@ -113,113 +550,81 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
   }, [isMyTurn, state?.status]);
 
   useEffect(() => {
-    if (!isBotTurn || isProcessing || state.status === "finished") return;
+    if (!state || !state.discard || !state.hands) return;
+    const holders = Object.keys(state.hands)
+      .filter((id) => (state.hands[id]?.length ?? 0) === 1)
+      .sort();
+    const next: Snap = {
+      discardLen: state.discard.length,
+      turn: state.turn,
+      status: state.status,
+      lastHolders: holders
+    };
+    const prev = prevSnapRef.current;
+    prevSnapRef.current = next;
+    if (!prev) return;
+
+    if (state.status === "finished" && prev.status !== "finished") {
+      if (state.winner === sessionId) speak("I done win!");
+      else speak("Ah ah! Dem don win me. Make we run am back!");
+      return;
+    }
+    if (state.status !== "playing") return;
+
+    const lines: string[] = [];
+    if (next.discardLen > prev.discardLen) {
+      const top = state.discard[state.discard.length - 1];
+      const actor = prev.turn;
+      if (actor !== sessionId && actor !== "bot") {
+        setLastAction(nameOf(actor) + " played " + getCardName(top));
+      }
+      if (top.value === 2) lines.push("Oya take pick 2!");
+      else if (top.value === 14) lines.push("Go market my guy!");
+      else if (top.value === 1) lines.push("Hold on o!");
+      else if (top.value === 8) lines.push("Suspension! Sit down small.");
+    }
+    if (holders.some((id) => !prev.lastHolders.includes(id))) {
+      lines.push("Last card, check up!");
+    }
+    if (lines.length > 0) speak(lines.join(" "));
+  }, [stateSig]);
+
+  useEffect(() => {
+    if (!isBotTurn || isProcessing || state?.status === "finished") return;
+    if (sentSig !== "" && sentSig === stateSig) return;
 
     const timer = setTimeout(async () => {
       setIsProcessing(true);
-      const opponentCounts = game.players.filter((p: string) => p !== "bot").map((p: string) => state.hands[p]?.length || 0);
-      const move = getBotMove(state.hands["bot"] || [], topCard, state.calledSuit, state.activePenalty, state.penaltyType, opponentCounts);
+      try {
+        const players: string[] = game.players;
+        const botHand: WhotCard[] = state.hands["bot"] || [];
+        const opponentCounts = players.filter((p: string) => p !== "bot").map((p: string) => state.hands[p]?.length || 0);
+        const raw = getBotMove(botHand, topCard, state.calledSuit, state.activePenalty, state.penaltyType, opponentCounts);
+        const move = normalizeBotMove(raw, botHand, state.activePenalty, state.penaltyType);
 
-      if (move && move.action === "pick") {
-        let newDeck = [...state.deck];
-        let newHand = [...(state.hands["bot"] || [])];
-        if (newDeck.length === 0) newDeck = [...state.discard.slice(0, -1)].sort(() => Math.random() - 0.5);
-        
-        const drawAmount = state.activePenalty > 0 ? state.activePenalty : 1;
-        const drawn = newDeck.splice(0, drawAmount);
-        newHand.push(...drawn);
-        
-        const newState: WhotState = {
-          ...state,
-          deck: newDeck,
-          hands: { ...state.hands, ["bot"]: newHand },
-          turn: getNextTurn(game.players, "bot"),
-          activePenalty: 0,
-          penaltyType: null
-        };
-
-        setLastAction(`🤖 Bot picked ${drawAmount} card(s).`);
-        playProfile("bbm", "receive");
-        await fetch("/api/space-games", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action: "update_state", gameId: game.id, game_state: newState })
-      });
-      } 
-      else if (move && move.action === "play") {
-        const newHand = (state.hands["bot"] || []).filter(c => c.id !== move.card.id);
-        const newHands: Record<string, WhotCard[]> = { ...state.hands, ["bot"]: newHand };
-        const newDiscard = [...state.discard, move.card];
-
-        let nextTurn = getNextTurn(game.players, "bot");
-        let newDeck = [...state.deck];
-        let nextHands: Record<string, WhotCard[]> = { ...newHands };
-        let actionText = `🤖 Bot played ${getCardName(move.card)}`;
-        
-        let activePenalty = state.activePenalty;
-        let penaltyType = state.penaltyType;
-
-        if (move.card.value === 2) {
-          activePenalty = (state.penaltyType === "2" ? state.activePenalty : 0) + 2;
-          penaltyType = "2";
-          actionText += ` (Stack: ${activePenalty})`;
-          nextTurn = getNextTurn(game.players, "bot");
-        } else if (move.card.value === 8) {
-          if (move.card.suit === "star") {
-            nextTurn = getNextTurn(game.players, "bot", 2);
-            actionText += ". Next 2 players suspended!";
-          } else {
-            nextTurn = getNextTurn(game.players, "bot", 2);
-            actionText += ". You are suspended!";
-          }
-          activePenalty = 0; penaltyType = null;
-        } else if (move.card.value === 14) {
-          for (const p of game.players) {
-            if (p !== "bot") nextHands[p] = [...nextHands[p], ...newDeck.splice(0, 1)];
-          }
-          actionText += ". You pick 1!";
-          nextTurn = "bot"; // Bot continues
-          activePenalty = 0; penaltyType = null;
-        } else if (move.card.value === 1) {
-          nextTurn = "bot";
-          actionText += ". Bot holds on.";
-          activePenalty = 0; penaltyType = null;
-        } else {
-          activePenalty = 0; penaltyType = null;
+        if (move && move.action === "pick") {
+          const { next, drawnCount } = resolvePick(state, players, "bot");
+          setLastAction(`🤖 Bot picked ${drawnCount} card(s).`);
+          playProfile("bbm", "receive");
+          await pushState(next);
+        } else if (move && move.action === "play") {
+          const { next, text } = resolvePlay(state, players, "bot", move.card, move.calledSuit ?? null, sessionId, nameOf);
+          setLastAction(text);
+          playProfile("bbm", "receive");
+          await pushState(next);
         }
-
-        const newState: WhotState = {
-          ...state,
-          hands: nextHands,
-          discard: newDiscard,
-          deck: newDeck,
-          turn: nextTurn,
-          calledSuit: move.calledSuit || null,
-          winner: newHand.length === 0 ? "bot" : null,
-          status: newHand.length === 0 ? "finished" : "playing",
-          activePenalty,
-          penaltyType
-        };
-
-        setLastAction(actionText);
-        playProfile("bbm", "receive");
-        await fetch("/api/space-games", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action: "update_state", gameId: game.id, game_state: newState })
-      });
+      } finally {
+        setIsProcessing(false);
       }
-      setIsProcessing(false);
     }, 700);
 
     return () => clearTimeout(timer);
-  }, [isBotTurn, state, topCard, isProcessing, game.id, game.players]);
+  }, [isBotTurn, state, topCard, isProcessing, game.id, game.players, sentSig, stateSig]);
 
-  // Global Pointer Handlers
   useEffect(() => {
     function onPointerMove(e: PointerEvent) {
       if (!pressedCardRef.current) return;
-      
+
       const dx = e.clientX - dragStartPos.current.x;
       const dy = e.clientY - dragStartPos.current.y;
 
@@ -243,429 +648,461 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
     function onPointerUp(e: PointerEvent) {
       const card = pressedCardRef.current;
       if (!card) return;
-      
+
       const wasDragging = isDraggingRef.current;
-      
+
       pressedCardRef.current = null;
       dragStartPos.current = { x: 0, y: 0 };
       isDraggingRef.current = false;
       setDragState(null);
 
       if (!wasDragging) {
-        tryPlayCard(card);
+        tryPlayRef.current(card);
         return;
       }
 
       const el = document.elementFromPoint(e.clientX, e.clientY);
       const isOverDiscard = el?.closest('#discard-pile');
       if (isOverDiscard) {
-        tryPlayCard(card);
+        tryPlayRef.current(card);
       }
+    }
+
+    function onPointerCancel() {
+      pressedCardRef.current = null;
+      dragStartPos.current = { x: 0, y: 0 };
+      isDraggingRef.current = false;
+      setDragState(null);
     }
 
     window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointercancel", onPointerCancel);
     return () => {
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerCancel);
     };
-  }, [state.hands, sessionId, state.calledSuit, state.activePenalty, state.penaltyType]);
+  }, [state?.hands, sessionId, state?.calledSuit, state?.activePenalty, state?.penaltyType]);
 
   function handlePointerDown(e: React.PointerEvent, card: WhotCard) {
-    if (!isMyTurn || isProcessing) return;
+    wake();
+    if (!canAct) return;
     dragStartPos.current = { x: e.clientX, y: e.clientY };
     isDraggingRef.current = false;
     pressedCardRef.current = card;
   }
 
+  async function pushState(next: WhotState): Promise<boolean> {
+    setSentSig(stateSignature(state));
+    try {
+      const res = await fetch("/api/space-games", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "update_state", gameId: game.id, game_state: next })
+      });
+      if (!res.ok) {
+        setSentSig("");
+        flash("Move did not send. Check your connection.");
+        return false;
+      }
+      return true;
+    } catch {
+      setSentSig("");
+      flash("Move did not send. Check your connection.");
+      return false;
+    }
+  }
+
   function tryPlayCard(card: WhotCard) {
+    if (!canAct || suitPickerOpen || showQuitModal) return;
     if (!canPlayCard(card, topCard, state.calledSuit, state.activePenalty, state.penaltyType)) {
       vibrate([50, 50]);
+      flash(
+        state.activePenalty > 0
+          ? `Play a ${state.penaltyType} to stack, or pick ${state.activePenalty}`
+          : "That card does not match"
+      );
       return;
     }
     if (card.value === 20) {
       setSelectedCard(card);
       setSuitPickerOpen(true);
     } else {
-      playCard(card);
+      void playCard(card);
     }
   }
 
   async function playCard(card: WhotCard, calledSuit: WhotSuit | null = null) {
-    // Last Card Rule Check (using the ref to avoid stale state)
+    if (!canAct) return;
+    wake();
+
     if ((state.hands[sessionId] || []).length === 2 && !declaredRef.current) {
-      alert("⚠️ You didn't call LAST CARD! You must draw 1 penalty card.");
-      const newDeck = [...state.deck];
-      const drawn = newDeck.splice(0, 1);
-      const newHand = [...(state.hands[sessionId] || []), ...drawn];
-      const newState = {
+      setIsProcessing(true);
+      const draw = drawCards(state.deck, state.discard, 1);
+      const penaltyState: WhotState = {
         ...state,
-        deck: newDeck,
-        hands: { ...state.hands, [sessionId]: newHand },
-        turn: getNextTurn(game.players, sessionId)
+        deck: draw.deck,
+        discard: draw.discard,
+        hands: { ...state.hands, [sessionId]: [...(state.hands[sessionId] || []), ...draw.drawn] },
+        turn: state.activePenalty > 0 ? sessionId : getNextTurn(game.players, sessionId)
       };
-      await fetch("/api/space-games", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action: "update_state", gameId: game.id, game_state: newState })
-      });
+      setSuitPickerOpen(false);
+      setSelectedCard(null);
+      setLastAction("You forgot to call LAST CARD. Penalty: pick 1.");
+      flash("You forgot to call LAST CARD. Penalty: pick 1.");
+      vibrate([80, 40, 80]);
+      await pushState(penaltyState);
+      setIsProcessing(false);
       return;
     }
 
     setIsProcessing(true);
-    
-    const newHand = (state.hands[sessionId] || []).filter(c => c.id !== card.id);
-    const newHands: Record<string, WhotCard[]> = { ...state.hands, [sessionId]: newHand };
-    const newDiscard = [...state.discard, card];
+    const { next, text } = resolvePlay(state, game.players, sessionId, card, calledSuit, sessionId, nameOf);
 
-    let nextTurn = getNextTurn(game.players, sessionId);
-    let newDeck = [...state.deck];
-    let nextHands: Record<string, WhotCard[]> = { ...newHands };
-    let actionText = `You played ${getCardName(card)}`;
-    
-    let activePenalty = state.activePenalty;
-    let penaltyType = state.penaltyType;
-
-    if (card.value === 2) {
-      activePenalty = (state.penaltyType === "2" ? state.activePenalty : 0) + 2;
-      penaltyType = "2";
-      actionText += ` (Stack: ${activePenalty})`;
-      nextTurn = getNextTurn(game.players, sessionId);
-    } else if (card.value === 8) {
-      if (card.suit === "star") {
-        nextTurn = getNextTurn(game.players, sessionId, 2);
-        actionText += ". Next 2 players suspended!";
-      } else {
-        nextTurn = getNextTurn(game.players, sessionId, 2);
-        actionText += ". Bot suspended!";
-      }
-      activePenalty = 0; penaltyType = null;
-    } else if (card.value === 14) {
-      for (const p of game.players) {
-        if (p !== sessionId) nextHands[p] = [...nextHands[p], ...newDeck.splice(0, 1)];
-      }
-      actionText += ". Bot picks 1!";
-      nextTurn = sessionId; // You continue
-      activePenalty = 0; penaltyType = null;
-    } else if (card.value === 1) {
-      nextTurn = sessionId;
-      actionText += ". You hold on.";
-      activePenalty = 0; penaltyType = null;
-    } else {
-      activePenalty = 0; penaltyType = null;
-    }
-
-    const newState: WhotState = {
-      ...state,
-      hands: nextHands,
-      discard: newDiscard,
-      deck: newDeck,
-      turn: nextTurn,
-      calledSuit: calledSuit,
-      winner: newHand.length === 0 ? sessionId : null,
-      status: newHand.length === 0 ? "finished" : "playing",
-      activePenalty,
-      penaltyType
-    };
-
-    setLastAction(actionText);
+    setLastAction(text);
     playProfile("bbm", "send");
     vibrate(30);
-
-    await fetch("/api/space-games", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action: "update_state", gameId: game.id, game_state: newState })
-      });
-    
+    declaredRef.current = false;
+    setHasDeclaredLastCard(false);
     setSuitPickerOpen(false);
     setSelectedCard(null);
+
+    await pushState(next);
     setIsProcessing(false);
   }
 
   async function pickFromMarket() {
-    if (!isMyTurn || isProcessing) return;
+    if (!canAct) return;
+    wake();
     setIsProcessing(true);
-    
-    let newDeck = [...state.deck];
-    let newHand = [...(state.hands[sessionId] || [])];
-    
-    if (newDeck.length === 0) newDeck = [...state.discard.slice(0, -1)].sort(() => Math.random() - 0.5);
 
-    const drawAmount = state.activePenalty > 0 ? state.activePenalty : 1;
-    const drawn = newDeck.splice(0, drawAmount);
-    newHand.push(...drawn);
-    
-    const newState: WhotState = {
-      ...state,
-      deck: newDeck,
-      hands: { ...state.hands, [sessionId]: newHand },
-      turn: getNextTurn(game.players, sessionId), // Turn passes to the player who played the penalty
-      activePenalty: 0,
-      penaltyType: null
-    };
+    const { next, drawnCount } = resolvePick(state, game.players, sessionId);
 
-    setLastAction(`You picked ${drawAmount} card(s).`);
+    setLastAction(`You picked ${drawnCount} card(s).`);
     playProfile("bbm", "send");
-    
-    // Reset Last Card declaration because hand size increased
+
     declaredRef.current = false;
     setHasDeclaredLastCard(false);
 
-    await fetch("/api/space-games", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action: "update_state", gameId: game.id, game_state: newState })
-      });
-    
+    await pushState(next);
     setIsProcessing(false);
   }
+
+  async function playAgain() {
+    if (!iAmSeated || isProcessing || isWaiting) return;
+    wake();
+    setIsProcessing(true);
+    const fresh = startWhotGame(game.players, state.useAnyplay);
+    declaredRef.current = false;
+    setHasDeclaredLastCard(false);
+    setSuitPickerOpen(false);
+    setSelectedCard(null);
+    setShowQuitModal(false);
+    setLastAction("New game started");
+    const ok = await pushState(fresh);
+    if (ok) playProfile("bbm", "mention");
+    setIsProcessing(false);
+  }
+
+  async function inviteFriends() {
+    wake();
+    const origin = window.location.origin;
+    const url = game.dm_thread_id ? origin : origin + window.location.pathname + "?play=1";
+    const res = await shareUrl({
+      url,
+      title: "Whot on Wetin Dey",
+      text: "Come play Whot with me on Wetin Dey"
+    });
+    if (res.ok && res.method === "clipboard") setInviteNote("Link copied!");
+    else if (!res.ok && res.reason === "error") setInviteNote("Could not share. Copy the link from your browser.");
+    else return;
+    window.setTimeout(() => setInviteNote(""), 2500);
+  }
+
+  tryPlayRef.current = tryPlayCard;
 
   if (!state || !state.hands) return <div className="text-center text-muted p-4">Dealing cards...</div>;
 
   const myHand = state.hands[sessionId] || [];
-  const botHandCount = state.hands["bot"]?.length || 0;
-  
+
   const isSemiLast = myHand.length === 2;
   const isLast = myHand.length === 1;
 
-  const CardUI = ({ card, isDragging, style }: any) => {
-    const isWhot = card.value === 20;
-    return (
-      <div
-        style={{ ...style }}
-        className={`relative flex flex-col justify-between items-center bg-[#FDFBF7] rounded-md overflow-hidden select-none shadow-md border-2 border-gray-200 w-16 h-24 shrink-0 transition-transform`}
-      >
-        <div className="absolute top-1 left-1.5 flex flex-col items-center leading-none text-[#8B3A2B]">
-          <span className="text-[0.9rem] font-bold">{card.value}</span>
-          <div className="w-3 h-3 mt-0.5"><SuitIcon suit={card.suit} /></div>
-        </div>
-        <div className="flex-1 flex items-center justify-center w-full px-2">
-           {isWhot ? (
-             <span className="text-[#8B3A2B] font-black text-lg tracking-tighter text-center leading-none">WHOT</span>
-           ) : (
-             <div className="w-10 h-10 text-[#8B3A2B]">
-               <SuitIcon suit={card.suit} />
-             </div>
-           )}
-        </div>
-        <div className="absolute bottom-1 right-1.5 flex flex-col items-center leading-none text-[#8B3A2B] rotate-180">
-          <span className="text-[0.9rem] font-bold">{card.value}</span>
-          <div className="w-3 h-3 mt-0.5"><SuitIcon suit={card.suit} /></div>
-        </div>
-      </div>
-    );
-  };
-
-  const CardBack = () => (
-    <div className="w-5 h-7 bg-[#8B3A2B] border border-[#5A2217] rounded-[2px] shadow-sm shrink-0" />
-  );
-
-  const nameOf = (id: string): string =>
-    id === "bot" ? "🤖 Bot" : handles[id] ? "@" + handles[id] : "Player " + (game.players.indexOf(id) + 1);
   const myHandle = nameOf(sessionId);
+  const rank = getRank(wins);
 
-  // Opponents in turn order, starting with the player after me.
   const myIdx = game.players.indexOf(sessionId);
   const ordered: string[] = myIdx < 0
     ? [...game.players]
     : [...game.players.slice(myIdx + 1), ...game.players.slice(0, myIdx)];
-  const opponents = ordered.filter((p) => p !== sessionId);
+  const opponents = ordered.filter((p) => p !== sessionId).slice(0, 3);
+
+  const tier: CardSize = box.h === 0 ? "lg" : box.h >= 500 ? "lg" : box.h >= 400 ? "md" : box.h >= 320 ? "sm" : "xs";
+  const sz = SIZES[tier];
+
+  const hn = myHand.length;
+  const cw = sz.w;
+  const angleStep = hn > 1 ? Math.min(4, 24 / (hn - 1)) : 0;
+  const maxAngle = (angleStep * (hn - 1)) / 2;
+  const sidePad = Math.ceil(sz.h * Math.sin((maxAngle * Math.PI) / 180)) + 4;
+  const availW = Math.max(cw, (box.w > 0 ? box.w : 320) - 16 - sidePad * 2);
+  const idealStep = cw * 0.72;
+  const fitStep = hn > 1 ? (availW - cw) / (hn - 1) : idealStep;
+  const step = hn > 1 ? Math.max(14, Math.min(idealStep, fitStep)) : 0;
+  const fanWidth = hn > 0 ? cw + step * (hn - 1) : 0;
+
+  let bannerText: string;
+  let bannerClass: string;
+  if (state.status === "finished") {
+    bannerText = state.winner === sessionId ? "You won" : nameOf(state.winner || "") + " won";
+    bannerClass = "bg-black/40 text-white";
+  } else if (notice) {
+    bannerText = notice;
+    bannerClass = "bg-red-700/80 text-white";
+  } else if (isMyTurn) {
+    bannerText = state.activePenalty > 0
+      ? `Your turn. Pick ${state.activePenalty}: stack a ${state.penaltyType} or pick`
+      : isLast ? "Your turn. Play your last card" : "Your turn";
+    bannerClass = "bg-[#d9a441] text-[#2b130d]";
+  } else {
+    bannerText = "Last action: " + lastAction;
+    bannerClass = "bg-black/35 text-white/80";
+  }
+
+  const iWon = state.winner === sessionId;
 
   return (
     <>
-    <FitBox>
-    <div className="w-full h-full flex flex-col bg-[#0a2e16] rounded-xl overflow-hidden relative select-none">
-      
-      {/* Top bar: me + score */}
-      <div className="flex justify-between items-center text-white/90 text-xs p-2 bg-black/40 shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <Alama seed={mySeed || sessionId} size={32} />
-            <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-[#0a2e16] ${state.turn === sessionId ? 'bg-yellow-500' : 'bg-gray-500'}`} />
-          </div>
-          <div>
-            <span className={`px-1 py-1 rounded font-bold text-sm ${state.turn === sessionId ? 'text-yellow-500' : 'text-white/70'}`}>
-              {myHandle}
-            </span>
-            <div className="text-[11px] text-white/60">{myHand.length} cards</div>
-          </div>
-        </div>
+    <div
+      ref={rootRef}
+      className="flex h-full w-full select-none flex-col overflow-y-auto overflow-x-hidden rounded-xl text-white"
+      style={{ ...MAT_STYLE, height: box.h > 0 ? box.h : undefined }}
+    >
+      <div className="h-1.5 w-full shrink-0" style={KENTE_STYLE} />
 
-        <div className="flex flex-col items-center bg-black/30 px-3 py-1 rounded-lg border border-white/10">
-          <span className="text-[0.6rem] text-white/50 uppercase tracking-widest mb-0.5">Score</span>
-          <div className="flex gap-3 font-mono font-bold">
-            <span className="text-green-400">{wins}W</span>
-            <span className="text-red-400">{losses}L</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Opponent seats (up to 3) */}
-      <div className="flex gap-2 px-2 py-2 bg-black/20 shrink-0">
-        {opponents.map((id) => {
-          const count = state.hands[id]?.length || 0;
-          const turn = state.turn === id;
-          return (
-            <div
-              key={id}
-              className={`flex-1 min-w-0 flex flex-col items-center gap-1 rounded-xl px-1 py-1.5 ${turn ? 'bg-yellow-500/20 ring-2 ring-yellow-400' : 'bg-black/20'}`}
-            >
-              <Alama seed={id} size={36} />
-              <span className={`max-w-full truncate text-[12px] font-bold ${turn ? 'text-yellow-400' : 'text-white/80'}`}>
-                {nameOf(id)}
-              </span>
-              <div className="flex -space-x-3 h-7">
-                {Array.from({ length: Math.min(count, 7) }).map((_, i) => (
-                  <CardBack key={i} />
-                ))}
-              </div>
-              <span className="text-[11px] text-white/60">{count} {count === 1 ? "card" : "cards"}</span>
+      <div className="flex shrink-0 items-center gap-2 px-2 py-1.5">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          {tier !== "xs" ? (
+            <div className="relative shrink-0">
+              <Alama seed={mySeed || sessionId} size={sz.avatar} />
+              <span className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#2b130d] ${isMyTurn ? "bg-[#d9a441]" : "bg-stone-500"}`} />
             </div>
-          );
-        })}
-      </div>
-
-      {/* Game Log / Alert Banner */}
-      <div className={`text-center py-2 text-xs font-bold shrink-0 transition-colors flex items-center justify-center gap-2 ${isMyTurn ? 'bg-yellow-500 text-black' : 'bg-black/20 text-white/70'}`}>
-        {isSemiLast && isMyTurn ? (
-          <button onClick={() => { setHasDeclaredLastCard(true); declaredRef.current = true; playProfile("bbm", "mention"); }} className={`px-3 py-1 rounded ${hasDeclaredLastCard ? 'bg-green-600 text-white' : 'bg-red-600 text-white animate-pulse'}`}>
-            {hasDeclaredLastCard ? "✓ Last Card Declared" : "⚠️ TAP TO SAY LAST CARD"}
-          </button>
-        ) :
-         isLast && isMyTurn ? "🚨 PLAY YOUR LAST CARD!" :
-         isMyTurn ? (
-          state.activePenalty > 0 ? `⚠️ PICK ${state.activePenalty}! Play a ${state.penaltyType} or pick.` : "⚡ YOUR TURN!"
-        ) : (
-          lastAction
-        )}
-      </div>
-
-      {/* Center Table */}
-      <div className="flex-1 flex items-center justify-center gap-6 relative">
-        <button 
-          onClick={pickFromMarket}
-          disabled={!isMyTurn || isProcessing}
-          className={`relative w-16 h-24 bg-[#8B3A2B] rounded-md shadow-lg border-2 border-[#5A2217] flex items-center justify-center text-white disabled:opacity-50 active:scale-95 transition-transform ${state.activePenalty > 0 ? 'ring-4 ring-red-500 animate-pulse' : ''}`}
-        >
-          <span className="text-[10px] font-bold rotate-[-15deg] text-white/40 uppercase tracking-widest">Whot</span>
-          <div className="absolute -bottom-5 text-white text-[10px] font-semibold bg-black/50 px-2 py-0.5 rounded-full whitespace-nowrap">
-            {state.deck.length} left
-          </div>
-        </button>
-
-        <div id="discard-pile" className="relative p-2">
-           <CardUI card={topCard} />
-           {state.calledSuit && (
-            <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[0.6rem] text-yellow-300 font-bold whitespace-nowrap bg-black/60 px-2 py-1 rounded-full uppercase">
-              Play: {state.calledSuit}
+          ) : null}
+          <div className="min-w-0 leading-tight">
+            <div className={`truncate text-[13px] font-bold ${isMyTurn ? "text-[#f0c36a]" : "text-white/85"}`}>
+              {iAmSeated ? myHandle : "Watching"}
             </div>
-          )}
+            <div className="flex items-center gap-1.5 text-[10px] text-white/65">
+              <span className="rounded bg-[#d9a441] px-1.5 font-bold text-[#2b130d]">{rank.name}</span>
+              <span className="truncate">{wins}W {losses}L{iAmSeated ? ` · ${myHand.length} cards` : ""}</span>
+            </div>
+          </div>
         </div>
 
-        {/* Quit Button */}
-        <button 
-          onClick={() => setShowQuitModal(true)} 
-          className="absolute right-2 top-2 z-50 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white/70 hover:text-white transition-colors"
+        <VoiceToggle mode={voiceMode} onChange={chooseVoice} />
+
+        <button
+          type="button"
+          aria-label="Quit game"
+          onClick={() => { wake(); setShowQuitModal(true); }}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-600 text-white shadow transition-colors hover:bg-red-500 active:scale-95"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden="true">
             <line x1="18" y1="6" x2="6" y2="18"></line>
             <line x1="6" y1="6" x2="18" y2="18"></line>
           </svg>
         </button>
       </div>
 
-      {/* My Hand */}
-      <div className="h-32 bg-black/40 p-2 flex gap-2 overflow-x-auto items-center shrink-0" style={{ touchAction: 'pan-x' }}>
-        {myHand.map((card) => {
-          const isPlayable = isMyTurn && canPlayCard(card, topCard, state.calledSuit, state.activePenalty, state.penaltyType);
-          const isDragging = dragState?.id === card.id;
+      <div className="flex shrink-0 gap-1.5 px-2 pb-1">
+        {opponents.map((id) => {
+          const count = state.hands[id]?.length || 0;
+          const turn = state.turn === id && state.status === "playing";
+          const shown = Math.min(count, 7);
           return (
-            <div 
-              key={card.id} 
-              onPointerDown={(e) => handlePointerDown(e, card)}
-              className={`shrink-0 cursor-pointer ${isDragging ? 'opacity-30' : ''} ${isPlayable ? 'hover:-translate-y-2 transition-transform' : ''}`}
+            <div
+              key={id}
+              className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded-lg px-1 py-1 ${turn ? "bg-[#d9a441]/20 ring-1 ring-[#d9a441]" : "bg-black/25"}`}
             >
-              <CardUI card={card} />
+              <div className="flex w-full min-w-0 items-center justify-center gap-1">
+                {tier !== "xs" ? <Alama seed={id} size={sz.avatar} /> : null}
+                <span className={`min-w-0 truncate text-[11px] font-bold ${turn ? "text-[#f0c36a]" : "text-white/80"}`}>{nameOf(id)}</span>
+                <span className="shrink-0 rounded-full bg-black/45 px-1.5 text-[10px] font-semibold tabular-nums leading-4 text-white/80">{count}</span>
+              </div>
+              <div className="flex w-full items-center justify-center overflow-hidden" style={{ height: sz.backH }}>
+                {Array.from({ length: shown }).map((_, i) => (
+                  <div key={i} style={{ marginLeft: i === 0 ? 0 : -Math.round(sz.backW * 0.55) }}>
+                    <CardBack w={sz.backW} h={sz.backH} font={sz.backFont} />
+                  </div>
+                ))}
+              </div>
             </div>
           );
         })}
       </div>
 
-
-      {/* Whot Suit Picker */}
-      {suitPickerOpen && (
-        <div className="absolute inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4">
-          <h3 className="text-white font-bold mb-4 text-xl">Call a Suit!</h3>
-          <div className="grid grid-cols-2 gap-3 w-full max-w-[280px]">
-            {(["circle", "triangle", "cross", "square", "star"] as WhotSuit[]).map(s => (
-              <button
-                key={s}
-                onClick={() => playCard(selectedCard!, s)}
-                className="p-4 bg-[#FDFBF7] rounded-xl text-xl flex flex-col items-center text-[#8B3A2B] font-bold active:scale-95 transition-transform"
-              >
-                <div className="w-8 h-8 mb-1 text-[#8B3A2B]">
-                  <SuitIcon suit={s} />
-                </div>
-                <span className="text-[0.65rem] uppercase">{s}</span>
-              </button>
-            ))}
-          </div>
-          <button onClick={() => setSuitPickerOpen(false)} className="mt-6 text-sm text-red-400 font-bold hover:text-white">Cancel</button>
+      <div className="flex shrink-0 items-center justify-center gap-2 px-2 py-1">
+        <div
+          role="status"
+          aria-live="polite"
+          title={bannerText}
+          className={`min-w-0 max-w-full truncate rounded-full px-3 py-1 text-[12px] font-semibold ${bannerClass}`}
+        >
+          {bannerText}
         </div>
-      )}
+        {isSemiLast && canAct ? (
+          <button
+            type="button"
+            onClick={() => { wake(); setHasDeclaredLastCard(true); declaredRef.current = true; playProfile("bbm", "mention"); }}
+            className={`shrink-0 rounded-full px-3 py-1 text-[12px] font-bold text-white ${hasDeclaredLastCard ? "bg-green-700" : "bg-red-600 motion-safe:animate-pulse"}`}
+          >
+            {hasDeclaredLastCard ? "✓ Last card called" : "Say last card"}
+          </button>
+        ) : null}
+      </div>
 
-      {/* Custom Quit Modal */}
-      {showQuitModal && (
-        <div className="absolute inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
-          <div className="bg-surface p-6 rounded-2xl max-w-sm w-full text-center border border-border shadow-2xl">
-            <p className="text-ink font-bold text-lg mb-2">Quit Game?</p>
-            <p className="text-muted text-sm mb-6">Are you sure you want to leave? Your progress will be lost.</p>
-            <div className="flex gap-2">
-              <button onClick={() => setShowQuitModal(false)} className="flex-1 py-2 rounded-xl bg-ink/5 text-ink font-semibold transition-colors hover:bg-ink/10">Cancel</button>
-              <button onClick={onQuit} className="flex-1 py-2 rounded-xl bg-danger text-white font-semibold transition-colors hover:bg-danger/90">Quit</button>
+      {state.status === "finished" ? (
+        <div className="flex min-h-[120px] flex-1 flex-col items-center justify-center gap-2 overflow-y-auto px-4 py-2 text-center">
+          <h2 className="text-xl font-black">{iWon ? "🏆 You won!" : "😔 " + nameOf(state.winner || "") + " won!"}</h2>
+          <p className="text-xs text-white/75">
+            Rank: <span className="font-bold text-[#f0c36a]">{rank.name}</span>
+            {rank.next
+              ? ` (${rank.next.need} more ${rank.next.need === 1 ? "win" : "wins"} to ${rank.next.name})`
+              : " (top rank)"}
+            {" · "}{wins}W {losses}L
+          </p>
+          <div className="flex w-full max-w-sm flex-wrap justify-center gap-2">
+            {iAmSeated ? (
+              <button
+                type="button"
+                onClick={() => void playAgain()}
+                disabled={isProcessing || isWaiting}
+                className="min-w-[120px] flex-1 rounded-xl bg-[#c4572f] px-4 py-2.5 text-sm font-bold text-white shadow-lg transition-transform active:scale-95 disabled:opacity-60"
+              >
+                {isProcessing || isWaiting ? "Dealing…" : "Play again"}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => void inviteFriends()}
+              className="min-w-[120px] flex-1 rounded-xl border border-[#d9a441]/70 bg-black/30 px-4 py-2.5 text-sm font-bold text-[#f0c36a] transition-transform active:scale-95"
+            >
+              Invite friends to play
+            </button>
+          </div>
+          {inviteNote ? <p role="status" className="text-xs text-green-300">{inviteNote}</p> : null}
+          <button type="button" onClick={onQuit} className="text-xs font-semibold text-white/60 underline underline-offset-2 hover:text-white">
+            Exit to lobby
+          </button>
+        </div>
+      ) : showQuitModal ? (
+        <div className="flex min-h-[120px] flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
+          <p className="text-base font-bold">Quit Game?</p>
+          <p className="text-xs text-white/70">Are you sure you want to leave? Your progress will be lost.</p>
+          <div className="flex w-full max-w-xs gap-2">
+            <button type="button" onClick={() => setShowQuitModal(false)} className="flex-1 rounded-xl bg-white/10 py-2 text-sm font-semibold text-white">Cancel</button>
+            <button type="button" onClick={onQuit} className="flex-1 rounded-xl bg-red-600 py-2 text-sm font-semibold text-white">Quit</button>
+          </div>
+        </div>
+      ) : (
+        <>
+          {suitPickerOpen ? (
+            <div className="flex min-h-[84px] flex-1 flex-col items-center justify-center gap-2 px-2 py-1">
+              <p className="text-sm font-bold">Call a suit</p>
+              <div className="flex w-full max-w-sm gap-1.5">
+                {ALL_SUITS.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => { wake(); if (selectedCard) void playCard(selectedCard, s); }}
+                    className="flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-lg bg-[#FBF4E6] px-1 py-1.5 text-[#8B3A2B] transition-transform active:scale-95"
+                  >
+                    <span className="block h-6 w-6"><SuitIcon suit={s} /></span>
+                    <span className="text-[9px] font-bold capitalize">{s}</span>
+                  </button>
+                ))}
+              </div>
+              <button type="button" onClick={() => { setSuitPickerOpen(false); setSelectedCard(null); }} className="text-xs font-bold text-red-300">Cancel</button>
+            </div>
+          ) : (
+            <div className="flex min-h-[84px] flex-1 items-center justify-center gap-6 px-3 py-1">
+              <div className="flex flex-col items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => void pickFromMarket()}
+                  disabled={!canAct}
+                  aria-label={state.activePenalty > 0 ? `Pick ${state.activePenalty} cards from the market` : "Pick a card from the market"}
+                  className={`rounded-md transition-transform active:scale-95 disabled:opacity-60 ${state.activePenalty > 0 ? "ring-2 ring-red-500 motion-safe:animate-pulse" : ""}`}
+                >
+                  <CardBack w={sz.w} h={sz.h} font={sz.backFont * 2} />
+                </button>
+                <span className="rounded-full bg-black/40 px-2 text-[10px] font-semibold leading-4 text-white/85">
+                  {state.activePenalty > 0 ? `Pick ${state.activePenalty}` : `${state.deck.length} in market`}
+                </span>
+              </div>
+
+              <div id="discard-pile" className="flex flex-col items-center gap-1">
+                <CardFace card={topCard} size={tier} />
+                <span className={`rounded-full bg-black/40 px-2 text-[10px] font-semibold capitalize leading-4 text-[#f0c36a] ${state.calledSuit ? "" : "invisible"}`}>
+                  {state.calledSuit ? "Play " + state.calledSuit : "-"}
+                </span>
+              </div>
+            </div>
+          )}
+
+          <div className="shrink-0 overflow-x-auto overflow-y-hidden" style={{ touchAction: "pan-x" }}>
+            <div
+              className="mx-auto flex items-end"
+              style={{
+                width: fanWidth + sidePad * 2,
+                paddingLeft: sidePad,
+                paddingRight: sidePad,
+                paddingTop: 12,
+                paddingBottom: 6,
+                height: sz.h + 30
+              }}
+            >
+              {myHand.map((card, i) => {
+                const playable = isMyTurn && canPlayCard(card, topCard, state.calledSuit, state.activePenalty, state.penaltyType);
+                const isDragging = dragState?.id === card.id;
+                const mid = (hn - 1) / 2;
+                const rot = (i - mid) * angleStep;
+                const drop = Math.min(10, (i - mid) * (i - mid) * 0.35);
+                const lift = playable && canAct ? -8 : 0;
+                return (
+                  <div
+                    key={card.id}
+                    onPointerDown={(e) => handlePointerDown(e, card)}
+                    className={`cursor-pointer transition-transform ${isDragging ? "opacity-30" : ""} ${isMyTurn && !playable ? "brightness-75" : ""}`}
+                    style={{
+                      flex: "none",
+                      width: sz.w,
+                      height: sz.h,
+                      marginLeft: i === 0 ? 0 : step - cw,
+                      transform: `translateY(${drop + lift}px) rotate(${rot}deg)`,
+                      transformOrigin: "50% 100%"
+                    }}
+                  >
+                    <CardFace card={card} size={tier} />
+                  </div>
+                );
+              })}
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Game Over Overlay */}
-      {state.status === "finished" && (
-        <div className="absolute inset-0 z-[60] bg-black/90 flex flex-col items-center justify-center p-6 text-center">
-          <div className="text-6xl mb-4">{state.winner === sessionId ? "🏆" : "😔"}</div>
-          <h2 className="text-3xl font-black text-white mb-2">
-            {state.winner === sessionId ? "You Won!" : nameOf(state.winner || "") + " Won!"}
-          </h2>
-          
-          <div className="flex gap-4 mb-8 bg-white/10 px-6 py-3 rounded-2xl border border-white/20">
-             <div className="text-center">
-               <p className="text-[0.65rem] text-white/50 uppercase tracking-wider">Wins</p>
-               <p className="text-2xl font-bold text-green-400">{wins}</p>
-             </div>
-             <div className="w-px bg-white/20"></div>
-             <div className="text-center">
-               <p className="text-[0.65rem] text-white/50 uppercase tracking-wider">Losses</p>
-               <p className="text-2xl font-bold text-red-400">{losses}</p>
-             </div>
-          </div>
-
-          <div className="flex flex-col gap-3 w-full max-w-[200px]">
-            <button onClick={onQuit} className="rounded-xl bg-brand px-6 py-3 font-semibold text-white shadow-lg active:scale-95 transition-transform">Exit to Lobby</button>
-          </div>
-        </div>
+        </>
       )}
     </div>
-    </FitBox>
-      {/* Dragged Card Render (Fixed to Pointer) */}
-      {dragState && (() => {
-        const card = myHand.find(c => c.id === dragState.id);
-        if (!card) return null;
-        return (
-          <div className="fixed pointer-events-none z-[100]" style={{ left: dragState.x - 32, top: dragState.y - 48 }}>
-            <CardUI card={card} isDragging={true} />
-          </div>
-        );
-      })()}
+
+    {dragState && (() => {
+      const card = myHand.find(c => c.id === dragState.id);
+      if (!card) return null;
+      return (
+        <div className="fixed pointer-events-none z-[100]" style={{ left: dragState.x - 32, top: dragState.y - 48 }}>
+          <CardFace card={card} size="lg" />
+        </div>
+      );
+    })()}
     </>
   );
 }
