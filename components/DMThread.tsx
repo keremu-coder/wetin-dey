@@ -345,8 +345,8 @@ export function DMThread({
     .find((m) => m.sender_id === mySessionId);
   const lastMineSeen = lastMine?.read_at != null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex h-[100dvh] flex-col bg-paper">
+  const chatContent = (
+    <div className="flex min-h-0 flex-1 flex-col bg-paper">
       <header
         className="flex shrink-0 items-center gap-3 border-b border-border bg-paper/95 px-3 py-2.5 backdrop-blur-xl"
         style={{ paddingTop: "calc(0.625rem + env(safe-area-inset-top, 0px))" }}
@@ -518,6 +518,11 @@ export function DMThread({
         onFail={(cid) => failOptimistic(cid)}
         onBlocked={(reason, cid) => { discardOptimistic(cid); setBlockReason(reason); }}
       />
+    </div>
+  );
+
+  return (
+    <div className="fixed inset-0 z-50 flex h-[100dvh] flex-col bg-paper">
 
       {error ? (
         <p className="absolute bottom-20 left-1/2 -translate-x-1/2 rounded-lg bg-danger-soft px-3 py-1.5 text-[0.75rem] text-danger">
@@ -548,8 +553,11 @@ export function DMThread({
           dmThreadId={threadId}
           currentSessionId={mySessionId}
           onClose={() => setVoiceRoomOpen(false)}
+          chatContent={chatContent}
         />
-      ) : null}
+      ) : (
+        chatContent
+      )}
 
       {viewingMedia ? (
         <SecureMediaViewer
