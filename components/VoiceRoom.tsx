@@ -1,14 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { LiveKitRoom, useConnectionState, useLocalParticipant, useParticipants, StartMediaButton, RoomAudioRenderer } from "@livekit/components-react";
-import { ConnectionState } from "livekit-client";
+import { ConnectionState, Track, type LocalParticipant } from "livekit-client";
 import "@livekit/components-styles";
 import { WhotGame } from "./WhotGame";
 import { startWhotGame } from "@/lib/whot";
 import { Alama } from "./Alama";
 
 const AVATAR_SEEDS = ["mama", "oga", "boy", "lady", "pastor", "alhaji", "market_woman", "area_boy", "musa", "chioma"];
+
+function getLocalMicrophoneTrack(localParticipant: LocalParticipant) {
+  const audioPub = Array.from(localParticipant.audioTrackPublications.values()).find(
+    (publication) => publication.source === Track.Source.Microphone
+  );
+  return audioPub?.track ?? null;
+}
 
 function CustomAudioBar({ spaceName, onLeave }: { spaceName: string, onLeave: () => void }) {
   const { localParticipant } = useLocalParticipant();
@@ -17,14 +24,18 @@ function CustomAudioBar({ spaceName, onLeave }: { spaceName: string, onLeave: ()
 
   async function toggleMute() {
     if (!localParticipant) return;
-    const nextState = !isMuted;
-    setIsMuted(nextState);
-    await localParticipant.setMicrophoneEnabled(!nextState);
-    
-    // Force resume all audio elements to bypass autoplay blocks
-    document.querySelectorAll('audio').forEach(a => {
-      a.play().catch(() => {});
-    });
+    const microphoneTrack = getLocalMicrophoneTrack(localParticipant);
+    if (!microphoneTrack) return;
+
+    const nextState = !microphoneTrack.isMuted;
+    try {
+      if (nextState) await microphoneTrack.mute();
+      else await microphoneTrack.unmute();
+    } catch {
+      // Keep the control in sync if the LiveKit track rejects the change.
+    } finally {
+      setIsMuted(microphoneTrack.isMuted);
+    }
   }
 
   return (
@@ -62,16 +73,33 @@ function AudioStatus() {
 
 function PrivacyMute() {
   const { localParticipant } = useLocalParticipant();
+  const mutedByVisibilityRef = useRef(false);
+
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!localParticipant) return;
-      const audioPub = Array.from(localParticipant.audioTrackPublications.values())[0];
-      if (audioPub?.track) {
-        if (document.hidden) audioPub.track.mute();
-        else audioPub.track.unmute();
+
+      const microphoneTrack = getLocalMicrophoneTrack(localParticipant);
+      if (!microphoneTrack) return;
+
+      if (document.hidden) {
+        if (microphoneTrack.isMuted) {
+          mutedByVisibilityRef.current = false;
+          return;
+        }
+
+        mutedByVisibilityRef.current = true;
+        void microphoneTrack.mute().catch(() => {
+          mutedByVisibilityRef.current = false;
+        });
+      } else if (mutedByVisibilityRef.current) {
+        mutedByVisibilityRef.current = false;
+        void microphoneTrack.unmute().catch(() => {});
       }
     };
+
     document.addEventListener("visibilitychange", handleVisibilityChange);
+    handleVisibilityChange();
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [localParticipant]);
   return null;
@@ -84,6 +112,7 @@ export function VoiceRoom({
   dmThreadId,
   currentSessionId,
   onClose,
+  chatContent,
 }: {
   roomName: string;
   spaceName: string;
@@ -91,6 +120,7 @@ export function VoiceRoom({
   dmThreadId?: string;
   currentSessionId: string;
   onClose: () => void;
+  chatContent?: ReactNode;
 }) {
   const [token, setToken] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -100,7 +130,7 @@ export function VoiceRoom({
   const [inviteNote, setInviteNote] = useState("");
   const [livekitError, setLivekitError] = useState(false);
   
-  const [isFullScreen, setIsFullScreen] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(true);
   const [mySeed, setMySeed] = useState("oga");
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   
@@ -302,9 +332,9 @@ export function VoiceRoom({
         )}
       </LiveKitRoom>
 
-      <div className="flex-1 flex flex-col p-4 overflow-y-auto relative bg-[#0B0E17]">
+      <div className={`flex min-h-0 flex-1 flex-col p-4 relative bg-[#0B0E17] ${chatContent ? "overflow-hidden" : "overflow-y-auto"}`}>
         {!activeGame ? (
-          <div className="flex-1 flex flex-col items-center justify-center">
+          <div className={`${chatContent ? "shrink-0" : "flex-1"} flex flex-col items-center justify-center`}>
             
             {/* Avatar Picker */}
             <div className="relative mb-4">
@@ -347,32 +377,32 @@ export function VoiceRoom({
             </div>
           </div>
         ) : (
-          <div className="w-full flex-1 flex flex-col items-center relative">
-            {activeGame.status === "waiting" && (
-              <div className="absolute inset-0 z-20 bg-[#0B0E17] flex flex-col items-center justify-center p-6 overflow-y-auto">
-                <h3 className="text-white font-bold text-xl mb-1">Whot lobby</h3>
-                <p className="text-white/70 mb-4 text-base">{activeGame.players.length} / {maxPlayers} joined</p>
-                <ul className="w-full max-w-[300px] mb-5 space-y-2">
-                  {activeGame.players.map((p: string) => (
-                    <li key={p} className="flex items-center gap-3 rounded-xl bg-white/5 px-3 py-2">
-                      <Alama seed={p === currentSessionId ? mySeed : p} size={32} />
-                      <span className="text-white text-base font-semibold truncate">
-                        {activeGame.handles?.[p] ? "@" + activeGame.handles[p] : "Player"}
-                        {p === currentSessionId ? " (you)" : ""}
-                        {p === activeGame.created_by ? " · host" : ""}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-                {!isPlayer ? (<button onClick={joinGame} className="rounded-xl bg-brand px-8 py-3 text-base font-semibold text-white mb-4 shadow-lg">Join Game</button>) : isHost ? (
-                  <button onClick={beginGame} disabled={activeGame.players.length < 2} className="rounded-xl bg-[#1F7A4D] px-8 py-3 text-base font-semibold text-white mb-2 shadow-lg disabled:opacity-40">{activeGame.players.length < 2 ? "Waiting for a second player" : "Start game (" + activeGame.players.length + " players)"}</button>
-                ) : (<p className="text-white/60 text-sm mb-4 text-center">Waiting for host to start.</p>)}
-                {!dmThreadId && communityId ? (<button onClick={inviteFriends} className="rounded-xl border border-white/20 px-6 py-2.5 text-sm font-semibold text-white mb-2">Invite friends</button>) : null}
-                {inviteNote ? <p className="text-green-400 text-sm mb-2">{inviteNote}</p> : null}
-                <button onClick={isHost ? quitGame : leaveLobby} className="text-white/50 text-sm hover:text-white/80 mt-2">{isHost ? "Cancel game" : "Leave"}</button>
-              </div>
-            )}
-            <div className="w-full flex-1 relative min-h-[350px]">
+          <div className="w-full flex-1 min-h-0 flex flex-col items-center relative">
+            <div className={`w-full shrink-0 relative ${activeGame.status === "waiting" ? "min-h-[350px]" : ""}`}>
+              {activeGame.status === "waiting" && (
+                <div className="absolute inset-0 z-20 bg-[#0B0E17] flex flex-col items-center justify-center p-6 overflow-y-auto">
+                  <h3 className="text-white font-bold text-xl mb-1">Whot lobby</h3>
+                  <p className="text-white/70 mb-4 text-base">{activeGame.players.length} / {maxPlayers} joined</p>
+                  <ul className="w-full max-w-[300px] mb-5 space-y-2">
+                    {activeGame.players.map((p: string) => (
+                      <li key={p} className="flex items-center gap-3 rounded-xl bg-white/5 px-3 py-2">
+                        <Alama seed={p === currentSessionId ? mySeed : p} size={32} />
+                        <span className="text-white text-base font-semibold truncate">
+                          {activeGame.handles?.[p] ? "@" + activeGame.handles[p] : "Player"}
+                          {p === currentSessionId ? " (you)" : ""}
+                          {p === activeGame.created_by ? " · host" : ""}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  {!isPlayer ? (<button onClick={joinGame} className="rounded-xl bg-brand px-8 py-3 text-base font-semibold text-white mb-4 shadow-lg">Join Game</button>) : isHost ? (
+                    <button onClick={beginGame} disabled={activeGame.players.length < 2} className="rounded-xl bg-[#1F7A4D] px-8 py-3 text-base font-semibold text-white mb-2 shadow-lg disabled:opacity-40">{activeGame.players.length < 2 ? "Waiting for a second player" : "Start game (" + activeGame.players.length + " players)"}</button>
+                  ) : (<p className="text-white/60 text-sm mb-4 text-center">Waiting for host to start.</p>)}
+                  {!dmThreadId && communityId ? (<button onClick={inviteFriends} className="rounded-xl border border-white/20 px-6 py-2.5 text-sm font-semibold text-white mb-2">Invite friends</button>) : null}
+                  {inviteNote ? <p className="text-green-400 text-sm mb-2">{inviteNote}</p> : null}
+                  <button onClick={isHost ? quitGame : leaveLobby} className="text-white/50 text-sm hover:text-white/80 mt-2">{isHost ? "Cancel game" : "Leave"}</button>
+                </div>
+              )}
               <WhotGame 
                 game={activeGame} 
                 isPlayer={isPlayer} 
@@ -381,8 +411,18 @@ export function VoiceRoom({
                 mySeed={mySeed}
               />
             </div>
+            {chatContent ? (
+              <div aria-label="Chat" className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-lg border border-white/10 bg-paper text-ink">
+                {chatContent}
+              </div>
+            ) : null}
           </div>
         )}
+        {!activeGame && chatContent ? (
+          <div aria-label="Chat" className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-lg border border-white/10 bg-paper text-ink">
+            {chatContent}
+          </div>
+        ) : null}
       </div>
     </div>
   );

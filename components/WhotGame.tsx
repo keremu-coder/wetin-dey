@@ -710,7 +710,9 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
   async function pickFromMarket() {
     if (!canAct) return;
     wake();
-    speak("I done go market!"); 
+    if (iAmSeated && voiceMode !== "off") {
+      void playAudioFile(`/sounds/${voiceMode}/idongo.mp3`, 1);
+    }
     setIsProcessing(true);
 
     const { next, drawnCount } = resolvePick(state, game.players, sessionId);

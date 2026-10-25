@@ -1,6 +1,7 @@
 ﻿"use client";
 
 let audioCtx: AudioContext | null = null;
+const activeAudioFiles = new Set<HTMLAudioElement>();
 
 function getCtx(): AudioContext | null {
   if (typeof window === "undefined") return null;
@@ -295,11 +296,20 @@ export function showBrowserNotification(
 
 export function playAudioFile(url: string, volume = 1.0) {
   if (typeof window === "undefined") return;
+
   try {
     const audio = new Audio(url);
-    audio.volume = volume;
-    audio.play().catch(() => {});
-  } catch (e) {
-    // ignore
+    audio.preload = "auto";
+    audio.volume = Math.max(0, Math.min(1, volume));
+    activeAudioFiles.add(audio);
+
+    const release = () => activeAudioFiles.delete(audio);
+    audio.addEventListener("ended", release, { once: true });
+    audio.addEventListener("error", release, { once: true });
+
+    const playback = audio.play();
+    if (playback) void playback.catch(release);
+  } catch {
+    // Audio playback may be unavailable or blocked by the browser.
   }
 }
