@@ -11,17 +11,15 @@ import { Alama } from "./Alama";
 const AVATAR_SEEDS = ["mama", "oga", "boy", "lady", "pastor", "alhaji", "market_woman", "area_boy", "musa", "chioma"];
 
 function CustomAudioBar({ spaceName, onLeave }: { spaceName: string, onLeave: () => void }) {
-  const { localParticipant, isMicrophoneEnabled } = useLocalParticipant();
+  const { localParticipant } = useLocalParticipant();
   const participants = useParticipants();
-  const isMuted = !isMicrophoneEnabled;
+  const [isMuted, setIsMuted] = useState(false);
 
   async function toggleMute() {
     if (!localParticipant) return;
-    try {
-      await localParticipant.setMicrophoneEnabled(isMuted);
-    } catch {
-      /* keep the UI in sync with LiveKit's actual microphone state */
-    }
+    const nextState = !isMuted;
+    setIsMuted(nextState);
+    await localParticipant.setMicrophoneEnabled(!nextState);
     
     // Force resume all audio elements to bypass autoplay blocks
     document.querySelectorAll('audio').forEach(a => {
@@ -40,12 +38,7 @@ function CustomAudioBar({ spaceName, onLeave }: { spaceName: string, onLeave: ()
         ))}
       </div>
       <div className="flex items-center gap-2 pr-1">
-        <button
-          type="button"
-          aria-label={isMuted ? "Unmute microphone" : "Mute microphone"}
-          onClick={() => void toggleMute()}
-          className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${isMuted ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`}
-        >
+        <button onClick={toggleMute} className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${isMuted ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`}>
           {isMuted ? "🔇" : "🎙️"}
         </button>
         <button onClick={onLeave} className="flex h-10 w-10 items-center justify-center rounded-full bg-red-500/20 text-red-400">
@@ -72,7 +65,6 @@ function PrivacyMute() {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!localParticipant) return;
-      // Directly mute the track to prevent React re-rendering the whole room
       const audioPub = Array.from(localParticipant.audioTrackPublications.values())[0];
       if (audioPub?.track) {
         if (document.hidden) audioPub.track.mute();
@@ -114,7 +106,6 @@ export function VoiceRoom({
   
   const livekitUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL;
 
-  
   useEffect(() => {
     const savedSeed = localStorage.getItem("whot_avatar_seed");
     if (savedSeed) setMySeed(savedSeed);
@@ -253,7 +244,7 @@ export function VoiceRoom({
 
   return (
     <div 
-      className={`fixed inset-x-0 bottom-0 z-[200] flex flex-col overflow-hidden bg-[#0B0E17] rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)] border-t border-white/10 transition-all duration-300 ${isFullScreen ? 'h-[100dvh] rounded-none' : activeGame ? 'h-auto max-h-[80dvh]' : 'h-[55vh]'}`}
+      className={`fixed inset-x-0 bottom-0 z-[200] flex flex-col bg-[#0B0E17] rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)] border-t border-white/10 transition-all duration-300 ${isFullScreen ? 'h-[100dvh] rounded-none' : 'h-[55vh]'}`}
     >
       {/* Drag Handle */}
       <div className="w-full flex justify-center py-2 shrink-0 cursor-pointer" onClick={onClose}>
@@ -262,7 +253,7 @@ export function VoiceRoom({
 
       <header className="flex items-center justify-between px-4 pb-2 shrink-0">
         <div className="min-w-0 pr-4">
-          <h2 className="truncate font-serif text-[1rem] font-semibold text-white" title={spaceName}>{spaceName}</h2>
+          <h2 className="font-serif text-[1.1rem] font-semibold text-white truncate">{spaceName} Voice</h2>
           <p className="text-[0.75rem] text-white/50">Live Game Room</p>
         </div>
         
@@ -295,7 +286,7 @@ export function VoiceRoom({
          
         
         data-lk-theme="default" 
-        style={{ height: 'auto', flexShrink: 0 }}
+        style={{ height: 'auto' }}
       >
         <RoomAudioRenderer />
         <PrivacyMute />
@@ -311,7 +302,7 @@ export function VoiceRoom({
         )}
       </LiveKitRoom>
 
-      <div className={`min-h-0 flex-1 flex flex-col overflow-y-auto relative bg-[#0B0E17] ${activeGame ? "p-1" : "p-4"}`}>
+      <div className="flex-1 flex flex-col p-4 overflow-y-auto relative bg-[#0B0E17]">
         {!activeGame ? (
           <div className="flex-1 flex flex-col items-center justify-center">
             
@@ -356,7 +347,7 @@ export function VoiceRoom({
             </div>
           </div>
         ) : (
-          <div className="w-full shrink-0 flex flex-col items-center relative">
+          <div className="w-full flex-1 flex flex-col items-center relative">
             {activeGame.status === "waiting" && (
               <div className="absolute inset-0 z-20 bg-[#0B0E17] flex flex-col items-center justify-center p-6 overflow-y-auto">
                 <h3 className="text-white font-bold text-xl mb-1">Whot lobby</h3>
@@ -381,16 +372,16 @@ export function VoiceRoom({
                 <button onClick={isHost ? quitGame : leaveLobby} className="text-white/50 text-sm hover:text-white/80 mt-2">{isHost ? "Cancel game" : "Leave"}</button>
               </div>
             )}
-            <div className="w-full shrink-0 relative">
-              <div className="shrink-0 w-full relative z-30"><WhotGame 
+            <div className="w-full flex-1 relative min-h-[350px]">
+              <WhotGame 
                 game={activeGame} 
                 isPlayer={isPlayer} 
                 sessionId={currentSessionId} 
                 onQuit={quitGame}
                 mySeed={mySeed}
               />
-        </div>
-      </div>
+            </div>
+          </div>
         )}
       </div>
     </div>
