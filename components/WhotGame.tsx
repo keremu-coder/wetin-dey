@@ -308,36 +308,26 @@ function CardFace({ card, size, style }: { card: WhotCard; size: CardSize; style
 
 // --- AUTHENTIC WHOT CARD BACK SVG ---
 function AuthenticWhotBack({ w, h }: { w: number; h: number }) {
+  // Use a serif font to mimic the authentic Whot logo
   return (
     <div
-      className="relative flex shrink-0 items-center justify-center overflow-hidden rounded-[4px] shadow-sm"
-      style={{ width: w, height: h, backgroundColor: "#7A1010" }} // Deep Authentic Red
+      className="relative flex shrink-0 flex-col items-center justify-center overflow-hidden rounded-[4px] border-2 border-[#d9a441] shadow-sm"
+      style={{ width: w, height: h, backgroundColor: "#A31515" }} // Authentic Whot Red
     >
-      <svg viewBox="0 0 100 150" className="w-full h-full p-1" fill="none" xmlns="http://www.w3.org/2000/svg">
-        {/* White Border Frame */}
-        <rect x="2" y="2" width="96" height="146" rx="4" stroke="#FBF4E6" strokeWidth="2" strokeOpacity="0.8" />
-        
-        {/* WHOT Logo Text (Curved style imitation) */}
-        <g fill="#FBF4E6">
-          {/* Swirl on W */}
-          <path d="M 20 65 Q 15 65 15 70 Q 15 75 20 75 Q 25 75 25 70 Q 25 60 20 55" stroke="#FBF4E6" strokeWidth="2" fill="none" />
-          
-          {/* W */}
-          <path d="M 28 55 L 33 75 L 38 60 L 43 75 L 48 55" stroke="#FBF4E6" strokeWidth="4" strokeLinejoin="round" strokeLinecap="round" />
-          
-          {/* h */}
-          <path d="M 52 50 L 52 75 M 52 62 Q 57 55 62 62 L 62 75" stroke="#FBF4E6" strokeWidth="4" strokeLinejoin="round" strokeLinecap="round" />
-          {/* Swirl on h */}
-          <path d="M 62 60 Q 67 60 67 65 Q 67 70 62 70" stroke="#FBF4E6" strokeWidth="2" fill="none" />
-          
-          {/* o (with accent) */}
-          <circle cx="75" cy="68" r="6" stroke="#FBF4E6" strokeWidth="4" />
-          <path d="M 72 58 L 78 58" stroke="#FBF4E6" strokeWidth="2" strokeLinecap="round" />
-          
-          {/* t */}
-          <path d="M 85 55 L 85 75 M 82 60 L 88 60" stroke="#FBF4E6" strokeWidth="4" strokeLinecap="round" />
-        </g>
-      </svg>
+      {/* Top text (rotated) */}
+      <div 
+        className="rotate-180 font-serif font-black italic tracking-tighter text-[#FBF4E6] leading-none mb-0.5 opacity-90"
+        style={{ fontSize: Math.max(10, w * 0.45) }}
+      >
+        Whot
+      </div>
+      {/* Bottom text (upright) */}
+      <div 
+        className="font-serif font-black italic tracking-tighter text-[#FBF4E6] leading-none mt-0.5 opacity-90"
+        style={{ fontSize: Math.max(10, w * 0.45) }}
+      >
+        Whot
+      </div>
     </div>
   );
 }
