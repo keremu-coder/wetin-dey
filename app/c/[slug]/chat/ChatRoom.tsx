@@ -385,7 +385,7 @@ export function ChatRoom({
       el.scrollTop = el.scrollHeight;
     }, 100);
     return () => clearTimeout(t);
-  }, [viewportHeight]);
+  }, [viewportHeight, voiceRoomOpen]);
 
   // Soft scroll when new messages arrive
   useEffect(() => {
@@ -816,6 +816,9 @@ export function ChatRoom({
         onDismiss={dismissBroadcast}
       />
 
+      {(() => {
+        const chatContent = (
+          <div className="flex min-h-0 flex-1 flex-col bg-paper">
       {showInviteBanner ? (
         <div className="flex items-center gap-3 border-b border-border bg-brand-tint px-3 py-2">
           <span className="text-[1.1rem]">👋</span>
@@ -851,7 +854,7 @@ export function ChatRoom({
 
       <div
         ref={scrollRef}
-        className="chat-log flex-1 overflow-y-auto pt-4 pb-12"
+        className="chat-log min-h-0 flex-1 overflow-y-auto pt-4 pb-12"
         style={{ overscrollBehavior: "contain" }}
       >
         {messages.length === 0 ? (
@@ -969,6 +972,20 @@ export function ChatRoom({
           void send(e, pid);
         }}
       />
+          </div>
+        );
+
+        return voiceRoomOpen ? (
+          <VoiceRoom
+            roomName={slug}
+            spaceName={name}
+            communityId={communityId}
+            currentSessionId={mySessionId ?? ""}
+            onClose={() => setVoiceRoomOpen(false)}
+            chatContent={chatContent}
+          />
+        ) : chatContent;
+      })()}
 
       {inviteOpen ? (
         <InviteSheet
@@ -1021,15 +1038,7 @@ export function ChatRoom({
         statusByHandle={statusByHandle}
       />
 
-      {voiceRoomOpen ? (
-        <VoiceRoom
-          roomName={slug}
-          spaceName={name}
-          communityId={communityId}
-          currentSessionId={mySessionId ?? ""}
-          onClose={() => setVoiceRoomOpen(false)}
-        />
-      ) : null}
+
 
       {viewingMedia ? (
         <div 
