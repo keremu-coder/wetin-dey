@@ -81,7 +81,6 @@ export function VoiceRoom({
   const [isStarting, setIsStarting] = useState(false);
   const [inviteNote, setInviteNote] = useState("");
   const [livekitError, setLivekitError] = useState(false);
-  const [retryCount, setRetryCount] = useState(0);
   
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [mySeed, setMySeed] = useState("oga");
@@ -118,7 +117,7 @@ export function VoiceRoom({
         setToken(json.token);
       })
       .catch((e) => setError(e.message));
-  }, [roomName, livekitUrl, retryCount]);
+  }, [roomName, livekitUrl]);
 
   useEffect(() => {
     let cancelled = false;
@@ -266,6 +265,8 @@ export function VoiceRoom({
         audio={true} 
         token={token} 
         serverUrl={livekitUrl} 
+        onDisconnected={() => setLivekitError(true)} 
+        onError={() => setLivekitError(true)}
         data-lk-theme="default" 
         style={{ height: 'auto' }}
       >
@@ -273,7 +274,13 @@ export function VoiceRoom({
         <div className="flex justify-center mt-2 mb-1">
           <StartMediaButton label="🔊 Tap to hear voice" className="bg-brand text-white px-4 py-2 rounded-full text-sm font-semibold animate-pulse" />
         </div>
-        
+        {livekitError ? (
+          <div className="flex items-center justify-center text-red-400 text-sm font-semibold mx-4 mb-2 p-4 bg-red-500/10 rounded-xl border border-red-500/20">
+            Audio failed to connect.
+          </div>
+        ) : (
+          <CustomAudioBar spaceName={spaceName} onLeave={onClose} />
+        )}
       </LiveKitRoom>
 
       <div className="flex-1 flex flex-col p-4 overflow-y-auto relative bg-[#0B0E17]">
