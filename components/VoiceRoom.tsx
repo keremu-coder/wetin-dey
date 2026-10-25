@@ -273,6 +273,13 @@ export function VoiceRoom({
   const isHost = activeGame?.created_by === currentSessionId;
 
   return (
+    <>
+    {/* DM backdrop: keep the conversation visible above the half-open panel */}
+    {!isFullScreen && chatContent ? (
+      <div className="fixed inset-x-0 top-0 bottom-[55vh] z-[190] flex flex-col overflow-hidden bg-paper">
+        {chatContent}
+      </div>
+    ) : null}
     <div 
       className={`fixed inset-x-0 bottom-0 z-[200] flex flex-col bg-[#0B0E17] rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)] border-t border-white/10 transition-all duration-300 ${isFullScreen ? 'h-[100dvh] rounded-none' : 'h-[55vh]'}`}
     >
@@ -425,5 +432,6 @@ export function VoiceRoom({
         ) : null}
       </div>
     </div>
+    </>
   );
 }
