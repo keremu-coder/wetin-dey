@@ -97,9 +97,11 @@ function playCustomSound(text: string, mode: VoiceMode) {
   else if (text.includes("Suspension")) file = "suspense";
   else if (text.includes("Last card")) file = "lastcard";
   else if (text.includes("win")) file = "win";
+  else if (text.includes("done go market")) file = "idongo"; // <-- NEW MARKET VOICE
 
   if (file) {
     const audio = new Audio(`/sounds/${mode}/${file}.mp3`);
+    audio.volume = 1.0; // Ensure max volume
     audio.play().catch(() => { /* silently ignore if file is missing */ });
   }
 }
@@ -298,11 +300,11 @@ function CardFace({ card, size, style }: { card: WhotCard; size: CardSize; style
 function CardBack({ w, h, font }: { w: number; h: number; font: number }) {
   return (
     <div
-      className="relative flex shrink-0 items-center justify-center overflow-hidden rounded-[3px] border border-[#d9a441]/70 shadow-sm"
+      className="relative flex shrink-0 items-center justify-center overflow-hidden rounded-[4px] border-2 border-[#f3d9a0] shadow-sm"
       style={{
         width: w,
         height: h,
-        backgroundColor: "#C62828",
+        backgroundColor: "#A31515", // Authentic Whot Red
         backgroundImage:
           "repeating-linear-gradient(45deg, rgba(255,255,255,0.07) 0px, rgba(255,255,255,0.07) 3px, transparent 3px, transparent 7px)"
       }}
@@ -709,6 +711,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
   async function pickFromMarket() {
     if (!canAct) return;
     wake();
+    speak("I done go market!"); // <-- NEW VOICE LINE
     setIsProcessing(true);
 
     const { next, drawnCount } = resolvePick(state, game.players, sessionId);
@@ -810,12 +813,12 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
     <>
     <div
       ref={rootRef}
-      className="flex w-full max-w-full select-none flex-col overflow-hidden rounded-xl text-white max-h-[65vh]"
+      className="flex w-full max-w-full select-none flex-col overflow-hidden rounded-xl text-white max-h-[48vh]"
       style={MAT_STYLE}
     >
       <div className="h-1.5 w-full shrink-0" style={KENTE_STYLE} />
 
-      {/* Opponents Row (No redundant info) */}
+      {/* Opponents Row */}
       <div className="flex shrink-0 gap-1.5 px-2 pt-1 pb-2">
         {opponents.map((id) => {
           const count = state.hands[id]?.length || 0;
@@ -843,7 +846,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
         })}
       </div>
 
-      {/* Middle Section (Banner, Market, Discard) */}
+      {/* Middle Section */}
       <div className="flex flex-1 flex-col justify-center relative min-h-[100px]">
         <div className="flex shrink-0 items-center justify-center gap-2 px-2 py-1">
           <div
@@ -983,7 +986,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
           </div>
         </div>
 
-        {/* Fanned Hand */}
+        {/* Fanned Hand (No auto-showing, just pure cards) */}
         <div className="shrink-0 overflow-x-auto overflow-y-hidden" style={{ touchAction: "pan-x" }}>
           <div
             className="mx-auto flex items-end"
@@ -997,23 +1000,21 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
             }}
           >
             {myHand.map((card, i) => {
-              const playable = isMyTurn && canPlayCard(card, topCard, state.calledSuit, state.activePenalty, state.penaltyType);
               const isDragging = dragState?.id === card.id;
               const mid = (hn - 1) / 2;
               const rot = (i - mid) * angleStep;
               const drop = Math.min(10, (i - mid) * (i - mid) * 0.35);
-              const lift = playable && canAct ? -8 : 0;
               return (
                 <div
                   key={card.id}
                   onPointerDown={(e) => handlePointerDown(e, card)}
-                  className={`cursor-pointer transition-transform ${isDragging ? "opacity-30" : ""} ${isMyTurn && !playable ? "brightness-75" : ""}`}
+                  className={`cursor-pointer transition-transform ${isDragging ? "opacity-30" : ""}`}
                   style={{
                     flex: "none",
                     width: sz.w,
                     height: sz.h,
                     marginLeft: i === 0 ? 0 : step - cw,
-                    transform: `translateY(${drop + lift}px) rotate(${rot}deg)`,
+                    transform: `translateY(${drop}px) rotate(${rot}deg)`,
                     transformOrigin: "50% 100%"
                   }}
                 >

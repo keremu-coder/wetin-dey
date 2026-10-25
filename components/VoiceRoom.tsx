@@ -88,6 +88,57 @@ export function VoiceRoom({
   
   const livekitUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL;
 
+  
+  // 1. STOP RECORDING IN BACKGROUND (PRIVACY)
+  
+  // 1. STOP RECORDING IN BACKGROUND (PRIVACY)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // User minimized or changed tabs. Find all local video/audio tracks and mute them.
+        const mediaElements = document.querySelectorAll('video, audio');
+        mediaElements.forEach((el: any) => {
+          if (el.srcObject) {
+            const tracks = (el.srcObject as MediaStream).getTracks();
+            tracks.forEach(t => { if (t.kind === 'audio') t.enabled = false; });
+          }
+        });
+      } else {
+        // User returned to the app. Unmute.
+        const mediaElements = document.querySelectorAll('video, audio');
+        mediaElements.forEach((el: any) => {
+          if (el.srcObject) {
+            const tracks = (el.srcObject as MediaStream).getTracks();
+            tracks.forEach(t => { if (t.kind === 'audio') t.enabled = true; });
+          }
+        });
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, []);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      const room = document.querySelector('.lk-room-container') as any;
+      if (!room) return;
+      // LiveKit exposes the room instance via its internal API, 
+      // but we can simply mute the local participant via the DOM if needed.
+      // A safer way for Capacitor apps is to just toggle the mic track.
+      const localVideo = document.querySelector('video.lk-participant-media-video') as HTMLVideoElement;
+      if (document.hidden) {
+        // User left the app or changed tabs
+        if (navigator.mediaDevices) {
+          // We pause the mic tracks
+          const btns = document.querySelectorAll('[data-lk-local-participant="true"] button');
+          // This is a hacky fallback, ideally we use the LiveKit context
+        }
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, []);
+
   useEffect(() => {
     const savedSeed = localStorage.getItem("whot_avatar_seed");
     if (savedSeed) setMySeed(savedSeed);
