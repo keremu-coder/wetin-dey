@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { playProfile, unlockAudio, vibrate } from "@/lib/sounds";
-import { WhotCard, WhotSuit, canPlayCard, WhotState, getNextTurn, startWhotGame } from "@/lib/whot";
+import { useEffect, useState } from "react";
+import { playProfile, vibrate } from "@/lib/sounds";
+import { WhotCard, WhotSuit, canPlayCard, WhotState, getNextTurn } from "@/lib/whot";
 import { getBotMove } from "@/lib/whot-bot";
 import { Alama } from "./Alama";
 
@@ -22,6 +22,7 @@ function SuitIcon({ suit }: { suit: string }) {
 }
 
 function getCardName(card: WhotCard): string {
+  if (!card) return "Card";
   if (card.value === 20) return "WHOT 20";
   if (card.value === 1) return "HOLD ON";
   if (card.value === 2) return "PICK 2";
@@ -54,7 +55,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
   const opponents = ordered.filter((p) => p !== sessionId);
 
   const myHand = state.hands[sessionId] || [];
-  const topCard = state.discard[state.discard.length - 1];
+  const topCard: WhotCard = state.discard.length > 0 ? state.discard[state.discard.length - 1] : null as any;
   const isMyTurn = state.turn === sessionId && state.status === "playing";
   const isBotTurn = state.turn === "bot" && state.status === "playing";
 
@@ -114,7 +115,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
     }, 1800);
 
     return () => clearTimeout(timer);
-  }, [isBotTurn, state, isProcessing]);
+  }, [isBotTurn, state, isProcessing, game.players]);
 
   function handleCardClick(card: WhotCard) {
     if (!isMyTurn || isProcessing) return;
@@ -183,11 +184,8 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
   return (
     <div className="w-full h-full flex flex-col bg-[#120A07] relative overflow-hidden select-none">
       
-      {/* Subtle table felt/gradient background */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#2A1B12] via-[#120A07] to-[#0a0502] opacity-80" />
-
-      {/* Top Bar: Score */}
-      <div className="absolute top-0 inset-x-0 z-40 flex justify-between items-center text-white/90 p-3">
+      {/* Top Bar */}
+      <div className="flex justify-between items-center bg-black/40 p-3 z-40 shrink-0 border-b border-amber-900/30">
         <div className="flex items-center gap-2">
           <Alama seed={mySeed || sessionId} size={36} />
           <div>
@@ -195,18 +193,18 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
             <div className="text-[10px] text-white/60">{myHand.length} cards left</div>
           </div>
         </div>
-        <div className="flex flex-col items-center bg-black/50 px-4 py-1.5 rounded-xl border border-amber-900/50">
-          <span className="text-[0.65rem] text-amber-500 uppercase tracking-widest">Score</span>
-          <div className="flex gap-4 font-mono font-bold text-sm">
+        <div className="flex flex-col items-center bg-black/50 px-3 py-1 rounded-xl border border-amber-900/50">
+          <span className="text-[0.6rem] text-amber-500 uppercase tracking-widest">Score</span>
+          <div className="flex gap-3 font-mono font-bold text-sm">
             <span className="text-green-500">{wins}W</span>
             <span className="text-red-500">{losses}L</span>
           </div>
         </div>
       </div>
 
-      {/* --- OPPONENT SEATS --- */}
+      {/* Opponent Seat */}
       {opponents[0] && (
-        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center">
+        <div className="flex flex-col items-center shrink-0 mt-4 relative z-30">
           <div className={"relative flex flex-col items-center transition-all duration-300 " + (state.turn === opponents[0] ? 'scale-110' : 'scale-95 opacity-70')}>
             <div className={"absolute inset-0 rounded-full blur-md -z-10 " + (state.turn === opponents[0] ? 'bg-amber-500/40' : 'bg-transparent')} />
             <div className={state.turn === opponents[0] ? 'ring-4 ring-amber-500 rounded-full' : 'ring-2 ring-white/10 rounded-full'}>
@@ -215,63 +213,71 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
             <span className={"mt-2 text-xs font-bold px-3 py-1 rounded-full " + (state.turn === opponents[0] ? 'bg-amber-500 text-black' : 'bg-black/60 text-white/70')}>
               {nameOf(opponents[0])}
             </span>
-            <div className="flex -space-x-4 mt-2">
+            <div className="flex -space-x-3 mt-2">
               {Array.from({ length: Math.min(state.hands[opponents[0]]?.length || 0, 6) }).map((_, i) => (
-                <div key={i} className="w-8 h-12 rounded-md bg-[#8B3A35] border border-black/50 shadow-md" />
+                <div key={i} className="w-6 h-10 rounded-md bg-[#8B3A35] border border-black/50 shadow-md" />
               ))}
             </div>
           </div>
         </div>
       )}
 
-      {/* --- CENTER TABLE (Market & Discard) --- */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center gap-10 z-20">
-        {/* Draw Deck */}
-        <button onClick={pickFromMarket} disabled={!isMyTurn || isProcessing} className={"relative group transition-all " + (!isMyTurn ? 'opacity-50' : 'hover:-translate-y-2')}>
-          <div className="w-20 h-32 rounded-xl bg-[#8B3A35] border-2 border-[#A3423D] shadow-[0_10px_20px_rgba(0,0,0,0.6)] flex items-center justify-center relative overflow-hidden">
-             <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/wood-pattern.png')]" />
-             <span className="text-white/40 font-bold transform -rotate-45 tracking-widest text-xl">WHOT</span>
+      {/* Center Table */}
+      <div className="flex-1 flex items-center justify-center gap-6 relative z-20 min-h-[160px]">
+        {/* Turn Indicator */}
+        {state.turn === sessionId && (
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 pointer-events-none z-50">
+            <span className="bg-amber-500 text-black text-[10px] font-extrabold uppercase tracking-widest px-3 py-1 rounded-full shadow-[0_0_15px_rgba(245,158,11,0.6)] animate-bounce block">
+              Your Turn
+            </span>
           </div>
-          <span className="absolute -bottom-8 inset-x-0 text-center text-xs text-amber-500 font-bold uppercase">Market</span>
+        )}
+
+        {/* Draw Deck */}
+        <button onClick={pickFromMarket} disabled={!isMyTurn || isProcessing} className={"relative flex flex-col items-center group transition-all " + (!isMyTurn ? 'opacity-50' : 'hover:-translate-y-2')}>
+          <div className="w-16 h-24 rounded-lg bg-[#8B3A35] border-2 border-[#A3423D] shadow-xl flex items-center justify-center relative overflow-hidden">
+             <span className="text-white/40 font-bold transform -rotate-45 tracking-widest text-sm">WHOT</span>
+          </div>
+          <span className="absolute -bottom-6 text-[10px] text-amber-500 font-bold uppercase tracking-wider">Market</span>
         </button>
 
         {/* Discard Pile */}
-        <div className="relative w-24 h-36">
-          {state.discard.slice(-3).map((c, i, arr) => (
+        <div className="relative w-20 h-28 flex items-center justify-center">
+          {state.discard.slice(-2).map((c, i, arr) => (
             <div key={c.id} className="absolute inset-0 transition-all duration-300" style={{ transform: "rotate(" + ((c.id.length % 10) - 5) + "deg)" }}>
-              <div className={"w-full h-full rounded-xl bg-white shadow-" + (i === arr.length - 1 ? '[0_10px_25px_rgba(0,0,0,0.8)]' : 'lg') + " border border-black/10 flex flex-col justify-between p-2 text-[#8B3A35]"}>
-                <div className="text-[1.2rem] font-bold">{c.value}</div>
-                <div className="text-center flex justify-center"><SuitIcon suit={c.suit} /></div>
-                <div className="text-[1.2rem] font-bold self-end rotate-180">{c.value}</div>
+              <div className={"w-full h-full rounded-lg bg-white shadow-" + (i === arr.length - 1 ? '2xl' : 'md') + " border border-black/10 flex flex-col justify-between p-1.5 text-[#8B3A35]"}>
+                <div className="text-sm font-bold">{c.value}</div>
+                <div className="text-center flex justify-center scale-75"><SuitIcon suit={c.suit} /></div>
+                <div className="text-sm font-bold self-end rotate-180">{c.value}</div>
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* --- MY HAND (Fanned) --- */}
-      <div className="absolute bottom-0 inset-x-0 z-40 h-48 flex items-end justify-center pb-4">
-        <div className="relative flex justify-center w-full max-w-lg px-4">
+      {/* My Hand */}
+      <div className="shrink-0 bg-gradient-to-t from-black/90 to-transparent pb-6 pt-8 px-2 z-40">
+        <div className="relative flex justify-center w-full max-w-lg mx-auto h-32">
           {myHand.map((card, index) => {
             const isSelected = selectedCard?.id === card.id;
             const mid = (myHand.length - 1) / 2;
-            const rotate = (index - mid) * 6; 
-            const translateY = Math.abs(index - mid) * 8;
+            const rotate = (index - mid) * 5; 
+            const translateY = Math.abs(index - mid) * 6;
             
             return (
               <div
                 key={card.id}
                 onClick={() => handleCardClick(card)}
-                className={"absolute origin-bottom transition-all duration-200 cursor-pointer " + (isSelected ? '-translate-y-12 z-50' : 'hover:-translate-y-8 hover:z-50')}
+                className={"absolute bottom-0 origin-bottom transition-all duration-200 cursor-pointer " + (isSelected ? '-translate-y-8 z-50' : 'hover:-translate-y-6 hover:z-50')}
                 style={{
-                  transform: "translateX(" + (index - mid) * 45 + "px) rotate(" + rotate + "deg) translateY(" + translateY + "px)",
+                  transform: "translateX(" + (index - mid) * 35 + "px) rotate(" + rotate + "deg) translateY(" + translateY + "px)",
                   zIndex: index
                 }}
               >
-                <div className="w-20 h-32 sm:w-24 sm:h-36 rounded-xl bg-white shadow-lg border border-black/10 flex flex-col justify-between p-2 text-[#8B3A35]">
-                  <div className="text-[1.2rem] font-bold">{card.value}</div>
-                  <div className="text-center flex justify-center"><SuitIcon suit={card.suit} /></div>
-                  <div className="text-[1.2rem] font-bold self-end rotate-180">{card.value}</div>
+                <div className="w-16 h-24 rounded-lg bg-white shadow-xl border border-black/10 flex flex-col justify-between p-1.5 text-[#8B3A35]">
+                  <div className="text-sm font-bold">{card.value}</div>
+                  <div className="text-center flex justify-center scale-75"><SuitIcon suit={card.suit} /></div>
+                  <div className="text-sm font-bold self-end rotate-180">{card.value}</div>
                 </div>
               </div>
             );
@@ -279,24 +285,15 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
         </div>
       </div>
 
-      {/* --- TURN INDICATOR --- */}
-      {state.turn === sessionId && (
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-20 z-50 pointer-events-none">
-          <span className="bg-amber-500 text-black text-xs font-extrabold uppercase tracking-widest px-4 py-1.5 rounded-full shadow-[0_0_20px_rgba(245,158,11,0.6)] animate-bounce block">
-            Your Turn
-          </span>
-        </div>
-      )}
-
       {/* Suit Picker Modal */}
       {suitPickerOpen && (
         <div className="absolute inset-0 z-[100] bg-black/80 flex items-center justify-center backdrop-blur-sm">
-          <div className="bg-[#2A1B12] p-6 rounded-3xl text-center border border-amber-700/50 shadow-2xl">
-            <h3 className="text-amber-100 text-xl font-bold mb-4">Pick a Suit</h3>
-            <div className="flex gap-4">
+          <div className="bg-[#2A1B12] p-5 rounded-2xl text-center border border-amber-700/50 shadow-2xl mx-4">
+            <h3 className="text-amber-100 text-lg font-bold mb-3">Pick a Suit</h3>
+            <div className="flex gap-3">
               {(["circle", "triangle", "cross", "star", "square"] as const).map((s) => (
-                <button key={s} onClick={() => handleSuitPick(s)} className="w-14 h-14 rounded-full bg-black/40 border border-white/10 hover:border-amber-500 hover:bg-amber-900/40 flex items-center justify-center transition-transform active:scale-90 text-white">
-                  <SuitIcon suit={s} />
+                <button key={s} onClick={() => handleSuitPick(s)} className="w-12 h-12 rounded-full bg-black/40 border border-white/10 hover:border-amber-500 hover:bg-amber-900/40 flex items-center justify-center transition-transform active:scale-90 text-white">
+                  <div className="scale-75"><SuitIcon suit={s} /></div>
                 </button>
               ))}
             </div>
