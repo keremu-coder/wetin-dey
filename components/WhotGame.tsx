@@ -72,10 +72,18 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
     setIsProcessing(true);
 
     const timer = setTimeout(async () => {
-      const move = getBotMove(state, "bot");
+      const opponentCardCounts = game.players.filter((p: string) => p !== "bot").map((p: string) => state.hands[p]?.length || 0);
+      const move = getBotMove(
+        state.hands["bot"] || [],
+        topCard,
+        state.calledSuit,
+        state.activePenalty,
+        state.penaltyType,
+        opponentCardCounts
+      );
       let newState = { ...state };
       
-      if (move.action === "draw") {
+      if (!move || move.action === "pick") {
         const newDeck = [...state.deck];
         const drawn = newDeck.splice(0, 1);
         const newHand = [...(state.hands["bot"] || []), ...drawn];
@@ -83,21 +91,21 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
           ...state,
           deck: newDeck,
           hands: { ...state.hands, ["bot"]: newHand },
-          turn: getNextTurn(state.players, "bot"),
+          turn: getNextTurn(game.players, "bot"),
         };
         setLastAction("🤖 Bot picked a card.");
-      } else {
-        const newHand = (state.hands["bot"] || []).filter(c => c.id !== move.card.id);
+      } else if (move.action === "play") {
+        const newHand = (state.hands["bot"] || []).filter(c => c.id !== move.card?.id);
         newState = {
           ...state,
           hands: { ...state.hands, ["bot"]: newHand },
-          discard: [...state.discard, move.card],
-          turn: getNextTurn(state.players, "bot"),
+          discard: [...state.discard, move.card!],
+          turn: getNextTurn(game.players, "bot"),
           calledSuit: move.calledSuit || null,
           winner: newHand.length === 0 ? "bot" : null,
           status: newHand.length === 0 ? "finished" : "playing",
         };
-        setLastAction("🤖 Bot played " + getCardName(move.card));
+        setLastAction("🤖 Bot played " + getCardName(move.card!));
       }
       
       playProfile("bbm", "receive");
@@ -110,7 +118,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
 
   function handleCardClick(card: WhotCard) {
     if (!isMyTurn || isProcessing) return;
-    if (!canPlayCard(card, topCard, state.calledSuit, state.activePenalty)) return;
+    if (!canPlayCard(card, topCard, state.calledSuit, state.activePenalty, state.penaltyType)) return;
     
     if (card.suit === "whot") {
       setSelectedCard(card);
@@ -132,7 +140,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
       ...state,
       hands: { ...state.hands, [sessionId]: newHand },
       discard: [...state.discard, card],
-      turn: getNextTurn(state.players, sessionId),
+      turn: getNextTurn(game.players, sessionId),
       calledSuit: suit,
       winner: newHand.length === 0 ? sessionId : null,
       status: newHand.length === 0 ? "finished" : "playing",
@@ -160,7 +168,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
       ...state,
       deck: newDeck,
       hands: { ...state.hands, [sessionId]: newHand },
-      turn: getNextTurn(state.players, sessionId),
+      turn: getNextTurn(game.players, sessionId),
       activePenalty: 0,
       penaltyType: null,
     };
@@ -201,7 +209,9 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
         <div className="absolute top-20 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center">
           <div className={"relative flex flex-col items-center transition-all duration-300 " + (state.turn === opponents[0] ? 'scale-110' : 'scale-95 opacity-70')}>
             <div className={"absolute inset-0 rounded-full blur-md -z-10 " + (state.turn === opponents[0] ? 'bg-amber-500/40' : 'bg-transparent')} />
-            <Alama seed={opponents[0]} size={48} className={state.turn === opponents[0] ? 'ring-4 ring-amber-500 rounded-full' : 'ring-2 ring-white/10 rounded-full'} />
+            <div className={state.turn === opponents[0] ? 'ring-4 ring-amber-500 rounded-full' : 'ring-2 ring-white/10 rounded-full'}>
+              <Alama seed={opponents[0]} size={48} />
+            </div>
             <span className={"mt-2 text-xs font-bold px-3 py-1 rounded-full " + (state.turn === opponents[0] ? 'bg-amber-500 text-black' : 'bg-black/60 text-white/70')}>
               {nameOf(opponents[0])}
             </span>
