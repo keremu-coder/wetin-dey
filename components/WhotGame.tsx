@@ -39,18 +39,16 @@ function getCardName(card: WhotCard): string {
   return `${card.value} ${card.suit.toUpperCase()}`;
 }
 
-const DRAG_THRESHOLD = 10;
-
 type CardSize = "lg" | "md" | "sm" | "xs";
 
 const SIZES: Record<CardSize, {
   w: number; h: number; corner: number; icon: number; pip: number;
   backW: number; backH: number; backFont: number; avatar: number;
 }> = {
-  lg: { w: 64, h: 96, corner: 14, icon: 36, pip: 12, backW: 28, backH: 40, backFont: 9, avatar: 30 },
-  md: { w: 52, h: 78, corner: 12, icon: 28, pip: 10, backW: 24, backH: 34, backFont: 8, avatar: 26 },
-  sm: { w: 42, h: 62, corner: 10, icon: 22, pip: 9, backW: 20, backH: 28, backFont: 7, avatar: 20 },
-  xs: { w: 34, h: 50, corner: 9, icon: 18, pip: 8, backW: 16, backH: 23, backFont: 6, avatar: 16 }
+  lg: { w: 60, h: 90, corner: 14, icon: 32, pip: 12, backW: 28, backH: 40, backFont: 9, avatar: 30 },
+  md: { w: 50, h: 75, corner: 12, icon: 26, pip: 10, backW: 24, backH: 34, backFont: 8, avatar: 26 },
+  sm: { w: 40, h: 60, corner: 10, icon: 20, pip: 9, backW: 20, backH: 28, backFont: 7, avatar: 20 },
+  xs: { w: 32, h: 48, corner: 9, icon: 16, pip: 8, backW: 16, backH: 23, backFont: 6, avatar: 16 }
 };
 
 const MAT_STYLE: React.CSSProperties = {
@@ -89,54 +87,20 @@ function getRank(wins: number): { name: string; next: { name: string; need: numb
 type VoiceMode = "male" | "female" | "off";
 const VOICE_KEY = "whot_voice";
 
-function getSynth(): SpeechSynthesis | null {
-  if (typeof window === "undefined") return null;
-  return typeof window.speechSynthesis !== "undefined" ? window.speechSynthesis : null;
-}
-
-function pickVoice(mode: "male" | "female"): SpeechSynthesisVoice | null {
-  const synth = getSynth();
-  if (!synth) return null;
-  const voices = synth.getVoices();
-  if (voices.length === 0) return null;
-  const english = voices.filter((v) => /^en([-_]|$)/i.test(v.lang));
-  const pool = english.length > 0 ? english : voices;
-  const nigerian = pool.filter((v) => /^en[-_]NG/i.test(v.lang));
-  const candidates = nigerian.length > 0 ? nigerian : pool;
-  const femaleRe = /female|woman|samantha|victoria|karen|moira|tessa|fiona|zira|susan|hazel|serena|kate|allison|ava|joanna/i;
-  const maleRe = /\bmale\b|daniel|alex|fred|david|mark|george|oliver|arthur|aaron|james/i;
-  const wanted = mode === "female" ? femaleRe : maleRe;
-  const hit = candidates.find((v) => wanted.test(v.name));
-  return hit ?? null;
-}
-
-function speakText(mode: VoiceMode, text: string): void {
+function playCustomSound(text: string, mode: VoiceMode) {
   if (mode === "off") return;
-  const synth = getSynth();
-  if (!synth) return;
-  const say = () => {
-    try {
-      const u = new SpeechSynthesisUtterance(text);
-      const v = pickVoice(mode);
-      if (v) {
-        u.voice = v;
-        u.lang = v.lang;
-      }
-      u.pitch = mode === "female" ? (v ? 1.1 : 1.35) : (v ? 0.9 : 0.7);
-      u.rate = 1.02;
-      u.volume = 1;
-      synth.speak(u);
-    } catch {
-    }
-  };
-  try {
-    if (synth.speaking || synth.pending) {
-      synth.cancel();
-      window.setTimeout(say, 60);
-    } else {
-      say();
-    }
-  } catch {
+
+  let file = "";
+  if (text.includes("pick 2")) file = "pick2";
+  else if (text.includes("market my guy")) file = "market";
+  else if (text.includes("Hold on")) file = "holdon";
+  else if (text.includes("Suspension")) file = "suspense";
+  else if (text.includes("Last card")) file = "lastcard";
+  else if (text.includes("win")) file = "win";
+
+  if (file) {
+    const audio = new Audio(`/sounds/${mode}/${file}.mp3`);
+    audio.play().catch(() => { /* silently ignore if file is missing */ });
   }
 }
 
@@ -338,7 +302,7 @@ function CardBack({ w, h, font }: { w: number; h: number; font: number }) {
       style={{
         width: w,
         height: h,
-        backgroundColor: "#2b2f6b",
+        backgroundColor: "#C62828", // True Naija Whot Red
         backgroundImage:
           "repeating-linear-gradient(45deg, rgba(255,255,255,0.07) 0px, rgba(255,255,255,0.07) 3px, transparent 3px, transparent 7px)"
       }}
@@ -405,8 +369,6 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
 
   const [sentSig, setSentSig] = useState("");
   const [voiceMode, setVoiceMode] = useState<VoiceMode>("male");
-  const voiceModeRef = useRef<VoiceMode>("male");
-  const speechUnlockedRef = useRef(false);
   const [inviteNote, setInviteNote] = useState("");
   const [notice, setNotice] = useState("");
   const noticeTimerRef = useRef<number | null>(null);
@@ -429,38 +391,17 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
 
   function wake() {
     unlockAudio();
-    unlockSpeech();
-  }
-
-  function unlockSpeech() {
-    if (speechUnlockedRef.current) return;
-    const synth = getSynth();
-    if (!synth) return;
-    try {
-      const u = new SpeechSynthesisUtterance(" ");
-      u.volume = 0;
-      synth.speak(u);
-      speechUnlockedRef.current = true;
-    } catch {
-    }
   }
 
   function speak(text: string) {
-    if (!iAmSeated) return;
-    speakText(voiceModeRef.current, text);
+    if (!iAmSeated || voiceMode === "off") return;
+    playCustomSound(text, voiceMode);
   }
 
   function chooseVoice(mode: VoiceMode) {
     wake();
     setVoiceMode(mode);
-    voiceModeRef.current = mode;
     try { localStorage.setItem(VOICE_KEY, mode); } catch { }
-    if (mode === "off") {
-      const synth = getSynth();
-      if (synth) synth.cancel();
-      return;
-    }
-    speakText(mode, "Oya, make we play!");
   }
 
   function flash(text: string) {
@@ -486,14 +427,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
     try { saved = localStorage.getItem(VOICE_KEY); } catch { }
     if (saved === "male" || saved === "female" || saved === "off") {
       setVoiceMode(saved);
-      voiceModeRef.current = saved;
     }
-    const synth = getSynth();
-    if (!synth) return;
-    synth.getVoices();
-    const onVoices = () => { synth.getVoices(); };
-    synth.addEventListener("voiceschanged", onVoices);
-    return () => { synth.removeEventListener("voiceschanged", onVoices); };
   }, []);
 
   useEffect(() => {
@@ -566,7 +500,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
 
     if (state.status === "finished" && prev.status !== "finished") {
       if (state.winner === sessionId) speak("I done win!");
-      else speak("Ah ah! Dem don win me. Make we run am back!");
+      else speak("Dem don win me");
       return;
     }
     if (state.status !== "playing") return;
@@ -876,8 +810,8 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
     <>
     <div
       ref={rootRef}
-      className="flex h-full w-full select-none flex-col overflow-y-auto overflow-x-hidden rounded-xl text-white"
-      style={{ ...MAT_STYLE, height: box.h > 0 ? box.h : undefined }}
+      className="flex w-full max-w-full select-none flex-col overflow-hidden rounded-xl text-white max-h-[65vh]"
+      style={MAT_STYLE}
     >
       <div className="h-1.5 w-full shrink-0" style={KENTE_STYLE} />
 
