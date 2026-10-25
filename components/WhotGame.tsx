@@ -108,7 +108,7 @@ function playCustomSound(text: string, mode: VoiceMode) {
       voiceAudio = new Audio();
     }
     voiceAudio.src = `/sounds/${mode}/${file}.mp3`;
-    voiceAudio.volume = 1.0;
+    voiceAudio.volume = 1.0; // Max volume
     voiceAudio.play().catch((err) => {
       console.log("Audio playback failed. Ensure files are pushed and user tapped screen.", err);
     });
@@ -309,22 +309,13 @@ function CardFace({ card, size, style }: { card: WhotCard; size: CardSize; style
 // --- AUTHENTIC WHOT CARD BACK SVG ---
 function AuthenticWhotBack({ w, h }: { w: number; h: number }) {
   return (
-    <div
-      className="relative flex shrink-0 flex-col items-center justify-center overflow-hidden rounded-[4px] border border-[#d9a441] shadow-sm"
-      style={{ width: w, height: h, backgroundColor: "#A31515" }} // Authentic Red
-    >
-      <div 
-        className="rotate-180 font-serif font-bold italic tracking-tighter text-[#FBF4E6] leading-none mb-0.5"
-        style={{ fontSize: Math.max(10, w * 0.45) }}
-      >
+    <div className="relative flex shrink-0 flex-col items-center justify-center overflow-hidden rounded-[3px] border-2 border-[#d9a441] shadow-sm" style={{ width: w, height: h, backgroundColor: "#A31515" }}>
+      <span className="font-serif font-black tracking-tighter text-[#FBF4E6] leading-none mb-1" style={{ fontSize: Math.max(8, w * 0.45) }}>
         Whot
-      </div>
-      <div 
-        className="font-serif font-bold italic tracking-tighter text-[#FBF4E6] leading-none mt-0.5"
-        style={{ fontSize: Math.max(10, w * 0.45) }}
-      >
+      </span>
+      <span className="font-serif font-black tracking-tighter text-[#FBF4E6] leading-none mt-1 rotate-180" style={{ fontSize: Math.max(8, w * 0.45) }}>
         Whot
-      </div>
+      </span>
     </div>
   );
 }
