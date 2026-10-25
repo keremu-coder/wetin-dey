@@ -11,12 +11,9 @@ import {
   shuffleDeck
 } from "@/lib/whot";
 import { getBotMove, BotAction } from "@/lib/whot-bot";
-import { playProfile, unlockAudio, vibrate } from "@/lib/sounds";
+import { playAudioFile, playProfile, unlockAudio, vibrate } from "@/lib/sounds";
 import { shareUrl } from "@/lib/share";
 import { Alama } from "./Alama";
-
-// GLOBAL AUDIO INSTANCE (Stops chat audio from overlapping and fixes volume)
-let voiceAudio: HTMLAudioElement | null = null;
 
 const SvgBall = () => <svg viewBox="0 0 24 24" className="w-full h-full fill-current"><circle cx="12" cy="12" r="10"/></svg>;
 const SvgAngle = () => <svg viewBox="0 0 24 24" className="w-full h-full fill-current"><polygon points="12,2 23,22 1,22"/></svg>;
@@ -51,7 +48,7 @@ const SIZES: Record<CardSize, {
   lg: { w: 56, h: 84, corner: 14, icon: 30, pip: 12, backW: 24, backH: 34, backFont: 9, avatar: 28 },
   md: { w: 46, h: 69, corner: 12, icon: 24, pip: 10, backW: 20, backH: 28, backFont: 8, avatar: 24 },
   sm: { w: 38, h: 57, corner: 10, icon: 20, pip: 9, backW: 16, backH: 23, backFont: 7, avatar: 20 },
-  xs: { w: 30, h: 45, corner: 9, icon: 16, pip: 8, backW: 14, backH: 20, backFont: 6, avatar: 16 }
+  xs: { w: 30, h: 45, corner: 9, icon: 16, pip: 8, backW: 20, backH: 28, backFont: 6, avatar: 16 }
 };
 
 const MAT_STYLE: React.CSSProperties = {
@@ -103,15 +100,7 @@ function playCustomSound(text: string, mode: VoiceMode) {
   else if (text.includes("done go market")) file = "idongo";
 
   if (file) {
-    // REUSE A SINGLE AUDIO INSTANCE TO PREVENT OVERLAPPING & ENSURE VOLUME
-    if (!voiceAudio) {
-      voiceAudio = new Audio();
-    }
-    voiceAudio.src = `/sounds/${mode}/${file}.mp3`;
-    voiceAudio.volume = 1.0; // Max volume
-    voiceAudio.play().catch((err) => {
-      console.log("Audio playback failed. Ensure files are pushed and user tapped screen.", err);
-    });
+    void playAudioFile(`/sounds/${mode}/${file}.mp3`, 1);
   }
 }
 
@@ -309,12 +298,21 @@ function CardFace({ card, size, style }: { card: WhotCard; size: CardSize; style
 // --- AUTHENTIC WHOT CARD BACK SVG ---
 function AuthenticWhotBack({ w, h }: { w: number; h: number }) {
   return (
-    <div className="relative flex shrink-0 flex-col items-center justify-center overflow-hidden rounded-[3px] border-2 border-[#d9a441] shadow-sm" style={{ width: w, height: h, backgroundColor: "#A31515" }}>
-      <span className="font-serif font-black tracking-tighter text-[#FBF4E6] leading-none mb-1" style={{ fontSize: Math.max(8, w * 0.45) }}>
-        Whot
-      </span>
-      <span className="font-serif font-black tracking-tighter text-[#FBF4E6] leading-none mt-1 rotate-180" style={{ fontSize: Math.max(8, w * 0.45) }}>
-        Whot
+    <div
+      role="img"
+      aria-label="Whot card back"
+      className="relative flex shrink-0 items-center justify-center overflow-hidden rounded-[3px] border border-[#d9a441] shadow-sm"
+      style={{ width: w, height: h, backgroundColor: "#8f171c" }}
+    >
+      <span
+        className="whitespace-nowrap font-sans font-black leading-none text-[#fff8e9]"
+        style={{
+          fontSize: Math.max(4, w * 0.29),
+          letterSpacing: "-0.06em",
+          transform: "scaleX(0.88)"
+        }}
+      >
+        WHOT
       </span>
     </div>
   );
@@ -394,14 +392,6 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
 
   function wake() {
     unlockAudio();
-    // Force unlock HTML5 audio on mobile
-    if (!voiceAudio) {
-      voiceAudio = new Audio();
-      voiceAudio.src = "/sounds/male/pick2.mp3"; // Load a valid file just to unlock
-      voiceAudio.volume = 0;
-      voiceAudio.play().catch(() => {});
-      voiceAudio.pause();
-    }
   }
 
   function speak(text: string) {
@@ -822,7 +812,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
     <>
     <div
       ref={rootRef}
-      className="flex w-full shrink-0 flex-col overflow-hidden rounded-xl text-white" // FIXED HEIGHT FOR CHAT SPACE
+      className="flex w-full shrink-0 flex-col overflow-hidden rounded-xl text-white"
       style={MAT_STYLE}
     >
       <div className="h-1.5 w-full shrink-0" style={KENTE_STYLE} />
@@ -856,7 +846,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
       </div>
 
       {/* Middle Section */}
-      <div className="flex flex-1 flex-col justify-center relative min-h-[100px]">
+      <div className="relative flex min-h-[100px] shrink-0 flex-col justify-center">
         <div className="flex shrink-0 items-center justify-center gap-2 px-2 py-1">
           <div
             role="status"
@@ -878,7 +868,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
         </div>
 
         {state.status === "finished" ? (
-          <div className="flex min-h-[120px] flex-1 flex-col items-center justify-center gap-2 overflow-y-auto px-4 py-2 text-center">
+          <div className="flex min-h-[120px] shrink-0 flex-col items-center justify-center gap-2 overflow-y-auto px-4 py-2 text-center">
             <h2 className="text-xl font-black">{iWon ? "🏆 You won!" : "😔 " + nameOf(state.winner || "") + " won!"}</h2>
             <p className="text-xs text-white/75">
               Rank: <span className="font-bold text-[#f0c36a]">{rank.name}</span>
@@ -912,7 +902,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
             </button>
           </div>
         ) : showQuitModal ? (
-          <div className="flex min-h-[120px] flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
+          <div className="flex min-h-[120px] shrink-0 flex-col items-center justify-center gap-3 px-4 text-center">
             <p className="text-base font-bold">Quit Game?</p>
             <p className="text-xs text-white/70">Are you sure you want to leave? Your progress will be lost.</p>
             <div className="flex w-full max-w-xs gap-2">
@@ -923,7 +913,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
         ) : (
           <>
             {suitPickerOpen ? (
-              <div className="flex min-h-[84px] flex-1 flex-col items-center justify-center gap-2 px-2 py-1">
+              <div className="flex min-h-[84px] shrink-0 flex-col items-center justify-center gap-2 px-2 py-1">
                 <p className="text-sm font-bold">Call a suit</p>
                 <div className="flex w-full max-w-sm gap-1.5">
                   {ALL_SUITS.map((s) => (
@@ -941,7 +931,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
                 <button type="button" onClick={() => { setSuitPickerOpen(false); setSelectedCard(null); }} className="text-xs font-bold text-red-300">Cancel</button>
               </div>
             ) : (
-              <div className="flex min-h-[84px] flex-1 items-center justify-center gap-6 px-3 py-1">
+              <div className="flex min-h-[84px] shrink-0 items-center justify-center gap-6 px-3 py-1">
                 <div className="flex flex-col items-center gap-1">
                   <button
                     type="button"

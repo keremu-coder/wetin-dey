@@ -11,15 +11,17 @@ import { Alama } from "./Alama";
 const AVATAR_SEEDS = ["mama", "oga", "boy", "lady", "pastor", "alhaji", "market_woman", "area_boy", "musa", "chioma"];
 
 function CustomAudioBar({ spaceName, onLeave }: { spaceName: string, onLeave: () => void }) {
-  const { localParticipant } = useLocalParticipant();
+  const { localParticipant, isMicrophoneEnabled } = useLocalParticipant();
   const participants = useParticipants();
-  const [isMuted, setIsMuted] = useState(false);
+  const isMuted = !isMicrophoneEnabled;
 
   async function toggleMute() {
     if (!localParticipant) return;
-    const nextState = !isMuted;
-    setIsMuted(nextState);
-    await localParticipant.setMicrophoneEnabled(!nextState);
+    try {
+      await localParticipant.setMicrophoneEnabled(isMuted);
+    } catch {
+      /* keep the UI in sync with LiveKit's actual microphone state */
+    }
     
     // Force resume all audio elements to bypass autoplay blocks
     document.querySelectorAll('audio').forEach(a => {
@@ -38,7 +40,12 @@ function CustomAudioBar({ spaceName, onLeave }: { spaceName: string, onLeave: ()
         ))}
       </div>
       <div className="flex items-center gap-2 pr-1">
-        <button onClick={toggleMute} className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${isMuted ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`}>
+        <button
+          type="button"
+          aria-label={isMuted ? "Unmute microphone" : "Mute microphone"}
+          onClick={() => void toggleMute()}
+          className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${isMuted ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`}
+        >
           {isMuted ? "🔇" : "🎙️"}
         </button>
         <button onClick={onLeave} className="flex h-10 w-10 items-center justify-center rounded-full bg-red-500/20 text-red-400">
@@ -63,16 +70,20 @@ function AudioStatus() {
 function PrivacyMute() {
   const { localParticipant } = useLocalParticipant();
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!localParticipant) return;
-      if (document.hidden) {
-        localParticipant.setMicrophoneEnabled(false).catch(() => {});
-      } else {
-        localParticipant.setMicrophoneEnabled(true).catch(() => {});
-      }
+    if (!localParticipant) return;
+    const muteMicrophone = () => {
+      localParticipant.setMicrophoneEnabled(false).catch(() => {});
     };
+    const handleVisibilityChange = () => {
+      if (document.hidden) muteMicrophone();
+    };
+    if (document.hidden) muteMicrophone();
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("pagehide", muteMicrophone);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("pagehide", muteMicrophone);
+    };
   }, [localParticipant]);
   return null;
 }
@@ -107,56 +118,6 @@ export function VoiceRoom({
   const livekitUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL;
 
   
-  // 1. STOP RECORDING IN BACKGROUND (PRIVACY)
-  
-  // 1. STOP RECORDING IN BACKGROUND (PRIVACY)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        // User minimized or changed tabs. Find all local video/audio tracks and mute them.
-        const mediaElements = document.querySelectorAll('video, audio');
-        mediaElements.forEach((el: any) => {
-          if (el.srcObject) {
-            const tracks = (el.srcObject as MediaStream).getTracks();
-            tracks.forEach(t => { if (t.kind === 'audio') t.enabled = false; });
-          }
-        });
-      } else {
-        // User returned to the app. Unmute.
-        const mediaElements = document.querySelectorAll('video, audio');
-        mediaElements.forEach((el: any) => {
-          if (el.srcObject) {
-            const tracks = (el.srcObject as MediaStream).getTracks();
-            tracks.forEach(t => { if (t.kind === 'audio') t.enabled = true; });
-          }
-        });
-      }
-    };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, []);
-
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      const room = document.querySelector('.lk-room-container') as any;
-      if (!room) return;
-      // LiveKit exposes the room instance via its internal API, 
-      // but we can simply mute the local participant via the DOM if needed.
-      // A safer way for Capacitor apps is to just toggle the mic track.
-      const localVideo = document.querySelector('video.lk-participant-media-video') as HTMLVideoElement;
-      if (document.hidden) {
-        // User left the app or changed tabs
-        if (navigator.mediaDevices) {
-          // We pause the mic tracks
-          const btns = document.querySelectorAll('[data-lk-local-participant="true"] button');
-          // This is a hacky fallback, ideally we use the LiveKit context
-        }
-      }
-    };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, []);
-
   useEffect(() => {
     const savedSeed = localStorage.getItem("whot_avatar_seed");
     if (savedSeed) setMySeed(savedSeed);
@@ -295,7 +256,7 @@ export function VoiceRoom({
 
   return (
     <div 
-      className={`fixed inset-x-0 bottom-0 z-[200] flex flex-col bg-[#0B0E17] rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)] border-t border-white/10 transition-all duration-300 ${isFullScreen ? 'h-[100dvh] rounded-none' : activeGame ? 'h-[80dvh]' : 'h-[55vh]'}`}
+      className={`fixed inset-x-0 bottom-0 z-[200] flex flex-col overflow-hidden bg-[#0B0E17] rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)] border-t border-white/10 transition-all duration-300 ${isFullScreen ? 'h-[100dvh] rounded-none' : activeGame ? 'h-auto max-h-[80dvh]' : 'h-[55vh]'}`}
     >
       {/* Drag Handle */}
       <div className="w-full flex justify-center py-2 shrink-0 cursor-pointer" onClick={onClose}>
@@ -304,7 +265,7 @@ export function VoiceRoom({
 
       <header className="flex items-center justify-between px-4 pb-2 shrink-0">
         <div className="min-w-0 pr-4">
-          <h2 className="font-serif text-[1.1rem] font-semibold text-white truncate">{spaceName} Voice</h2>
+          <h2 className="truncate font-serif text-[1rem] font-semibold text-white" title={spaceName}>{spaceName}</h2>
           <p className="text-[0.75rem] text-white/50">Live Game Room</p>
         </div>
         
@@ -337,7 +298,7 @@ export function VoiceRoom({
          
         
         data-lk-theme="default" 
-        style={{ height: 'auto' }}
+        style={{ height: 'auto', flexShrink: 0 }}
       >
         <RoomAudioRenderer />
         <PrivacyMute />
@@ -353,7 +314,7 @@ export function VoiceRoom({
         )}
       </LiveKitRoom>
 
-      <div className={`flex-1 flex flex-col overflow-y-auto relative bg-[#0B0E17] ${activeGame ? "p-1" : "p-4"}`}>
+      <div className={`min-h-0 flex-1 flex flex-col overflow-y-auto relative bg-[#0B0E17] ${activeGame ? "p-1" : "p-4"}`}>
         {!activeGame ? (
           <div className="flex-1 flex flex-col items-center justify-center">
             
@@ -398,7 +359,7 @@ export function VoiceRoom({
             </div>
           </div>
         ) : (
-          <div className="w-full flex-1 flex flex-col items-center relative">
+          <div className="w-full shrink-0 flex flex-col items-center relative">
             {activeGame.status === "waiting" && (
               <div className="absolute inset-0 z-20 bg-[#0B0E17] flex flex-col items-center justify-center p-6 overflow-y-auto">
                 <h3 className="text-white font-bold text-xl mb-1">Whot lobby</h3>
@@ -423,7 +384,7 @@ export function VoiceRoom({
                 <button onClick={isHost ? quitGame : leaveLobby} className="text-white/50 text-sm hover:text-white/80 mt-2">{isHost ? "Cancel game" : "Leave"}</button>
               </div>
             )}
-            <div className="w-full flex-1 relative min-h-[200px]">
+            <div className="w-full shrink-0 relative">
               <WhotGame 
                 game={activeGame} 
                 isPlayer={isPlayer} 
