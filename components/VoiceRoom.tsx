@@ -265,8 +265,8 @@ export function VoiceRoom({
         audio={true} 
         token={token} 
         serverUrl={livekitUrl} 
-        onDisconnected={() => setLivekitError(true)} 
-        onError={() => setLivekitError(true)}
+         
+        
         data-lk-theme="default" 
         style={{ height: 'auto' }}
       >
