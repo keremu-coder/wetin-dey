@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import nextDynamic from "next/dynamic";
-import { useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { tapFeedback } from "@/lib/haptics";
 import {
   avatarColor,
@@ -62,6 +62,9 @@ export function MessageRow({
   onDiscard,
   onViewMedia
 }: MessageRowProps) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
   const swipeStartX = useRef<number | null>(null);
   const swipeStartY = useRef<number | null>(null);
   const swipeLocked = useRef<"horizontal" | "vertical" | null>(null);
