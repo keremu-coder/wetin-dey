@@ -1,9 +1,6 @@
 ﻿"use client";
 
 let audioCtx: AudioContext | null = null;
-type DecodedSound = { buffer: AudioBuffer; gain: number };
-const decodedSounds = new Map<string, DecodedSound>();
-const pendingSounds = new Map<string, Promise<DecodedSound | null>>();
 
 function getCtx(): AudioContext | null {
   if (typeof window === "undefined") return null;
@@ -29,88 +26,13 @@ export function unlockAudio(): void {
     ctx.resume().catch(() => {});
   }
   try {
-    // A short silent buffer is more reliable than a one-sample buffer on iOS Safari.
-    const buf = ctx.createBuffer(1, Math.max(1, Math.ceil(ctx.sampleRate * 0.015)), ctx.sampleRate);
+    const buf = ctx.createBuffer(1, 1, 22050);
     const src = ctx.createBufferSource();
     src.buffer = buf;
     src.connect(ctx.destination);
     src.start(0);
   } catch {
     /* ignore */
-  }
-}
-
-async function loadDecodedSound(ctx: AudioContext, url: string): Promise<DecodedSound | null> {
-  const cached = decodedSounds.get(url);
-  if (cached) return cached;
-
-  let pending = pendingSounds.get(url);
-  if (!pending) {
-    pending = (async () => {
-      try {
-        const response = await fetch(url, { cache: "force-cache" });
-        if (!response.ok) {
-          pendingSounds.delete(url);
-          return null;
-        }
-
-        const encoded = await response.arrayBuffer();
-        const buffer = await new Promise<AudioBuffer>((resolve, reject) => {
-          ctx.decodeAudioData(encoded, resolve, reject);
-        });
-        let peak = 0;
-        for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
-          const samples = buffer.getChannelData(channel);
-          for (let i = 0; i < samples.length; i++) {
-            peak = Math.max(peak, Math.abs(samples[i]));
-          }
-        }
-
-        // Bring quiet source files up without allowing their peaks to clip.
-        const gain = peak > 0 ? Math.min(1.5, 0.92 / peak) : 1;
-        const sound = { buffer, gain };
-        decodedSounds.set(url, sound);
-        return sound;
-      } catch {
-        pendingSounds.delete(url);
-        return null;
-      }
-    })();
-    pendingSounds.set(url, pending);
-  }
-  return pending;
-}
-
-/** Play a bundled sound through Web Audio, after unlockAudio() has run on a user gesture. */
-export async function playAudioFile(url: string, volume = 1): Promise<void> {
-  const ctx = getCtx();
-  if (!ctx) return;
-
-  try {
-    if (ctx.state !== "running") await ctx.resume();
-    if (ctx.state !== "running") return;
-
-    const sound = await loadDecodedSound(ctx, url);
-    if (!sound) return;
-    if (ctx.state !== "running") await ctx.resume();
-    if (ctx.state !== "running") return;
-
-    const source = ctx.createBufferSource();
-    const gain = ctx.createGain();
-    gain.gain.setValueAtTime(
-      Math.max(0, Math.min(1, volume)) * sound.gain,
-      ctx.currentTime
-    );
-    source.buffer = sound.buffer;
-    source.connect(gain);
-    gain.connect(ctx.destination);
-    source.onended = () => {
-      source.disconnect();
-      gain.disconnect();
-    };
-    source.start();
-  } catch {
-    /* iOS may suspend audio when the app changes state; the next tap unlocks it again. */
   }
 }
 
@@ -371,4 +293,13 @@ export function showBrowserNotification(
   }
 }
 
-
+export function playAudioFile(url: string, volume = 1.0) {
+  if (typeof window === "undefined") return;
+  try {
+    const audio = new Audio(url);
+    audio.volume = volume;
+    audio.play().catch(() => {});
+  } catch (e) {
+    // ignore
+  }
+}
