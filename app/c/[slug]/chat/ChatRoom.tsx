@@ -796,7 +796,7 @@ export function ChatRoom({
     !inviteBannerDismissed && members.length < 5 && !inviteOpen;
 
   return (
-    <div 
+    <div suppressHydrationWarning 
       className="fixed inset-x-0 top-0 z-50 flex flex-col bg-paper overflow-hidden" 
       style={{ height: viewportHeight, paddingTop: "env(safe-area-inset-top, 0px)" }}
     >

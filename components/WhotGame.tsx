@@ -968,7 +968,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
             <Alama seed={mySeed || sessionId} size={24} />
             <div className="flex flex-col">
               <span className="text-[11px] font-bold text-white leading-none">{iAmSeated ? myHandle : "Watching"}</span>
-              <span className="text-[9px] text-[#f0c36a] leading-tight mt-0.5">{rank.name} · {wins}W {losses}L</span>
+              <span className="text-[9px] text-[#f0c36a] leading-tight mt-0.5" suppressHydrationWarning>{rank.name} · {wins}W {losses}L</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
