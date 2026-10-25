@@ -72,10 +72,11 @@ function PrivacyMute() {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!localParticipant) return;
-      const pub = Array.from(localParticipant.audioTrackPublications.values())[0];
-      if (pub?.track) {
-        if (document.hidden) pub.track.mute();
-        else pub.track.unmute();
+      // Directly mute the track to prevent React re-rendering the whole room
+      const audioPub = Array.from(localParticipant.audioTrackPublications.values())[0];
+      if (audioPub?.track) {
+        if (document.hidden) audioPub.track.mute();
+        else audioPub.track.unmute();
       }
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
