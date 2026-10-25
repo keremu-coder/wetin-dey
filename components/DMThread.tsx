@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -76,8 +76,6 @@ export function DMThread({
   const [blocking, setBlocking] = useState(false);
   const [viewingMedia, setViewingMedia] = useState<{url: string, type: string} | null>(null);
   const [voiceRoomOpen, setVoiceRoomOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const lastMarkRef = useRef<number>(0);
   const scrollDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -177,22 +175,8 @@ export function DMThread({
     };
   }, []);
 
-  async function refresh() {
-    try {
-      const res = await fetch(`/api/dm/threads/${threadId}`, {
-        cache: "no-store"
-      });
-      const json = await res.json();
-      if (!res.ok) return;
-      setMessages((json.messages ?? []) as Message[]);
-    } catch {
-      /* silent */
-    }
-  }
-
   async function markRead() {
     const now = Date.now();
-    // Reduced throttle from 3 seconds to 1 second for faster read receipts
     if (now - lastMarkRef.current < 1000) return;
     lastMarkRef.current = now;
     try {
@@ -241,7 +225,7 @@ export function DMThread({
         .on(
           "postgres_changes",
           {
-            event: "*", // Listen to INSERT and UPDATE
+            event: "*",
             schema: "public",
             table: "dm_messages",
             filter: `thread_id=eq.${threadId}`
@@ -260,8 +244,8 @@ export function DMThread({
 
               if (p.browserNotifications) {
                 showBrowserNotification(
-                  `@${otherHandle} sent you a message`,
-                  row.media_path ? "📷 View once media" : row.body.slice(0, 90),
+                  `@${otherHandle}`,
+                  row.body ? row.body.slice(0, 90) : "New message",
                   `dm-${threadId}`
                 );
               }
@@ -270,80 +254,28 @@ export function DMThread({
                 if (prev.some((m) => m.id === row.id)) return prev;
                 return [...prev, row];
               });
-
-              void markRead();
-            } 
-            else if (payload.eventType === "UPDATE") {
-              const row = payload.new as any;
-              setMessages((prev) => 
-                prev.map((m) => m.id === row.id ? { ...m, read_at: row.read_at } : m)
-              );
             }
           }
         )
         .subscribe();
-    } catch {
-      /* silent */
+    } catch (e) {
+      console.error(e);
     }
 
     return () => {
       cancelled = true;
-      if (channel) {
-        try {
-          channel.unsubscribe();
-        } catch {
-          /* ignore */
-        }
-      }
+      if (channel) channel.unsubscribe();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [threadId, mySessionId, otherHandle]);
 
   useEffect(() => {
-    void markRead();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [threadId]);
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [messages]);
 
-  useEffect(() => {
-    const t = setInterval(() => {
-      void refresh();
-    }, 4000); // Reduced from 30 seconds to 4 seconds for faster updates
-    return () => clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [threadId]);
-
-  useEffect(() => {
-    function onFocus() {
-      void refresh();
-      void markRead();
-    }
-    window.addEventListener("focus", onFocus);
-    function onVis() {
-      if (document.visibilityState === "visible") onFocus();
-    }
-    document.addEventListener("visibilitychange", onVis);
-    return () => {
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onVis);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [threadId]);
-
-  useEffect(() => {
-    if (scrollDebounceRef.current) clearTimeout(scrollDebounceRef.current);
-    scrollDebounceRef.current = setTimeout(() => {
-      const el = scrollRef.current;
-      if (el) el.scrollTop = el.scrollHeight;
-    }, 40);
-    return () => {
-      if (scrollDebounceRef.current) clearTimeout(scrollDebounceRef.current);
-    };
-  }, [messages.length]);
-
-  const lastMine = [...messages]
-    .reverse()
-    .find((m) => m.sender_id === mySessionId);
-  const lastMineSeen = lastMine?.read_at != null;
+  const lastMine = messages.filter((m) => m.sender_id === mySessionId).pop();
+  const lastMineSeen = !!lastMine?.read_at;
 
   const chatContent = (
     <div className="flex min-h-0 flex-1 flex-col bg-paper">
@@ -364,11 +296,11 @@ export function DMThread({
           href={`/u/${encodeURIComponent(otherHandle)}`}
           className="flex min-w-0 flex-1 items-center gap-2.5"
         >
-          <Avatar 
-            src={otherAvatarUrl} 
-            seed={otherHandle} 
-            size={36} 
-            title={`@${otherHandle}`} 
+          <Avatar
+            src={otherAvatarUrl}
+            seed={otherHandle}
+            size={36}
+            title={`@${otherHandle}`}
           />
           <div className="min-w-0">
             <p className="truncate text-[0.9375rem] font-semibold text-ink">
@@ -386,7 +318,7 @@ export function DMThread({
             onClick={() => setVoiceRoomOpen(true)}
             className="flex h-9 items-center justify-center gap-1.5 rounded-full bg-brand px-3 text-white transition-transform active:scale-95"
           >
-            <span className="text-[1.1rem]">🎙️</span>
+            <span className="text-[1.1rem]">🎮</span>
             <span className="text-[0.75rem] font-semibold">Games</span>
           </button>
           <div className="relative">
@@ -396,37 +328,30 @@ export function DMThread({
               className="flex h-10 w-10 items-center justify-center rounded-full text-faint transition-colors hover:bg-ink/5 hover:text-ink"
               aria-label="More options"
             >
-              {"\u2022\u2022\u2022"}
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <circle cx="12" cy="5" r="2" />
+                <circle cx="12" cy="12" r="2" />
+                <circle cx="12" cy="19" r="2" />
+              </svg>
             </button>
-
             {menuOpen ? (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
-                <div className="absolute right-0 top-full z-50 mt-1 w-56 rounded-xl border border-border bg-surface p-1 shadow-card-hover">
-                  <Link
-                    href={`/u/${encodeURIComponent(otherHandle)}`}
-                    onClick={() => setMenuOpen(false)}
-                    className="block rounded-lg px-3 py-2 text-left text-[0.8125rem] text-ink hover:bg-ink/5"
-                  >
-                    View @{otherHandle}
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => { setMenuOpen(false); setFlagOpen(true); }}
-                    className="block w-full rounded-lg px-3 py-2 text-left text-[0.8125rem] text-ink hover:bg-ink/5"
-                  >
-                    Report conversation
-                  </button>
-                  <button
-                    type="button"
-                    onClick={blockUser}
-                    disabled={blocking}
-                    className="block w-full rounded-lg px-3 py-2 text-left text-[0.8125rem] text-danger hover:bg-danger-soft disabled:opacity-60"
-                  >
-                    {blocking ? "Dey block…" : `Block @${otherHandle}`}
-                  </button>
-                </div>
-              </>
+              <div className="absolute right-0 top-full mt-1 w-48 rounded-xl border border-border bg-surface py-1 shadow-lg">
+                <button
+                  type="button"
+                  onClick={() => { setMenuOpen(false); setFlagOpen(true); }}
+                  className="block w-full px-4 py-2 text-left text-sm text-ink hover:bg-ink/5"
+                >
+                  Report
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setMenuOpen(false); void blockUser(); }}
+                  disabled={blocking}
+                  className="block w-full px-4 py-2 text-left text-sm text-danger hover:bg-ink/5"
+                >
+                  {blocking ? "Blocking..." : `Block @${otherHandle}`}
+                </button>
+              </div>
             ) : null}
           </div>
         </div>
@@ -434,27 +359,25 @@ export function DMThread({
 
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto px-3 py-4"
+        className="chat-log min-h-0 flex-1 overflow-y-auto pt-4 pb-12"
         style={{ overscrollBehavior: "contain" }}
+        onScroll={() => markRead()}
       >
         {messages.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-state-icon">✉️</div>
-            <p className="empty-state-title">Say hello</p>
-            <p className="empty-state-text">
-              This is a private conversation. Nobody else can see it.
-            </p>
+          <div className="flex flex-col items-center justify-center py-10 text-center">
+            <div className="text-[3rem]">🔒</div>
+            <p className="text-sm font-semibold text-ink">Private conversation</p>
+            <p className="text-xs text-muted">Don't share personal info.</p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-2 px-3">
             <div className="mb-4 rounded-xl border border-border bg-surface p-3 text-center">
               <p className="text-[0.7rem] leading-relaxed text-muted">
                 🔒 Private conversation between you and @{otherHandle}.
                 <br />
-                Don&apos;t share phone numbers, emails, or links to other apps — they&apos;ll be blocked.
+                Don't share phone numbers, emails, or links to other apps — they'll be blocked.
               </p>
             </div>
-
             {messages.map((m) => {
               const mine = m.sender_id === mySessionId;
               const isLastMine = mine && !m._cid && m.id === lastMine?.id;
@@ -487,7 +410,7 @@ export function DMThread({
                       )}
                     </div>
                     <p className={`mt-0.5 flex items-center gap-2 text-[0.65rem] text-faint ${mine ? "justify-end" : ""}`}>
-                      <span>{mounted ? (m._pending ? "Sending" : m._failed ? "Failed" : timeAgoShort(m.created_at)) : ""}</span>
+                      <span>{m._pending ? "Sending" : m._failed ? "Failed" : timeAgoShort(m.created_at)}</span>
                       {isLastMine ? (
                         <span className="ml-1 text-[0.65rem] font-bold text-brand" title={lastMineSeen ? "Read" : "Delivered"}>
                           {lastMineSeen ? "R" : "D"}
@@ -523,29 +446,6 @@ export function DMThread({
 
   return (
     <div className="fixed inset-0 z-50 flex h-[100dvh] flex-col bg-paper">
-
-      {error ? (
-        <p className="absolute bottom-20 left-1/2 -translate-x-1/2 rounded-lg bg-danger-soft px-3 py-1.5 text-[0.75rem] text-danger">
-          {error}
-        </p>
-      ) : null}
-
-      {blockReason ? (
-        <FilterWarning
-          reason={blockReason}
-          onClose={() => setBlockReason(null)}
-        />
-      ) : null}
-
-      {flagOpen ? (
-        <FlagSheet
-          targetType="dm_thread"
-          targetId={threadId}
-          targetLabel={`conversation with @${otherHandle}`}
-          onClose={() => setFlagOpen(false)}
-        />
-      ) : null}
-
       {voiceRoomOpen ? (
         <VoiceRoom
           roomName={`dm_${threadId}`}
@@ -558,17 +458,10 @@ export function DMThread({
       ) : (
         chatContent
       )}
-
-      {viewingMedia ? (
-        <SecureMediaViewer
-          url={viewingMedia.url}
-          type={viewingMedia.type}
-          viewerHandle={otherHandle}
-          onClose={() => setViewingMedia(null)}
-        />
-      ) : null}
+      {error ? <p className="absolute bottom-20 left-1/2 -translate-x-1/2 rounded-lg bg-danger-soft px-3 py-1.5 text-[0.75rem] text-danger">{error}</p> : null}
+      {blockReason ? <FilterWarning reason={blockReason} onClose={() => setBlockReason(null)} /> : null}
+      {flagOpen ? <FlagSheet targetType="dm_thread" targetId={threadId} targetLabel={`conversation with @${otherHandle}`} onClose={() => setFlagOpen(false)} /> : null}
+      {viewingMedia ? <SecureMediaViewer url={viewingMedia.url} type={viewingMedia.type} viewerHandle={otherHandle} onClose={() => setViewingMedia(null)} /> : null}
     </div>
   );
 }
-
-
