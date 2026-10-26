@@ -4,8 +4,8 @@ import { getSessionId } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sameOrigin } from "@/lib/rate-limit";
 import { startWhotGame } from "@/lib/whot";
-
-const MAX_STATE_CHARS = 60_000;
+import { maskStateFor } from "@/lib/whot-engine";
+import { canAccessSpace } from "@/lib/space-access";
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,23 +18,11 @@ export async function POST(req: NextRequest) {
     const { action, gameId, communityId, dmThreadId, game_state, players } = body ?? {};
     const db = createServiceClient();
 
-    const validState = (s: unknown) =>
-      !!s && typeof s === "object" && JSON.stringify(s).length <= MAX_STATE_CHARS;
+    // Players only ever receive their own cards. Opponents' hands and the market are replaced by placeholders of the same size.
+    const mask = <T extends { game_state?: any } | null | undefined>(g: T): T =>
+      g && (g as any).game_state ? ({ ...(g as any), game_state: maskStateFor((g as any).game_state, sid) } as T) : g;
 
-    async function canAccess(cId?: string, dmId?: string): Promise<boolean> {
-      if (cId && typeof cId === "string") {
-        const { data: c } = await db.from("communities").select("is_public").eq("id", cId).maybeSingle();
-        if (!c) return false;
-        if (c.is_public) return true;
-        const { data: m } = await db.from("community_members").select("id").eq("community_id", cId).eq("session_id", sid).maybeSingle();
-        return !!m;
-      }
-      if (dmId && typeof dmId === "string") {
-        const { data: t } = await db.from("dm_threads").select("session_a, session_b").eq("id", dmId).maybeSingle();
-        return !!t && (t.session_a === sid || t.session_b === sid);
-      }
-      return false;
-    }
+    const canAccess = (cId?: string, dmId?: string): Promise<boolean> => canAccessSpace(db, sid, cId, dmId);
 
     async function handlesFor(list: unknown): Promise<Record<string, string>> {
       const ids = (Array.isArray(list) ? list : []).filter((p) => typeof p === "string" && p !== "bot");
@@ -62,7 +50,7 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      return NextResponse.json({ game: data ?? null, handles: data ? await handlesFor(data.players) : {} });
+      return NextResponse.json({ game: mask(data ?? null), handles: data ? await handlesFor(data.players) : {} });
     }
 
     if (action === "start") {
@@ -77,7 +65,7 @@ export async function POST(req: NextRequest) {
         if (isStale) {
           await db.from("space_games").delete().eq("id", live.id);
         } else {
-          return NextResponse.json({ game: live });
+          return NextResponse.json({ game: mask(live), handles: await handlesFor(live.players) });
         }
       }
       const withBot = Array.isArray(players) && players.includes("bot");
@@ -89,7 +77,7 @@ export async function POST(req: NextRequest) {
         game_state: startWhotGame(seats, useAnyplay)
       }).select().single();
       if (error) return NextResponse.json({ error: "Could not start game" }, { status: 500 });
-      return NextResponse.json({ game: data });
+      return NextResponse.json({ game: mask(data), handles: await handlesFor(data.players) });
     }
 
     if (!gameId || typeof gameId !== "string") return NextResponse.json({ error: "gameId required" }, { status: 400 });
@@ -128,10 +116,8 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "update_state") {
-      if (!current.includes(sid)) return NextResponse.json({ error: "Not a player" }, { status: 403 });
-      if (!validState(game_state)) return NextResponse.json({ error: "bad state" }, { status: 400 });
-      await db.from("space_games").update({ game_state }).eq("id", gameId);
-      return NextResponse.json({ ok: true });
+      // Clients may no longer write game state. Moves go through /api/space-games/move, which validates them.
+      return NextResponse.json({ error: "Use /api/space-games/move" }, { status: 410 });
     }
 
     if (action === "delete") {

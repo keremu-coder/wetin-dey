@@ -17,6 +17,10 @@ export type WhotState = {
   useAnyplay: boolean;
   activePenalty: number;
   penaltyType: "2" | "5" | null;
+  /** Server-side revision counter; bumped on every accepted move (optimistic locking). */
+  rev?: number;
+  /** Set by the server after an explicit last-card declaration. */
+  lastCardCalledBy?: string | null;
 };
 
 const SUITS: WhotSuit[] = ["circle", "triangle", "cross", "square", "star"];
@@ -71,6 +75,8 @@ export function startWhotGame(players: string[], useAnyplay: boolean): WhotState
     status: "playing",
     winner: null,
     useAnyplay,
+    rev: 0,
+    lastCardCalledBy: null,
     activePenalty: 0,
     penaltyType: null
   };

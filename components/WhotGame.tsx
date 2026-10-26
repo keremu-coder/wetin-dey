@@ -1,16 +1,8 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect, useRef } from "react";
-import {
-  WhotCard,
-  WhotSuit,
-  WhotState,
-  canPlayCard,
-  getNextTurn,
-  startWhotGame,
-  shuffleDeck
-} from "@/lib/whot";
-import { getBotMove, BotAction } from "@/lib/whot-bot";
+import { WhotCard, WhotSuit, WhotState, canPlayCard } from "@/lib/whot";
+import { ALL_SUITS, getCardName } from "@/lib/whot-engine";
 import { playAudioFile, playProfile, unlockAudio, vibrate } from "@/lib/sounds";
 import { shareUrl } from "@/lib/share";
 import { Alama } from "./Alama";
@@ -28,15 +20,6 @@ function SuitIcon({ suit }: { suit: string }) {
   if (suit === "square") return <SvgCarpet />;
   if (suit === "star") return <SvgStar />;
   return null;
-}
-
-function getCardName(card: WhotCard): string {
-  if (card.value === 20) return "WHOT 20";
-  if (card.value === 1) return "HOLD ON";
-  if (card.value === 2) return "PICK 2";
-  if (card.value === 8) return card.suit === "star" ? "STAR 8" : "SUSPENSION";
-  if (card.value === 14) return "GENERAL MARKET";
-  return `${card.value} ${card.suit.toUpperCase()}`;
 }
 
 type CardSize = "lg" | "md" | "sm" | "xs";
@@ -104,24 +87,6 @@ function playCustomSound(text: string, mode: VoiceMode) {
   }
 }
 
-const ALL_SUITS: WhotSuit[] = ["circle", "triangle", "cross", "square", "star"];
-
-function bestSuitFor(hand: WhotCard[]): WhotSuit {
-  const counts: Record<WhotSuit, number> = { circle: 0, triangle: 0, cross: 0, square: 0, star: 0 };
-  for (const c of hand) {
-    if (c.suit !== "whot") counts[c.suit]++;
-  }
-  let best: WhotSuit = "circle";
-  let max = -1;
-  for (const s of ALL_SUITS) {
-    if (counts[s] > max) {
-      max = counts[s];
-      best = s;
-    }
-  }
-  return best;
-}
-
 function stateSignature(s: WhotState | null | undefined): string {
   if (!s || !s.hands || !s.discard) return "";
   const counts = Object.keys(s.hands)
@@ -141,128 +106,6 @@ function stateSignature(s: WhotState | null | undefined): string {
     s.calledSuit ?? "-",
     s.winner ?? "-"
   ].join("|");
-}
-
-function drawCards(
-  deck: WhotCard[],
-  discard: WhotCard[],
-  count: number
-): { drawn: WhotCard[]; deck: WhotCard[]; discard: WhotCard[] } {
-  let nextDeck = [...deck];
-  let nextDiscard = [...discard];
-  const drawn: WhotCard[] = [];
-  while (drawn.length < count) {
-    if (nextDeck.length === 0) {
-      if (nextDiscard.length <= 1) break;
-      const top = nextDiscard[nextDiscard.length - 1];
-      nextDeck = shuffleDeck(nextDiscard.slice(0, -1));
-      nextDiscard = [top];
-    }
-    const c = nextDeck.shift();
-    if (!c) break;
-    drawn.push(c);
-  }
-  return { drawn, deck: nextDeck, discard: nextDiscard };
-}
-
-function resolvePlay(
-  state: WhotState,
-  players: string[],
-  actorId: string,
-  card: WhotCard,
-  calledSuit: WhotSuit | null,
-  youId: string,
-  nameOf: (id: string) => string
-): { next: WhotState; text: string } {
-  const who = (id: string): string => (id === youId ? "You" : nameOf(id));
-  const hand = (state.hands[actorId] || []).filter((c) => c.id !== card.id);
-  const hands: Record<string, WhotCard[]> = { ...state.hands, [actorId]: hand };
-  let discard = [...state.discard, card];
-  let deck = [...state.deck];
-  let nextTurn = getNextTurn(players, actorId);
-  let text = `${who(actorId)} played ${getCardName(card)}`;
-  let activePenalty = 0;
-  let penaltyType: "2" | "5" | null = null;
-
-  if (card.value === 2) {
-    activePenalty = (state.penaltyType === "2" ? state.activePenalty : 0) + 2;
-    penaltyType = "2";
-    text += ` (Pick ${activePenalty} stacked)`;
-  } else if (card.value === 8) {
-    const skipped = getNextTurn(players, actorId);
-    nextTurn = getNextTurn(players, actorId, 2);
-    text += `. ${who(skipped)} ${skipped === youId ? "are" : "is"} suspended!`;
-  } else if (card.value === 14) {
-    for (const p of players) {
-      if (p === actorId) continue;
-      const d = drawCards(deck, discard, 1);
-      deck = d.deck;
-      discard = d.discard;
-      hands[p] = [...(hands[p] || []), ...d.drawn];
-    }
-    nextTurn = actorId;
-    text += ". General Market: everyone else picks 1!";
-  } else if (card.value === 1) {
-    nextTurn = actorId;
-    text += ". Hold on!";
-  }
-
-  const finished = hand.length === 0;
-  const next: WhotState = {
-    ...state,
-    hands,
-    discard,
-    deck,
-    turn: nextTurn,
-    calledSuit: card.value === 20 ? calledSuit : null,
-    winner: finished ? actorId : null,
-    status: finished ? "finished" : "playing",
-    activePenalty,
-    penaltyType
-  };
-  return { next, text };
-}
-
-function resolvePick(
-  state: WhotState,
-  players: string[],
-  actorId: string
-): { next: WhotState; drawnCount: number } {
-  const amount = state.activePenalty > 0 ? state.activePenalty : 1;
-  const d = drawCards(state.deck, state.discard, amount);
-  const next: WhotState = {
-    ...state,
-    deck: d.deck,
-    discard: d.discard,
-    hands: { ...state.hands, [actorId]: [...(state.hands[actorId] || []), ...d.drawn] },
-    turn: getNextTurn(players, actorId),
-    activePenalty: 0,
-    penaltyType: null
-  };
-  return { next, drawnCount: d.drawn.length };
-}
-
-function normalizeBotMove(
-  move: BotAction,
-  hand: WhotCard[],
-  activePenalty: number,
-  penaltyType: "2" | "5" | null
-): BotAction {
-  if (!move || move.action !== "play") return move;
-  let card = move.card;
-  if (activePenalty > 0 && penaltyType && card.value === 20) {
-    const stack = hand.find((c) => c.value === Number(penaltyType));
-    if (stack) card = stack;
-  }
-  if (card.value === 20) {
-    const chosen = card;
-    return {
-      action: "play",
-      card: chosen,
-      calledSuit: move.calledSuit ?? bestSuitFor(hand.filter((c) => c.id !== chosen.id))
-    };
-  }
-  return { action: "play", card };
 }
 
 function CardFace({ card, size, style }: { card: WhotCard; size: CardSize; style?: React.CSSProperties }) {
@@ -525,28 +368,19 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
   }, [stateSig]);
 
   useEffect(() => {
-    if (!isBotTurn || isProcessing || state?.status === "finished") return;
+    if (!isBotTurn || isProcessing || !iAmSeated || state?.status === "finished") return;
     if (sentSig !== "" && sentSig === stateSig) return;
 
+    // The server plays the bot's turn; we only ask for it.
     const timer = setTimeout(async () => {
       setIsProcessing(true);
       try {
-        const players: string[] = game.players;
-        const botHand: WhotCard[] = state.hands["bot"] || [];
-        const opponentCounts = players.filter((p: string) => p !== "bot").map((p: string) => state.hands[p]?.length || 0);
-        const raw = getBotMove(botHand, topCard, state.calledSuit, state.activePenalty, state.penaltyType, opponentCounts);
-        const move = normalizeBotMove(raw, botHand, state.activePenalty, state.penaltyType);
-
-        if (move && move.action === "pick") {
-          const { next, drawnCount } = resolvePick(state, players, "bot");
-          setLastAction(`🤖 Bot picked ${drawnCount} card(s).`);
+        const r = await sendMove({ action: "bot_move" });
+        if (r.ok) {
+          if (r.text) setLastAction(r.text);
           playProfile("bbm", "receive");
-          await pushState(next);
-        } else if (move && move.action === "play") {
-          const { next, text } = resolvePlay(state, players, "bot", move.card, move.calledSuit ?? null, sessionId, nameOf);
-          setLastAction(text);
-          playProfile("bbm", "receive");
-          await pushState(next);
+        } else {
+          await new Promise((resolve) => setTimeout(resolve, 2000)); // back off before retrying
         }
       } finally {
         setIsProcessing(false);
@@ -554,7 +388,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
     }, 700);
 
     return () => clearTimeout(timer);
-  }, [isBotTurn, state, topCard, isProcessing, game.id, game.players, sentSig, stateSig]);
+  }, [isBotTurn, state, topCard, isProcessing, iAmSeated, game.id, sentSig, stateSig]);
 
   useEffect(() => {
     function onPointerMove(e: PointerEvent) {
@@ -628,25 +462,41 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
     pressedCardRef.current = card;
   }
 
-  async function pushState(next: WhotState): Promise<boolean> {
+  /** Sends an intent to the server. The server validates it against the real game and applies it. */
+  async function sendMove(body: Record<string, unknown>): Promise<{ ok: boolean; text?: string; penalty?: boolean }> {
     setSentSig(stateSignature(state));
     try {
-      const res = await fetch("/api/space-games", {
+      const res = await fetch("/api/space-games/move", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action: "update_state", gameId: game.id, game_state: next })
+        body: JSON.stringify({ game_id: game.id, ...body })
       });
+      const json = await res.json().catch(() => ({}));
       if (!res.ok) {
         setSentSig("");
-        flash("Move did not send. Check your connection.");
-        return false;
+        flash(res.status === 409 ? "The game just changed. Try again." : (json && json.error) || "Move did not send. Check your connection.");
+        return { ok: false };
       }
-      return true;
+      return { ok: true, text: json.text, penalty: json.penalty === true };
     } catch {
       setSentSig("");
       flash("Move did not send. Check your connection.");
-      return false;
+      return { ok: false };
     }
+  }
+
+  async function callLastCard() {
+    if (!canAct || isProcessing) return;
+    wake();
+    setIsProcessing(true);
+    const r = await sendMove({ action: "declare_last_card" });
+    if (r.ok) {
+      declaredRef.current = true;
+      setHasDeclaredLastCard(true);
+      if (r.text) setLastAction(r.text);
+      playProfile("bbm", "mention");
+    }
+    setIsProcessing(false);
   }
 
   function tryPlayCard(card: WhotCard) {
@@ -671,39 +521,27 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
   async function playCard(card: WhotCard, calledSuit: WhotSuit | null = null) {
     if (!canAct) return;
     wake();
-
-    if ((state.hands[sessionId] || []).length === 2 && !declaredRef.current) {
-      setIsProcessing(true);
-      const draw = drawCards(state.deck, state.discard, 1);
-      const penaltyState: WhotState = {
-        ...state,
-        deck: draw.deck,
-        discard: draw.discard,
-        hands: { ...state.hands, [sessionId]: [...(state.hands[sessionId] || []), ...draw.drawn] },
-        turn: state.activePenalty > 0 ? sessionId : getNextTurn(game.players, sessionId)
-      };
-      setSuitPickerOpen(false);
-      setSelectedCard(null);
-      setLastAction("You forgot to call LAST CARD. Penalty: pick 1.");
-      flash("You forgot to call LAST CARD. Penalty: pick 1.");
-      vibrate([80, 40, 80]);
-      await pushState(penaltyState);
-      setIsProcessing(false);
-      return;
-    }
-
     setIsProcessing(true);
-    const { next, text } = resolvePlay(state, game.players, sessionId, card, calledSuit, sessionId, nameOf);
-
-    setLastAction(text);
-    playProfile("bbm", "send");
-    vibrate(30);
-    declaredRef.current = false;
-    setHasDeclaredLastCard(false);
     setSuitPickerOpen(false);
     setSelectedCard(null);
 
-    await pushState(next);
+    const r = await sendMove({
+      action: "play",
+      card_id: card.id,
+      called_suit: calledSuit
+    });
+    if (r.ok) {
+      if (r.text) setLastAction(r.text);
+      if (r.penalty) {
+        flash(r.text || "You forgot to call LAST CARD. Penalty: pick 1.");
+        vibrate([80, 40, 80]);
+      } else {
+        playProfile("bbm", "send");
+        vibrate(30);
+      }
+      declaredRef.current = false;
+      setHasDeclaredLastCard(false);
+    }
     setIsProcessing(false);
   }
 
@@ -714,16 +552,13 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
       void playAudioFile(`/sounds/${voiceMode}/idongo.mp3`, 1);
     }
     setIsProcessing(true);
-
-    const { next, drawnCount } = resolvePick(state, game.players, sessionId);
-
-    setLastAction(`You picked ${drawnCount} card(s).`);
-    playProfile("bbm", "send");
-
-    declaredRef.current = false;
-    setHasDeclaredLastCard(false);
-
-    await pushState(next);
+    const r = await sendMove({ action: "pick" });
+    if (r.ok) {
+      if (r.text) setLastAction(r.text);
+      playProfile("bbm", "send");
+      declaredRef.current = false;
+      setHasDeclaredLastCard(false);
+    }
     setIsProcessing(false);
   }
 
@@ -731,15 +566,16 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
     if (!iAmSeated || isProcessing || isWaiting) return;
     wake();
     setIsProcessing(true);
-    const fresh = startWhotGame(game.players, state.useAnyplay);
-    declaredRef.current = false;
-    setHasDeclaredLastCard(false);
-    setSuitPickerOpen(false);
-    setSelectedCard(null);
-    setShowQuitModal(false);
-    setLastAction("New game started");
-    const ok = await pushState(fresh);
-    if (ok) playProfile("bbm", "mention");
+    const r = await sendMove({ action: "reset" });
+    if (r.ok) {
+      declaredRef.current = false;
+      setHasDeclaredLastCard(false);
+      setSuitPickerOpen(false);
+      setSelectedCard(null);
+      setShowQuitModal(false);
+      setLastAction("New game started");
+      playProfile("bbm", "mention");
+    }
     setIsProcessing(false);
   }
 
@@ -861,7 +697,7 @@ export function WhotGame({ game, isPlayer, sessionId, onQuit, mySeed }: { game: 
           {isSemiLast && canAct ? (
             <button
               type="button"
-              onClick={() => { wake(); setHasDeclaredLastCard(true); declaredRef.current = true; playProfile("bbm", "mention"); }}
+              onClick={() => { void callLastCard(); }}
               className={`shrink-0 rounded-full px-3 py-1 text-[12px] font-bold text-white ${hasDeclaredLastCard ? "bg-green-700" : "bg-red-600 motion-safe:animate-pulse"}`}
             >
               {hasDeclaredLastCard ? "✓ Last card called" : "Say last card"}
