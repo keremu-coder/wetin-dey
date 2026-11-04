@@ -104,7 +104,8 @@ function stateSignature(s: WhotState | null | undefined): string {
     s.activePenalty,
     s.penaltyType ?? "-",
     s.calledSuit ?? "-",
-    s.winner ?? "-"
+    s.winner ?? "-",
+    s.rev ?? 0
   ].join("|");
 }
 
