@@ -1,0 +1,151 @@
+import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
+import { Nav, SiteFooter } from "@/components/Nav";
+import { LiveStateProvider } from "@/components/LiveStateProvider";
+import { InstallPrompt } from "@/components/InstallPrompt";
+import { PushRegistrar } from "@/components/PushRegistrar";
+
+import { NativeNetworkMonitor } from "@/components/NativeNetworkMonitor";
+import { NativeScreenshotBlocker } from "@/components/NativeScreenshotBlocker";
+import { BottomNav } from "@/components/BottomNav";
+import { RouteWarmup } from "@/components/RouteWarmup";
+import { RouteRefresh } from "@/components/RouteRefresh";
+import { RouteProgress } from "@/components/RouteProgress";
+import { AudioUnlock } from "@/components/AudioUnlock";
+import { TermsGate } from "@/components/TermsGate";
+import { AgeGate } from "@/components/AgeGate";
+import { BiometricGate } from "@/components/BiometricGate";
+import { PullToRefresh } from "@/components/PullToRefresh";
+import { ToastProvider } from "@/components/Toast";
+import { StatusBarTheme } from "@/components/StatusBarTheme";
+import { SwipeBack } from "@/components/SwipeBack";
+import { EasyModeInit } from "@/components/EasyMode";
+import { FONT_VARIABLE_CLASSES } from "@/lib/fonts";
+import "./globals.css";
+
+import { Onboarding } from "@/components/OnboardingLazy";
+import { AppLock } from "@/components/AppLock";
+
+export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = {
+  title: "Wetin Dey",
+  description:
+    "Nigerian community. Anonymous if you want. Pidgin first. Reports that stay online forever.",
+  applicationName: "Wetin Dey",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Wetin Dey"
+  },
+  icons: {
+    icon: [
+      { url: "/icon-192.png?v=2", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png?v=2", sizes: "512x512", type: "image/png" },
+      { url: "/icon-1024.png?v=2", sizes: "1024x1024", type: "image/png" },
+      { url: "/icon.svg?v=2", type: "image/svg+xml" }
+    ],
+    apple: [{ url: "/apple-touch-icon.png?v=2", sizes: "180x180", type: "image/png" }],
+    shortcut: ["/icon-192.png?v=2"]
+  }
+};
+
+export const viewport: Viewport = {
+  themeColor: "#1E2F5C",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+  interactiveWidget: "resizes-content"
+};
+
+const themeScript = `
+(function() {
+  try {
+    var t = localStorage.getItem('wetindey_theme') || 'system';
+    var isDark = t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+    if (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) {
+      document.documentElement.classList.add('native');
+    }
+  } catch (e) {
+    document.documentElement.setAttribute('data-theme', 'light');
+  }
+})();
+`;
+export default async function RootLayout({
+  children
+}: {
+  children: React.ReactNode;
+}) {
+  const nonce = (await headers()).get("x-csp-nonce") ?? undefined;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseHost = supabaseUrl
+    ? (() => {
+        try {
+          return new URL(supabaseUrl).host;
+        } catch {
+          return null;
+        }
+      })()
+    : null;
+
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          nonce={nonce}
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: themeScript }}
+        />
+        <meta name="mobile-web-app-capable" content="yes" />
+        {supabaseHost ? (
+          <>
+            <link
+              rel="preconnect"
+              href={`https://${supabaseHost}`}
+              crossOrigin="anonymous"
+            />
+            <link rel="dns-prefetch" href={`https://${supabaseHost}`} />
+          </>
+        ) : null}
+      </head>
+      <body className={`min-h-screen font-sans ${FONT_VARIABLE_CLASSES}`}>
+        <ToastProvider>
+          <LiveStateProvider>
+              <BiometricGate>
+            <StatusBarTheme />
+            <SwipeBack />
+            <EasyModeInit />
+            <PushRegistrar />
+            
+            <NativeNetworkMonitor />
+            <NativeScreenshotBlocker />
+            <RouteWarmup />
+            <RouteRefresh />
+            <RouteProgress />
+            <AudioUnlock />
+            <AgeGate />
+            <Onboarding />
+            <InstallPrompt />
+            <TermsGate />
+            <Nav />
+            <AppLock>
+              <PullToRefresh>{children}</PullToRefresh>
+            </AppLock>
+            <SiteFooter />
+            <BottomNav />
+                        </BiometricGate>
+            </LiveStateProvider>
+        </ToastProvider>
+      </body>
+    </html>
+  );
+}
+
+
+
+
+

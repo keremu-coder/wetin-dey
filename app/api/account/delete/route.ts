@@ -1,0 +1,349 @@
+export const runtime = "nodejs";
+
+import { NextRequest, NextResponse } from "next/server";
+import { getSessionId } from "@/lib/session";
+import { createServiceClient } from "@/lib/supabase/server";
+import { sameOrigin, checkRateLimit, getRequestIp } from "@/lib/rate-limit";
+import { COOKIE_NAME } from "@/lib/constants";
+import { serverError } from "@/lib/http";
+
+const TOMBSTONE = "deleted";
+
+function supabaseStoragePath(url: string, bucket: string): string | null {
+  try {
+    if (url.startsWith("http")) {
+      const u = new URL(url);
+      const marker = `/storage/v1/object/public/${bucket}/`;
+      const i = u.pathname.indexOf(marker);
+      if (i >= 0) return u.pathname.slice(i + marker.length);
+    } else {
+      const marker = `/${bucket}/`;
+      const i = url.indexOf(marker);
+      if (i >= 0) return url.slice(i + marker.length);
+    }
+  } catch {}
+  return null;
+}
+
+async function deleteOrFail(db: any, table: string, column: string, value: string | string[]) {
+  const q = db.from(table).delete();
+  const { error } = Array.isArray(value) ? await q.in(column, value) : await q.eq(column, value);
+  if (error) throw new Error(`Failed to delete from ${table}: ${error.message}`);
+}
+
+async function removeAll(db: any, bucket: string, prefix: string): Promise<string | null> {
+  for (;;) {
+    const { data: entries, error } = await db.storage.from(bucket).list(prefix, { limit: 1000 });
+    if (error) return `Could not list ${bucket}/${prefix}: ${error.message}`;
+    if (!entries || entries.length === 0) return null;
+    const files: string[] = [];
+    for (const e of entries) {
+      if (e.id === null) {
+        const sub = await removeAll(db, bucket, `${prefix}/${e.name}`);
+        if (sub) return sub;
+      } else {
+        files.push(`${prefix}/${e.name}`);
+      }
+    }
+    if (files.length === 0) return null;
+    const { error: delErr } = await db.storage.from(bucket).remove(files);
+    if (delErr) return `Could not delete from ${bucket}: ${delErr.message}`;
+    if (entries.length < 1000) return null;
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    if (!sameOrigin(req)) return Response.json({ error: "bad origin" }, { status: 403 });
+    const sessionId = await getSessionId();
+    if (!sessionId) return Response.json({ error: "no session" }, { status: 401 });
+
+    const limit = await checkRateLimit(sessionId,
+      { key: "account_delete", limit: 10, windowMs: 10 * 60 * 1000 },
+      { ip: getRequestIp(req) });
+    if (!limit.ok) return Response.json({ error: "Too many attempts. Try again later." }, { status: 429 });
+
+    let body: { confirm?: unknown } = {};
+    try { body = (await req.json()) as any; } catch { return Response.json({ error: "bad json" }, { status: 400 }); }
+    if (body.confirm !== "DELETE") return Response.json({ error: 'Type "DELETE" exactly to confirm.' }, { status: 400 });
+
+    const db = createServiceClient();
+    const { data: session, error: sessErr } = await db
+      .from("sessions").select("id, handle, email, auth_user_id, avatar_url")
+      .eq("id", sessionId).maybeSingle();
+    if (sessErr) return Response.json({ error: "Server error" }, { status: 500 });
+    if (!session) return Response.json({ error: "Session not found." }, { status: 404 });
+
+    // Tombstone session: reports and comments will be re-pointed here so
+    // they no longer link to the user. Kept in the archive, detached from
+    // the account — the retention promise in /privacy and /delete-account.
+    await db.from("sessions").upsert({
+      id: TOMBSTONE, handle: "deleted_user", handle_lower: "deleted_user",
+      handle_kind: "anonymous", hide_presence: true
+    }, { onConflict: "id", ignoreDuplicates: true });
+
+    // NOTE: the previous version of this handler deleted every report's
+    // evidence here. That contradicted the retention promise (reports stay
+    // in the archive), so evidence is now kept with the report. Evidence
+    // for reports in communities this user OWNS is still deleted inside
+    // the community-deletion block below, because those reports are
+    // deleted along with the community.
+
+    // 1. Avatar and status photos
+    const avatarErr = await removeAll(db, "user-avatars", sessionId);
+    if (avatarErr) return Response.json({ error: "Could not delete your profile photo." }, { status: 500 });
+    const statusErr = await removeAll(db, "user-avatars", `status/${sessionId}`);
+    if (statusErr) return Response.json({ error: "Could not delete your status photo." }, { status: 500 });
+
+    // 2. Owned communities: child rows first, then parent
+    const { data: ownedCommunities } = await db
+      .from("communities").select("id, avatar_url").eq("owner_session_id", sessionId);
+    for (const c of ownedCommunities ?? []) {
+      if (c.avatar_url) {
+        const path = supabaseStoragePath(c.avatar_url, "space-avatars");
+        if (path) {
+          const { error } = await db.storage.from("space-avatars").remove([path]);
+          if (error) return Response.json({ error: "Could not delete a space avatar." }, { status: 500 });
+        }
+      }
+      try {
+        // Reports in this community, plus everything referencing them
+        // WITHOUT ON DELETE CASCADE (migrations/001). Delete those first.
+        const { data: communityReports, error: crErr } = await db
+          .from("reports").select("id").eq("community_id", c.id);
+        if (crErr) throw new Error("Could not read community reports.");
+        const reportIds = (communityReports ?? []).map((r) => r.id as string);
+
+        if (reportIds.length > 0) {
+          const { deleteReportEvidence } = await import("@/lib/evidence-cleanup");
+          for (const rid of reportIds) await deleteReportEvidence(rid, { strict: true });
+
+          for (let i = 0; i < reportIds.length; i += 100) {
+            const ids = reportIds.slice(i, i + 100);
+
+            const { data: cmts, error: cmtErr } = await db
+              .from("comments").select("audio_url").in("report_id", ids).not("audio_url", "is", null);
+            if (cmtErr) throw new Error("Could not read comment audio.");
+            for (const m of cmts ?? []) {
+              const p = m.audio_url ? supabaseStoragePath(m.audio_url, "voice-notes") : null;
+              if (p) {
+                const { error } = await db.storage.from("voice-notes").remove([p]);
+                if (error) throw new Error("Could not delete a comment voice note.");
+              }
+            }
+
+            for (const table of ["comments", "me_toos", "flags", "disputes", "formalization_log"]) {
+              await deleteOrFail(db, table, "report_id", ids);
+            }
+          }
+        }
+
+        const { data: cm, error: cmReadErr } = await db
+          .from("community_messages")
+          .select("audio_url")
+          .eq("community_id", c.id)
+          .not("audio_url", "is", null);
+        if (cmReadErr) throw new Error("Could not read community messages.");
+        for (const m of cm ?? []) {
+          const p = m.audio_url ? supabaseStoragePath(m.audio_url, "voice-notes") : null;
+          if (p) {
+            const { error } = await db.storage.from("voice-notes").remove([p]);
+            if (error) throw new Error("Could not delete a community voice note.");
+          }
+        }
+
+        const mediaErr = await removeAll(db, "community-media", `chat/${c.id}`);
+        if (mediaErr) throw new Error(mediaErr);
+
+        await deleteOrFail(db, "reports", "community_id", c.id);
+        await deleteOrFail(db, "community_messages", "community_id", c.id);
+        await deleteOrFail(db, "community_members", "community_id", c.id);
+        await deleteOrFail(db, "communities", "id", c.id);
+      } catch (err: any) {
+        return Response.json({ error: err.message }, { status: 500 });
+      }
+    }
+
+    // 3. Broadcasts
+    const { data: broadcasts } = await db.from("broadcasts").select("id, audio_url").eq("session_id", sessionId);
+    for (const b of broadcasts ?? []) {
+      if (b.audio_url) {
+        const path = supabaseStoragePath(b.audio_url, "voice-notes");
+        if (path) {
+          const { error } = await db.storage.from("voice-notes").remove([path]);
+          if (error) return Response.json({ error: "Could not delete a voice note." }, { status: 500 });
+        }
+      }
+    }
+    const { error: bErr } = await db.from("broadcasts").delete().eq("session_id", sessionId);
+    if (bErr) return Response.json({ error: "Could not delete your broadcasts." }, { status: 500 });
+
+    // 4. Chat voice notes
+    const { data: cmAudio } = await db.from("community_messages").select("id, audio_url")
+      .eq("session_id", sessionId).not("audio_url", "is", null);
+    for (const m of cmAudio ?? []) {
+      if (m.audio_url) {
+        const path = supabaseStoragePath(m.audio_url, "voice-notes");
+        if (path) {
+          const { error } = await db.storage.from("voice-notes").remove([path]);
+          if (error) return Response.json({ error: "Could not delete a chat voice note." }, { status: 500 });
+        }
+      }
+    }
+
+    // 5. DM threads: STORAGE FIRST, then DB
+    const { data: dmThreads } = await db.from("dm_threads").select("id")
+      .or(`session_a.eq.${sessionId},session_b.eq.${sessionId}`);
+    const threadIds = (dmThreads ?? []).map(t => t.id);
+    if (threadIds.length > 0) {
+      for (const tId of threadIds) {
+        const err = await removeAll(db, "dm-media", tId);
+        if (err) {
+          console.error("[account/delete] dm-media:", err);
+          return Response.json({ error: "Could not delete your DM media. Please try again." }, { status: 500 });
+        }
+      }
+      const { error: msgErr } = await db.from("dm_messages").delete().in("thread_id", threadIds);
+      if (msgErr) return Response.json({ error: "Could not delete your direct messages." }, { status: 500 });
+      const { error: thrErr } = await db.from("dm_threads").delete().in("id", threadIds);
+      if (thrErr) return Response.json({ error: "Could not delete your conversation threads." }, { status: 500 });
+    }
+    const { error: dmSentErr } = await db.from("dm_messages").delete().eq("sender_id", sessionId);
+    if (dmSentErr) return Response.json({ error: "Could not delete orphaned direct messages." }, { status: 500 });
+
+    // 6. All rows owned by this session
+    try {
+      await deleteOrFail(db, "admins", "session_id", sessionId);
+      // disputes, formalization_log and moderation_actions have NO session
+      // column (migrations/001_initial.sql): nothing to delete by session.
+      // Deleting by a missing column aborted every account deletion.
+      await deleteOrFail(db, "follows", "follower_session_id", sessionId);
+      await deleteOrFail(db, "follows", "followed_session_id", sessionId);
+      await deleteOrFail(db, "blocked_users", "blocker_session_id", sessionId);
+      await deleteOrFail(db, "blocked_users", "blocked_session_id", sessionId);
+      await deleteOrFail(db, "push_subscriptions", "session_id", sessionId);
+      await deleteOrFail(db, "native_push_tokens", "session_id", sessionId);
+      await deleteOrFail(db, "rate_events", "session_id", sessionId);
+      await deleteOrFail(db, "dm_violations", "session_id", sessionId);
+      await deleteOrFail(db, "report_replies", "session_id", sessionId);
+      await deleteOrFail(db, "post_votes", "session_id", sessionId);
+      await deleteOrFail(db, "comment_votes", "session_id", sessionId);
+      await deleteOrFail(db, "message_reactions", "session_id", sessionId);
+      await deleteOrFail(db, "reactions", "session_id", sessionId);
+      await deleteOrFail(db, "topic_follows", "session_id", sessionId);
+      await deleteOrFail(db, "daily_answers", "session_id", sessionId);
+      await deleteOrFail(db, "checkin_requests", "session_id", sessionId);
+      await deleteOrFail(db, "checkin_responses", "session_id", sessionId);
+      await deleteOrFail(db, "content_flags", "session_id", sessionId);
+      // Notifications: recipient_id and actor_id are separate columns.
+      // Deleting both directions also drops any reference to the scrubbed
+      // session. Pre-existing bug: the old code used "session_id" here,
+      // which does not exist on this table and would 500 at this step.
+      await deleteOrFail(db, "notifications", "recipient_id", sessionId);
+      await deleteOrFail(db, "notifications", "actor_id", sessionId);
+      await deleteOrFail(db, "flags", "session_id", sessionId);
+      await deleteOrFail(db, "me_toos", "session_id", sessionId);
+      await deleteOrFail(db, "radar_signals", "sender_id", sessionId);
+      await deleteOrFail(db, "radar_signals", "recipient_id", sessionId);
+      await deleteOrFail(db, "radar_contacts", "owner_id", sessionId);
+      await deleteOrFail(db, "radar_contacts", "contact_id", sessionId);
+      await deleteOrFail(db, "community_members", "session_id", sessionId);
+    } catch (err: any) { return Response.json({ error: err.message }, { status: 500 }); }
+
+    // 6b. The user's own view-once media in OTHER people's spaces.
+    // (42703 = column missing in this database; nothing to clean then.)
+    const { data: myMedia, error: myMediaErr } = await db
+      .from("community_messages").select("media_path")
+      .eq("session_id", sessionId).not("media_path", "is", null);
+    if (myMediaErr && (myMediaErr as any).code !== "42703") {
+      return Response.json({ error: "Could not read your chat media." }, { status: 500 });
+    }
+    const mediaPaths = (myMedia ?? []).map((m: any) => m.media_path as string).filter(Boolean);
+    for (let i = 0; i < mediaPaths.length; i += 100) {
+      const { error } = await db.storage.from("community-media").remove(mediaPaths.slice(i, i + 100));
+      if (error) return Response.json({ error: "Could not delete your chat media." }, { status: 500 });
+    }
+
+    // 7. Chat messages: deleted (transient — the privacy policy says they
+    // stay "until you or a moderator deletes them", and account deletion
+    // is that).
+    const { error: cmErr } = await db.from("community_messages").delete().eq("session_id", sessionId);
+    if (cmErr) return Response.json({ error: "Could not delete your chat messages." }, { status: 500 });
+
+    // 7b. Reports and comments: ANONYMIZED, not deleted. The civic archive
+    // keeps every non-violating report at its permanent URL, detached from
+    // the author. Matches /privacy ("we replace your session id and handle
+    // with a placeholder") and /delete-account. Do NOT switch this back to
+    // .delete() — it would resurrect the 5.1.1(v) rejection risk.
+    const { error: rErr } = await db
+      .from("reports")
+      .update({ session_id: TOMBSTONE, author_handle: null })
+      .eq("session_id", sessionId);
+    if (rErr) return Response.json({ error: "Could not detach your reports from your account." }, { status: 500 });
+
+    const { error: cErr } = await db
+      .from("comments")
+      .update({ session_id: TOMBSTONE })
+      .eq("session_id", sessionId);
+    if (cErr) return Response.json({ error: "Could not detach your comments from your account." }, { status: 500 });
+
+    // 8. Scrub sessions row
+    const scrubHandle = `deleted_${sessionId.slice(0, 8)}`;
+    const { error: updErr } = await db.from("sessions").update({
+      handle: scrubHandle, handle_kind: "anonymous", display_name: null,
+      email: null, phone: null, auth_provider: "none", auth_user_id: null,
+      bio: null, avatar_url: null, status_line: null, status_line_updated_at: null,
+      status_photo_url: null, status_photo_updated_at: null,
+      availability: null, recovery_code: null, recovery_code_hash: null,
+      previous_handles: null, dm_policy: "everyone", hide_presence: true, accepted_terms_at: null
+    }).eq("id", sessionId);
+    if (updErr) return Response.json({ error: "Profile couldn't be scrubbed." }, { status: 500 });
+
+    // 9. Delete Auth user LAST
+    if (session.auth_user_id) {
+      const { error: authDelErr } = await db.auth.admin.deleteUser(session.auth_user_id);
+      if (authDelErr) {
+        return Response.json({ ok: false, partial: true, error: "Your data was deleted, but sign-in removal failed. Contact support." }, { status: 500 });
+      }
+    } else if (session.email) {
+      try {
+        const match = await findAuthUserByEmail(db, session.email);
+        if (match) {
+          const { error: authDelErr } = await db.auth.admin.deleteUser(match);
+          if (authDelErr) {
+            return Response.json({ ok: false, partial: true, error: "Your data was deleted, but sign-in removal failed. Contact support." }, { status: 500 });
+          }
+        }
+      } catch (e) {
+        return Response.json({ ok: false, partial: true, error: "Your data was deleted, but sign-in cleanup hit an error. Contact support." }, { status: 500 });
+      }
+    }
+
+    const res = NextResponse.json({ ok: true });
+    res.cookies.set({
+      name: COOKIE_NAME, value: "", httpOnly: true,
+      secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 0
+    });
+    return res;
+  } catch (e) {
+    console.error("[account/delete]", e);
+    return serverError("account/delete", e);
+  }
+}
+
+async function findAuthUserByEmail(db: ReturnType<typeof createServiceClient>, email: string): Promise<string | null> {
+  const target = email.toLowerCase();
+  let page = 1;
+  const perPage = 1000;
+  const MAX_PAGES = 50;
+  while (page <= MAX_PAGES) {
+    const { data, error } = await db.auth.admin.listUsers({ page, perPage });
+    if (error) throw new Error(`Auth listUsers failed: ${error.message}`);
+    const users = data?.users ?? [];
+    const match = users.find((u) => (u.email ?? "").toLowerCase() === target);
+    if (match) return match.id;
+    if (users.length < perPage) return null;
+    page++;
+  }
+  return null;
+}

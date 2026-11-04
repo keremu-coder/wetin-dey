@@ -1,0 +1,30 @@
+# Always normalize line endings in git storage to LF.
+# Windows editors may write CRLF on disk; git will convert on commit.
+* text=auto eol=lf
+
+# Explicit binaries — do not attempt to normalize.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.eot binary
+*.pdf binary
+*.zip binary
+*.mp4 binary
+*.webm binary
+*.m4a binary
+*.ogg binary
+*.mp3 binary
+*.wav binary
+
+# Lockfiles — LF, always.
+package-lock.json text eol=lf
+
+# Shell scripts — LF so they run on macOS/Linux.
+*.sh text eol=lf

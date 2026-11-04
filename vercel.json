@@ -1,0 +1,7 @@
+{
+  "regions": ["fra1"],
+  "crons": [
+    { "path": "/api/mirror", "schedule": "0 0 * * *" },
+    { "path": "/api/archive/export", "schedule": "0 1 * * *" }
+  ]
+}
