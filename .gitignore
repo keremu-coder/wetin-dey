@@ -1,0 +1,21 @@
+node_modules
+.next
+out
+.env
+.env.local
+.vercel
+*.log
+tsconfig.tsbuildinfo
+.env.test
+
+.vercel
+.env*
+
+android/.idea/
+
+# Signing secrets — never commit
+android/keystore.properties
+*.jks
+*.keystore
+
+.idea/

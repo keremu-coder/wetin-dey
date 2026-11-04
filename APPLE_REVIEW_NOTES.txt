@@ -1,0 +1,33 @@
+Hello Apple Review Team,
+
+Wetin Dey is a hybrid app built with Next.js and wrapped in Capacitor. While it loads web content, it includes significant native functionality that provides a distinct app experience:
+
+1. Native Background Location (Radar): The "Radar" safety feature uses native iOS location services to broadcast a temporary, private signal to approved contacts. The app includes explicit Info.plist usage descriptions for this.
+2. Offline Handling: When the device is offline, the native shell loads a bundled offline.html page with a Retry button instead of a generic browser error.
+3. Device Integration: The app utilizes native safe-area insets and haptic feedback.
+
+HOW TO TEST KEY FEATURES:
+
+Delete Account:
+  Open the menu (hamburger top-right) → Settings → Delete Account. Type DELETE to confirm.
+
+Block a user:
+  Open any DM → tap the ••• menu (top-right) → Block @handle.
+  Or open a profile → tap ••• (top-right) → Block.
+
+Report a DM:
+  Open any DM → scroll to any incoming message → tap "Report" under the message.
+  Choose a reason and submit.
+
+Report a post or comment:
+  Open any post → tap the ••• on the post → Report.
+
+Radar (background location):
+  Open the Radar tab → tap "Need help" → allow location "While Using" then "Always".
+  The signal auto-expires after 4 hours.
+
+Content moderation SLA:
+  All reported content is reviewed by our team and actioned within 24 hours. Repeat violators are removed.
+
+For testing, use the anonymous login option (Stay Anonymous) to bypass email requirements.
+

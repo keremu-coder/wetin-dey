@@ -1,0 +1,16 @@
+name: radar-sweep
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping sweep endpoint
+        run: |
+          curl -fsS -X GET "https://9jawatindey.vercel.app/api/radar/sweep" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "User-Agent: wetin-dey-sweep"

@@ -1,0 +1,49 @@
+export const runtime = "nodejs";
+import { NextRequest, NextResponse } from "next/server";
+import { createServiceClient } from "@/lib/supabase/server";
+
+/**
+ * Auto-stop sweep. Flips location_stopped = true on every signal whose
+ * expires_at has passed. Called every 15 minutes by the GitHub Actions
+ * workflow .github/workflows/radar-sweep.yml (NOT by Vercel cron: vercel.json
+ * has no entry for it). If that workflow is disabled, signals do not expire.
+ *
+ * Guarded by CRON_SECRET so external callers can't trigger it. Vercel
+ * sends `Authorization: Bearer $CRON_SECRET` on scheduled invocations.
+ */
+export async function GET(req: NextRequest) {
+  try {
+    const secret = process.env.CRON_SECRET;
+    if (!secret) {
+      // Hard 500 if the secret is missing. Previously this branch
+      // silently allowed any caller through, which would let anyone
+      // auto-stop another user's live Radar signal.
+      console.error("[radar/sweep] CRON_SECRET is not set");
+      return NextResponse.json({ error: "Server error" }, { status: 500 });
+    }
+    const auth = req.headers.get("authorization") ?? "";
+    if (auth !== `Bearer ${secret}`) {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    }
+
+    const db = createServiceClient();
+    const nowIso = new Date().toISOString();
+    const { data, error } = await db
+      .from("radar_signals")
+      .update({ location_stopped: true, lat: null, lng: null })
+      .eq("location_sharing", true)
+      .eq("location_stopped", false)
+      .lt("expires_at", nowIso)
+      .select("id");
+
+    if (error) {
+      console.error("[radar/sweep]", error.message);
+      return NextResponse.json({ error: "Server error" }, { status: 500 });
+    }
+
+    return NextResponse.json({ ok: true, stopped: data?.length ?? 0 });
+  } catch (err) {
+    console.error("[radar/sweep]", err);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
+}

@@ -1,0 +1,202 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { isNativePlatform } from "@/lib/native";
+import { impactFeedback } from "@/lib/haptics";
+
+/**
+ * Native pull-to-refresh.
+ *
+ * iOS and Android both have this gesture; the browser does not expose it
+ * to web apps, so it has to be faked from touch events. This component:
+ *
+ *   1. Only activates inside the Capacitor native shell. In a browser it
+ *      renders children straight through, so it never fights with Chrome
+ *      or Safari's own scroll behaviour.
+ *   2. Bails out on fullscreen routes (`/c/[slug]/chat`, `/inbox/[id]`).
+ *      Those screens scroll an inner container, not the window.
+ *   3. Declines touches that start near the left edge — those are for
+ *      SwipeBack, not pull-to-refresh.
+ *   4. Listens for a downward drag that *starts* when the page is
+ *      already scrolled to the top. Once the finger moves the page, the
+ *      gesture is dead until the user lifts and pulls again from the top.
+ *   5. Fires `router.refresh()` on release past the threshold, with
+ *      haptic feedback so it feels native on a real device.
+ *
+ * IMPORTANT — why we use position:relative + top instead of transform:
+ *
+ * A non-none `transform` on an ancestor creates a new containing block
+ * for any `position: fixed` descendant. Chat pages put their composer on
+ * `fixed bottom-0` (relative to the viewport). Wrapping them in a
+ * `transform: translateY(0)` div made that composer jump to the bottom
+ * of a short wrapper box instead of the screen — the whole chat layout
+ * collapsed upward. `position: relative; top: Npx` gives the same visual
+ * offset without creating a containing block, so `fixed` children stay
+ * anchored to the viewport.
+ */
+const PULL_THRESHOLD = 70;
+const MAX_PULL = 120;
+const DAMPING = 0.5;
+const RESET_DELAY_MS = 700;
+const SWIPE_EDGE_ZONE = 24;
+
+// Keep this in sync with `isFullscreenRoute` in components/Nav.tsx.
+function isFullscreenRoute(pathname: string): boolean {
+  if (/^\/c\/[^/]+\/chat/.test(pathname)) return true;
+  if (/^\/inbox\/[^/]+/.test(pathname)) return true;
+  return false;
+}
+
+export function PullToRefresh({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [enabled, setEnabled] = useState(false);
+  const [pull, setPull] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const pullRef = useRef(0);
+  const startY = useRef<number | null>(null);
+  const dragging = useRef(false);
+  const refreshingRef = useRef(false);
+
+  // `isNativePlatform()` reads `window`, so it must not run during SSR.
+  // Deferring to an effect keeps server and first-client render identical.
+  useEffect(() => {
+    setEnabled(isNativePlatform());
+  }, []);
+
+  const fullscreen = isFullscreenRoute(pathname);
+  const active = enabled && !fullscreen;
+
+  useEffect(() => {
+    if (!active) return;
+
+    function setPullValue(v: number) {
+      pullRef.current = v;
+      setPull(v);
+    }
+
+    function onTouchStart(e: TouchEvent) {
+      if (refreshingRef.current) return;
+      if (window.scrollY > 0) return;
+      // Leave the left edge alone — that gesture belongs to SwipeBack.
+      const t = e.touches[0];
+      if (t.clientX < SWIPE_EDGE_ZONE) return;
+      startY.current = t.clientY;
+      dragging.current = true;
+    }
+
+    function onTouchMove(e: TouchEvent) {
+      if (!dragging.current || startY.current === null) return;
+      const dy = e.touches[0].clientY - startY.current;
+      if (dy <= 0) {
+        setPullValue(0);
+        return;
+      }
+      setPullValue(Math.min(MAX_PULL, dy * DAMPING));
+    }
+
+    function trigger() {
+      refreshingRef.current = true;
+      setRefreshing(true);
+      setPullValue(PULL_THRESHOLD);
+      void impactFeedback();
+      router.refresh();
+      window.setTimeout(() => {
+        refreshingRef.current = false;
+        setRefreshing(false);
+        setPullValue(0);
+      }, RESET_DELAY_MS);
+    }
+
+    function onTouchEnd() {
+      if (!dragging.current) return;
+      dragging.current = false;
+      startY.current = null;
+      if (pullRef.current >= PULL_THRESHOLD && !refreshingRef.current) {
+        trigger();
+      } else {
+        setPullValue(0);
+      }
+    }
+
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: true });
+    window.addEventListener("touchend", onTouchEnd);
+    window.addEventListener("touchcancel", onTouchEnd);
+    return () => {
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onTouchEnd);
+      window.removeEventListener("touchcancel", onTouchEnd);
+    };
+  }, [active, router]);
+
+  // On fullscreen routes, snap pull back to zero so a residual drag value
+  // from the previous screen never bleeds through as a visual offset.
+  useEffect(() => {
+    if (fullscreen && pull !== 0) {
+      pullRef.current = 0;
+      setPull(0);
+    }
+  }, [fullscreen, pull]);
+
+  const progress = Math.min(1, pull / PULL_THRESHOLD);
+  const transition = dragging.current ? "none" : "top 250ms ease-out";
+
+  // On fullscreen routes, render children straight through. No wrapper,
+  // no positioning context — the chat page's fixed composer stays fixed
+  // to the viewport as intended.
+  if (!active) {
+    return <>{children}</>;
+  }
+
+  return (
+    <>
+      {pull > 0 ? (
+        <div
+          className="pointer-events-none fixed inset-x-0 z-30 flex justify-center"
+          style={{
+            top: "calc(0.5rem + env(safe-area-inset-top, 0px))",
+            transform: `translateY(${pull}px)`,
+            transition: "transform 250ms ease-out"
+          }}
+          aria-hidden
+        >
+          <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-surface shadow-lg">
+            {refreshing ? (
+              <span className="block h-5 w-5 animate-spin rounded-full border-2 border-ink/20 border-t-accent" />
+            ) : (
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="text-brand"
+                style={{
+                  transform: `rotate(${progress * 180}deg)`,
+                  transition: "transform 150ms ease-out"
+                }}
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            )}
+          </div>
+        </div>
+      ) : null}
+      <div
+        style={{
+          position: "relative",
+          top: pull,
+          transition
+        }}
+      >
+        {children}
+      </div>
+    </>
+  );
+}
