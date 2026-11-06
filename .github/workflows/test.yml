@@ -1,0 +1,23 @@
+name: Tests
+
+# Runs the unit tests (including the EXIF-stripping test in lib/exif.test.ts)
+# on every push and every pull request, so a pass or fail is visible on GitHub.
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm test
