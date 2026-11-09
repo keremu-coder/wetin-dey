@@ -94,12 +94,20 @@ export default async function CommunityPage(props: {
     .limit(1)
     .maybeSingle();
 
-  const { data: posts } = await db
+  // Same rule as the report page: a held post stays with its author.
+  // Other visitors must not see it on a public or private space.
+  let postsQuery = db
     .from("reports")
     .select("*")
     .eq("community_id", community.id)
     .order("created_at", { ascending: false })
     .limit(30);
+  postsQuery =
+    sessionId && /^[A-Za-z0-9_-]{8,64}$/.test(sessionId)
+      ? postsQuery.or(`held.eq.false,session_id.eq.${sessionId}`)
+      : postsQuery.eq("held", false);
+
+  const { data: posts } = await postsQuery;
 
   const list = posts ?? [];
 
